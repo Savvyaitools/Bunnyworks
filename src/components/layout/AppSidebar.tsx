@@ -1,0 +1,175 @@
+import { 
+  LayoutDashboard, 
+  Users, 
+  UserCog, 
+  CheckSquare, 
+  Calendar,
+  BookOpen,
+  FileText,
+  MessageSquare,
+  Bell,
+  Settings,
+  LogOut,
+  ChevronLeft
+} from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const mainNavItems = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Creators", url: "/creators", icon: Users },
+  { title: "Employees", url: "/employees", icon: UserCog },
+  { title: "Tasks", url: "/tasks", icon: CheckSquare },
+  { title: "Calendar", url: "/calendar", icon: Calendar },
+  { title: "SOP Library", url: "/sop", icon: BookOpen },
+  { title: "Invoices", url: "/invoices", icon: FileText },
+  { title: "Messages", url: "/messages", icon: MessageSquare, badge: 3 },
+];
+
+const bottomNavItems = [
+  { title: "Notifications", url: "/notifications", icon: Bell },
+  { title: "Settings", url: "/settings", icon: Settings },
+];
+
+export function AppSidebar() {
+  const location = useLocation();
+  const { state, toggleSidebar } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <Sidebar 
+      className={cn(
+        "border-r border-sidebar-border bg-sidebar transition-all duration-300",
+        isCollapsed ? "w-16" : "w-64"
+      )}
+      collapsible="icon"
+    >
+      <SidebarHeader className="p-4 border-b border-sidebar-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Logo */}
+            <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-sm">
+              <span className="text-lg font-bold text-primary-foreground">C</span>
+            </div>
+            {!isCollapsed && (
+              <div className="animate-fade-in">
+                <h1 className="font-semibold text-foreground">Creator OS</h1>
+                <p className="text-xs text-muted-foreground">Agency CRM</p>
+              </div>
+            )}
+          </div>
+          <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors">
+            <ChevronLeft className={cn(
+              "h-4 w-4 transition-transform duration-300",
+              isCollapsed && "rotate-180"
+            )} />
+          </SidebarTrigger>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent className="px-2 py-4">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainNavItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        className={cn(
+                          "nav-item w-full justify-start",
+                          isActive && "active"
+                        )}
+                      >
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && (
+                          <>
+                            <span className="flex-1">{item.title}</span>
+                            {item.badge && (
+                              <Badge 
+                                variant="default" 
+                                className="h-5 min-w-5 px-1.5 text-xs bg-primary text-primary-foreground"
+                              >
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="p-2 border-t border-sidebar-border">
+        <SidebarMenu>
+          {bottomNavItems.map((item) => {
+            const isActive = location.pathname === item.url;
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to={item.url}
+                    className={cn(
+                      "nav-item w-full justify-start",
+                      isActive && "active"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    {!isCollapsed && <span>{item.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+
+        {/* User Profile */}
+        <div className={cn(
+          "flex items-center gap-3 p-3 mt-2 rounded-lg bg-muted/30",
+          isCollapsed && "justify-center p-2"
+        )}>
+          <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=admin" />
+            <AvatarFallback className="bg-primary/20 text-primary">SA</AvatarFallback>
+          </Avatar>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0 animate-fade-in">
+              <p className="text-sm font-medium text-foreground truncate">Savvy</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                Online
+              </p>
+            </div>
+          )}
+          {!isCollapsed && (
+            <button className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
