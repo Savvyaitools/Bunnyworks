@@ -14,6 +14,7 @@ import Invoices from "./pages/Invoices";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import { PortalDashboard, PortalTasks, PortalMessages, PortalInvoices, PortalContent } from "./pages/portal";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,12 @@ const App = () => (
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />
+          {/* Creator Portal Routes */}
+          <Route path="/portal" element={<PortalDashboard />} />
+          <Route path="/portal/tasks" element={<PortalTasks />} />
+          <Route path="/portal/messages" element={<PortalMessages />} />
+          <Route path="/portal/invoices" element={<PortalInvoices />} />
+          <Route path="/portal/content" element={<PortalContent />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
