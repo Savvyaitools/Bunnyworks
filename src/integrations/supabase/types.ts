@@ -47,6 +47,96 @@ export type Database = {
         }
         Relationships: []
       }
+      creators: {
+        Row: {
+          avatar_seed: string | null
+          created_at: string
+          email: string
+          followers: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          platform: string | null
+          revenue: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_seed?: string | null
+          created_at?: string
+          email: string
+          followers?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          platform?: string | null
+          revenue?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_seed?: string | null
+          created_at?: string
+          email?: string
+          followers?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          platform?: string | null
+          revenue?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          assigned_creators: number
+          avatar_seed: string | null
+          created_at: string
+          department: string | null
+          email: string
+          hire_date: string | null
+          id: string
+          name: string
+          phone: string | null
+          role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_creators?: number
+          avatar_seed?: string | null
+          created_at?: string
+          department?: string | null
+          email: string
+          hire_date?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          role: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_creators?: number
+          avatar_seed?: string | null
+          created_at?: string
+          department?: string | null
+          email?: string
+          hire_date?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -76,6 +166,60 @@ export type Database = {
           sender_type?: string
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          creator_id: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
