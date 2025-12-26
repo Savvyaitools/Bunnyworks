@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Building2, Sparkles } from "lucide-react";
+import { Loader2, Building2, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logo from "@/assets/logo.png";
 
 type UserType = "agency" | "creator";
 type AuthMode = "signin" | "signup";
@@ -45,7 +46,7 @@ export default function Auth() {
           toast.success("Account created! Redirecting...");
           // Redirect based on user type
           setTimeout(() => {
-            navigate(userType === "creator" ? "/portal" : "/");
+            navigate(userType === "creator" ? "/portal" : "/dashboard");
           }, 1000);
         }
       } else {
@@ -65,12 +66,25 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8 animate-fade-in">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full pointer-events-none" />
+      
+      {/* Back to home */}
+      <Link 
+        to="/" 
+        className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to home
+      </Link>
+      
+      <div className="w-full max-w-md space-y-8 animate-fade-in relative z-10">
         {/* Logo */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Creator OS
+          <img src={logo} alt="Premium Fangirls" className="h-20 w-auto mx-auto mb-4" />
+          <h1 className="text-3xl font-bold gradient-text">
+            Premium Fangirls
           </h1>
           <p className="text-muted-foreground mt-2">
             {mode === "signin" ? "Welcome back" : "Create your account"}
