@@ -2,71 +2,56 @@ import { ArrowRight, Star, Users, DollarSign, TrendingUp, Zap, Shield, Clock } f
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
-
-const features = [
-  {
-    icon: Users,
-    title: "Creator Management",
-    description: "Manage all your creators in one centralized dashboard with real-time analytics.",
-  },
-  {
-    icon: DollarSign,
-    title: "Revenue Tracking",
-    description: "Track earnings, commissions, and payouts with detailed financial reports.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Growth Analytics",
-    description: "Monitor performance trends and identify opportunities for growth.",
-  },
-  {
-    icon: Zap,
-    title: "Task Automation",
-    description: "Streamline workflows with automated task management and assignments.",
-  },
-  {
-    icon: Shield,
-    title: "Secure Portal",
-    description: "Dedicated creator portal with secure file sharing and messaging.",
-  },
-  {
-    icon: Clock,
-    title: "Real-time Updates",
-    description: "Stay connected with instant notifications and live activity feeds.",
-  },
-];
-
-const testimonials = [
-  {
-    name: "Sarah M.",
-    role: "Agency Owner",
-    content: "Premium Fangirls has transformed how we manage our creators. Revenue is up 40% since switching.",
-    rating: 5,
-  },
-  {
-    name: "Alex K.",
-    role: "Content Creator",
-    content: "The creator portal is amazing. I can see all my tasks, content, and earnings in one place.",
-    rating: 5,
-  },
-  {
-    name: "Jessica R.",
-    role: "Agency Manager",
-    content: "Best CRM for creator agencies. The automation features save us hours every day.",
-    rating: 5,
-  },
-];
-
+const features = [{
+  icon: Users,
+  title: "Creator Management",
+  description: "Manage all your creators in one centralized dashboard with real-time analytics."
+}, {
+  icon: DollarSign,
+  title: "Revenue Tracking",
+  description: "Track earnings, commissions, and payouts with detailed financial reports."
+}, {
+  icon: TrendingUp,
+  title: "Growth Analytics",
+  description: "Monitor performance trends and identify opportunities for growth."
+}, {
+  icon: Zap,
+  title: "Task Automation",
+  description: "Streamline workflows with automated task management and assignments."
+}, {
+  icon: Shield,
+  title: "Secure Portal",
+  description: "Dedicated creator portal with secure file sharing and messaging."
+}, {
+  icon: Clock,
+  title: "Real-time Updates",
+  description: "Stay connected with instant notifications and live activity feeds."
+}];
+const testimonials = [{
+  name: "Sarah M.",
+  role: "Agency Owner",
+  content: "Premium Fangirls has transformed how we manage our creators. Revenue is up 40% since switching.",
+  rating: 5
+}, {
+  name: "Alex K.",
+  role: "Content Creator",
+  content: "The creator portal is amazing. I can see all my tasks, content, and earnings in one place.",
+  rating: 5
+}, {
+  name: "Jessica R.",
+  role: "Agency Manager",
+  content: "Best CRM for creator agencies. The automation features save us hours every day.",
+  rating: 5
+}];
 const Landing = () => {
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <img src={logo} alt="Premium Fangirls" className="h-10 w-auto" />
-              <span className="text-xl font-bold gradient-text">Premium Fangirls</span>
+              <span className="text-xl font-bold gradient-text">CreatorOS     </span>
             </div>
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -104,11 +89,7 @@ const Landing = () => {
         
         <div className="max-w-7xl mx-auto text-center relative z-10">
           <div className="animate-fade-in">
-            <img 
-              src={logo} 
-              alt="Premium Fangirls Agency" 
-              className="h-32 w-auto mx-auto mb-8 animate-float"
-            />
+            <img src={logo} alt="Premium Fangirls Agency" className="h-32 w-auto mx-auto mb-8 animate-float" />
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
               <span className="text-foreground">The Ultimate</span>
               <br />
@@ -133,16 +114,19 @@ const Landing = () => {
           
           {/* Stats */}
           <div className="mt-20 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
-            {[
-              { value: "500+", label: "Active Agencies" },
-              { value: "$50M+", label: "Revenue Tracked" },
-              { value: "10K+", label: "Creators Managed" },
-            ].map((stat) => (
-              <div key={stat.label} className="glass-card p-6">
+            {[{
+            value: "500+",
+            label: "Active Agencies"
+          }, {
+            value: "$50M+",
+            label: "Revenue Tracked"
+          }, {
+            value: "10K+",
+            label: "Creators Managed"
+          }].map(stat => <div key={stat.label} className="glass-card p-6">
                 <div className="text-3xl font-bold gradient-text">{stat.value}</div>
                 <div className="text-muted-foreground mt-1">{stat.label}</div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -160,19 +144,15 @@ const Landing = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <div 
-                key={feature.title} 
-                className="glass-card p-6 hover:border-primary/30 transition-all duration-300 group"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
+            {features.map((feature, index) => <div key={feature.title} className="glass-card p-6 hover:border-primary/30 transition-all duration-300 group" style={{
+            animationDelay: `${index * 100}ms`
+          }}>
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                   <feature.icon className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
                 <p className="text-muted-foreground">{feature.description}</p>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -190,20 +170,18 @@ const Landing = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial) => (
-              <div key={testimonial.name} className="glass-card p-6">
+            {testimonials.map(testimonial => <div key={testimonial.name} className="glass-card p-6">
                 <div className="flex gap-1 mb-4">
-                  {Array.from({ length: testimonial.rating }).map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-primary text-primary" />
-                  ))}
+                  {Array.from({
+                length: testimonial.rating
+              }).map((_, i) => <Star key={i} className="h-5 w-5 fill-primary text-primary" />)}
                 </div>
                 <p className="text-foreground mb-4">"{testimonial.content}"</p>
                 <div>
                   <div className="font-semibold text-foreground">{testimonial.name}</div>
                   <div className="text-sm text-muted-foreground">{testimonial.role}</div>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -227,12 +205,10 @@ const Landing = () => {
               <div className="text-4xl font-bold text-foreground mb-1">$0</div>
               <div className="text-muted-foreground mb-6">Free forever</div>
               <ul className="space-y-3 mb-8">
-                {["Up to 5 creators", "Basic analytics", "Task management", "Email support"].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-muted-foreground">
+                {["Up to 5 creators", "Basic analytics", "Task management", "Email support"].map(item => <li key={item} className="flex items-center gap-2 text-muted-foreground">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                     {item}
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <Link to="/auth">
                 <Button variant="outline" className="w-full">Get Started</Button>
@@ -248,12 +224,10 @@ const Landing = () => {
               <div className="text-4xl font-bold text-foreground mb-1">$99</div>
               <div className="text-muted-foreground mb-6">per month</div>
               <ul className="space-y-3 mb-8">
-                {["Up to 50 creators", "Advanced analytics", "Creator portal", "Priority support", "Custom branding"].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-muted-foreground">
+                {["Up to 50 creators", "Advanced analytics", "Creator portal", "Priority support", "Custom branding"].map(item => <li key={item} className="flex items-center gap-2 text-muted-foreground">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                     {item}
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <Link to="/auth">
                 <Button className="w-full bg-primary hover:bg-primary/90">Start Free Trial</Button>
@@ -266,12 +240,10 @@ const Landing = () => {
               <div className="text-4xl font-bold text-foreground mb-1">Custom</div>
               <div className="text-muted-foreground mb-6">Contact us</div>
               <ul className="space-y-3 mb-8">
-                {["Unlimited creators", "White-label solution", "API access", "Dedicated support", "Custom integrations"].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-muted-foreground">
+                {["Unlimited creators", "White-label solution", "API access", "Dedicated support", "Custom integrations"].map(item => <li key={item} className="flex items-center gap-2 text-muted-foreground">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                     {item}
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <Button variant="outline" className="w-full">Contact Sales</Button>
             </div>
@@ -316,8 +288,6 @@ const Landing = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
