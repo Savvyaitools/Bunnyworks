@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Creators from "./pages/Creators";
 import Employees from "./pages/Employees";
@@ -27,7 +28,7 @@ function AuthRedirect() {
   if (loading) return null;
   
   if (user && profile) {
-    return <Navigate to={profile.user_type === "creator" ? "/portal" : "/"} replace />;
+    return <Navigate to={profile.user_type === "creator" ? "/portal" : "/dashboard"} replace />;
   }
   
   return <Auth />;
@@ -36,11 +37,14 @@ function AuthRedirect() {
 const AppRoutes = () => {
   return (
     <Routes>
+      {/* Public Landing Page */}
+      <Route path="/" element={<Landing />} />
+      
       {/* Auth Route */}
       <Route path="/auth" element={<AuthRedirect />} />
       
       {/* Agency Routes - Protected */}
-      <Route path="/" element={
+      <Route path="/dashboard" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <Index />
         </ProtectedRoute>
