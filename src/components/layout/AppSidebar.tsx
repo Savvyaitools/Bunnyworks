@@ -12,7 +12,7 @@ import {
   LogOut,
   ChevronLeft
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +29,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const mainNavItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -39,7 +41,6 @@ const mainNavItems = [
   { title: "SOP Library", url: "/sop", icon: BookOpen },
   { title: "Invoices", url: "/invoices", icon: FileText },
   { title: "Messages", url: "/messages", icon: MessageSquare, badge: 3 },
-  { title: "Creator Portal", url: "/portal", icon: Users },
 ];
 
 const bottomNavItems = [
@@ -49,8 +50,16 @@ const bottomNavItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state, toggleSidebar } = useSidebar();
+  const { profile, signOut } = useAuth();
   const isCollapsed = state === "collapsed";
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+    navigate("/auth");
+  };
 
   return (
     <Sidebar 
@@ -152,12 +161,16 @@ export function AppSidebar() {
           isCollapsed && "justify-center p-2"
         )}>
           <Avatar className="h-9 w-9 ring-2 ring-primary/20">
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=admin" />
-            <AvatarFallback className="bg-primary/20 text-primary">SA</AvatarFallback>
+            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.full_name || 'user'}`} />
+            <AvatarFallback className="bg-primary/20 text-primary">
+              {profile?.full_name?.split(" ").map(n => n[0]).join("") || "U"}
+            </AvatarFallback>
           </Avatar>
           {!isCollapsed && (
             <div className="flex-1 min-w-0 animate-fade-in">
-              <p className="text-sm font-medium text-foreground truncate">Savvy</p>
+              <p className="text-sm font-medium text-foreground truncate">
+                {profile?.full_name || "User"}
+              </p>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 Online
@@ -165,7 +178,10 @@ export function AppSidebar() {
             </div>
           )}
           {!isCollapsed && (
-            <button className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+            <button 
+              onClick={handleSignOut}
+              className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           )}

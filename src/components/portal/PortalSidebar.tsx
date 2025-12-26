@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   User
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +25,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const portalNavItems = [
   { title: "Overview", url: "/portal", icon: LayoutDashboard },
@@ -36,8 +38,16 @@ const portalNavItems = [
 
 export function PortalSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useSidebar();
+  const { profile, signOut } = useAuth();
   const isCollapsed = state === "collapsed";
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+    navigate("/auth");
+  };
 
   return (
     <Sidebar 
@@ -112,17 +122,17 @@ export function PortalSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t border-sidebar-border">
-        {/* Back to Main App link */}
+        {/* Sign Out */}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <NavLink
-                to="/"
+              <button
+                onClick={handleSignOut}
                 className="nav-item w-full justify-start text-muted-foreground hover:text-foreground"
               >
-                <LogOut className="h-5 w-5 shrink-0 rotate-180" />
-                {!isCollapsed && <span>Back to Agency</span>}
-              </NavLink>
+                <LogOut className="h-5 w-5 shrink-0" />
+                {!isCollapsed && <span>Sign Out</span>}
+              </button>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -133,12 +143,16 @@ export function PortalSidebar() {
           isCollapsed && "justify-center p-2"
         )}>
           <Avatar className="h-9 w-9 ring-2 ring-accent/20">
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=emma" />
-            <AvatarFallback className="bg-accent/20 text-accent">ER</AvatarFallback>
+            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.full_name || 'creator'}`} />
+            <AvatarFallback className="bg-accent/20 text-accent">
+              {profile?.full_name?.split(" ").map(n => n[0]).join("") || "C"}
+            </AvatarFallback>
           </Avatar>
           {!isCollapsed && (
             <div className="flex-1 min-w-0 animate-fade-in">
-              <p className="text-sm font-medium text-foreground truncate">Emma Rose</p>
+              <p className="text-sm font-medium text-foreground truncate">
+                {profile?.full_name || "Creator"}
+              </p>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 Active Creator
