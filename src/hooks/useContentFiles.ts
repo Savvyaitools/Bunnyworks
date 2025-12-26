@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -13,10 +13,17 @@ export interface ContentFile {
   url?: string;
 }
 
+export interface UploadProgress {
+  fileName: string;
+  progress: number;
+  status: "uploading" | "complete" | "error";
+}
+
 export function useContentFiles() {
   const [files, setFiles] = useState<ContentFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
 
   const fetchFiles = async () => {
     try {
@@ -27,7 +34,6 @@ export function useContentFiles() {
 
       if (error) throw error;
 
-      // Get public URLs for each file
       const filesWithUrls = await Promise.all(
         (data || []).map(async (file) => {
           const { data: urlData } = supabase.storage
@@ -46,25 +52,41 @@ export function useContentFiles() {
     }
   };
 
-  const uploadFile = async (file: File) => {
-    setUploading(true);
+  const uploadFile = async (file: File): Promise<boolean> => {
+    const fileId = crypto.randomUUID();
+    
+    setUploadProgress((prev) => [
+      ...prev,
+      { fileName: file.name, progress: 0, status: "uploading" },
+    ]);
+
     try {
       const fileExt = file.name.split(".").pop();
-      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${fileId}.${fileExt}`;
 
-      // Upload to storage
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) =>
+          prev.map((p) =>
+            p.fileName === file.name && p.progress < 90
+              ? { ...p, progress: p.progress + 10 }
+              : p
+          )
+        );
+      }, 200);
+
       const { error: uploadError } = await supabase.storage
         .from("content-vault")
         .upload(filePath, file);
 
+      clearInterval(progressInterval);
+
       if (uploadError) throw uploadError;
 
-      // Determine file type category
       let fileType = "Document";
       if (file.type.startsWith("video/")) fileType = "Video";
       else if (file.type.startsWith("image/")) fileType = "Image";
 
-      // Insert metadata
       const { error: insertError } = await supabase.from("content_files").insert({
         name: file.name,
         file_path: filePath,
@@ -75,26 +97,53 @@ export function useContentFiles() {
 
       if (insertError) throw insertError;
 
-      toast.success(`${file.name} uploaded successfully`);
-      await fetchFiles();
+      setUploadProgress((prev) =>
+        prev.map((p) =>
+          p.fileName === file.name ? { ...p, progress: 100, status: "complete" } : p
+        )
+      );
+
+      return true;
     } catch (error) {
       console.error("Error uploading file:", error);
-      toast.error("Failed to upload file");
-    } finally {
-      setUploading(false);
+      setUploadProgress((prev) =>
+        prev.map((p) =>
+          p.fileName === file.name ? { ...p, status: "error" } : p
+        )
+      );
+      toast.error(`Failed to upload ${file.name}`);
+      return false;
     }
+  };
+
+  const uploadMultipleFiles = async (fileList: File[]) => {
+    setUploading(true);
+    setUploadProgress([]);
+    
+    const results = await Promise.all(fileList.map(uploadFile));
+    const successCount = results.filter(Boolean).length;
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} file(s) uploaded successfully`);
+      await fetchFiles();
+    }
+    
+    // Clear progress after delay
+    setTimeout(() => {
+      setUploadProgress([]);
+    }, 2000);
+    
+    setUploading(false);
   };
 
   const deleteFile = async (id: string, filePath: string) => {
     try {
-      // Delete from storage
       const { error: storageError } = await supabase.storage
         .from("content-vault")
         .remove([filePath]);
 
       if (storageError) throw storageError;
 
-      // Delete metadata
       const { error: dbError } = await supabase
         .from("content_files")
         .delete()
@@ -110,9 +159,23 @@ export function useContentFiles() {
     }
   };
 
+  const clearProgress = useCallback(() => {
+    setUploadProgress([]);
+  }, []);
+
   useEffect(() => {
     fetchFiles();
   }, []);
 
-  return { files, loading, uploading, uploadFile, deleteFile, refetch: fetchFiles };
+  return {
+    files,
+    loading,
+    uploading,
+    uploadProgress,
+    uploadFile,
+    uploadMultipleFiles,
+    deleteFile,
+    refetch: fetchFiles,
+    clearProgress,
+  };
 }

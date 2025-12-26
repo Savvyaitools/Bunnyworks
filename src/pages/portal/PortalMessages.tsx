@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, Send, Paperclip, Smile } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, Send, Paperclip, Smile, Bell } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,86 +7,68 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
 
 interface TeamMember {
   id: string;
   name: string;
   role: string;
   avatar: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
   online: boolean;
 }
 
-interface Message {
-  id: string;
-  content: string;
-  sender: "creator" | "team";
-  time: string;
-}
-
 const teamMembers: TeamMember[] = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    role: "Account Manager",
-    avatar: "sarah",
-    lastMessage: "Great work on the latest video!",
-    time: "10 min",
-    unread: 1,
-    online: true,
-  },
-  {
-    id: "2",
-    name: "Alex Rivera",
-    role: "Video Editor",
-    avatar: "alex",
-    lastMessage: "Finished editing your latest video",
-    time: "2 hr",
-    unread: 0,
-    online: true,
-  },
-  {
-    id: "3",
-    name: "Jordan Lee",
-    role: "Social Media Manager",
-    avatar: "jordan",
-    lastMessage: "Posts scheduled for next week",
-    time: "5 hr",
-    unread: 0,
-    online: false,
-  },
-  {
-    id: "4",
-    name: "Mike Chen",
-    role: "Content Strategist",
-    avatar: "mike",
-    lastMessage: "Let's discuss January content",
-    time: "1 day",
-    unread: 1,
-    online: false,
-  },
-];
-
-const conversationMessages: Message[] = [
-  { id: "1", content: "Hey Emma! Just wanted to check in on the video progress.", sender: "team", time: "9:30 AM" },
-  { id: "2", content: "Hi Sarah! I'm almost done filming. Should have everything ready by tomorrow.", sender: "creator", time: "9:45 AM" },
-  { id: "3", content: "Perfect! The editing team is ready to receive the files.", sender: "team", time: "9:50 AM" },
-  { id: "4", content: "Also, the analytics from last week's content look amazing. You've had a 25% increase in engagement!", sender: "team", time: "9:52 AM" },
-  { id: "5", content: "That's great news! I've been trying some new content formats.", sender: "creator", time: "10:00 AM" },
-  { id: "6", content: "It's definitely working. Keep it up! 🎉", sender: "team", time: "10:02 AM" },
-  { id: "7", content: "Great work on the latest video! The team loved it.", sender: "team", time: "10:30 AM" },
+  { id: "emma-agency", name: "Sarah Johnson", role: "Account Manager", avatar: "sarah", online: true },
+  { id: "alex-agency", name: "Alex Rivera", role: "Video Editor", avatar: "alex", online: true },
+  { id: "jordan-agency", name: "Jordan Lee", role: "Social Media Manager", avatar: "jordan", online: false },
+  { id: "mike-agency", name: "Mike Chen", role: "Content Strategist", avatar: "mike", online: false },
 ];
 
 export default function PortalMessages() {
   const [selectedMember, setSelectedMember] = useState(teamMembers[0]);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { messages, loading, sendMessage, markAsRead } = useMessages(selectedMember.id, "creator");
+  const { unreadCounts } = useUnreadMessages("creator");
 
   const filteredMembers = teamMembers.filter((m) =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleSend = async () => {
+    if (!messageInput.trim()) return;
+    await sendMessage(messageInput, "Creator");
+    setMessageInput("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Mark as read when selecting conversation
+  useEffect(() => {
+    markAsRead();
+  }, [selectedMember.id, markAsRead]);
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   return (
     <PortalLayout>
@@ -108,43 +90,43 @@ export default function PortalMessages() {
 
           <ScrollArea className="flex-1">
             <div className="p-2">
-              {filteredMembers.map((member) => (
-                <button
-                  key={member.id}
-                  onClick={() => setSelectedMember(member)}
-                  className={cn(
-                    "w-full p-3 rounded-lg flex items-start gap-3 transition-colors text-left",
-                    selectedMember.id === member.id
-                      ? "bg-accent/10 border border-accent/30"
-                      : "hover:bg-muted/50"
-                  )}
-                >
-                  <div className="relative">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatar}`} />
-                      <AvatarFallback>{member.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                    </Avatar>
-                    {member.online && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />
+              {filteredMembers.map((member) => {
+                const unread = unreadCounts[member.id] || 0;
+                return (
+                  <button
+                    key={member.id}
+                    onClick={() => setSelectedMember(member)}
+                    className={cn(
+                      "w-full p-3 rounded-lg flex items-start gap-3 transition-colors text-left",
+                      selectedMember.id === member.id
+                        ? "bg-accent/10 border border-accent/30"
+                        : "hover:bg-muted/50"
                     )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="font-medium text-foreground truncate">{member.name}</span>
-                      <span className="text-xs text-muted-foreground">{member.time}</span>
-                    </div>
-                    <p className="text-xs text-accent mb-1">{member.role}</p>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground truncate">{member.lastMessage}</p>
-                      {member.unread > 0 && (
-                        <Badge className="bg-accent text-accent-foreground h-5 min-w-5 px-1.5">
-                          {member.unread}
-                        </Badge>
+                  >
+                    <div className="relative">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatar}`} />
+                        <AvatarFallback>{member.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                      </Avatar>
+                      {member.online && (
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />
                       )}
                     </div>
-                  </div>
-                </button>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="font-medium text-foreground truncate">{member.name}</span>
+                        {unread > 0 && (
+                          <Badge className="bg-accent text-accent-foreground h-5 min-w-5 px-1.5">
+                            {unread}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-accent mb-1">{member.role}</p>
+                      <p className="text-sm text-muted-foreground truncate">Click to start chatting</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </ScrollArea>
         </div>
@@ -169,34 +151,43 @@ export default function PortalMessages() {
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
             <div className="space-y-4">
-              {conversationMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex",
-                    message.sender === "creator" ? "justify-end" : "justify-start"
-                  )}
-                >
+              {loading ? (
+                <div className="text-center text-muted-foreground py-8">Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No messages yet. Start the conversation!</p>
+                </div>
+              ) : (
+                messages.map((message) => (
                   <div
+                    key={message.id}
                     className={cn(
-                      "message-bubble",
-                      message.sender === "creator"
-                        ? "bg-accent text-accent-foreground rounded-br-md"
-                        : "message-bubble-received"
+                      "flex",
+                      message.sender_type === "creator" ? "justify-end" : "justify-start"
                     )}
                   >
-                    <p className="text-sm">{message.content}</p>
-                    <p className={cn(
-                      "text-xs mt-1",
-                      message.sender === "creator" ? "text-accent-foreground/70" : "text-muted-foreground"
-                    )}>
-                      {message.time}
-                    </p>
+                    <div
+                      className={cn(
+                        "message-bubble",
+                        message.sender_type === "creator"
+                          ? "bg-accent text-accent-foreground rounded-br-md"
+                          : "message-bubble-received"
+                      )}
+                    >
+                      <p className="text-sm">{message.content}</p>
+                      <p className={cn(
+                        "text-xs mt-1",
+                        message.sender_type === "creator" ? "text-accent-foreground/70" : "text-muted-foreground"
+                      )}>
+                        {formatTime(message.created_at)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </ScrollArea>
 
@@ -210,12 +201,17 @@ export default function PortalMessages() {
                 placeholder="Type a message..."
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
+                onKeyPress={handleKeyPress}
                 className="bg-muted/50 border-border focus:border-accent"
               />
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
                 <Smile className="h-5 w-5" />
               </Button>
-              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-glow-sm shrink-0">
+              <Button 
+                className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-glow-sm shrink-0"
+                onClick={handleSend}
+                disabled={!messageInput.trim()}
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
