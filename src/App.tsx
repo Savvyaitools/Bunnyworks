@@ -18,6 +18,10 @@ import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Recruiting from "./pages/Recruiting";
+import Chatters from "./pages/Chatters";
+import ShiftRoster from "./pages/ShiftRoster";
+import InternalMessages from "./pages/InternalMessages";
 import { PortalDashboard, PortalTasks, PortalMessages, PortalInvoices, PortalContent } from "./pages/portal";
 
 const queryClient = new QueryClient();
@@ -92,6 +96,26 @@ const AppRoutes = () => {
       <Route path="/settings" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <Settings />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiting" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <Recruiting />
+        </ProtectedRoute>
+      } />
+      <Route path="/chatters" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <Chatters />
+        </ProtectedRoute>
+      } />
+      <Route path="/shifts" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <ShiftRoster />
+        </ProtectedRoute>
+      } />
+      <Route path="/internal-messages" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <InternalMessages />
         </ProtectedRoute>
       } />
       

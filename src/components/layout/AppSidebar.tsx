@@ -10,7 +10,11 @@ import {
   Bell,
   Settings,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  UserPlus,
+  Headphones,
+  CalendarClock,
+  MessageCircle
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -33,7 +37,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const mainNavItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Employees", url: "/employees", icon: UserCog },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
@@ -41,6 +45,16 @@ const mainNavItems = [
   { title: "SOP Library", url: "/sop", icon: BookOpen },
   { title: "Invoices", url: "/invoices", icon: FileText },
   { title: "Messages", url: "/messages", icon: MessageSquare, badge: 3 },
+];
+
+const recruitingNavItems = [
+  { title: "Recruiting", url: "/recruiting", icon: UserPlus },
+];
+
+const chattingNavItems = [
+  { title: "Chatters", url: "/chatters", icon: Headphones },
+  { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
+  { title: "Internal Messages", url: "/internal-messages", icon: MessageCircle },
 ];
 
 const bottomNavItems = [
@@ -122,6 +136,50 @@ export function AppSidebar() {
                             )}
                           </>
                         )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Recruiting Section */}
+        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recruiting</p>}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {recruitingNavItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={cn("nav-item w-full justify-start", isActive && "active")}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && <span className="flex-1">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Chatting Section */}
+        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chatting</p>}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {chattingNavItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={cn("nav-item w-full justify-start", isActive && "active")}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && <span className="flex-1">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
