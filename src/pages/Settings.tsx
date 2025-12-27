@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { User, Bell, Building, Shield, Palette, CreditCard } from "lucide-react";
+import { User, Bell, Building, Shield } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { UserAvatar } from "@/components/shared";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
@@ -18,6 +21,70 @@ const tabs = [
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
+  const [saving, setSaving] = useState(false);
+  const { profile, user } = useAuth();
+  
+  // Profile form state
+  const [profileData, setProfileData] = useState({
+    full_name: profile?.full_name || "",
+    email: profile?.email || "",
+  });
+
+  // Password form state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setSaving(true);
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: profileData.full_name })
+        .eq("id", user.id);
+
+      if (error) throw error;
+      toast.success("Profile updated successfully");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      });
+
+      if (error) throw error;
+      
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast.success("Password updated successfully");
+    } catch (error: any) {
+      console.error("Error updating password:", error);
+      toast.error(error.message || "Failed to update password");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -62,34 +129,25 @@ export default function Settings() {
                 <Separator className="bg-border" />
 
                 <div className="flex items-center gap-6">
-                  <Avatar className="h-20 w-20 ring-4 ring-primary/20">
-                    <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=admin" />
-                    <AvatarFallback className="bg-primary/20 text-primary text-2xl">SA</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    name={profile?.full_name || "User"} 
+                    avatarSeed={profile?.avatar_url}
+                    className="h-20 w-20 ring-4 ring-primary/20"
+                  />
                   <div>
-                    <Button variant="outline" className="bg-transparent border-border hover:bg-muted">
-                      Change Avatar
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      JPG, PNG or GIF. Max size 2MB.
+                    <p className="text-sm text-muted-foreground">
+                      Avatar is automatically generated based on your name
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-muted-foreground">First Name</Label>
+                    <Label htmlFor="fullName" className="text-muted-foreground">Full Name</Label>
                     <Input 
-                      id="firstName" 
-                      defaultValue="Savvy" 
-                      className="bg-muted/50 border-border focus:border-primary"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-muted-foreground">Last Name</Label>
-                    <Input 
-                      id="lastName" 
-                      defaultValue="Admin" 
+                      id="fullName" 
+                      value={profileData.full_name}
+                      onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
                       className="bg-muted/50 border-border focus:border-primary"
                     />
                   </div>
@@ -98,24 +156,21 @@ export default function Settings() {
                     <Input 
                       id="email" 
                       type="email" 
-                      defaultValue="admin@creatoragency.com" 
-                      className="bg-muted/50 border-border focus:border-primary"
+                      value={profile?.email || ""}
+                      disabled
+                      className="bg-muted/50 border-border opacity-60"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-muted-foreground">Phone</Label>
-                    <Input 
-                      id="phone" 
-                      type="tel" 
-                      defaultValue="+1 (555) 123-4567" 
-                      className="bg-muted/50 border-border focus:border-primary"
-                    />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                   </div>
                 </div>
 
                 <div className="flex justify-end">
-                  <Button className="bg-gradient-primary hover:opacity-90 shadow-glow-sm">
-                    Save Changes
+                  <Button 
+                    className="bg-gradient-primary hover:opacity-90 shadow-glow-sm"
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </div>
@@ -207,18 +262,12 @@ export default function Settings() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="currentPassword" className="text-muted-foreground">Current Password</Label>
-                    <Input 
-                      id="currentPassword" 
-                      type="password" 
-                      className="bg-muted/50 border-border focus:border-primary max-w-md"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="newPassword" className="text-muted-foreground">New Password</Label>
                     <Input 
                       id="newPassword" 
-                      type="password" 
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                       className="bg-muted/50 border-border focus:border-primary max-w-md"
                     />
                   </div>
@@ -226,27 +275,21 @@ export default function Settings() {
                     <Label htmlFor="confirmPassword" className="text-muted-foreground">Confirm New Password</Label>
                     <Input 
                       id="confirmPassword" 
-                      type="password" 
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                       className="bg-muted/50 border-border focus:border-primary max-w-md"
                     />
                   </div>
                 </div>
 
-                <Separator className="bg-border" />
-
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-                  <div>
-                    <p className="font-medium text-foreground">Two-Factor Authentication</p>
-                    <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
-                  </div>
-                  <Button variant="outline" className="bg-transparent border-border hover:bg-muted">
-                    Enable 2FA
-                  </Button>
-                </div>
-
                 <div className="flex justify-end">
-                  <Button className="bg-gradient-primary hover:opacity-90 shadow-glow-sm">
-                    Update Password
+                  <Button 
+                    className="bg-gradient-primary hover:opacity-90 shadow-glow-sm"
+                    onClick={handleUpdatePassword}
+                    disabled={saving || !passwordData.newPassword || !passwordData.confirmPassword}
+                  >
+                    {saving ? "Updating..." : "Update Password"}
                   </Button>
                 </div>
               </div>

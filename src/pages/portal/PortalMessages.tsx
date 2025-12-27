@@ -3,11 +3,12 @@ import { Search, Send, Paperclip, Smile, Bell } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
+import { UserAvatar } from "@/components/shared";
+import { formatTime } from "@/lib/formatters";
 
 interface TeamMember {
   id: string;
@@ -62,14 +63,6 @@ export default function PortalMessages() {
     markAsRead();
   }, [selectedMember.id, markAsRead]);
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   return (
     <PortalLayout>
       <div className="h-[calc(100vh-8rem)] flex gap-4 animate-fade-in">
@@ -103,15 +96,13 @@ export default function PortalMessages() {
                         : "hover:bg-muted/50"
                     )}
                   >
-                    <div className="relative">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatar}`} />
-                        <AvatarFallback>{member.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                      </Avatar>
-                      {member.online && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />
-                      )}
-                    </div>
+                    <UserAvatar
+                      name={member.name}
+                      avatarSeed={member.avatar}
+                      className="h-12 w-12"
+                      showOnlineStatus
+                      isOnline={member.online}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
                         <span className="font-medium text-foreground truncate">{member.name}</span>
@@ -135,15 +126,12 @@ export default function PortalMessages() {
         <div className="flex-1 flex flex-col glass-card">
           {/* Chat Header */}
           <div className="p-4 border-b border-border flex items-center gap-3">
-            <div className="relative">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedMember.avatar}`} />
-                <AvatarFallback>{selectedMember.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-              </Avatar>
-              {selectedMember.online && (
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />
-              )}
-            </div>
+            <UserAvatar
+              name={selectedMember.name}
+              avatarSeed={selectedMember.avatar}
+              showOnlineStatus
+              isOnline={selectedMember.online}
+            />
             <div>
               <h3 className="font-semibold text-foreground">{selectedMember.name}</h3>
               <p className="text-xs text-accent">{selectedMember.role}</p>
