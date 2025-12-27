@@ -59,6 +59,11 @@ const AppRoutes = () => {
           <Creators />
         </ProtectedRoute>
       } />
+      <Route path="/creators/:id" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <CreatorDetail />
+        </ProtectedRoute>
+      } />
       <Route path="/employees" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <Employees />
