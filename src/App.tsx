@@ -27,17 +27,7 @@ import { PortalDashboard, PortalTasks, PortalMessages, PortalInvoices, PortalCon
 
 const queryClient = new QueryClient();
 
-function AuthRedirect() {
-  const { user, profile, loading } = useAuth();
-  
-  if (loading) return null;
-  
-  if (user && profile) {
-    return <Navigate to={profile.user_type === "creator" ? "/portal" : "/dashboard"} replace />;
-  }
-  
-  return <Auth />;
-}
+// Auth component now handles its own redirects internally
 
 const AppRoutes = () => {
   return (
@@ -46,7 +36,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Landing />} />
       
       {/* Auth Route */}
-      <Route path="/auth" element={<AuthRedirect />} />
+      <Route path="/auth" element={<Auth />} />
       
       {/* Agency Routes - Protected */}
       <Route path="/dashboard" element={

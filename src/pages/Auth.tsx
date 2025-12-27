@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -8,14 +8,13 @@ import { toast } from "sonner";
 import { Loader2, Building2, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.png";
+
 type UserType = "agency" | "creator";
 type AuthMode = "signin" | "signup";
+
 export default function Auth() {
   const navigate = useNavigate();
-  const {
-    signIn,
-    signUp
-  } = useAuth();
+  const { signIn, signUp, user, profile, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
   const [userType, setUserType] = useState<UserType>("agency");
   const [loading, setLoading] = useState(false);
@@ -24,6 +23,15 @@ export default function Auth() {
     password: "",
     fullName: ""
   });
+
+  // Redirect authenticated users to appropriate dashboard
+  useEffect(() => {
+    if (user && profile && !authLoading) {
+      const destination = profile.user_type === "creator" ? "/portal" : "/dashboard";
+      navigate(destination, { replace: true });
+    }
+  }, [user, profile, authLoading, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -34,9 +42,7 @@ export default function Auth() {
           setLoading(false);
           return;
         }
-        const {
-          error
-        } = await signUp(formData.email, formData.password, formData.fullName, userType);
+        const { error } = await signUp(formData.email, formData.password, formData.fullName, userType);
         if (error) {
           if (error.message.includes("already registered")) {
             toast.error("This email is already registered. Please sign in.");
@@ -45,20 +51,15 @@ export default function Auth() {
           }
         } else {
           toast.success("Account created! Redirecting...");
-          // Redirect based on user type
-          setTimeout(() => {
-            navigate(userType === "creator" ? "/portal" : "/dashboard");
-          }, 1000);
+          // Navigation will be handled by useEffect when profile is set
         }
       } else {
-        const {
-          error
-        } = await signIn(formData.email, formData.password);
+        const { error } = await signIn(formData.email, formData.password);
         if (error) {
           toast.error("Invalid email or password");
         } else {
           toast.success("Welcome back!");
-          // Will redirect based on profile type in App.tsx
+          // Navigation will be handled by useEffect when profile is set
         }
       }
     } catch (error) {
@@ -67,6 +68,15 @@ export default function Auth() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
   return <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full pointer-events-none" />
