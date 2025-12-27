@@ -3,7 +3,6 @@ import { Send, Search, Users, MessageSquare } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +10,8 @@ import { cn } from "@/lib/utils";
 import { useInternalMessages } from "@/hooks/useInternalMessages";
 import { useChatters } from "@/hooks/useChatters";
 import { useAuth } from "@/hooks/useAuth";
-import { format, parseISO } from "date-fns";
+import { UserAvatar } from "@/components/shared";
+import { formatTime } from "@/lib/formatters";
 
 export default function InternalMessages() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,12 +142,10 @@ export default function InternalMessages() {
                           : "hover:bg-muted/50"
                       )}
                     >
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatter.avatar_seed || chatter.name}`} />
-                        <AvatarFallback className="bg-primary/20 text-primary">
-                          {chatter.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
+                                    <UserAvatar 
+                                        name={chatter.name} 
+                                        avatarSeed={chatter.avatar_seed} 
+                                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="font-medium text-foreground truncate">{chatter.name}</p>
@@ -175,12 +173,10 @@ export default function InternalMessages() {
             <>
               {/* Header */}
               <div className="p-4 border-b border-border flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChatter.avatar_seed || selectedChatter.name}`} />
-                  <AvatarFallback className="bg-primary/20 text-primary">
-                    {selectedChatter.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar 
+                  name={selectedChatter.name} 
+                  avatarSeed={selectedChatter.avatar_seed} 
+                />
                 <div>
                   <p className="font-medium text-foreground">{selectedChatter.name}</p>
                   <p className="text-sm text-muted-foreground">
@@ -229,7 +225,7 @@ export default function InternalMessages() {
                               "text-xs mt-1",
                               isFromAgency ? "text-primary-foreground/70" : "text-muted-foreground"
                             )}>
-                              {format(parseISO(message.created_at), "h:mm a")}
+                              {formatTime(message.created_at)}
                             </p>
                           </div>
                         </div>

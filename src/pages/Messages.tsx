@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Send, MoreVertical, Paperclip, Smile, Bell, MessageSquare, Users } from "lucide-react";
+import { Search, Send, MoreVertical, Paperclip, Smile, MessageSquare, Users } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
 import { useCreators } from "@/hooks/useCreators";
 import { useEmployees } from "@/hooks/useEmployees";
+import { UserAvatar } from "@/components/shared";
+import { formatTime } from "@/lib/formatters";
 
 interface Conversation {
   id: string;
@@ -83,14 +84,6 @@ export default function Messages() {
     }
   }, [currentConvo?.id, markAsRead]);
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   // Empty state when no creators or employees
   if (conversations.length === 0) {
     return (
@@ -150,15 +143,13 @@ export default function Messages() {
                         : "hover:bg-muted/50"
                     )}
                   >
-                    <div className="relative">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${convo.avatar}`} />
-                        <AvatarFallback>{convo.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                      </Avatar>
-                      {convo.online && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />
-                      )}
-                    </div>
+                    <UserAvatar
+                      name={convo.name}
+                      avatarSeed={convo.avatar}
+                      className="h-12 w-12"
+                      showOnlineStatus
+                      isOnline={convo.online}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium text-foreground truncate">{convo.name}</span>
@@ -195,15 +186,12 @@ export default function Messages() {
               {/* Chat Header */}
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${currentConvo.avatar}`} />
-                      <AvatarFallback>{currentConvo.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                    </Avatar>
-                    {currentConvo.online && (
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />
-                    )}
-                  </div>
+                  <UserAvatar
+                    name={currentConvo.name}
+                    avatarSeed={currentConvo.avatar}
+                    showOnlineStatus
+                    isOnline={currentConvo.online}
+                  />
                   <div>
                     <h3 className="font-semibold text-foreground">{currentConvo.name}</h3>
                     <p className="text-xs text-muted-foreground">

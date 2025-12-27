@@ -1,18 +1,40 @@
 import { useState } from "react";
-import { Bell, Check, Inbox } from "lucide-react";
+import { Bell, Check, Inbox, Trash2, ExternalLink } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useNotifications, Notification } from "@/hooks/useNotifications";
+import { formatRelativeTime } from "@/lib/formatters";
+import { useNavigate } from "react-router-dom";
 
-// Notifications will be populated from real activity - this is an empty state component
+const typeIcons: Record<string, string> = {
+  task: "📋",
+  message: "💬",
+  creator: "🎨",
+  invoice: "💰",
+  system: "⚙️",
+  info: "ℹ️",
+};
+
 export default function Notifications() {
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const navigate = useNavigate();
+  const { notifications, loading, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
 
-  // In a real implementation, notifications would come from a database table
-  // For now, show empty state since there's no activity yet
-  const notifications: any[] = [];
-  const unreadCount = 0;
+  const filteredNotifications = notifications.filter((n) => 
+    filter === "all" ? true : !n.read
+  );
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.read) {
+      markAsRead([notification.id]);
+    }
+    if (notification.link) {
+      navigate(notification.link);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -34,6 +56,7 @@ export default function Notifications() {
             <Button 
               variant="outline" 
               className="bg-transparent border-border hover:bg-muted"
+              onClick={markAllAsRead}
             >
               <Check className="h-4 w-4 mr-2" />
               Mark all as read
@@ -53,7 +76,7 @@ export default function Notifications() {
                 : "bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            All
+            All ({notifications.length})
           </Button>
           <Button
             variant={filter === "unread" ? "default" : "outline"}
@@ -65,18 +88,93 @@ export default function Notifications() {
                 : "bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            Unread
+            Unread ({unreadCount})
           </Button>
         </div>
 
-        {/* Empty State */}
-        <div className="text-center py-12 animate-fade-in glass-card">
-          <Inbox className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">No notifications yet</h3>
-          <p className="text-muted-foreground max-w-sm mx-auto">
-            Notifications will appear here as you use the platform. Activities like new messages, task updates, and creator events will be shown.
-          </p>
-        </div>
+        {/* Notifications List */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="glass-card p-4">
+                <div className="flex gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-48 mb-2" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredNotifications.length === 0 ? (
+          <div className="text-center py-12 animate-fade-in glass-card">
+            <Inbox className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              {filter === "unread" ? "No unread notifications" : "No notifications yet"}
+            </h3>
+            <p className="text-muted-foreground max-w-sm mx-auto">
+              {filter === "unread" 
+                ? "You're all caught up! Switch to 'All' to see previous notifications."
+                : "Notifications will appear here as you use the platform. Activities like new messages, task updates, and creator events will be shown."
+              }
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredNotifications.map((notification, index) => (
+              <div
+                key={notification.id}
+                className={cn(
+                  "glass-card p-4 cursor-pointer transition-all hover:border-primary/40 group animate-fade-in",
+                  !notification.read && "border-l-2 border-l-primary"
+                )}
+                style={{ animationDelay: `${150 + index * 50}ms` }}
+                onClick={() => handleNotificationClick(notification)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl shrink-0">
+                    {typeIcons[notification.type] || typeIcons.info}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className={cn(
+                          "font-medium text-foreground",
+                          notification.read && "text-muted-foreground"
+                        )}>
+                          {notification.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {notification.message}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {notification.link && (
+                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification.id);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {formatRelativeTime(notification.created_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
