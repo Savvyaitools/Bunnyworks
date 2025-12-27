@@ -1,40 +1,28 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarIcon } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  type: "task" | "meeting" | "deadline" | "content";
-  time?: string;
-}
-
-interface DayEvents {
-  [key: number]: CalendarEvent[];
-}
-
-const events: DayEvents = {
-  2: [{ id: "1", title: "Content review", type: "task", time: "10:00 AM" }],
-  5: [
-    { id: "2", title: "Team standup", type: "meeting", time: "9:00 AM" },
-    { id: "3", title: "Emma's content drop", type: "content", time: "2:00 PM" },
-  ],
-  8: [{ id: "4", title: "Invoice deadline", type: "deadline" }],
-  12: [{ id: "5", title: "Creator call - Luna", type: "meeting", time: "11:00 AM" }],
-  15: [{ id: "6", title: "Monthly report due", type: "deadline" }],
-  18: [
-    { id: "7", title: "New creator onboarding", type: "task", time: "10:00 AM" },
-    { id: "8", title: "Content strategy meeting", type: "meeting", time: "3:00 PM" },
-  ],
-  22: [{ id: "9", title: "Holiday content schedule", type: "content" }],
-  25: [{ id: "10", title: "Christmas", type: "deadline" }],
-  26: [{ id: "11", title: "Video editing review", type: "task", time: "2:00 PM" }],
-  28: [{ id: "12", title: "Year-end analytics", type: "task" }],
-  31: [{ id: "13", title: "New Year preparation", type: "content" }],
-};
+import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { format } from "date-fns";
 
 const eventTypeColors: Record<string, string> = {
   task: "bg-primary/80 text-primary-foreground",
@@ -46,8 +34,23 @@ const eventTypeColors: Record<string, string> = {
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function Calendar() {
-  const [currentDate, setCurrentDate] = useState(new Date(2024, 11, 1)); // December 2024
-  const today = 26; // Current day
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    event_type: "task",
+    date: format(new Date(), "yyyy-MM-dd"),
+    time: "09:00",
+  });
+
+  const { events, loading, createEvent, getEventsByDay } = useCalendarEvents();
+
+  const today = new Date();
+  const isCurrentMonth = 
+    currentDate.getMonth() === today.getMonth() && 
+    currentDate.getFullYear() === today.getFullYear();
+  const todayDay = isCurrentMonth ? today.getDate() : -1;
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -57,12 +60,44 @@ export default function Calendar() {
 
   const monthName = currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+  const eventsByDay = getEventsByDay(year, month);
+
   const prevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
   };
 
   const nextMonth = () => {
     setCurrentDate(new Date(year, month + 1, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title || !formData.date) return;
+
+    const startDate = new Date(`${formData.date}T${formData.time}:00`);
+
+    await createEvent({
+      title: formData.title,
+      description: formData.description || null,
+      event_type: formData.event_type,
+      start_date: startDate.toISOString(),
+      end_date: null,
+      all_day: false,
+      creator_id: null,
+    });
+
+    setFormData({
+      title: "",
+      description: "",
+      event_type: "task",
+      date: format(new Date(), "yyyy-MM-dd"),
+      time: "09:00",
+    });
+    setIsAddDialogOpen(false);
   };
 
   const days = [];
@@ -74,8 +109,8 @@ export default function Calendar() {
 
   // Actual days
   for (let day = 1; day <= daysInMonth; day++) {
-    const dayEvents = events[day] || [];
-    const isToday = day === today;
+    const dayEvents = eventsByDay[day] || [];
+    const isToday = day === todayDay;
 
     days.push(
       <div
@@ -104,11 +139,10 @@ export default function Calendar() {
               key={event.id}
               className={cn(
                 "text-xs px-1.5 py-0.5 rounded truncate",
-                eventTypeColors[event.type]
+                eventTypeColors[event.event_type] || eventTypeColors.task
               )}
             >
-              {event.time && <span className="opacity-80">{event.time} </span>}
-              {event.title}
+              {format(new Date(event.start_date), "h:mm a")} {event.title}
             </div>
           ))}
           {dayEvents.length > 2 && (
@@ -130,10 +164,86 @@ export default function Calendar() {
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Calendar</h1>
             <p className="text-muted-foreground mt-1">View and manage your schedule</p>
           </div>
-          <Button className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow-sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Event
-          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow-sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Event
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle>Add New Event</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Event title"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Event Type</Label>
+                  <Select
+                    value={formData.event_type}
+                    onValueChange={(value) => setFormData({ ...formData, event_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="task">Task</SelectItem>
+                      <SelectItem value="meeting">Meeting</SelectItem>
+                      <SelectItem value="deadline">Deadline</SelectItem>
+                      <SelectItem value="content">Content</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Date</Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="time">Time</Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={formData.time}
+                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Event details..."
+                    rows={3}
+                  />
+                </div>
+
+                <Button type="submit" className="w-full bg-gradient-primary">
+                  Add Event
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Calendar Navigation */}
@@ -150,7 +260,7 @@ export default function Calendar() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setCurrentDate(new Date(2024, 11, 1))}
+              onClick={goToToday}
               className="bg-transparent border-border hover:bg-muted"
             >
               Today
@@ -197,6 +307,15 @@ export default function Calendar() {
             {days}
           </div>
         </div>
+
+        {/* Empty state for no events */}
+        {!loading && events.length === 0 && (
+          <div className="text-center py-8 animate-fade-in glass-card">
+            <CalendarIcon className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground">No events scheduled yet</p>
+            <p className="text-sm text-muted-foreground/70">Click "Add Event" to create your first event</p>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
