@@ -1,0 +1,376 @@
+import { useState, useEffect, useCallback } from "react";
+import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+interface ContentFolder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  creator_id: string;
+}
+
+interface ContentFile {
+  id: string;
+  name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  folder_id: string | null;
+  creator_id: string | null;
+}
+
+interface CreatorContentVaultProps {
+  creatorId: string;
+}
+
+export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
+  const [folders, setFolders] = useState<ContentFolder[]>([]);
+  const [files, setFiles] = useState<ContentFile[]>([]);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [folderPath, setFolderPath] = useState<ContentFolder[]>([]);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
+
+  const fetchContent = useCallback(async () => {
+    // Fetch folders
+    const { data: folderData } = await supabase
+      .from("content_folders")
+      .select("*")
+      .eq("creator_id", creatorId)
+      .eq("parent_id", currentFolder || null as any);
+
+    if (folderData) setFolders(folderData);
+
+    // Fetch files
+    const { data: fileData } = await supabase
+      .from("content_files")
+      .select("*")
+      .eq("creator_id", creatorId)
+      .eq("folder_id", currentFolder || null as any);
+
+    if (fileData) setFiles(fileData as ContentFile[]);
+  }, [creatorId, currentFolder]);
+
+  useEffect(() => {
+    fetchContent();
+  }, [fetchContent]);
+
+  const createFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    const { error } = await supabase
+      .from("content_folders")
+      .insert({
+        name: newFolderName,
+        creator_id: creatorId,
+        parent_id: currentFolder,
+      });
+
+    if (error) {
+      toast.error("Failed to create folder");
+    } else {
+      toast.success("Folder created");
+      setNewFolderName("");
+      setIsCreateFolderOpen(false);
+      fetchContent();
+    }
+  };
+
+  const navigateToFolder = async (folder: ContentFolder) => {
+    setFolderPath([...folderPath, folder]);
+    setCurrentFolder(folder.id);
+  };
+
+  const navigateBack = () => {
+    const newPath = [...folderPath];
+    newPath.pop();
+    setFolderPath(newPath);
+    setCurrentFolder(newPath.length > 0 ? newPath[newPath.length - 1].id : null);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFiles = e.target.files;
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+
+    setUploading(true);
+    
+    for (const file of Array.from(uploadedFiles)) {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${creatorId}/${Date.now()}_${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('content-vault')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast.error(`Failed to upload ${file.name}`);
+        continue;
+      }
+
+      const { error: dbError } = await supabase
+        .from('content_files')
+        .insert({
+          name: file.name,
+          file_path: filePath,
+          file_type: file.type,
+          file_size: file.size,
+          folder_id: currentFolder,
+          creator_id: creatorId,
+        });
+
+      if (dbError) {
+        toast.error(`Failed to save ${file.name}`);
+      }
+    }
+
+    setUploading(false);
+    toast.success("Files uploaded successfully");
+    fetchContent();
+  };
+
+  const downloadFile = async (file: ContentFile) => {
+    const { data, error } = await supabase.storage
+      .from('content-vault')
+      .download(file.file_path);
+
+    if (error) {
+      toast.error("Failed to download file");
+      return;
+    }
+
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const deleteFile = async (file: ContentFile) => {
+    const { error: storageError } = await supabase.storage
+      .from('content-vault')
+      .remove([file.file_path]);
+
+    if (storageError) {
+      toast.error("Failed to delete file from storage");
+      return;
+    }
+
+    const { error: dbError } = await supabase
+      .from('content_files')
+      .delete()
+      .eq('id', file.id);
+
+    if (dbError) {
+      toast.error("Failed to delete file record");
+    } else {
+      toast.success("File deleted");
+      fetchContent();
+    }
+  };
+
+  const deleteFolder = async (folder: ContentFolder) => {
+    const { error } = await supabase
+      .from('content_folders')
+      .delete()
+      .eq('id', folder.id);
+
+    if (error) {
+      toast.error("Failed to delete folder");
+    } else {
+      toast.success("Folder deleted");
+      fetchContent();
+    }
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return <Image className="h-8 w-8 text-primary" />;
+    if (fileType.startsWith('video/')) return <Video className="h-8 w-8 text-primary" />;
+    return <File className="h-8 w-8 text-muted-foreground" />;
+  };
+
+  const getFileUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('content-vault').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {currentFolder && (
+            <Button variant="ghost" size="sm" onClick={navigateBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          )}
+          <div className="flex items-center text-sm text-muted-foreground">
+            <span className="cursor-pointer hover:text-foreground" onClick={() => {
+              setCurrentFolder(null);
+              setFolderPath([]);
+            }}>
+              Root
+            </span>
+            {folderPath.map((folder) => (
+              <span key={folder.id} className="flex items-center">
+                <ChevronRight className="h-4 w-4 mx-1" />
+                <span className="cursor-pointer hover:text-foreground">{folder.name}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <FolderPlus className="h-4 w-4 mr-2" />
+                New Folder
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Folder</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Folder name"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                />
+                <Button onClick={createFolder} className="w-full">Create Folder</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button size="sm" className="bg-gradient-primary" disabled={uploading}>
+            <Upload className="h-4 w-4 mr-2" />
+            <label className="cursor-pointer">
+              {uploading ? "Uploading..." : "Upload"}
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+            </label>
+          </Button>
+        </div>
+      </div>
+
+      {/* Content Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {folders.map((folder) => (
+          <div
+            key={folder.id}
+            className="group relative p-4 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
+            onClick={() => navigateToFolder(folder)}
+          >
+            <div className="flex flex-col items-center gap-2">
+              <Folder className="h-12 w-12 text-primary" />
+              <span className="text-sm text-foreground text-center truncate w-full">{folder.name}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteFolder(folder);
+              }}
+            >
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
+          </div>
+        ))}
+        {files.map((file) => (
+          <div
+            key={file.id}
+            className="group relative p-4 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
+            onClick={() => setPreviewFile(file)}
+          >
+            <div className="flex flex-col items-center gap-2">
+              {getFileIcon(file.file_type)}
+              <span className="text-sm text-foreground text-center truncate w-full">{file.name}</span>
+            </div>
+            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadFile(file);
+                }}
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteFile(file);
+                }}
+              >
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {folders.length === 0 && files.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Folder className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>No content yet. Create a folder or upload files.</p>
+        </div>
+      )}
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{previewFile?.name}</DialogTitle>
+          </DialogHeader>
+          {previewFile && (
+            <div className="flex items-center justify-center">
+              {previewFile.file_type.startsWith('image/') ? (
+                <img
+                  src={getFileUrl(previewFile.file_path)}
+                  alt={previewFile.name}
+                  className="max-h-[70vh] object-contain"
+                />
+              ) : previewFile.file_type.startsWith('video/') ? (
+                <video
+                  src={getFileUrl(previewFile.file_path)}
+                  controls
+                  className="max-h-[70vh]"
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <File className="h-16 w-16 mx-auto text-muted-foreground" />
+                  <p className="mt-4 text-muted-foreground">Preview not available</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

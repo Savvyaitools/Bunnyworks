@@ -104,9 +104,11 @@ export type Database = {
       content_files: {
         Row: {
           created_at: string
+          creator_id: string | null
           file_path: string
           file_size: number
           file_type: string
+          folder_id: string | null
           id: string
           name: string
           status: string
@@ -114,9 +116,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          creator_id?: string | null
           file_path: string
           file_size: number
           file_type: string
+          folder_id?: string | null
           id?: string
           name: string
           status?: string
@@ -124,15 +128,118 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          creator_id?: string | null
           file_path?: string
           file_size?: number
           file_type?: string
+          folder_id?: string | null
           id?: string
           name?: string
           status?: string
           uploaded_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_files_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "content_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_folders: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_folders_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "content_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_plans: {
+        Row: {
+          created_at: string
+          creator_id: string
+          description: string | null
+          id: string
+          platform: string | null
+          scheduled_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          id?: string
+          platform?: string | null
+          scheduled_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          id?: string
+          platform?: string | null
+          scheduled_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_plans_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creator_assignments: {
         Row: {
@@ -173,50 +280,123 @@ export type Database = {
           },
         ]
       }
+      creator_earnings: {
+        Row: {
+          amount: number
+          created_at: string
+          creator_id: string
+          id: string
+          notes: string | null
+          period_end: string
+          period_start: string
+          platform: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          creator_id: string
+          id?: string
+          notes?: string | null
+          period_end: string
+          period_start: string
+          platform?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          creator_id?: string
+          id?: string
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          platform?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_earnings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creators: {
         Row: {
+          alias: string | null
           avatar_seed: string | null
           created_at: string
           email: string
           followers: string | null
           id: string
+          instagram_url: string | null
+          manager_id: string | null
           name: string
           notes: string | null
+          online_status: boolean | null
+          onlyfans_url: string | null
           phone: string | null
           platform: string | null
           revenue: number
+          snapchat_url: string | null
           status: string
+          tiktok_url: string | null
+          twitter_url: string | null
           updated_at: string
         }
         Insert: {
+          alias?: string | null
           avatar_seed?: string | null
           created_at?: string
           email: string
           followers?: string | null
           id?: string
+          instagram_url?: string | null
+          manager_id?: string | null
           name: string
           notes?: string | null
+          online_status?: boolean | null
+          onlyfans_url?: string | null
           phone?: string | null
           platform?: string | null
           revenue?: number
+          snapchat_url?: string | null
           status?: string
+          tiktok_url?: string | null
+          twitter_url?: string | null
           updated_at?: string
         }
         Update: {
+          alias?: string | null
           avatar_seed?: string | null
           created_at?: string
           email?: string
           followers?: string | null
           id?: string
+          instagram_url?: string | null
+          manager_id?: string | null
           name?: string
           notes?: string | null
+          online_status?: boolean | null
+          onlyfans_url?: string | null
           phone?: string | null
           platform?: string | null
           revenue?: number
+          snapchat_url?: string | null
           status?: string
+          tiktok_url?: string | null
+          twitter_url?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "creators_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employees: {
         Row: {
@@ -295,6 +475,50 @@ export type Database = {
           sender_type?: string
         }
         Relationships: []
+      }
+      marketing_accounts: {
+        Row: {
+          created_at: string
+          creator_id: string
+          followers_count: number | null
+          id: string
+          is_connected: boolean | null
+          last_synced_at: string | null
+          platform: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          followers_count?: number | null
+          id?: string
+          is_connected?: boolean | null
+          last_synced_at?: string | null
+          platform: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          followers_count?: number | null
+          id?: string
+          is_connected?: boolean | null
+          last_synced_at?: string | null
+          platform?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_accounts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
