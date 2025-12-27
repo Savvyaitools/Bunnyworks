@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Creators from "./pages/Creators";
+import CreatorDetail from "./pages/CreatorDetail";
 import Employees from "./pages/Employees";
 import Tasks from "./pages/Tasks";
 import Calendar from "./pages/Calendar";

@@ -13,6 +13,14 @@ export interface Creator {
   platform: string | null;
   followers: string | null;
   notes: string | null;
+  alias: string | null;
+  online_status: boolean | null;
+  manager_id: string | null;
+  onlyfans_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  twitter_url: string | null;
+  snapchat_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +46,22 @@ export function useCreators() {
       toast.error("Failed to load creators");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const getCreatorById = useCallback(async (id: string): Promise<Creator | null> => {
+    try {
+      const { data, error } = await supabase
+        .from("creators")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      return data as Creator;
+    } catch (error) {
+      console.error("Error fetching creator:", error);
+      return null;
     }
   }, []);
 
@@ -111,6 +135,7 @@ export function useCreators() {
     creators,
     loading,
     stats,
+    getCreatorById,
     createCreator,
     updateCreator,
     deleteCreator,
