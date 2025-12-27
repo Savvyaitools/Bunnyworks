@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,12 @@ interface ContentFile {
   creator_id: string | null;
 }
 
+interface UploadProgress {
+  fileName: string;
+  progress: number;
+  status: "uploading" | "complete" | "error";
+}
+
 interface CreatorContentVaultProps {
   creatorId: string;
 }
@@ -43,7 +50,9 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
-
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const fetchContent = useCallback(async () => {
     // Fetch folders
     const { data: folderData } = await supabase
@@ -101,44 +110,103 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     setCurrentFolder(newPath.length > 0 ? newPath[newPath.length - 1].id : null);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = e.target.files;
-    if (!uploadedFiles || uploadedFiles.length === 0) return;
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
 
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      uploadFiles(droppedFiles);
+    }
+  }, [creatorId, currentFolder]);
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      uploadFiles(Array.from(selectedFiles));
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadFiles = async (fileList: File[]) => {
     setUploading(true);
-    
-    for (const file of Array.from(uploadedFiles)) {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${creatorId}/${Date.now()}_${file.name}`;
+    setUploadProgress(fileList.map(f => ({ fileName: f.name, progress: 0, status: "uploading" })));
 
-      const { error: uploadError } = await supabase.storage
-        .from('content-vault')
-        .upload(filePath, file);
+    for (const file of fileList) {
+      try {
+        const filePath = `${creatorId}/${Date.now()}_${file.name}`;
 
-      if (uploadError) {
-        toast.error(`Failed to upload ${file.name}`);
-        continue;
-      }
+        // Simulate progress
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => prev.map(p => 
+            p.fileName === file.name && p.progress < 90 
+              ? { ...p, progress: p.progress + 15 } 
+              : p
+          ));
+        }, 150);
 
-      const { error: dbError } = await supabase
-        .from('content_files')
-        .insert({
-          name: file.name,
-          file_path: filePath,
-          file_type: file.type,
-          file_size: file.size,
-          folder_id: currentFolder,
-          creator_id: creatorId,
-        });
+        const { error: uploadError } = await supabase.storage
+          .from('content-vault')
+          .upload(filePath, file);
 
-      if (dbError) {
-        toast.error(`Failed to save ${file.name}`);
+        clearInterval(progressInterval);
+
+        if (uploadError) {
+          setUploadProgress(prev => prev.map(p => 
+            p.fileName === file.name ? { ...p, status: "error" } : p
+          ));
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        const { error: dbError } = await supabase
+          .from('content_files')
+          .insert({
+            name: file.name,
+            file_path: filePath,
+            file_type: file.type,
+            file_size: file.size,
+            folder_id: currentFolder,
+            creator_id: creatorId,
+          });
+
+        if (dbError) {
+          setUploadProgress(prev => prev.map(p => 
+            p.fileName === file.name ? { ...p, status: "error" } : p
+          ));
+          toast.error(`Failed to save ${file.name}`);
+        } else {
+          setUploadProgress(prev => prev.map(p => 
+            p.fileName === file.name ? { ...p, progress: 100, status: "complete" } : p
+          ));
+        }
+      } catch (error) {
+        setUploadProgress(prev => prev.map(p => 
+          p.fileName === file.name ? { ...p, status: "error" } : p
+        ));
       }
     }
 
     setUploading(false);
-    toast.success("Files uploaded successfully");
+    toast.success("Upload complete");
     fetchContent();
+
+    // Clear progress after delay
+    setTimeout(() => setUploadProgress([]), 3000);
   };
 
   const downloadFile = async (file: ContentFile) => {
@@ -207,10 +275,17 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     return data.publicUrl;
   };
 
+  const getUploadIcon = (fileName: string) => {
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    if (["mp4", "mov", "avi", "webm"].includes(ext || "")) return Video;
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "")) return Image;
+    return File;
+  };
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           {currentFolder && (
             <Button variant="ghost" size="sm" onClick={navigateBack}>
@@ -255,21 +330,88 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
               </div>
             </DialogContent>
           </Dialog>
-          <Button size="sm" className="bg-gradient-primary" disabled={uploading}>
+          <Button size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
-            <label className="cursor-pointer">
-              {uploading ? "Uploading..." : "Upload"}
-              <input
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileUpload}
-                disabled={uploading}
-              />
-            </label>
+            {uploading ? "Uploading..." : "Upload"}
           </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            multiple
+            className="hidden"
+            onChange={handleFileInputChange}
+            accept="video/*,image/*,.pdf,.doc,.docx,.zip"
+          />
         </div>
       </div>
+
+      {/* Drag & Drop Zone */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={cn(
+          "relative border-2 border-dashed rounded-xl p-8 transition-all text-center",
+          isDragging
+            ? "border-primary bg-primary/10 scale-[1.01]"
+            : "border-border hover:border-primary/50 hover:bg-muted/30",
+          uploading && "pointer-events-none opacity-50"
+        )}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className={cn(
+            "w-14 h-14 rounded-xl flex items-center justify-center transition-colors",
+            isDragging ? "bg-primary/20" : "bg-muted"
+          )}>
+            {uploading ? (
+              <Loader2 className="h-7 w-7 text-primary animate-spin" />
+            ) : (
+              <Upload className={cn("h-7 w-7", isDragging ? "text-primary" : "text-muted-foreground")} />
+            )}
+          </div>
+          <div>
+            <p className="font-medium text-foreground">
+              {isDragging ? "Drop files here" : "Drag & drop files here"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              or click Upload button • Videos, Images, Documents
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Progress */}
+      {uploadProgress.length > 0 && (
+        <div className="space-y-2">
+          {uploadProgress.map((item, index) => {
+            const FileIcon = getUploadIcon(item.fileName);
+            return (
+              <div key={index} className="p-3 rounded-lg border border-border bg-card flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                  item.status === "complete" ? "bg-green-500/20" : item.status === "error" ? "bg-destructive/20" : "bg-primary/20"
+                )}>
+                  {item.status === "complete" ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : item.status === "error" ? (
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                  ) : (
+                    <FileIcon className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{item.fileName}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Progress value={item.progress} className={cn("h-1.5 flex-1", item.status === "error" && "[&>div]:bg-destructive")} />
+                    <span className="text-xs text-muted-foreground w-10 text-right">{item.progress}%</span>
+                  </div>
+                </div>
+                {item.status === "uploading" && <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Content Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
