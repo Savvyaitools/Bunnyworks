@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_events: {
+        Row: {
+          all_day: boolean | null
+          created_at: string
+          creator_id: string | null
+          description: string | null
+          end_date: string | null
+          event_type: string
+          id: string
+          start_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          all_day?: boolean | null
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: string
+          id?: string
+          start_date: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          all_day?: boolean | null
+          created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: string
+          id?: string
+          start_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatter_shifts: {
         Row: {
           chatter_id: string
@@ -476,6 +523,53 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          creator_id: string | null
+          due_date: string
+          id: string
+          invoice_number: string
+          issue_date: string
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          creator_id?: string | null
+          due_date: string
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          creator_id?: string | null
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_accounts: {
         Row: {
           created_at: string
@@ -618,6 +712,42 @@ export type Database = {
           phone?: string | null
           source?: string | null
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sop_documents: {
+        Row: {
+          category: string
+          content: string | null
+          created_at: string
+          file_path: string | null
+          file_type: string | null
+          id: string
+          roles: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          file_path?: string | null
+          file_type?: string | null
+          id?: string
+          roles?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          file_path?: string | null
+          file_type?: string | null
+          id?: string
+          roles?: string[] | null
+          title?: string
           updated_at?: string
         }
         Relationships: []

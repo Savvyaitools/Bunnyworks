@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Send, Phone, Video, MoreVertical, Paperclip, Smile, Bell } from "lucide-react";
+import { Search, Send, MoreVertical, Paperclip, Smile, Bell, MessageSquare, Users } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
+import { useCreators } from "@/hooks/useCreators";
+import { useEmployees } from "@/hooks/useEmployees";
 
 interface Conversation {
   id: string;
@@ -17,21 +19,37 @@ interface Conversation {
   online: boolean;
 }
 
-const conversations: Conversation[] = [
-  { id: "emma-agency", name: "Emma Rose", avatar: "emma", type: "creator", online: true },
-  { id: "sarah-agency", name: "Sarah Johnson", avatar: "sarah", type: "employee", online: true },
-  { id: "luna-agency", name: "Luna Star", avatar: "luna", type: "creator", online: false },
-  { id: "alex-agency", name: "Alex Rivera", avatar: "alex", type: "employee", online: true },
-  { id: "jessica-agency", name: "Jessica Blake", avatar: "jessica", type: "creator", online: false },
-];
-
 export default function Messages() {
-  const [selectedConvo, setSelectedConvo] = useState(conversations[0]);
+  const [selectedConvo, setSelectedConvo] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { messages, loading, sendMessage, markAsRead } = useMessages(selectedConvo.id, "agency");
+  const { creators } = useCreators();
+  const { employees } = useEmployees();
+
+  // Build conversations from creators and employees
+  const conversations: Conversation[] = [
+    ...creators.map((c) => ({
+      id: `creator-${c.id}`,
+      name: c.name,
+      avatar: c.avatar_seed || c.name.toLowerCase().split(" ")[0],
+      type: "creator" as const,
+      online: c.online_status || false,
+    })),
+    ...employees.map((e) => ({
+      id: `employee-${e.id}`,
+      name: e.name,
+      avatar: e.avatar_seed || e.name.toLowerCase().split(" ")[0],
+      type: "employee" as const,
+      online: e.status === "Active",
+    })),
+  ];
+
+  const currentConvo = selectedConvo || conversations[0];
+  const conversationId = currentConvo?.id || "";
+
+  const { messages, loading, sendMessage, markAsRead } = useMessages(conversationId, "agency");
   const { unreadCounts } = useUnreadMessages("agency");
 
   const filteredConversations = conversations.filter((c) =>
@@ -39,7 +57,7 @@ export default function Messages() {
   );
 
   const handleSend = async () => {
-    if (!messageInput.trim()) return;
+    if (!messageInput.trim() || !currentConvo) return;
     await sendMessage(messageInput, "Agency Team");
     setMessageInput("");
   };
@@ -60,8 +78,10 @@ export default function Messages() {
 
   // Mark as read when selecting conversation
   useEffect(() => {
-    markAsRead();
-  }, [selectedConvo.id, markAsRead]);
+    if (currentConvo) {
+      markAsRead();
+    }
+  }, [currentConvo?.id, markAsRead]);
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString("en-US", {
@@ -71,17 +91,30 @@ export default function Messages() {
     });
   };
 
-  const formatLastSeen = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return `${minutes} min`;
-    if (minutes < 1440) return `${Math.floor(minutes / 60)} hr`;
-    return `${Math.floor(minutes / 1440)} day`;
-  };
+  // Empty state when no creators or employees
+  if (conversations.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="h-[calc(100vh-8rem)] flex items-center justify-center animate-fade-in">
+          <div className="text-center glass-card p-12 max-w-md">
+            <Users className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">No Contacts Yet</h2>
+            <p className="text-muted-foreground mb-4">
+              Add creators or employees to start messaging. Conversations will appear here once you have team members.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button variant="outline" onClick={() => window.location.href = "/creators"}>
+                Add Creators
+              </Button>
+              <Button variant="outline" onClick={() => window.location.href = "/employees"}>
+                Add Employees
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -105,13 +138,14 @@ export default function Messages() {
             <div className="p-2">
               {filteredConversations.map((convo) => {
                 const unread = unreadCounts[convo.id] || 0;
+                const isSelected = currentConvo?.id === convo.id;
                 return (
                   <button
                     key={convo.id}
                     onClick={() => setSelectedConvo(convo)}
                     className={cn(
                       "w-full p-3 rounded-lg flex items-start gap-3 transition-colors text-left",
-                      selectedConvo.id === convo.id
+                      isSelected
                         ? "bg-primary/10 border border-primary/30"
                         : "hover:bg-muted/50"
                     )}
@@ -156,104 +190,107 @@ export default function Messages() {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col glass-card">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedConvo.avatar}`} />
-                  <AvatarFallback>{selectedConvo.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                </Avatar>
-                {selectedConvo.online && (
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />
-                )}
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">{selectedConvo.name}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {selectedConvo.online ? "Online" : "Offline"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Phone className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Video className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <MoreVertical className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            <div className="space-y-4">
-              {loading ? (
-                <div className="text-center text-muted-foreground py-8">Loading messages...</div>
-              ) : messages.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No messages yet. Start the conversation!</p>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex",
-                      message.sender_type === "agency" ? "justify-end" : "justify-start"
+          {currentConvo ? (
+            <>
+              {/* Chat Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${currentConvo.avatar}`} />
+                      <AvatarFallback>{currentConvo.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                    </Avatar>
+                    {currentConvo.online && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />
                     )}
-                  >
-                    <div
-                      className={cn(
-                        "message-bubble",
-                        message.sender_type === "agency"
-                          ? "message-bubble-sent"
-                          : "message-bubble-received"
-                      )}
-                    >
-                      <p className="text-sm">{message.content}</p>
-                      <p className={cn(
-                        "text-xs mt-1",
-                        message.sender_type === "agency" ? "text-primary-foreground/70" : "text-muted-foreground"
-                      )}>
-                        {formatTime(message.created_at)}
-                      </p>
-                    </div>
                   </div>
-                ))
-              )}
-            </div>
-          </ScrollArea>
+                  <div>
+                    <h3 className="font-semibold text-foreground">{currentConvo.name}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {currentConvo.online ? "Online" : "Offline"}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </div>
 
-          {/* Message Input */}
-          <div className="p-4 border-t border-border">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
-                <Paperclip className="h-5 w-5" />
-              </Button>
-              <Input
-                placeholder="Type a message..."
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="bg-muted/50 border-border focus:border-primary"
-              />
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
-                <Smile className="h-5 w-5" />
-              </Button>
-              <Button 
-                className="bg-gradient-primary hover:opacity-90 shadow-glow-sm shrink-0"
-                onClick={handleSend}
-                disabled={!messageInput.trim()}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+                <div className="space-y-4">
+                  {loading ? (
+                    <div className="text-center text-muted-foreground py-8">Loading messages...</div>
+                  ) : messages.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No messages yet. Start the conversation!</p>
+                    </div>
+                  ) : (
+                    messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={cn(
+                          "flex",
+                          message.sender_type === "agency" ? "justify-end" : "justify-start"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "message-bubble",
+                            message.sender_type === "agency"
+                              ? "message-bubble-sent"
+                              : "message-bubble-received"
+                          )}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <p className={cn(
+                            "text-xs mt-1",
+                            message.sender_type === "agency" ? "text-primary-foreground/70" : "text-muted-foreground"
+                          )}>
+                            {formatTime(message.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+
+              {/* Message Input */}
+              <div className="p-4 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
+                    <Paperclip className="h-5 w-5" />
+                  </Button>
+                  <Input
+                    placeholder="Type a message..."
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="bg-muted/50 border-border focus:border-primary"
+                  />
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
+                    <Smile className="h-5 w-5" />
+                  </Button>
+                  <Button 
+                    className="bg-gradient-primary hover:opacity-90 shadow-glow-sm shrink-0"
+                    onClick={handleSend}
+                    disabled={!messageInput.trim()}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">Select a conversation to start messaging</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </DashboardLayout>
