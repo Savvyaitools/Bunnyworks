@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      chatter_shifts: {
+        Row: {
+          chatter_id: string
+          created_at: string
+          creator_id: string
+          id: string
+          notes: string | null
+          shift_end: string
+          shift_start: string
+          shift_type: string | null
+        }
+        Insert: {
+          chatter_id: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          notes?: string | null
+          shift_end: string
+          shift_start: string
+          shift_type?: string | null
+        }
+        Update: {
+          chatter_id?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          notes?: string | null
+          shift_end?: string
+          shift_start?: string
+          shift_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_shifts_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_shifts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatters: {
+        Row: {
+          auth_user_id: string | null
+          avatar_seed: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          skill_grade: string
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id?: string | null
+          avatar_seed?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          skill_grade?: string
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string | null
+          avatar_seed?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          skill_grade?: string
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_files: {
         Row: {
           created_at: string
@@ -46,6 +133,45 @@ export type Database = {
           uploaded_at?: string
         }
         Relationships: []
+      }
+      creator_assignments: {
+        Row: {
+          chatter_id: string
+          created_at: string
+          creator_id: string
+          id: string
+          role: string | null
+        }
+        Insert: {
+          chatter_id: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          role?: string | null
+        }
+        Update: {
+          chatter_id?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_assignments_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_assignments_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creators: {
         Row: {
@@ -137,6 +263,39 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read: boolean | null
+          recipient_id: string
+          recipient_type: string
+          sender_id: string
+          sender_type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read?: boolean | null
+          recipient_id: string
+          recipient_type: string
+          sender_id: string
+          sender_type: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read?: boolean | null
+          recipient_id?: string
+          recipient_type?: string
+          sender_id?: string
+          sender_type?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -197,9 +356,52 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiting_creators: {
+        Row: {
+          alias: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          onboarded: boolean | null
+          phone: string | null
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alias?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          onboarded?: boolean | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alias?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          onboarded?: boolean | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assignee_id: string | null
+          chatter_id: string | null
           created_at: string
           creator_id: string | null
           description: string | null
@@ -212,6 +414,7 @@ export type Database = {
         }
         Insert: {
           assignee_id?: string | null
+          chatter_id?: string | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
@@ -224,6 +427,7 @@ export type Database = {
         }
         Update: {
           assignee_id?: string | null
+          chatter_id?: string | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
@@ -243,6 +447,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
@@ -251,15 +462,46 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      onboard_recruiting_creator: {
+        Args: { recruiting_id: string }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "manager" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -386,6 +628,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "manager", "user"],
+    },
   },
 } as const

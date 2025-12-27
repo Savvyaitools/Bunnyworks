@@ -1,0 +1,393 @@
+import { useState } from "react";
+import { 
+  Search, Plus, MoreVertical, Trash2, Star, 
+  Clock, Users, CheckCircle, XCircle
+} from "lucide-react";
+import { DashboardLayout } from "@/components/layout";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { useChatters, SkillGrade, CreateChatterInput } from "@/hooks/useChatters";
+import { useCreatorAssignments } from "@/hooks/useCreatorAssignments";
+
+const gradeStyles: Record<SkillGrade, string> = {
+  A: "bg-green-500/20 text-green-400 border-green-500/30",
+  B: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  C: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+};
+
+const gradeLabels: Record<SkillGrade, string> = {
+  A: "Grade A - Expert",
+  B: "Grade B - Intermediate",
+  C: "Grade C - Beginner",
+};
+
+const timezones = [
+  "UTC-8 (PST)",
+  "UTC-5 (EST)",
+  "UTC+0 (GMT)",
+  "UTC+1 (CET)",
+  "UTC+8 (SGT)",
+  "UTC+9 (JST)",
+];
+
+export default function Chatters() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGrade, setSelectedGrade] = useState<SkillGrade | "all">("all");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [formData, setFormData] = useState<Partial<CreateChatterInput>>({
+    name: "",
+    email: "",
+    skill_grade: "B",
+    timezone: "",
+    is_active: true,
+    auth_user_id: null,
+    avatar_seed: null,
+  });
+
+  const { chatters, loading, stats, createChatter, updateChatter, deleteChatter } = useChatters();
+  const { assignments } = useCreatorAssignments();
+
+  const getChatterAssignments = (chatterId: string) => {
+    return assignments.filter((a) => a.chatter_id === chatterId);
+  };
+
+  const filteredChatters = chatters.filter((chatter) => {
+    const matchesSearch = 
+      chatter.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      chatter.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGrade = selectedGrade === "all" || chatter.skill_grade === selectedGrade;
+    return matchesSearch && matchesGrade;
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name) return;
+
+    await createChatter({
+      name: formData.name,
+      email: formData.email || null,
+      skill_grade: formData.skill_grade as SkillGrade,
+      timezone: formData.timezone || null,
+      is_active: formData.is_active ?? true,
+      auth_user_id: null,
+      avatar_seed: formData.name.toLowerCase().replace(/\s/g, ""),
+    });
+
+    setFormData({ name: "", email: "", skill_grade: "B", timezone: "", is_active: true });
+    setIsAddDialogOpen(false);
+  };
+
+  const handleGradeChange = async (id: string, grade: SkillGrade) => {
+    await updateChatter(id, { skill_grade: grade });
+  };
+
+  const handleActiveToggle = async (id: string, isActive: boolean) => {
+    await updateChatter(id, { is_active: isActive });
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Chatters</h1>
+            <p className="text-muted-foreground mt-1">
+              {loading ? "Loading..." : `${stats.total} chatters • ${stats.active} active`}
+            </p>
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow-sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Chatter
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle>Add New Chatter</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Chatter name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="chatter@email.com"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="grade">Skill Grade</Label>
+                    <Select
+                      value={formData.skill_grade}
+                      onValueChange={(v) => setFormData({ ...formData, skill_grade: v as SkillGrade })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="A">Grade A - Expert</SelectItem>
+                        <SelectItem value="B">Grade B - Intermediate</SelectItem>
+                        <SelectItem value="C">Grade C - Beginner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="timezone">Timezone</Label>
+                    <Select
+                      value={formData.timezone}
+                      onValueChange={(v) => setFormData({ ...formData, timezone: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select timezone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timezones.map((tz) => (
+                          <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="active">Active Status</Label>
+                  <Switch
+                    id="active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                  />
+                </div>
+                <Button type="submit" className="w-full bg-gradient-primary">
+                  Add Chatter
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: "50ms" }}>
+          <div className="p-4 rounded-xl bg-card border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-5 w-5 text-primary" />
+              <span className="text-sm text-muted-foreground">Total</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="h-5 w-5 text-green-400" />
+              <span className="text-sm text-muted-foreground">Active</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.active}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <Star className="h-5 w-5 text-green-400" />
+              <span className="text-sm text-muted-foreground">Grade A</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.gradeA}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <Star className="h-5 w-5 text-yellow-400" />
+              <span className="text-sm text-muted-foreground">Grade B/C</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.gradeB + stats.gradeC}</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{ animationDelay: "100ms" }}>
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search chatters..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-card border-border focus:border-primary"
+            />
+          </div>
+          <div className="flex gap-2">
+            {(["all", "A", "B", "C"] as const).map((grade) => (
+              <Button
+                key={grade}
+                variant={selectedGrade === grade ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedGrade(grade)}
+                className={cn(
+                  selectedGrade === grade
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {grade === "all" ? "All Grades" : `Grade ${grade}`}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Cards */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="p-5 rounded-xl bg-card border border-border">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <div>
+                      <Skeleton className="h-5 w-32 mb-1" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-24 mb-4" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredChatters.map((chatter, index) => {
+              const chatterAssignments = getChatterAssignments(chatter.id);
+              return (
+                <div
+                  key={chatter.id}
+                  className={cn(
+                    "p-5 rounded-xl bg-card border transition-all animate-fade-in",
+                    chatter.is_active ? "border-border hover:border-primary/50" : "border-border/50 opacity-60"
+                  )}
+                  style={{ animationDelay: `${150 + index * 50}ms` }}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12 ring-2 ring-primary/20">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatter.avatar_seed || chatter.name}`} />
+                        <AvatarFallback className="bg-primary/20 text-primary">
+                          {chatter.name.split(" ").map(n => n[0]).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{chatter.name}</h3>
+                        {chatter.email && (
+                          <p className="text-sm text-muted-foreground truncate max-w-[150px]">{chatter.email}</p>
+                        )}
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover border-border">
+                        <DropdownMenuItem onClick={() => handleGradeChange(chatter.id, "A")}>
+                          Set Grade A
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleGradeChange(chatter.id, "B")}>
+                          Set Grade B
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleGradeChange(chatter.id, "C")}>
+                          Set Grade C
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => deleteChatter(chatter.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remove Chatter
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge className={cn("text-xs", gradeStyles[chatter.skill_grade])}>
+                      Grade {chatter.skill_grade}
+                    </Badge>
+                    <Badge className={cn(
+                      "text-xs",
+                      chatter.is_active 
+                        ? "bg-green-500/20 text-green-400 border-green-500/30"
+                        : "bg-muted text-muted-foreground"
+                    )}>
+                      {chatter.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    {chatter.timezone && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>{chatter.timezone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span>{chatterAssignments.length} assigned creators</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Active Status</span>
+                    <Switch
+                      checked={chatter.is_active}
+                      onCheckedChange={(checked) => handleActiveToggle(chatter.id, checked)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading && filteredChatters.length === 0 && (
+          <div className="text-center py-12 animate-fade-in">
+            <p className="text-muted-foreground">No chatters found matching your criteria.</p>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
