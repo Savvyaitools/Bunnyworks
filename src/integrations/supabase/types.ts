@@ -109,6 +109,54 @@ export type Database = {
           },
         ]
       }
+      chatter_time_logs: {
+        Row: {
+          chatter_id: string
+          clock_in: string
+          clock_out: string | null
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          notes: string | null
+          shift_id: string | null
+        }
+        Insert: {
+          chatter_id: string
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          shift_id?: string | null
+        }
+        Update: {
+          chatter_id?: string
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          shift_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_time_logs_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_time_logs_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "chatter_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatters: {
         Row: {
           auth_user_id: string | null
@@ -251,6 +299,7 @@ export type Database = {
           description: string | null
           id: string
           platform: string | null
+          reference_media: Json | null
           scheduled_date: string | null
           status: string
           title: string
@@ -262,6 +311,7 @@ export type Database = {
           description?: string | null
           id?: string
           platform?: string | null
+          reference_media?: Json | null
           scheduled_date?: string | null
           status?: string
           title: string
@@ -273,6 +323,7 @@ export type Database = {
           description?: string | null
           id?: string
           platform?: string | null
+          reference_media?: Json | null
           scheduled_date?: string | null
           status?: string
           title?: string
@@ -361,6 +412,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "creator_earnings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_social_accounts: {
+        Row: {
+          account_type: string
+          created_at: string
+          creator_id: string
+          id: string
+          platform: string
+          profile_url: string | null
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          account_type?: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          platform: string
+          profile_url?: string | null
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          platform?: string
+          profile_url?: string | null
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_social_accounts_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
@@ -710,6 +802,7 @@ export type Database = {
       recruiting_creators: {
         Row: {
           alias: string | null
+          country: string | null
           created_at: string
           email: string | null
           id: string
@@ -723,6 +816,7 @@ export type Database = {
         }
         Insert: {
           alias?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -736,6 +830,7 @@ export type Database = {
         }
         Update: {
           alias?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -795,6 +890,7 @@ export type Database = {
           due_date: string | null
           id: string
           priority: string
+          request_type: string | null
           status: string
           title: string
           updated_at: string
@@ -808,6 +904,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string
+          request_type?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -821,6 +918,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string
+          request_type?: string | null
           status?: string
           title?: string
           updated_at?: string
