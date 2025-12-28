@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Search, Plus, MoreVertical, Trash2, UserCheck, 
-  Phone, Mail, Globe, MessageSquare
+  Phone, Mail, Globe, MessageSquare, MapPin
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,11 +58,20 @@ const statusLabels: Record<RecruitingStatus, string> = {
 
 const allStatuses: RecruitingStatus[] = ["prospecting", "contacted", "interviewed", "approved", "rejected"];
 
+const countries = [
+  "United States", "United Kingdom", "Canada", "Australia", "Germany", 
+  "France", "Spain", "Italy", "Brazil", "Mexico", "Japan", "South Korea",
+  "India", "Philippines", "Colombia", "Argentina", "Netherlands", "Sweden",
+  "Poland", "Romania", "Other"
+];
+
 export default function Recruiting() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<RecruitingStatus | "all">("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<CreateRecruitingInput>>({
+  const [isOnboardDialogOpen, setIsOnboardDialogOpen] = useState(false);
+  const [selectedCreatorForOnboard, setSelectedCreatorForOnboard] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Partial<CreateRecruitingInput> & { country?: string }>({
     name: "",
     alias: "",
     email: "",
@@ -69,6 +79,7 @@ export default function Recruiting() {
     source: "",
     status: "prospecting",
     notes: "",
+    country: "",
   });
 
   const {
@@ -102,9 +113,10 @@ export default function Recruiting() {
       source: formData.source || null,
       status: formData.status as RecruitingStatus,
       notes: formData.notes || null,
-    });
+      country: formData.country || null,
+    } as CreateRecruitingInput);
 
-    setFormData({ name: "", alias: "", email: "", phone: "", source: "", status: "prospecting", notes: "" });
+    setFormData({ name: "", alias: "", email: "", phone: "", source: "", status: "prospecting", notes: "", country: "" });
     setIsAddDialogOpen(false);
   };
 
@@ -114,6 +126,17 @@ export default function Recruiting() {
 
   const handleOnboard = async (id: string) => {
     await onboardCreator(id);
+    setIsOnboardDialogOpen(false);
+    setSelectedCreatorForOnboard(null);
+  };
+
+  const openOnboardDialog = (id: string) => {
+    setSelectedCreatorForOnboard(id);
+    setIsOnboardDialogOpen(true);
+  };
+
+  const getCreatorForOnboard = () => {
+    return recruitingCreators.find(c => c.id === selectedCreatorForOnboard);
   };
 
   return (
@@ -184,31 +207,58 @@ export default function Recruiting() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="source">Source</Label>
-                    <Input
-                      id="source"
-                      value={formData.source}
-                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                      placeholder="Instagram, Referral, etc."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
                     <Select
-                      value={formData.status}
-                      onValueChange={(v) => setFormData({ ...formData, status: v as RecruitingStatus })}
+                      value={formData.source || ""}
+                      onValueChange={(v) => setFormData({ ...formData, source: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select source" />
                       </SelectTrigger>
                       <SelectContent>
-                        {allStatuses.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {statusLabels[status]}
-                          </SelectItem>
+                        <SelectItem value="Instagram">Instagram</SelectItem>
+                        <SelectItem value="TikTok">TikTok</SelectItem>
+                        <SelectItem value="Twitter">Twitter</SelectItem>
+                        <SelectItem value="Referral">Referral</SelectItem>
+                        <SelectItem value="Ad Campaign">Ad Campaign</SelectItem>
+                        <SelectItem value="Manual">Manual Outreach</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Country</Label>
+                    <Select
+                      value={formData.country || ""}
+                      onValueChange={(v) => setFormData({ ...formData, country: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country} value={country}>{country}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(v) => setFormData({ ...formData, status: v as RecruitingStatus })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allStatuses.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {statusLabels[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes</Label>
@@ -224,6 +274,62 @@ export default function Recruiting() {
                   Add Prospect
                 </Button>
               </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Onboard Confirmation Dialog */}
+          <Dialog open={isOnboardDialogOpen} onOpenChange={setIsOnboardDialogOpen}>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle>Confirm Onboarding</DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  This will create a new creator profile from the recruiting data.
+                </DialogDescription>
+              </DialogHeader>
+              {getCreatorForOnboard() && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${getCreatorForOnboard()?.name}`} />
+                        <AvatarFallback>{getCreatorForOnboard()?.name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">{getCreatorForOnboard()?.name}</p>
+                        {getCreatorForOnboard()?.alias && (
+                          <p className="text-sm text-muted-foreground">{getCreatorForOnboard()?.alias}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {getCreatorForOnboard()?.email && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">{getCreatorForOnboard()?.email}</span>
+                        </div>
+                      )}
+                      {(getCreatorForOnboard() as any)?.country && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          <span>{(getCreatorForOnboard() as any)?.country}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={() => setIsOnboardDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={() => handleOnboard(selectedCreatorForOnboard!)}
+                    >
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Confirm Onboard
+                    </Button>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </div>
@@ -328,7 +434,7 @@ export default function Recruiting() {
                       ))}
                       <DropdownMenuSeparator />
                       {creator.status === "approved" && (
-                        <DropdownMenuItem onClick={() => handleOnboard(creator.id)} className="text-green-400">
+                        <DropdownMenuItem onClick={() => openOnboardDialog(creator.id)} className="text-green-400">
                           <UserCheck className="h-4 w-4 mr-2" />
                           Onboard Creator
                         </DropdownMenuItem>
@@ -361,6 +467,12 @@ export default function Recruiting() {
                       <span>{creator.phone}</span>
                     </div>
                   )}
+                  {(creator as any).country && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>{(creator as any).country}</span>
+                    </div>
+                  )}
                   {creator.source && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Globe className="h-4 w-4" />
@@ -381,7 +493,7 @@ export default function Recruiting() {
                 {creator.status === "approved" && (
                   <Button 
                     className="w-full mt-4 bg-green-600 hover:bg-green-700"
-                    onClick={() => handleOnboard(creator.id)}
+                    onClick={() => openOnboardDialog(creator.id)}
                   >
                     <UserCheck className="h-4 w-4 mr-2" />
                     Onboard Creator

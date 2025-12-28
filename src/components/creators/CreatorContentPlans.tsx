@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Calendar, CheckCircle, Clock, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Plus, Calendar, X, Upload, Image, Video, Download, Trash2, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +21,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useContentPlanMedia, ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
 
 interface ContentPlan {
   id: string;
@@ -30,6 +31,7 @@ interface ContentPlan {
   status: "planned" | "in_progress" | "completed" | "cancelled";
   platform: string | null;
   creator_id: string;
+  reference_media: ContentReferenceMedia[] | null;
 }
 
 interface CreatorContentPlansProps {
@@ -46,6 +48,10 @@ const statusStyles: Record<string, string> = {
 export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
+  const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploading, uploadMedia, deleteMedia, updatePlanMedia } = useContentPlanMedia();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -60,7 +66,20 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
       .eq("creator_id", creatorId)
       .order("scheduled_date", { ascending: true });
 
-    if (data) setPlans(data as ContentPlan[]);
+    if (data) {
+      // Parse reference_media from JSON
+      const parsed = data.map(plan => {
+        let media: ContentReferenceMedia[] = [];
+        if (Array.isArray(plan.reference_media)) {
+          media = plan.reference_media as unknown as ContentReferenceMedia[];
+        }
+        return {
+          ...plan,
+          reference_media: media,
+        };
+      });
+      setPlans(parsed as ContentPlan[]);
+    }
   }, [creatorId]);
 
   useEffect(() => {
@@ -79,6 +98,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         platform: formData.platform || null,
         creator_id: creatorId,
         status: "planned",
+        reference_media: [],
       });
 
     if (error) {
@@ -118,6 +138,51 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !selectedPlan) return;
+
+    const files = Array.from(e.target.files);
+    const existingMedia = selectedPlan.reference_media || [];
+    const newMedia: ContentReferenceMedia[] = [...existingMedia];
+
+    for (const file of files) {
+      const mediaItem = await uploadMedia(file, creatorId, selectedPlan.id);
+      if (mediaItem) {
+        newMedia.push(mediaItem);
+      }
+    }
+
+    await updatePlanMedia(selectedPlan.id, newMedia);
+    fetchPlans();
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveMedia = async (mediaItem: ContentReferenceMedia) => {
+    if (!selectedPlan) return;
+
+    const success = await deleteMedia(mediaItem.url);
+    if (success) {
+      const updatedMedia = (selectedPlan.reference_media || []).filter(m => m.id !== mediaItem.id);
+      await updatePlanMedia(selectedPlan.id, updatedMedia);
+      fetchPlans();
+    }
+  };
+
+  const openMediaDialog = (plan: ContentPlan) => {
+    setSelectedPlan(plan);
+    setIsMediaDialogOpen(true);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -148,16 +213,104 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                 value={formData.scheduled_date}
                 onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
               />
-              <Input
-                placeholder="Platform (e.g., OnlyFans, Instagram)"
+              <Select
                 value={formData.platform}
-                onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-              />
+                onValueChange={(v) => setFormData({ ...formData, platform: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OnlyFans">OnlyFans</SelectItem>
+                  <SelectItem value="Fansly">Fansly</SelectItem>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="TikTok">TikTok</SelectItem>
+                  <SelectItem value="Twitter">Twitter</SelectItem>
+                  <SelectItem value="YouTube">YouTube</SelectItem>
+                </SelectContent>
+              </Select>
               <Button onClick={createPlan} className="w-full">Create Plan</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Media Dialog */}
+      <Dialog open={isMediaDialogOpen} onOpenChange={setIsMediaDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Reference Media - {selectedPlan?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Upload Area */}
+            <div 
+              className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <FileUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {uploading ? "Uploading..." : "Click or drag to upload images/videos"}
+              </p>
+            </div>
+
+            {/* Media Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {(selectedPlan?.reference_media || []).map((media) => (
+                <div 
+                  key={media.id} 
+                  className="relative group rounded-lg overflow-hidden border border-border bg-muted/50"
+                >
+                  {media.type === "image" ? (
+                    <img 
+                      src={media.url} 
+                      alt={media.name}
+                      className="w-full h-32 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-32 flex items-center justify-center bg-muted">
+                      <Video className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <a 
+                      href={media.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-white/20 hover:bg-white/30"
+                    >
+                      <Download className="h-4 w-4 text-white" />
+                    </a>
+                    <button 
+                      onClick={() => handleRemoveMedia(media)}
+                      className="p-2 rounded-full bg-destructive/80 hover:bg-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 text-white" />
+                    </button>
+                  </div>
+                  <div className="p-2">
+                    <p className="text-xs text-foreground truncate">{media.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatFileSize(media.size)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {(selectedPlan?.reference_media?.length || 0) === 0 && (
+              <p className="text-center text-muted-foreground py-4">
+                No reference media uploaded yet.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-3">
         {plans.map((plan) => (
@@ -186,9 +339,24 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                   {plan.platform && (
                     <span>{plan.platform}</span>
                   )}
+                  {(plan.reference_media?.length || 0) > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Image className="h-3 w-3" />
+                      {plan.reference_media?.length} reference(s)
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => openMediaDialog(plan)}
+                >
+                  <Upload className="h-3 w-3 mr-1" />
+                  Media
+                </Button>
                 <Select
                   value={plan.status}
                   onValueChange={(value) => updateStatus(plan.id, value)}
