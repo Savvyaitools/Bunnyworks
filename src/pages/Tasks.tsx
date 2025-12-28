@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Clock, User, Calendar, Trash2 } from "lucide-react";
+import { Search, Plus, Clock, User, Calendar, Trash2, Tag } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type Priority = "Low" | "Medium" | "High" | "Urgent";
 type TaskStatus = "To Do" | "In Progress" | "Review" | "Completed";
+type RequestType = "general" | "custom";
 
 const priorityColors: Record<Priority, string> = {
   Urgent: "bg-destructive/20 text-destructive border-destructive/30",
@@ -44,11 +45,17 @@ const statusColors: Record<TaskStatus, string> = {
   Completed: "bg-success/20 text-success",
 };
 
+const requestTypeColors: Record<RequestType, string> = {
+  general: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  custom: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+};
+
 export default function Tasks() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | "All">("All");
+  const [selectedRequestType, setSelectedRequestType] = useState<RequestType | "all">("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<CreateTaskInput>>({
+  const [formData, setFormData] = useState<Partial<CreateTaskInput> & { request_type?: RequestType }>({
     title: "",
     description: "",
     status: "To Do",
@@ -56,6 +63,7 @@ export default function Tasks() {
     assignee_id: null,
     creator_id: null,
     due_date: null,
+    request_type: "general",
   });
 
   const { tasks, loading, stats, createTask, updateTask, deleteTask } = useTasks();
@@ -65,10 +73,17 @@ export default function Tasks() {
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === "All" || task.status === selectedStatus;
-    return matchesSearch && matchesStatus;
+    const matchesRequestType = selectedRequestType === "all" || 
+      (task as any).request_type === selectedRequestType;
+    return matchesSearch && matchesStatus && matchesRequestType;
   });
 
   const statuses: (TaskStatus | "All")[] = ["All", "To Do", "In Progress", "Review", "Completed"];
+  const requestTypes: { value: RequestType | "all"; label: string }[] = [
+    { value: "all", label: "All Types" },
+    { value: "general", label: "General" },
+    { value: "custom", label: "Custom Request" },
+  ];
 
   const groupedTasks = {
     "To Do": filteredTasks.filter(t => t.status === "To Do"),
@@ -89,9 +104,10 @@ export default function Tasks() {
       assignee_id: formData.assignee_id || null,
       creator_id: formData.creator_id || null,
       due_date: formData.due_date || null,
-    });
+      request_type: formData.request_type || "general",
+    } as CreateTaskInput);
 
-    setFormData({ title: "", description: "", status: "To Do", priority: "Medium", assignee_id: null, creator_id: null, due_date: null });
+    setFormData({ title: "", description: "", status: "To Do", priority: "Medium", assignee_id: null, creator_id: null, due_date: null, request_type: "general" });
     setIsAddDialogOpen(false);
   };
 
@@ -183,13 +199,28 @@ export default function Tasks() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Due Date</Label>
-                    <Input
-                      type="date"
-                      value={formData.due_date || ""}
-                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value || null })}
-                    />
+                    <Label>Request Type</Label>
+                    <Select
+                      value={formData.request_type}
+                      onValueChange={(v) => setFormData({ ...formData, request_type: v as RequestType })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="custom">Custom Request</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Due Date</Label>
+                  <Input
+                    type="date"
+                    value={formData.due_date || ""}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value || null })}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -246,6 +277,20 @@ export default function Tasks() {
               className="pl-10 bg-card border-border focus:border-primary input-glow"
             />
           </div>
+          <Select
+            value={selectedRequestType}
+            onValueChange={(v) => setSelectedRequestType(v as RequestType | "all")}
+          >
+            <SelectTrigger className="w-40 bg-card border-border">
+              <Tag className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {requestTypes.map((type) => (
+                <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="flex gap-2 flex-wrap">
             {statuses.map((status) => (
               <Button
@@ -327,6 +372,11 @@ export default function Tasks() {
                             <Badge className={cn("border", priorityColors[task.priority as Priority])}>
                               {task.priority}
                             </Badge>
+                            {(task as any).request_type === "custom" && (
+                              <Badge className={cn("border", requestTypeColors.custom)}>
+                                Custom
+                              </Badge>
+                            )}
                             <div className="flex items-center gap-1 text-muted-foreground">
                               <User className="h-3 w-3" />
                               {getCreatorName(task.creator_id)}
