@@ -24,6 +24,7 @@ import Chatters from "./pages/Chatters";
 import ShiftRoster from "./pages/ShiftRoster";
 import InternalMessages from "./pages/InternalMessages";
 import { PortalDashboard, PortalTasks, PortalMessages, PortalInvoices, PortalContent } from "./pages/portal";
+import PortalContentPlans from "./pages/portal/PortalContentPlans";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,11 @@ const AppRoutes = () => {
       <Route path="/portal/content" element={
         <ProtectedRoute allowedUserTypes={["creator"]}>
           <PortalContent />
+        </ProtectedRoute>
+      } />
+      <Route path="/portal/plans" element={
+        <ProtectedRoute allowedUserTypes={["creator"]}>
+          <PortalContentPlans />
         </ProtectedRoute>
       } />
       
