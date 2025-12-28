@@ -6,7 +6,8 @@ import {
   FolderOpen,
   LogOut,
   ChevronLeft,
-  User
+  User,
+  CalendarDays
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -30,6 +31,7 @@ import { toast } from "sonner";
 
 const portalNavItems = [
   { title: "Overview", url: "/portal", icon: LayoutDashboard },
+  { title: "Content Plans", url: "/portal/plans", icon: CalendarDays },
   { title: "My Tasks", url: "/portal/tasks", icon: CheckSquare },
   { title: "Messages", url: "/portal/messages", icon: MessageSquare, badge: 2 },
   { title: "Invoices", url: "/portal/invoices", icon: FileText },
