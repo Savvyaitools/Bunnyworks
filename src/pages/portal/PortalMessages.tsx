@@ -19,10 +19,10 @@ interface TeamMember {
 }
 
 const teamMembers: TeamMember[] = [
-  { id: "emma-agency", name: "Sarah Johnson", role: "Account Manager", avatar: "sarah", online: true },
-  { id: "alex-agency", name: "Alex Rivera", role: "Video Editor", avatar: "alex", online: true },
-  { id: "jordan-agency", name: "Jordan Lee", role: "Social Media Manager", avatar: "jordan", online: false },
-  { id: "mike-agency", name: "Mike Chen", role: "Content Strategist", avatar: "mike", online: false },
+  { id: "emma-agency", name: "PBF", role: "Account Manager", avatar: "sarah", online: true },
+  { id: "alex-agency", name: "TROY", role: "Video Editor", avatar: "alex", online: true },
+  { id: "jordan-agency", name: "BTZ", role: "Social Media Manager", avatar: "jordan", online: false },
+  { id: "mike-agency", name: "FLIX", role: "Content Strategist", avatar: "mike", online: false },
 ];
 
 export default function PortalMessages() {
@@ -34,9 +34,7 @@ export default function PortalMessages() {
   const { messages, loading, sendMessage, markAsRead } = useMessages(selectedMember.id, "creator");
   const { unreadCounts } = useUnreadMessages("creator");
 
-  const filteredMembers = teamMembers.filter((m) =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredMembers = teamMembers.filter((m) => m.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSend = async () => {
     if (!messageInput.trim()) return;
@@ -91,9 +89,7 @@ export default function PortalMessages() {
                     onClick={() => setSelectedMember(member)}
                     className={cn(
                       "w-full p-3 rounded-lg flex items-start gap-3 transition-colors text-left",
-                      selectedMember.id === member.id
-                        ? "bg-accent/10 border border-accent/30"
-                        : "hover:bg-muted/50"
+                      selectedMember.id === member.id ? "bg-accent/10 border border-accent/30" : "hover:bg-muted/50",
                     )}
                   >
                     <UserAvatar
@@ -107,9 +103,7 @@ export default function PortalMessages() {
                       <div className="flex items-center justify-between mb-0.5">
                         <span className="font-medium text-foreground truncate">{member.name}</span>
                         {unread > 0 && (
-                          <Badge className="bg-accent text-accent-foreground h-5 min-w-5 px-1.5">
-                            {unread}
-                          </Badge>
+                          <Badge className="bg-accent text-accent-foreground h-5 min-w-5 px-1.5">{unread}</Badge>
                         )}
                       </div>
                       <p className="text-xs text-accent mb-1">{member.role}</p>
@@ -152,24 +146,23 @@ export default function PortalMessages() {
                 messages.map((message) => (
                   <div
                     key={message.id}
-                    className={cn(
-                      "flex",
-                      message.sender_type === "creator" ? "justify-end" : "justify-start"
-                    )}
+                    className={cn("flex", message.sender_type === "creator" ? "justify-end" : "justify-start")}
                   >
                     <div
                       className={cn(
                         "message-bubble",
                         message.sender_type === "creator"
                           ? "bg-accent text-accent-foreground rounded-br-md"
-                          : "message-bubble-received"
+                          : "message-bubble-received",
                       )}
                     >
                       <p className="text-sm">{message.content}</p>
-                      <p className={cn(
-                        "text-xs mt-1",
-                        message.sender_type === "creator" ? "text-accent-foreground/70" : "text-muted-foreground"
-                      )}>
+                      <p
+                        className={cn(
+                          "text-xs mt-1",
+                          message.sender_type === "creator" ? "text-accent-foreground/70" : "text-muted-foreground",
+                        )}
+                      >
                         {formatTime(message.created_at)}
                       </p>
                     </div>
@@ -195,7 +188,7 @@ export default function PortalMessages() {
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
                 <Smile className="h-5 w-5" />
               </Button>
-              <Button 
+              <Button
                 className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-glow-sm shrink-0"
                 onClick={handleSend}
                 disabled={!messageInput.trim()}
