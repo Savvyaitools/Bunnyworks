@@ -11,6 +11,7 @@ import {
   CreatorContentPlans,
   CreatorMarketing,
   CreatorEarnings,
+  CreatorSocialAccounts,
 } from "@/components/creators";
 
 export default function CreatorDetail() {
@@ -73,6 +74,7 @@ export default function CreatorDetail() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="vault">Content Vault</TabsTrigger>
             <TabsTrigger value="plans">Content Plans</TabsTrigger>
+            <TabsTrigger value="social">Social Accounts</TabsTrigger>
             <TabsTrigger value="marketing">Marketing</TabsTrigger>
             <TabsTrigger value="earnings">Earnings</TabsTrigger>
           </TabsList>
@@ -87,6 +89,10 @@ export default function CreatorDetail() {
 
           <TabsContent value="plans" className="bg-card rounded-lg border border-border p-6">
             <CreatorContentPlans creatorId={creator.id} />
+          </TabsContent>
+
+          <TabsContent value="social" className="bg-card rounded-lg border border-border p-6">
+            <CreatorSocialAccounts creatorId={creator.id} />
           </TabsContent>
 
           <TabsContent value="marketing" className="bg-card rounded-lg border border-border p-6">
