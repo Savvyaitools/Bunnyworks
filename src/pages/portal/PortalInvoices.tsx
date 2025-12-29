@@ -4,6 +4,7 @@ import { PortalLayout } from "@/components/portal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -13,90 +14,40 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useCreatorPortal } from "@/hooks/useCreatorPortal";
+import { formatCurrency } from "@/lib/formatters";
+import { format, parseISO } from "date-fns";
 
-type InvoiceStatus = "Paid" | "Pending" | "Processing";
-
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  period: string;
-  amount: string;
-  status: InvoiceStatus;
-  issueDate: string;
-  paidDate?: string;
-}
-
-const creatorInvoices: Invoice[] = [
-  {
-    id: "1",
-    invoiceNumber: "INV-2024-ER-012",
-    period: "December 2024",
-    amount: "$4,250.00",
-    status: "Pending",
-    issueDate: "Dec 20, 2024",
-  },
-  {
-    id: "2",
-    invoiceNumber: "INV-2024-ER-011",
-    period: "November 2024",
-    amount: "$3,890.00",
-    status: "Paid",
-    issueDate: "Nov 20, 2024",
-    paidDate: "Dec 5, 2024",
-  },
-  {
-    id: "3",
-    invoiceNumber: "INV-2024-ER-010",
-    period: "October 2024",
-    amount: "$4,120.00",
-    status: "Paid",
-    issueDate: "Oct 20, 2024",
-    paidDate: "Nov 4, 2024",
-  },
-  {
-    id: "4",
-    invoiceNumber: "INV-2024-ER-009",
-    period: "September 2024",
-    amount: "$3,650.00",
-    status: "Paid",
-    issueDate: "Sep 20, 2024",
-    paidDate: "Oct 3, 2024",
-  },
-  {
-    id: "5",
-    invoiceNumber: "INV-2024-ER-008",
-    period: "August 2024",
-    amount: "$3,980.00",
-    status: "Paid",
-    issueDate: "Aug 20, 2024",
-    paidDate: "Sep 5, 2024",
-  },
-];
+type InvoiceStatus = "Paid" | "Pending" | "Draft" | "Sent";
 
 const statusConfig: Record<InvoiceStatus, { color: string; icon: React.ElementType }> = {
   Paid: { color: "badge-active", icon: CheckCircle2 },
   Pending: { color: "badge-onboarding", icon: Clock },
-  Processing: { color: "badge-paused", icon: Clock },
+  Draft: { color: "badge-paused", icon: Clock },
+  Sent: { color: "badge-onboarding", icon: Clock },
 };
 
+function formatDate(dateString: string): string {
+  return format(parseISO(dateString), "MMM d, yyyy");
+}
+
 export default function PortalInvoices() {
+  const { invoices, loading } = useCreatorPortal();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<InvoiceStatus | "All">("All");
 
-  const statuses: (InvoiceStatus | "All")[] = ["All", "Paid", "Pending", "Processing"];
+  const statuses: (InvoiceStatus | "All")[] = ["All", "Paid", "Pending", "Draft"];
 
-  const filteredInvoices = creatorInvoices.filter((invoice) => {
-    const matchesSearch = 
-      invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.period.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredInvoices = invoices.filter((invoice) => {
+    const matchesSearch = invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === "All" || invoice.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
   const totals = {
-    total: creatorInvoices.reduce((sum, inv) => sum + parseFloat(inv.amount.replace(/[$,]/g, "")), 0),
-    paid: creatorInvoices.filter(i => i.status === "Paid").reduce((sum, inv) => sum + parseFloat(inv.amount.replace(/[$,]/g, "")), 0),
-    pending: creatorInvoices.filter(i => i.status === "Pending").reduce((sum, inv) => sum + parseFloat(inv.amount.replace(/[$,]/g, "")), 0),
+    total: invoices.reduce((sum, inv) => sum + Number(inv.amount), 0),
+    paid: invoices.filter(i => i.status === "Paid").reduce((sum, inv) => sum + Number(inv.amount), 0),
+    pending: invoices.filter(i => i.status === "Pending").reduce((sum, inv) => sum + Number(inv.amount), 0),
   };
 
   return (
@@ -115,9 +66,9 @@ export default function PortalInvoices() {
               <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
                 <DollarSign className="h-5 w-5 text-accent" />
               </div>
-              <p className="text-sm text-muted-foreground">Total Earned</p>
+              <p className="text-sm text-muted-foreground">Total Invoiced</p>
             </div>
-            <p className="text-2xl font-bold text-foreground">${totals.total.toLocaleString()}</p>
+            {loading ? <Skeleton className="h-8 w-32" /> : <p className="text-2xl font-bold text-foreground">{formatCurrency(totals.total)}</p>}
           </div>
           <div className="stat-card">
             <div className="flex items-center gap-3 mb-2">
@@ -126,7 +77,7 @@ export default function PortalInvoices() {
               </div>
               <p className="text-sm text-muted-foreground">Paid</p>
             </div>
-            <p className="text-2xl font-bold text-success">${totals.paid.toLocaleString()}</p>
+            {loading ? <Skeleton className="h-8 w-32" /> : <p className="text-2xl font-bold text-success">{formatCurrency(totals.paid)}</p>}
           </div>
           <div className="stat-card">
             <div className="flex items-center gap-3 mb-2">
@@ -135,7 +86,7 @@ export default function PortalInvoices() {
               </div>
               <p className="text-sm text-muted-foreground">Pending</p>
             </div>
-            <p className="text-2xl font-bold text-warning">${totals.pending.toLocaleString()}</p>
+            {loading ? <Skeleton className="h-8 w-32" /> : <p className="text-2xl font-bold text-warning">{formatCurrency(totals.pending)}</p>}
           </div>
         </div>
 
@@ -171,60 +122,69 @@ export default function PortalInvoices() {
 
         {/* Invoices Table */}
         <div className="glass-card overflow-hidden animate-fade-in" style={{ animationDelay: "150ms" }}>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Invoice #</TableHead>
-                <TableHead className="text-muted-foreground">Period</TableHead>
-                <TableHead className="text-muted-foreground">Amount</TableHead>
-                <TableHead className="text-muted-foreground">Status</TableHead>
-                <TableHead className="text-muted-foreground">Issue Date</TableHead>
-                <TableHead className="text-muted-foreground">Paid Date</TableHead>
-                <TableHead className="text-muted-foreground w-24">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInvoices.map((invoice, index) => {
-                const StatusIcon = statusConfig[invoice.status].icon;
-                return (
-                  <TableRow 
-                    key={invoice.id} 
-                    className="table-row-hover border-border animate-fade-in"
-                    style={{ animationDelay: `${200 + index * 50}ms` }}
-                  >
-                    <TableCell className="font-medium text-foreground">{invoice.invoiceNumber}</TableCell>
-                    <TableCell className="text-foreground">{invoice.period}</TableCell>
-                    <TableCell className="font-semibold text-foreground">{invoice.amount}</TableCell>
-                    <TableCell>
-                      <Badge className={cn("text-xs flex items-center gap-1 w-fit", statusConfig[invoice.status].color)}>
-                        <StatusIcon className="h-3 w-3" />
-                        {invoice.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{invoice.issueDate}</TableCell>
-                    <TableCell className="text-muted-foreground">{invoice.paidDate || "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-muted-foreground">Invoice #</TableHead>
+                  <TableHead className="text-muted-foreground">Amount</TableHead>
+                  <TableHead className="text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-muted-foreground">Issue Date</TableHead>
+                  <TableHead className="text-muted-foreground">Due Date</TableHead>
+                  <TableHead className="text-muted-foreground w-24">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      No invoices found.
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                ) : (
+                  filteredInvoices.map((invoice, index) => {
+                    const config = statusConfig[invoice.status as InvoiceStatus] || statusConfig.Pending;
+                    const StatusIcon = config.icon;
+                    return (
+                      <TableRow 
+                        key={invoice.id} 
+                        className="table-row-hover border-border animate-fade-in"
+                        style={{ animationDelay: `${200 + index * 50}ms` }}
+                      >
+                        <TableCell className="font-medium text-foreground">{invoice.invoice_number}</TableCell>
+                        <TableCell className="font-semibold text-foreground">{formatCurrency(invoice.amount)}</TableCell>
+                        <TableCell>
+                          <Badge className={cn("text-xs flex items-center gap-1 w-fit", config.color)}>
+                            <StatusIcon className="h-3 w-3" />
+                            {invoice.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(invoice.issue_date)}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(invoice.due_date)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          )}
         </div>
-
-        {filteredInvoices.length === 0 && (
-          <div className="text-center py-12 animate-fade-in">
-            <p className="text-muted-foreground">No invoices found matching your criteria.</p>
-          </div>
-        )}
       </div>
     </PortalLayout>
   );
