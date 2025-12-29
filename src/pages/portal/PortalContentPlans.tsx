@@ -3,6 +3,7 @@ import { Calendar, Download, Image, Video, FileText } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 import { cn } from "@/lib/utils";
 import { ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
 
@@ -33,28 +34,14 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function PortalContentPlans() {
-  const { user } = useAuth();
+  const { creatorId, loading: creatorLoading } = useCreatorPortal();
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
 
   const fetchPlans = useCallback(async () => {
-    if (!user) return;
-
-    // Get creator linked to this auth user
-    const { data: creators } = await supabase
-      .from("creators")
-      .select("id")
-      .eq("email", user.email)
-      .limit(1);
-
-    if (!creators || creators.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const creatorId = creators[0].id;
+    if (!creatorId) return;
 
     const { data, error } = await supabase
       .from("content_plans")
@@ -76,11 +63,15 @@ export default function PortalContentPlans() {
       setPlans(parsed as ContentPlan[]);
     }
     setLoading(false);
-  }, [user]);
+  }, [creatorId]);
 
   useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+    if (creatorId) {
+      fetchPlans();
+    } else if (!creatorLoading) {
+      setLoading(false);
+    }
+  }, [creatorId, creatorLoading, fetchPlans]);
 
   const openMediaDialog = (plan: ContentPlan) => {
     setSelectedPlan(plan);
