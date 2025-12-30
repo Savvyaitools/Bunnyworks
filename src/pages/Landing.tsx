@@ -371,84 +371,153 @@ const Landing = () => {
               Simple, Transparent <span className="gradient-text">Pricing</span>
             </h2>
             <p className="text-muted-foreground text-lg">
-              Start free, scale as you grow. No hidden fees, no surprises.
+              Choose the tier that matches your agency's stage. Scale as you grow.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Starter */}
-            <div className="glass-card p-8">
-              <h3 className="text-xl font-semibold text-foreground mb-2">Starter</h3>
-              <div className="text-4xl font-bold text-foreground mb-1">$0</div>
-              <div className="text-muted-foreground mb-6">Free forever</div>
-              <ul className="space-y-3 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Core */}
+            <div className="glass-card p-6 flex flex-col">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-foreground">CORE</h3>
+                <p className="text-sm text-primary">"Visibility"</p>
+              </div>
+              <div className="text-3xl font-bold text-foreground mb-1">$69</div>
+              <div className="text-muted-foreground text-sm mb-4">per month</div>
+              <p className="text-xs text-muted-foreground mb-4">Solo managers & small agencies who want clarity</p>
+              <ul className="space-y-2 mb-6 flex-1">
                 {[
-                  "Up to 5 creators",
-                  "Basic revenue tracking",
+                  "Up to 2 creators",
+                  "Up to 3 employees",
+                  "50 GB Content Vault",
+                  "Creator profiles + onboarding",
+                  "Employee onboarding",
                   "Task management",
-                  "Creator portal access",
-                  "Email support"
+                  "Basic performance tracking",
+                  "Agency progress dashboard"
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    {item}
+                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <Link to="/auth">
-                <Button variant="outline" className="w-full">Get Started Free</Button>
+              <div className="p-3 bg-muted/50 rounded-lg mb-4">
+                <p className="text-xs text-muted-foreground italic">"Is my operation even working?"</p>
+              </div>
+              <Link to="/auth" className="mt-auto">
+                <Button variant="outline" className="w-full">Get Started</Button>
               </Link>
             </div>
             
-            {/* Pro */}
-            <div className="glass-card p-8 border-primary/50 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-sm font-medium px-3 py-1 rounded-full">
+            {/* Scale - Most Popular */}
+            <div className="glass-card p-6 border-primary/50 relative flex flex-col">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">
                 Most Popular
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Pro</h3>
-              <div className="text-4xl font-bold text-foreground mb-1">$99</div>
-              <div className="text-muted-foreground mb-6">per month</div>
-              <ul className="space-y-3 mb-8">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-foreground">SCALE</h3>
+                <p className="text-sm text-primary">"Operational Control"</p>
+              </div>
+              <div className="text-3xl font-bold text-foreground mb-1">$129</div>
+              <div className="text-muted-foreground text-sm mb-4">per month</div>
+              <p className="text-xs text-muted-foreground mb-4">Real agencies running teams</p>
+              <ul className="space-y-2 mb-6 flex-1">
                 {[
-                  "Up to 50 creators",
-                  "Advanced analytics dashboard",
-                  "White-labeled creator portal",
-                  "Team management & roles",
-                  "Priority support",
-                  "Custom branding"
+                  "Up to 6 creators",
+                  "Up to 15 employees",
+                  "200 GB Content Vault",
+                  "Recruitment form + lead pipeline",
+                  "Advanced creator profiles",
+                  "Role-based employee views",
+                  "Performance analytics",
+                  "Task backlog & bottleneck detection",
+                  "System health dashboard",
+                  "Priority support"
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    {item}
+                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <Link to="/auth">
+              <div className="p-3 bg-primary/10 rounded-lg mb-4">
+                <p className="text-xs text-primary italic">"Where am I leaking money and time?"</p>
+              </div>
+              <Link to="/auth" className="mt-auto">
                 <Button className="w-full bg-primary hover:bg-primary/90">Start 14-Day Free Trial</Button>
               </Link>
             </div>
             
-            {/* Enterprise */}
-            <div className="glass-card p-8">
-              <h3 className="text-xl font-semibold text-foreground mb-2">Enterprise</h3>
-              <div className="text-4xl font-bold text-foreground mb-1">Custom</div>
-              <div className="text-muted-foreground mb-6">Contact us</div>
-              <ul className="space-y-3 mb-8">
+            {/* Pro */}
+            <div className="glass-card p-6 flex flex-col">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-foreground">PRO</h3>
+                <p className="text-sm text-primary">"Performance Intelligence"</p>
+              </div>
+              <div className="text-3xl font-bold text-foreground mb-1">$249</div>
+              <div className="text-muted-foreground text-sm mb-4">per month</div>
+              <p className="text-xs text-muted-foreground mb-4">Agencies optimizing for scale & profit</p>
+              <ul className="space-y-2 mb-6 flex-1">
                 {[
-                  "Unlimited creators",
-                  "Full white-label solution",
-                  "API access & integrations",
-                  "Dedicated success manager",
-                  "Custom development",
-                  "SLA guarantees"
+                  "Up to 15 creators",
+                  "Up to 40 employees",
+                  "600 GB Content Vault",
+                  "Everything in Scale",
+                  "Advanced performance metrics",
+                  "Creator consistency scoring",
+                  "Staff reliability scoring",
+                  "Workflow friction indicators",
+                  "Comparative views",
+                  "NSFW AI voice cloning",
+                  "Executive dashboard",
+                  "Early access to features"
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                    {item}
+                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <Button variant="outline" className="w-full">Contact Sales</Button>
+              <div className="p-3 bg-muted/50 rounded-lg mb-4">
+                <p className="text-xs text-muted-foreground italic">"Who or what is holding us back?"</p>
+              </div>
+              <Link to="/auth" className="mt-auto">
+                <Button variant="outline" className="w-full">Start 14-Day Free Trial</Button>
+              </Link>
+            </div>
+            
+            {/* Enterprise */}
+            <div className="glass-card p-6 flex flex-col">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-foreground">ENTERPRISE</h3>
+                <p className="text-sm text-primary">"Systems Command"</p>
+              </div>
+              <div className="text-3xl font-bold text-foreground mb-1">$399+</div>
+              <div className="text-muted-foreground text-sm mb-4">custom pricing</div>
+              <p className="text-xs text-muted-foreground mb-4">Large agencies & multi-brand operators</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {[
+                  "Unlimited creators",
+                  "Unlimited employees",
+                  "1 TB+ Content Vault",
+                  "Fully customized dashboards",
+                  "Custom KPIs & metrics",
+                  "Agency-specific logic",
+                  "White-labeled experience",
+                  "Dedicated implementation",
+                  "SLA + roadmap influence"
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="p-3 bg-muted/50 rounded-lg mb-4">
+                <p className="text-xs text-muted-foreground italic">"Run the agency like a company, not a hustle."</p>
+              </div>
+              <Button variant="outline" className="w-full mt-auto">Contact Sales</Button>
             </div>
           </div>
         </div>
