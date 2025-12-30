@@ -121,7 +121,7 @@ export default function Creators() {
                       id="platform"
                       value={formData.platform}
                       onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-                      placeholder="OnlyFans, etc."
+                      placeholder="Fansly, etc."
                     />
                   </div>
                   <div className="space-y-2">

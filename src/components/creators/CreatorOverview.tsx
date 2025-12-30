@@ -175,11 +175,11 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
             {isEditing ? (
               <>
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">OnlyFans</Label>
+                  <Label className="text-xs text-muted-foreground">Primary Platform</Label>
                   <Input
                     value={formData.onlyfans_url}
                     onChange={(e) => setFormData({ ...formData, onlyfans_url: e.target.value })}
-                    placeholder="OnlyFans URL"
+                    placeholder="Primary platform URL"
                   />
                 </div>
                 <div className="space-y-2">
@@ -220,7 +220,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                 {creator.onlyfans_url && (
                   <a href={creator.onlyfans_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
                     <LinkIcon className="h-4 w-4" />
-                    <span className="text-sm">OnlyFans</span>
+                    <span className="text-sm">Platform</span>
                   </a>
                 )}
                 {creator.instagram_url && (

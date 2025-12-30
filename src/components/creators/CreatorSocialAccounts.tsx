@@ -34,10 +34,10 @@ const platformColors: Record<string, string> = {
   tiktok: "bg-black",
   twitter: "bg-blue-400",
   x: "bg-black",
-  onlyfans: "bg-blue-500",
+  fansly: "bg-blue-600",
   youtube: "bg-red-600",
   snapchat: "bg-yellow-400",
-  fansly: "bg-blue-600",
+  fanvue: "bg-purple-500",
   twitch: "bg-purple-600",
 };
 
@@ -45,10 +45,10 @@ const platforms = [
   "Instagram",
   "TikTok",
   "Twitter",
-  "OnlyFans",
+  "Fansly",
   "YouTube",
   "Snapchat",
-  "Fansly",
+  "Fanvue",
   "Twitch",
 ];
 
