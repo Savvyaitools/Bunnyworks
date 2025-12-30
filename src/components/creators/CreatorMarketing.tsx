@@ -33,7 +33,7 @@ const platformColors: Record<string, string> = {
   tiktok: "bg-cyan-500/20 text-cyan-400",
   twitter: "bg-blue-500/20 text-blue-400",
   youtube: "bg-red-500/20 text-red-400",
-  onlyfans: "bg-blue-400/20 text-blue-300",
+  fansly: "bg-blue-400/20 text-blue-300",
 };
 
 export function CreatorMarketing({ creatorId }: CreatorMarketingProps) {

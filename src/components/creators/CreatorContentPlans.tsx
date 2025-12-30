@@ -221,8 +221,8 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                   <SelectValue placeholder="Select platform" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OnlyFans">OnlyFans</SelectItem>
                   <SelectItem value="Fansly">Fansly</SelectItem>
+                  <SelectItem value="Fanvue">Fanvue</SelectItem>
                   <SelectItem value="Instagram">Instagram</SelectItem>
                   <SelectItem value="TikTok">TikTok</SelectItem>
                   <SelectItem value="Twitter">Twitter</SelectItem>

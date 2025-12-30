@@ -26,10 +26,10 @@ const platformUrls: Record<string, (username: string) => string> = {
   tiktok: (u) => `https://tiktok.com/@${u}`,
   twitter: (u) => `https://twitter.com/${u}`,
   x: (u) => `https://x.com/${u}`,
-  onlyfans: (u) => `https://onlyfans.com/${u}`,
+  fansly: (u) => `https://fansly.com/${u}`,
   youtube: (u) => `https://youtube.com/@${u}`,
   snapchat: (u) => `https://snapchat.com/add/${u}`,
-  fansly: (u) => `https://fansly.com/${u}`,
+  fanvue: (u) => `https://fanvue.com/${u}`,
   twitch: (u) => `https://twitch.tv/${u}`,
 };
 
