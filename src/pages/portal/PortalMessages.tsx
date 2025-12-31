@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Bell } from "lucide-react";
+import { Send, Bell, Check, CheckCheck } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -117,14 +117,26 @@ export default function PortalMessages() {
                       <p className="text-xs font-medium mb-1 opacity-70">{message.sender_name}</p>
                     )}
                     <p className="text-sm">{message.content}</p>
-                    <p
-                      className={cn(
-                        "text-xs mt-1",
-                        message.sender_type === "creator" ? "text-accent-foreground/70" : "text-muted-foreground",
+                    <div className={cn(
+                      "flex items-center gap-1 mt-1",
+                      message.sender_type === "creator" ? "justify-end" : "justify-start"
+                    )}>
+                      <p
+                        className={cn(
+                          "text-xs",
+                          message.sender_type === "creator" ? "text-accent-foreground/70" : "text-muted-foreground",
+                        )}
+                      >
+                        {formatTime(message.created_at)}
+                      </p>
+                      {message.sender_type === "creator" && (
+                        message.read ? (
+                          <CheckCheck className="h-3.5 w-3.5 text-accent-foreground/90" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5 text-accent-foreground/50" />
+                        )
                       )}
-                    >
-                      {formatTime(message.created_at)}
-                    </p>
+                    </div>
                   </div>
                 </div>
               ))
