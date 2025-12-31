@@ -29,7 +29,7 @@ const Index = () => {
       const { count, error } = await supabase
         .from("tasks")
         .select("*", { count: "exact", head: true })
-        .eq("status", "Done");
+        .eq("status", "Completed");
       if (error) throw error;
       return count || 0;
     },

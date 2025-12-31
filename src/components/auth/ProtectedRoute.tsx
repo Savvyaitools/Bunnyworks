@@ -33,7 +33,7 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
     if (profile.user_type === "creator") {
       return <Navigate to="/portal" replace />;
     } else {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
   }
 

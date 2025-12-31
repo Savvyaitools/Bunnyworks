@@ -47,14 +47,14 @@ export function useCreatorPortal() {
   const [earnings, setEarnings] = useState<CreatorEarning[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Find the creator record matching the logged-in user's email
+  // Find the creator record matching the logged-in user's email (case-insensitive)
   const fetchCreatorId = useCallback(async () => {
     if (!user?.email) return null;
 
     const { data, error } = await supabase
       .from("creators")
       .select("id, name, email, status")
-      .eq("email", user.email)
+      .ilike("email", user.email)
       .maybeSingle();
 
     if (!error && data) {
