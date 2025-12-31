@@ -1,6 +1,6 @@
 import { DollarSign, TrendingUp, Users, CheckSquare } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
-import { MetricCard, RevenueChart, ActivityFeed } from "@/components/dashboard";
+import { CircularMetricCard, RevenueChart, ActivityFeed } from "@/components/dashboard";
 import { TasksCompletionChart } from "@/components/dashboard/TasksCompletionChart";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { CreatorTaskProgress } from "@/components/dashboard/CreatorTaskProgress";
@@ -21,20 +21,17 @@ const Index = () => {
     },
   });
 
-  // Fetch tasks completed this month
+  // Fetch tasks data
   const { data: tasksData } = useQuery({
-    queryKey: ["tasks-completed"],
+    queryKey: ["tasks-stats"],
     queryFn: async () => {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Completed");
+        .select("status");
       if (error) throw error;
-      return count || 0;
+      const completed = data?.filter(t => t.status === "Completed").length || 0;
+      const total = data?.length || 1;
+      return { completed, total };
     },
   });
 
@@ -51,6 +48,18 @@ const Index = () => {
     },
   });
 
+  // Fetch total creators for percentage
+  const { data: totalCreators } = useQuery({
+    queryKey: ["total-creators"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("creators")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count || 1;
+    },
+  });
+
   const formatCurrency = (value: number) => {
     if (value >= 1000) {
       return `$${(value / 1000).toFixed(1)}k`;
@@ -58,33 +67,41 @@ const Index = () => {
     return `$${value.toLocaleString()}`;
   };
 
+  // Calculate percentages for circular charts
+  const revenueTarget = 100000; // Example target
+  const revenuePercentage = Math.min(((revenueData || 0) / revenueTarget) * 100, 100);
+  const agencyEarnings = (revenueData || 0) * 0.3;
+  const agencyPercentage = Math.min((agencyEarnings / (revenueTarget * 0.3)) * 100, 100);
+  const creatorsPercentage = totalCreators ? ((creatorsData || 0) / totalCreators) * 100 : 0;
+  const tasksPercentage = tasksData ? (tasksData.completed / tasksData.total) * 100 : 0;
+
   const metrics = [
     {
       title: "Total Revenue",
       value: formatCurrency(revenueData || 0),
-      change: "—",
-      changeType: "neutral" as const,
+      percentage: revenuePercentage,
+      color: "hsl(217, 91%, 60%)", // Blue
       icon: DollarSign,
     },
     {
       title: "Agency Earnings",
-      value: formatCurrency((revenueData || 0) * 0.3), // Assuming 30% agency cut
-      change: "—",
-      changeType: "neutral" as const,
+      value: formatCurrency(agencyEarnings),
+      percentage: agencyPercentage,
+      color: "hsl(32, 95%, 55%)", // Orange
       icon: TrendingUp,
     },
     {
       title: "Active Creators",
       value: String(creatorsData || 0),
-      change: "—",
-      changeType: "neutral" as const,
+      percentage: creatorsPercentage,
+      color: "hsl(142, 71%, 45%)", // Green
       icon: Users,
     },
     {
       title: "Tasks Completed",
-      value: String(tasksData || 0),
-      change: "—",
-      changeType: "neutral" as const,
+      value: String(tasksData?.completed || 0),
+      percentage: tasksPercentage,
+      color: "hsl(0, 84%, 60%)", // Red
       icon: CheckSquare,
     },
   ];
@@ -102,10 +119,10 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {/* Circular Metrics Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {metrics.map((metric, index) => (
-            <MetricCard
+            <CircularMetricCard
               key={metric.title}
               {...metric}
               delay={index * 100}
