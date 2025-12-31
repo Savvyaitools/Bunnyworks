@@ -26,9 +26,23 @@ export default function Auth() {
 
   // Redirect authenticated users to appropriate dashboard
   useEffect(() => {
-    if (user && profile && !authLoading) {
-      const destination = profile.user_type === "creator" ? "/portal" : "/dashboard";
-      navigate(destination, { replace: true });
+    if (user && !authLoading) {
+      // If profile is available, redirect based on user type
+      if (profile) {
+        const destination = profile.user_type === "creator" ? "/portal" : "/dashboard";
+        navigate(destination, { replace: true });
+      }
+    }
+  }, [user, profile, authLoading, navigate]);
+
+  // Force redirect after a short delay if profile takes too long
+  useEffect(() => {
+    if (user && !profile && !authLoading) {
+      const timeout = setTimeout(() => {
+        // Default to dashboard if profile still not loaded
+        navigate("/dashboard", { replace: true });
+      }, 2000);
+      return () => clearTimeout(timeout);
     }
   }, [user, profile, authLoading, navigate]);
 
