@@ -3,6 +3,7 @@ import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, Arrow
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -29,7 +37,22 @@ interface ContentFile {
   file_size: number;
   folder_id: string | null;
   creator_id: string | null;
+  content_type?: string;
 }
+
+type ContentCategory = "general" | "primary_platform" | "social";
+
+const contentTypeColors: Record<ContentCategory, string> = {
+  general: "bg-muted text-muted-foreground",
+  primary_platform: "bg-pink-500/20 text-pink-400",
+  social: "bg-blue-500/20 text-blue-400",
+};
+
+const contentTypeLabels: Record<ContentCategory, string> = {
+  general: "General",
+  primary_platform: "Primary Platform",
+  social: "Social",
+};
 
 interface UploadProgress {
   fileName: string;
@@ -52,6 +75,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [selectedContentType, setSelectedContentType] = useState<ContentCategory>("general");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fetchContent = useCallback(async () => {
     // Fetch folders
@@ -182,6 +206,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
             file_size: file.size,
             folder_id: currentFolder,
             creator_id: creatorId,
+            content_type: selectedContentType,
           });
 
         if (dbError) {
@@ -308,7 +333,21 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Content Type Selector */}
+          <Select
+            value={selectedContentType}
+            onValueChange={(v: ContentCategory) => setSelectedContentType(v)}
+          >
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">General</SelectItem>
+              <SelectItem value="primary_platform">Primary Platform</SelectItem>
+              <SelectItem value="social">Social</SelectItem>
+            </SelectContent>
+          </Select>
           <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
@@ -447,6 +486,11 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
             <div className="flex flex-col items-center gap-2">
               {getFileIcon(file.file_type)}
               <span className="text-sm text-foreground text-center truncate w-full">{file.name}</span>
+              {file.content_type && file.content_type !== "general" && (
+                <Badge className={cn("text-[10px] h-4", contentTypeColors[file.content_type as ContentCategory] || contentTypeColors.general)}>
+                  {contentTypeLabels[file.content_type as ContentCategory] || file.content_type}
+                </Badge>
+              )}
             </div>
             <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100">
               <Button

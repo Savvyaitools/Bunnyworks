@@ -34,6 +34,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 
 const mainNavItems = [
@@ -67,6 +68,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { state, toggleSidebar } = useSidebar();
   const { profile, signOut } = useAuth();
+  const { unreadCount } = useNotifications();
   const isCollapsed = state === "collapsed";
 
   const handleSignOut = async () => {
@@ -194,6 +196,7 @@ export function AppSidebar() {
         <SidebarMenu>
           {bottomNavItems.map((item) => {
             const isActive = location.pathname === item.url;
+            const isNotifications = item.title === "Notifications";
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
@@ -204,8 +207,27 @@ export function AppSidebar() {
                       isActive && "active"
                     )}
                   >
-                    <item.icon className="h-5 w-5 shrink-0" />
-                    {!isCollapsed && <span>{item.title}</span>}
+                    <div className="relative">
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      {isNotifications && unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 flex items-center justify-center text-[10px] font-bold bg-destructive text-destructive-foreground rounded-full animate-pulse shadow-[0_0_8px_hsl(var(--destructive))]">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    {!isCollapsed && (
+                      <>
+                        <span className="flex-1">{item.title}</span>
+                        {isNotifications && unreadCount > 0 && (
+                          <Badge 
+                            variant="destructive" 
+                            className="h-5 min-w-5 px-1.5 text-xs animate-pulse shadow-[0_0_8px_hsl(var(--destructive))]"
+                          >
+                            {unreadCount}
+                          </Badge>
+                        )}
+                      </>
+                    )}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

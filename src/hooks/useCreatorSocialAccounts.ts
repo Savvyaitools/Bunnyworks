@@ -31,6 +31,7 @@ const platformUrls: Record<string, (username: string) => string> = {
   snapchat: (u) => `https://snapchat.com/add/${u}`,
   fanvue: (u) => `https://fanvue.com/${u}`,
   twitch: (u) => `https://twitch.tv/${u}`,
+  reddit: (u) => `https://reddit.com/user/${u}`,
 };
 
 export function useCreatorSocialAccounts(creatorId?: string) {

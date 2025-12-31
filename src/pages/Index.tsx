@@ -1,6 +1,9 @@
 import { DollarSign, TrendingUp, Users, CheckSquare } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { MetricCard, RevenueChart, ActivityFeed } from "@/components/dashboard";
+import { TasksCompletionChart } from "@/components/dashboard/TasksCompletionChart";
+import { GoalProgress } from "@/components/dashboard/GoalProgress";
+import { CreatorTaskProgress } from "@/components/dashboard/CreatorTaskProgress";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -119,6 +122,19 @@ const Index = () => {
             <ActivityFeed />
           </div>
         </div>
+
+        {/* Tasks Analytics & Goals */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2">
+            <TasksCompletionChart />
+          </div>
+          <div>
+            <GoalProgress />
+          </div>
+        </div>
+
+        {/* Creator Task Progress */}
+        <CreatorTaskProgress />
       </div>
     </DashboardLayout>
   );

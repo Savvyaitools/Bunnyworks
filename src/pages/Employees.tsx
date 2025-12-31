@@ -39,14 +39,13 @@ import { useEmployees, Employee, CreateEmployeeInput } from "@/hooks/useEmployee
 import { Skeleton } from "@/components/ui/skeleton";
 
 const roleColors: Record<string, string> = {
-  Admin: "bg-primary/20 text-primary border-primary/30",
-  "Account Manager": "bg-accent/20 text-accent border-accent/30",
   Manager: "bg-accent/20 text-accent border-accent/30",
-  "Video Editor": "bg-warning/20 text-warning border-warning/30",
-  "Social Media Manager": "bg-success/20 text-success border-success/30",
-  "Content Strategist": "bg-primary/20 text-primary border-primary/30",
-  VA: "bg-warning/20 text-warning border-warning/30",
+  Marketing: "bg-pink-500/20 text-pink-400 border-pink-500/30",
+  "Quality Controller": "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Chatter: "bg-success/20 text-success border-success/30",
+  VA: "bg-warning/20 text-warning border-warning/30",
+  Recruiter: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  Finance: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
 };
 
 const statusColors: Record<string, string> = {
@@ -153,11 +152,13 @@ export default function Employees() {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Account Manager">Account Manager</SelectItem>
-                        <SelectItem value="Video Editor">Video Editor</SelectItem>
-                        <SelectItem value="Social Media Manager">Social Media Manager</SelectItem>
-                        <SelectItem value="Content Strategist">Content Strategist</SelectItem>
-                        <SelectItem value="Admin">Admin</SelectItem>
+                        <SelectItem value="Manager">Manager</SelectItem>
+                        <SelectItem value="Marketing">Marketing</SelectItem>
+                        <SelectItem value="Quality Controller">Quality Controller</SelectItem>
+                        <SelectItem value="Chatter">Chatter</SelectItem>
+                        <SelectItem value="VA">VA</SelectItem>
+                        <SelectItem value="Recruiter">Recruiter</SelectItem>
+                        <SelectItem value="Finance">Finance</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -198,6 +198,7 @@ export type Database = {
       }
       content_files: {
         Row: {
+          content_type: string | null
           created_at: string
           creator_id: string | null
           file_path: string
@@ -210,6 +211,7 @@ export type Database = {
           uploaded_at: string
         }
         Insert: {
+          content_type?: string | null
           created_at?: string
           creator_id?: string | null
           file_path: string
@@ -222,6 +224,7 @@ export type Database = {
           uploaded_at?: string
         }
         Update: {
+          content_type?: string | null
           created_at?: string
           creator_id?: string | null
           file_path?: string
@@ -581,6 +584,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      goals: {
+        Row: {
+          created_at: string
+          creator_id: string | null
+          current_value: number
+          end_date: string | null
+          goal_type: string
+          id: string
+          start_date: string
+          target_value: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id?: string | null
+          current_value?: number
+          end_date?: string | null
+          goal_type?: string
+          id?: string
+          start_date?: string
+          target_value?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string | null
+          current_value?: number
+          end_date?: string | null
+          goal_type?: string
+          id?: string
+          start_date?: string
+          target_value?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       internal_messages: {
         Row: {
