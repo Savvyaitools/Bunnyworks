@@ -29,16 +29,6 @@ export function CircularMetricCard({
       {/* Circular Progress */}
       <div className="relative w-28 h-28 mb-4">
         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-          <defs>
-            <filter id={`glow-${title.replace(/\s+/g, '-')}`} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
           {/* Background circle */}
           <circle
             cx="50"
@@ -49,7 +39,7 @@ export function CircularMetricCard({
             strokeWidth="8"
             className="text-muted/30"
           />
-          {/* Progress circle with glow */}
+          {/* Progress circle */}
           <circle
             cx="50"
             cy="50"
@@ -60,7 +50,6 @@ export function CircularMetricCard({
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
-            filter={`url(#glow-${title.replace(/\s+/g, '-')})`}
             className="transition-all duration-1000 ease-out"
             style={{ 
               animationDelay: `${delay + 200}ms`,
