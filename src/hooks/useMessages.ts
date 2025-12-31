@@ -12,7 +12,7 @@ export interface Message {
   created_at: string;
 }
 
-export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency", senderId: string) {
+export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency") {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -47,7 +47,6 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     try {
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
-        sender_id: senderId,
         sender_type: senderType,
         sender_name: senderName,
         content: content.trim(),
