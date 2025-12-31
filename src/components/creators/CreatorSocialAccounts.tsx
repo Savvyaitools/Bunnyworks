@@ -39,6 +39,7 @@ const platformColors: Record<string, string> = {
   snapchat: "bg-yellow-400",
   fanvue: "bg-purple-500",
   twitch: "bg-purple-600",
+  reddit: "bg-orange-500",
 };
 
 const platforms = [
@@ -50,6 +51,7 @@ const platforms = [
   "Snapchat",
   "Fanvue",
   "Twitch",
+  "Reddit",
 ];
 
 export function CreatorSocialAccounts({ creatorId }: CreatorSocialAccountsProps) {

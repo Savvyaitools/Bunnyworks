@@ -105,11 +105,22 @@ export function CreatorMarketing({ creatorId }: CreatorMarketingProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* Coming Soon Overlay */}
+      <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Link className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-xl font-semibold text-foreground mb-2">Coming Soon</h3>
+        <p className="text-muted-foreground text-center max-w-xs">
+          Marketing account integrations are under development.
+        </p>
+      </div>
+
       <div className="flex justify-end">
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="bg-gradient-primary">
+            <Button size="sm" className="bg-gradient-primary" disabled>
               <Plus className="h-4 w-4 mr-2" />
               Add Account
             </Button>

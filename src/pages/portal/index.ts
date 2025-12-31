@@ -1,5 +1,4 @@
 export { default as PortalDashboard } from "./PortalDashboard";
-export { default as PortalTasks } from "./PortalTasks";
 export { default as PortalMessages } from "./PortalMessages";
 export { default as PortalInvoices } from "./PortalInvoices";
 export { default as PortalContent } from "./PortalContent";
