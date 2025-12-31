@@ -34,12 +34,13 @@ export function useContentFiles() {
 
       if (error) throw error;
 
+      // Use signed URLs since content-vault is private
       const filesWithUrls = await Promise.all(
         (data || []).map(async (file) => {
-          const { data: urlData } = supabase.storage
+          const { data: urlData, error: urlError } = await supabase.storage
             .from("content-vault")
-            .getPublicUrl(file.file_path);
-          return { ...file, url: urlData.publicUrl };
+            .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+          return { ...file, url: urlError ? undefined : urlData?.signedUrl };
         })
       );
 
