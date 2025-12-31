@@ -28,7 +28,25 @@ export function CircularMetricCard({
     >
       {/* Circular Progress */}
       <div className="relative w-28 h-28 mb-4">
-        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+        {/* Glow effect */}
+        <div 
+          className="absolute inset-0 rounded-full blur-xl opacity-40 animate-pulse"
+          style={{ 
+            background: `radial-gradient(circle, ${color}60 0%, transparent 70%)`,
+            animationDuration: '2s',
+          }}
+        />
+        <svg className="w-full h-full transform -rotate-90 relative z-10" viewBox="0 0 100 100">
+          {/* Glow filter */}
+          <defs>
+            <filter id={`glow-${title.replace(/\s/g, '')}`} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
           {/* Background circle */}
           <circle
             cx="50"
@@ -39,7 +57,7 @@ export function CircularMetricCard({
             strokeWidth="8"
             className="text-muted/30"
           />
-          {/* Progress circle */}
+          {/* Progress circle with glow */}
           <circle
             cx="50"
             cy="50"
@@ -53,11 +71,12 @@ export function CircularMetricCard({
             className="transition-all duration-1000 ease-out"
             style={{ 
               animationDelay: `${delay + 200}ms`,
+              filter: `url(#glow-${title.replace(/\s/g, '')})`,
             }}
           />
         </svg>
         {/* Center value */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center z-10">
           <span className="text-lg font-bold text-foreground">{Math.round(percentage)}</span>
         </div>
       </div>
