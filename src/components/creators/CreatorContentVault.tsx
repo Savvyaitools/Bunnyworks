@@ -79,21 +79,33 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fetchContent = useCallback(async () => {
     // Fetch folders
-    const { data: folderData } = await supabase
+    let folderQuery = supabase
       .from("content_folders")
       .select("*")
-      .eq("creator_id", creatorId)
-      .eq("parent_id", currentFolder || null as any);
+      .eq("creator_id", creatorId);
+    
+    if (currentFolder) {
+      folderQuery = folderQuery.eq("parent_id", currentFolder);
+    } else {
+      folderQuery = folderQuery.is("parent_id", null);
+    }
 
+    const { data: folderData } = await folderQuery;
     if (folderData) setFolders(folderData);
 
     // Fetch files
-    const { data: fileData } = await supabase
+    let fileQuery = supabase
       .from("content_files")
       .select("*")
-      .eq("creator_id", creatorId)
-      .eq("folder_id", currentFolder || null as any);
+      .eq("creator_id", creatorId);
+    
+    if (currentFolder) {
+      fileQuery = fileQuery.eq("folder_id", currentFolder);
+    } else {
+      fileQuery = fileQuery.is("folder_id", null);
+    }
 
+    const { data: fileData } = await fileQuery;
     if (fileData) setFiles(fileData as ContentFile[]);
   }, [creatorId, currentFolder]);
 
