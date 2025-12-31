@@ -38,6 +38,7 @@ interface ContentFile {
   folder_id: string | null;
   creator_id: string | null;
   content_type?: string;
+  signedUrl?: string;
 }
 
 type ContentCategory = "general" | "primary_platform" | "social";
@@ -73,6 +74,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [selectedContentType, setSelectedContentType] = useState<ContentCategory>("general");
@@ -106,7 +108,21 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     }
 
     const { data: fileData } = await fileQuery;
-    if (fileData) setFiles(fileData as ContentFile[]);
+    if (fileData) {
+      // Generate signed URLs for thumbnails
+      const filesWithUrls = await Promise.all(
+        fileData.map(async (file) => {
+          if (file.file_type.startsWith('image/') || file.file_type.startsWith('video/')) {
+            const { data } = await supabase.storage
+              .from('content-vault')
+              .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+            return { ...file, signedUrl: data?.signedUrl };
+          }
+          return file;
+        })
+      );
+      setFiles(filesWithUrls as ContentFile[]);
+    }
   }, [creatorId, currentFolder]);
 
   useEffect(() => {
@@ -307,9 +323,26 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     return <File className="h-8 w-8 text-muted-foreground" />;
   };
 
-  const getFileUrl = (filePath: string) => {
-    const { data } = supabase.storage.from('content-vault').getPublicUrl(filePath);
-    return data.publicUrl;
+  const getSignedUrl = async (filePath: string) => {
+    const { data } = await supabase.storage
+      .from('content-vault')
+      .createSignedUrl(filePath, 3600);
+    return data?.signedUrl || '';
+  };
+
+  const openPreview = async (file: ContentFile) => {
+    setPreviewFile(file);
+    if (file.signedUrl) {
+      setPreviewUrl(file.signedUrl);
+    } else {
+      const url = await getSignedUrl(file.file_path);
+      setPreviewUrl(url);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewFile(null);
+    setPreviewUrl(null);
   };
 
   const getUploadIcon = (fileName: string) => {
@@ -492,40 +525,70 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
         {files.map((file) => (
           <div
             key={file.id}
-            className="group relative p-4 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
-            onClick={() => setPreviewFile(file)}
+            className="group relative rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors overflow-hidden"
+            onClick={() => openPreview(file)}
           >
-            <div className="flex flex-col items-center gap-2">
-              {getFileIcon(file.file_type)}
-              <span className="text-sm text-foreground text-center truncate w-full">{file.name}</span>
+            {/* Thumbnail Preview */}
+            <div className="aspect-square relative bg-muted/50 flex items-center justify-center overflow-hidden">
+              {file.file_type.startsWith('image/') && file.signedUrl ? (
+                <img
+                  src={file.signedUrl}
+                  alt={file.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : file.file_type.startsWith('video/') && file.signedUrl ? (
+                <div className="relative w-full h-full">
+                  <video
+                    src={file.signedUrl}
+                    className="w-full h-full object-cover"
+                    muted
+                    preload="metadata"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                      <Video className="h-6 w-6 text-primary ml-1" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 p-4">
+                  {getFileIcon(file.file_type)}
+                </div>
+              )}
+            </div>
+            {/* File Info */}
+            <div className="p-2 space-y-1">
+              <span className="text-xs font-medium text-foreground truncate block">{file.name}</span>
               {file.content_type && file.content_type !== "general" && (
                 <Badge className={cn("text-[10px] h-4", contentTypeColors[file.content_type as ContentCategory] || contentTypeColors.general)}>
                   {contentTypeLabels[file.content_type as ContentCategory] || file.content_type}
                 </Badge>
               )}
             </div>
-            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100">
+            {/* Action Buttons */}
+            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 z-10">
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="icon"
-                className="h-6 w-6"
+                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   downloadFile(file);
                 }}
               >
-                <Download className="h-3 w-3" />
+                <Download className="h-3.5 w-3.5" />
               </Button>
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="icon"
-                className="h-6 w-6"
+                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteFile(file);
                 }}
               >
-                <Trash2 className="h-3 w-3 text-destructive" />
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
               </Button>
             </div>
           </div>
@@ -540,24 +603,25 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
       )}
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-        <DialogContent className="max-w-4xl">
+      <Dialog open={!!previewFile} onOpenChange={closePreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>{previewFile?.name}</DialogTitle>
+            <DialogTitle className="truncate pr-8">{previewFile?.name}</DialogTitle>
           </DialogHeader>
-          {previewFile && (
-            <div className="flex items-center justify-center">
+          {previewFile && previewUrl && (
+            <div className="flex items-center justify-center overflow-hidden">
               {previewFile.file_type.startsWith('image/') ? (
                 <img
-                  src={getFileUrl(previewFile.file_path)}
+                  src={previewUrl}
                   alt={previewFile.name}
-                  className="max-h-[70vh] object-contain"
+                  className="max-h-[70vh] max-w-full object-contain rounded-lg"
                 />
               ) : previewFile.file_type.startsWith('video/') ? (
                 <video
-                  src={getFileUrl(previewFile.file_path)}
+                  src={previewUrl}
                   controls
-                  className="max-h-[70vh]"
+                  autoPlay
+                  className="max-h-[70vh] max-w-full rounded-lg"
                 />
               ) : (
                 <div className="text-center py-8">
@@ -565,6 +629,11 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                   <p className="mt-4 text-muted-foreground">Preview not available</p>
                 </div>
               )}
+            </div>
+          )}
+          {previewFile && !previewUrl && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
         </DialogContent>
