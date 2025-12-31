@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Send, MoreVertical, Paperclip, Smile, MessageSquare, Users } from "lucide-react";
+import { Search, Send, MoreVertical, Paperclip, Smile, MessageSquare, Users, Check, CheckCheck } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -232,12 +232,24 @@ export default function Messages() {
                           )}
                         >
                           <p className="text-sm">{message.content}</p>
-                          <p className={cn(
-                            "text-xs mt-1",
-                            message.sender_type === "agency" ? "text-primary-foreground/70" : "text-muted-foreground"
+                          <div className={cn(
+                            "flex items-center gap-1 mt-1",
+                            message.sender_type === "agency" ? "justify-end" : "justify-start"
                           )}>
-                            {formatTime(message.created_at)}
-                          </p>
+                            <p className={cn(
+                              "text-xs",
+                              message.sender_type === "agency" ? "text-primary-foreground/70" : "text-muted-foreground"
+                            )}>
+                              {formatTime(message.created_at)}
+                            </p>
+                            {message.sender_type === "agency" && (
+                              message.read ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-primary-foreground/90" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5 text-primary-foreground/50" />
+                              )
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
