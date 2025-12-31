@@ -12,14 +12,14 @@ export interface Message {
   created_at: string;
 }
 
-export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency") {
+export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency", senderId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchMessages = useCallback(async () => {
     if (!conversationId) return;
-    
+
     try {
       const { data, error } = await supabase
         .from("messages")
@@ -30,11 +30,9 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
       if (error) throw error;
 
       setMessages((data || []) as Message[]);
-      
+
       // Count unread messages from the other party
-      const unread = (data || []).filter(
-        (m) => !m.read && m.sender_type !== senderType
-      ).length;
+      const unread = (data || []).filter((m) => !m.read && m.sender_type !== senderType).length;
       setUnreadCount(unread);
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -49,6 +47,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     try {
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
+        sender_id: senderId,
         sender_type: senderType,
         sender_name: senderName,
         content: content.trim(),
@@ -64,7 +63,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
 
   const markAsRead = async () => {
     if (!conversationId) return;
-    
+
     try {
       await supabase
         .from("messages")
@@ -93,7 +92,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
         (payload) => {
           const newMessage = payload.new as Message;
           setMessages((prev) => [...prev, newMessage]);
-          
+
           // Show notification for messages from the other party
           if (newMessage.sender_type !== senderType) {
             toast.info(`New message from ${newMessage.sender_name}`, {
@@ -101,7 +100,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
             });
             setUnreadCount((prev) => prev + 1);
           }
-        }
+        },
       )
       .subscribe();
 
@@ -162,7 +161,7 @@ export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
         },
         () => {
           fetchUnreadCounts();
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -173,7 +172,7 @@ export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
         },
         () => {
           fetchUnreadCounts();
-        }
+        },
       )
       .subscribe();
 
