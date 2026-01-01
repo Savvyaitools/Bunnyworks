@@ -28,6 +28,7 @@ import { PortalDashboard, PortalMessages, PortalInvoices, PortalContent } from "
 import PortalContentPlans from "./pages/portal/PortalContentPlans";
 import PortalTasks from "./pages/portal/PortalTasks";
 import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs } from "./pages/employee";
+import EmployeePerformance from "./pages/EmployeePerformance";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +70,11 @@ const AppRoutes = () => {
       <Route path="/employees" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <Employees />
+        </ProtectedRoute>
+      } />
+      <Route path="/employees/performance" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <EmployeePerformance />
         </ProtectedRoute>
       } />
       <Route path="/tasks" element={

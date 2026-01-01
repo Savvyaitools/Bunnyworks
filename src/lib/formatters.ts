@@ -25,6 +25,17 @@ export function formatShortDate(dateString: string | null): string {
 }
 
 /**
+ * Format a date string to medium format (e.g., "Dec 27, 2024")
+ */
+export function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/**
  * Format a date string to a full date (e.g., "December 27, 2024")
  */
 export function formatFullDate(dateString: string): string {
