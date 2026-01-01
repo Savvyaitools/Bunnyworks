@@ -545,47 +545,74 @@ export type Database = {
       }
       employees: {
         Row: {
+          address: string | null
           assigned_creators: number
           auth_user_id: string | null
           avatar_seed: string | null
+          bio: string | null
+          certifications: string[] | null
+          commission_rate: number | null
           created_at: string
           department: string | null
+          education: string | null
           email: string
+          emergency_contact: string | null
+          experience: string | null
           hire_date: string | null
           id: string
           name: string
           phone: string | null
           role: string
+          salary: number | null
+          skills: string[] | null
           status: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
           assigned_creators?: number
           auth_user_id?: string | null
           avatar_seed?: string | null
+          bio?: string | null
+          certifications?: string[] | null
+          commission_rate?: number | null
           created_at?: string
           department?: string | null
+          education?: string | null
           email: string
+          emergency_contact?: string | null
+          experience?: string | null
           hire_date?: string | null
           id?: string
           name: string
           phone?: string | null
           role: string
+          salary?: number | null
+          skills?: string[] | null
           status?: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
           assigned_creators?: number
           auth_user_id?: string | null
           avatar_seed?: string | null
+          bio?: string | null
+          certifications?: string[] | null
+          commission_rate?: number | null
           created_at?: string
           department?: string | null
+          education?: string | null
           email?: string
+          emergency_contact?: string | null
+          experience?: string | null
           hire_date?: string | null
           id?: string
           name?: string
           phone?: string | null
           role?: string
+          salary?: number | null
+          skills?: string[] | null
           status?: string
           updated_at?: string
         }

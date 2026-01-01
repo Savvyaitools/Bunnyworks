@@ -15,9 +15,19 @@ export interface Employee {
   assigned_creators: number;
   created_at: string;
   updated_at: string;
+  auth_user_id: string | null;
+  salary: number;
+  commission_rate: number;
+  bio: string | null;
+  skills: string[] | null;
+  education: string | null;
+  experience: string | null;
+  certifications: string[] | null;
+  emergency_contact: string | null;
+  address: string | null;
 }
 
-export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_at">;
+export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_at" | "auth_user_id">;
 export type UpdateEmployeeInput = Partial<CreateEmployeeInput>;
 
 export function useEmployees() {
