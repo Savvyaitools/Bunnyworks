@@ -77,6 +77,21 @@ export function useCreatorPortal() {
     }
   }, []);
 
+  const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status })
+      .eq("id", taskId);
+
+    if (error) {
+      console.error("Error updating task:", error);
+      return false;
+    }
+    
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
+    return true;
+  }, []);
+
   const fetchInvoices = useCallback(async (cId: string) => {
     const { data, error } = await supabase
       .from("invoices")
@@ -141,6 +156,7 @@ export function useCreatorPortal() {
     activeTasks,
     pendingInvoices,
     pendingInvoiceAmount,
+    updateTaskStatus,
     refetchTasks: () => creatorId && fetchTasks(creatorId),
     refetchInvoices: () => creatorId && fetchInvoices(creatorId),
     refetchEarnings: () => creatorId && fetchEarnings(creatorId),

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MoreVertical, DollarSign, Trash2, Mail, Phone } from "lucide-react";
+import { MoreVertical, DollarSign, Trash2, Mail, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,63 +32,67 @@ export function CreatorCard({ creator, onDelete, index = 0 }: CreatorCardProps) 
     navigate(`/creators/${creator.id}`);
   };
 
+  // Generate a unique avatar image URL based on creator's seed
+  const avatarImageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
+
   return (
     <div
-      className="creator-card animate-fade-in cursor-pointer hover:border-primary/50 transition-colors"
+      className="creator-card animate-fade-in cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
       style={{ animationDelay: `${150 + index * 50}ms` }}
       onClick={handleCardClick}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Avatar className="h-12 w-12 ring-2 ring-primary/20">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`} />
-              <AvatarFallback className="bg-primary/20 text-primary">
-                {creator.name.split(" ").map(n => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
-            {/* Online status indicator */}
-            <span
-              className={cn(
-                "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card",
-                creator.online_status ? "bg-success" : "bg-muted-foreground"
-              )}
-            />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground">{creator.name}</h3>
-            {creator.alias && (
-              <p className="text-sm text-muted-foreground">@{creator.alias}</p>
-            )}
-            {!creator.alias && creator.platform && (
-              <p className="text-sm text-muted-foreground">{creator.platform}</p>
-            )}
-          </div>
+      {/* Creator Photo Banner */}
+      <div className="relative h-24 -mx-4 -mt-4 mb-4 bg-gradient-to-br from-primary/30 via-accent/20 to-secondary/30">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Avatar className="h-16 w-16 ring-4 ring-card shadow-lg">
+            <AvatarImage src={avatarImageUrl} />
+            <AvatarFallback className="bg-primary/20 text-primary text-lg">
+              {creator.name.split(" ").map(n => n[0]).join("")}
+            </AvatarFallback>
+          </Avatar>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-popover border-border">
-            <DropdownMenuItem 
-              className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(creator.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Remove Creator
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Online status indicator */}
+        <span
+          className={cn(
+            "absolute bottom-2 left-1/2 translate-x-4 h-4 w-4 rounded-full border-2 border-card",
+            creator.online_status ? "bg-success" : "bg-muted-foreground"
+          )}
+        />
+        {/* Dropdown menu */}
+        <div className="absolute top-2 right-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/70 hover:text-foreground bg-card/50 backdrop-blur-sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover border-border">
+              <DropdownMenuItem 
+                className="text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(creator.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Remove Creator
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      {/* Creator Info */}
+      <div className="text-center mb-3">
+        <h3 className="font-semibold text-foreground">{creator.name}</h3>
+        {creator.alias && (
+          <p className="text-sm text-muted-foreground">@{creator.alias}</p>
+        )}
+        {!creator.alias && creator.platform && (
+          <p className="text-sm text-muted-foreground">{creator.platform}</p>
+        )}
         {creator.followers && (
-          <span className="text-xs text-muted-foreground">{creator.followers} followers</span>
+          <p className="text-xs text-muted-foreground mt-1">{creator.followers} followers</p>
         )}
       </div>
 

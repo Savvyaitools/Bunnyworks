@@ -208,27 +208,29 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
-              <Input
-                type="date"
-                value={formData.scheduled_date}
-                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-              />
-              <Select
-                value={formData.platform}
-                onValueChange={(v) => setFormData({ ...formData, platform: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Fansly">Fansly</SelectItem>
-                  <SelectItem value="Fanvue">Fanvue</SelectItem>
-                  <SelectItem value="Instagram">Instagram</SelectItem>
-                  <SelectItem value="TikTok">TikTok</SelectItem>
-                  <SelectItem value="Twitter">Twitter</SelectItem>
-                  <SelectItem value="YouTube">YouTube</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  type="date"
+                  value={formData.scheduled_date}
+                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                />
+                <Select
+                  value={formData.platform}
+                  onValueChange={(v) => setFormData({ ...formData, platform: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Platform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fansly">Fansly</SelectItem>
+                    <SelectItem value="Fanvue">Fanvue</SelectItem>
+                    <SelectItem value="Instagram">Instagram</SelectItem>
+                    <SelectItem value="TikTok">TikTok</SelectItem>
+                    <SelectItem value="Twitter">Twitter</SelectItem>
+                    <SelectItem value="YouTube">YouTube</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={createPlan} className="w-full">Create Plan</Button>
             </div>
           </DialogContent>
