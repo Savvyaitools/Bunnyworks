@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
 
 type Priority = "High" | "Medium" | "Low";
 type TaskStatus = "To Do" | "In Progress" | "Completed";
@@ -31,7 +32,7 @@ function formatDate(dateString: string | null): string {
 }
 
 export default function PortalTasks() {
-  const { tasks, loading } = useCreatorPortal();
+  const { tasks, loading, updateTaskStatus } = useCreatorPortal();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | "All">("All");
 
@@ -48,6 +49,16 @@ export default function PortalTasks() {
     todo: tasks.filter(t => t.status === "To Do").length,
     inProgress: tasks.filter(t => t.status === "In Progress").length,
     completed: tasks.filter(t => t.status === "Completed").length,
+  };
+
+  const handleToggleComplete = async (taskId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "Completed" ? "To Do" : "Completed";
+    const success = await updateTaskStatus(taskId, newStatus);
+    if (success) {
+      toast.success(newStatus === "Completed" ? "Task marked as complete" : "Task reopened");
+    } else {
+      toast.error("Failed to update task");
+    }
   };
 
   return (
@@ -134,8 +145,8 @@ export default function PortalTasks() {
                   <div className="flex items-start gap-4">
                     <Checkbox 
                       checked={task.status === "Completed"}
-                      className="mt-1 border-muted-foreground data-[state=checked]:bg-accent data-[state=checked]:border-accent"
-                      disabled
+                      className="mt-1 border-muted-foreground data-[state=checked]:bg-accent data-[state=checked]:border-accent cursor-pointer"
+                      onCheckedChange={() => handleToggleComplete(task.id, task.status)}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4 mb-2">
