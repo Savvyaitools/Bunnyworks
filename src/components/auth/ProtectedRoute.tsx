@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  allowedUserTypes?: ("agency" | "creator")[];
+  allowedUserTypes?: ("agency" | "creator" | "employee")[];
 }
 
 export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRouteProps) {
@@ -29,9 +29,11 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
 
   // If user types are specified, check if user has access
   if (allowedUserTypes && profile && !allowedUserTypes.includes(profile.user_type)) {
-    // Redirect to appropriate area
+    // Redirect to appropriate area based on user type
     if (profile.user_type === "creator") {
       return <Navigate to="/portal" replace />;
+    } else if (profile.user_type === "employee") {
+      return <Navigate to="/employee" replace />;
     } else {
       return <Navigate to="/dashboard" replace />;
     }

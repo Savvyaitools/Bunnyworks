@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Mail, MoreVertical, Trash2 } from "lucide-react";
+import { Search, Plus, Mail, MoreVertical, Trash2, UserPlus, MessageSquare } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,6 +39,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useEmployees, Employee, CreateEmployeeInput } from "@/hooks/useEmployees";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const roleColors: Record<string, string> = {
   Manager: "bg-accent/20 text-accent border-accent/30",
@@ -55,8 +60,13 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Employees() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCreateAccountDialogOpen, setIsCreateAccountDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [accountPassword, setAccountPassword] = useState("");
   const [formData, setFormData] = useState<Partial<CreateEmployeeInput>>({
     name: "",
     email: "",
@@ -66,7 +76,7 @@ export default function Employees() {
     assigned_creators: 0,
   });
 
-  const { employees, loading, stats, createEmployee, updateEmployee, deleteEmployee } = useEmployees();
+  const { employees, loading, stats, createEmployee, updateEmployee, deleteEmployee, refetch } = useEmployees();
 
   const filteredEmployees = employees.filter((employee) =>
     employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -95,6 +105,110 @@ export default function Employees() {
 
   const handleStatusChange = async (employee: Employee, newStatus: "Active" | "On Leave" | "Inactive") => {
     await updateEmployee(employee.id, { status: newStatus });
+  };
+
+  const handleCreateAccount = async () => {
+    if (!selectedEmployee || !accountPassword) return;
+    
+    setCreatingAccount(true);
+    try {
+      // Create auth user with employee type
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: selectedEmployee.email,
+        password: accountPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: selectedEmployee.name,
+          user_type: "employee",
+        },
+      });
+
+      if (authError) {
+        // Try using signUp as fallback (admin API might not be available)
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: selectedEmployee.email,
+          password: accountPassword,
+          options: {
+            data: {
+              full_name: selectedEmployee.name,
+              user_type: "employee",
+            },
+          },
+        });
+
+        if (signUpError) {
+          toast.error("Failed to create account: " + signUpError.message);
+          setCreatingAccount(false);
+          return;
+        }
+
+        // Link employee to auth user
+        if (signUpData.user) {
+          await supabase
+            .from("employees")
+            .update({ auth_user_id: signUpData.user.id })
+            .eq("id", selectedEmployee.id);
+          
+          // If Chatter role, also link to chatters table
+          if (selectedEmployee.role === "Chatter") {
+            // Check if chatter exists with same email
+            const { data: chatter } = await supabase
+              .from("chatters")
+              .select("id")
+              .ilike("email", selectedEmployee.email)
+              .maybeSingle();
+            
+            if (chatter) {
+              await supabase
+                .from("chatters")
+                .update({ auth_user_id: signUpData.user.id })
+                .eq("id", chatter.id);
+            }
+          }
+        }
+      } else if (authData.user) {
+        // Link employee to auth user
+        await supabase
+          .from("employees")
+          .update({ auth_user_id: authData.user.id })
+          .eq("id", selectedEmployee.id);
+
+        // If Chatter role, also link to chatters table
+        if (selectedEmployee.role === "Chatter") {
+          const { data: chatter } = await supabase
+            .from("chatters")
+            .select("id")
+            .ilike("email", selectedEmployee.email)
+            .maybeSingle();
+          
+          if (chatter) {
+            await supabase
+              .from("chatters")
+              .update({ auth_user_id: authData.user.id })
+              .eq("id", chatter.id);
+          }
+        }
+      }
+
+      toast.success(`Account created for ${selectedEmployee.name}`);
+      setIsCreateAccountDialogOpen(false);
+      setAccountPassword("");
+      setSelectedEmployee(null);
+      refetch();
+    } catch (error) {
+      toast.error("Failed to create account");
+    }
+    setCreatingAccount(false);
+  };
+
+  const openCreateAccountDialog = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setAccountPassword("");
+    setIsCreateAccountDialogOpen(true);
+  };
+
+  const startMessageWithEmployee = (employee: Employee) => {
+    navigate("/internal-messages", { state: { preselectedEmployeeId: employee.id } });
   };
 
   return (
@@ -281,6 +395,15 @@ export default function Employees() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-popover border-border">
+                          <DropdownMenuItem onClick={() => startMessageWithEmployee(employee)}>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Send Message
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openCreateAccountDialog(employee)}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Create Login
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleStatusChange(employee, "Active")}>
                             Set Active
                           </DropdownMenuItem>
@@ -290,6 +413,7 @@ export default function Employees() {
                           <DropdownMenuItem onClick={() => handleStatusChange(employee, "Inactive")}>
                             Set Inactive
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             className="text-destructive"
                             onClick={() => deleteEmployee(employee.id)}
@@ -312,6 +436,43 @@ export default function Employees() {
             <p className="text-muted-foreground">No employees found matching your search.</p>
           </div>
         )}
+
+        {/* Create Account Dialog */}
+        <Dialog open={isCreateAccountDialogOpen} onOpenChange={setIsCreateAccountDialogOpen}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Create Employee Login</DialogTitle>
+              <DialogDescription>
+                Create a login account for {selectedEmployee?.name}. They will be able to access the Employee Portal with their email and this password.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={selectedEmployee?.email || ""} disabled className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={accountPassword}
+                  onChange={(e) => setAccountPassword(e.target.value)}
+                  placeholder="Enter a secure password"
+                  minLength={8}
+                />
+                <p className="text-xs text-muted-foreground">Minimum 8 characters</p>
+              </div>
+              <Button 
+                onClick={handleCreateAccount} 
+                className="w-full bg-gradient-primary"
+                disabled={!accountPassword || accountPassword.length < 8 || creatingAccount}
+              >
+                {creatingAccount ? "Creating..." : "Create Account"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
