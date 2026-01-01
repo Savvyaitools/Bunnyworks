@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Mail, Phone, Instagram, Twitter, Link as LinkIcon, Edit, Save, X } from "lucide-react";
+import { useState, useRef } from "react";
+import { Mail, Phone, Instagram, Twitter, Link as LinkIcon, Edit, Save, X, Camera, Upload } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Creator, UpdateCreatorInput } from "@/hooks/useCreators";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface CreatorOverviewProps {
   creator: Creator;
@@ -15,6 +17,8 @@ interface CreatorOverviewProps {
 
 export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: creator.name,
     alias: creator.alias || "",
@@ -60,14 +64,64 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     setIsEditing(false);
   };
 
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${creator.id}-${Date.now()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("creator-avatars")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("creator-avatars")
+        .getPublicUrl(fileName);
+
+      // Update creator with new avatar URL
+      await onUpdate({ avatar_url: urlData.publicUrl });
+      toast.success("Photo uploaded successfully");
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      toast.error("Failed to upload photo");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const avatarSrc = creator.avatar_url || 
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
+
   return (
     <div className="space-y-6">
       {/* Profile Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <div className="relative">
+          <div className="relative group">
             <Avatar className="h-20 w-20 ring-4 ring-primary/20">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`} />
+              <AvatarImage src={avatarSrc} className="object-cover" />
               <AvatarFallback className="bg-primary/20 text-primary text-2xl">
                 {creator.name.split(" ").map(n => n[0]).join("")}
               </AvatarFallback>
@@ -77,6 +131,25 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                 "absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card",
                 creator.online_status ? "bg-success" : "bg-muted-foreground"
               )}
+            />
+            {/* Photo upload overlay */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            >
+              {uploading ? (
+                <div className="h-6 w-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Camera className="h-6 w-6 text-white" />
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
             />
           </div>
           <div>
@@ -108,6 +181,16 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
             )}>
               {creator.online_status ? "Online" : "Offline"}
             </p>
+            {!creator.avatar_url && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+              >
+                <Upload className="h-3 w-3" />
+                Upload photo
+              </button>
+            )}
           </div>
         </div>
         <div className="flex gap-2">

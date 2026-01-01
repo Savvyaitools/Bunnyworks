@@ -467,6 +467,7 @@ export type Database = {
         Row: {
           alias: string | null
           avatar_seed: string | null
+          avatar_url: string | null
           created_at: string
           email: string
           followers: string | null
@@ -489,6 +490,7 @@ export type Database = {
         Insert: {
           alias?: string | null
           avatar_seed?: string | null
+          avatar_url?: string | null
           created_at?: string
           email: string
           followers?: string | null
@@ -511,6 +513,7 @@ export type Database = {
         Update: {
           alias?: string | null
           avatar_seed?: string | null
+          avatar_url?: string | null
           created_at?: string
           email?: string
           followers?: string | null

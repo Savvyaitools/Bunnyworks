@@ -8,6 +8,7 @@ export interface Creator {
   email: string;
   phone: string | null;
   avatar_seed: string | null;
+  avatar_url: string | null;
   status: "Active" | "Onboarding" | "Paused" | "Offboarded";
   revenue: number;
   platform: string | null;

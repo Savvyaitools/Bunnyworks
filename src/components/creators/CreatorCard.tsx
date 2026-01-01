@@ -32,8 +32,9 @@ export function CreatorCard({ creator, onDelete, index = 0 }: CreatorCardProps) 
     navigate(`/creators/${creator.id}`);
   };
 
-  // Generate a unique avatar image URL based on creator's seed
-  const avatarImageUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
+  // Use uploaded photo if available, otherwise fall back to generated avatar
+  const avatarImageUrl = creator.avatar_url || 
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
 
   return (
     <div
@@ -45,7 +46,7 @@ export function CreatorCard({ creator, onDelete, index = 0 }: CreatorCardProps) 
       <div className="relative h-24 -mx-4 -mt-4 mb-4 bg-gradient-to-br from-primary/30 via-accent/20 to-secondary/30">
         <div className="absolute inset-0 flex items-center justify-center">
           <Avatar className="h-16 w-16 ring-4 ring-card shadow-lg">
-            <AvatarImage src={avatarImageUrl} />
+            <AvatarImage src={avatarImageUrl} className="object-cover" />
             <AvatarFallback className="bg-primary/20 text-primary text-lg">
               {creator.name.split(" ").map(n => n[0]).join("")}
             </AvatarFallback>

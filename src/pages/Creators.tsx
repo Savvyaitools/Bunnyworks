@@ -51,6 +51,7 @@ export default function Creators() {
       email: formData.email,
       phone: null,
       avatar_seed: formData.name.toLowerCase().split(" ")[0],
+      avatar_url: null,
       status: "Active",
       revenue: 0,
       platform: formData.platform || null,
