@@ -26,6 +26,8 @@ import ShiftRoster from "./pages/ShiftRoster";
 import InternalMessages from "./pages/InternalMessages";
 import { PortalDashboard, PortalMessages, PortalInvoices, PortalContent } from "./pages/portal";
 import PortalContentPlans from "./pages/portal/PortalContentPlans";
+import PortalTasks from "./pages/portal/PortalTasks";
+import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs } from "./pages/employee";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -149,6 +151,33 @@ const AppRoutes = () => {
       <Route path="/portal/plans" element={
         <ProtectedRoute allowedUserTypes={["creator"]}>
           <PortalContentPlans />
+        </ProtectedRoute>
+      } />
+      <Route path="/portal/tasks" element={
+        <ProtectedRoute allowedUserTypes={["creator"]}>
+          <PortalTasks />
+        </ProtectedRoute>
+      } />
+      
+      {/* Employee Portal Routes - Protected */}
+      <Route path="/employee" element={
+        <ProtectedRoute allowedUserTypes={["employee"]}>
+          <EmployeeDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/employee/messages" element={
+        <ProtectedRoute allowedUserTypes={["employee"]}>
+          <EmployeeMessages />
+        </ProtectedRoute>
+      } />
+      <Route path="/employee/shifts" element={
+        <ProtectedRoute allowedUserTypes={["employee"]}>
+          <EmployeeShifts />
+        </ProtectedRoute>
+      } />
+      <Route path="/employee/time-logs" element={
+        <ProtectedRoute allowedUserTypes={["employee"]}>
+          <EmployeeTimeLogs />
         </ProtectedRoute>
       } />
       

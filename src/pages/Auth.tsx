@@ -36,7 +36,9 @@ export default function Auth() {
   useEffect(() => {
     if (user && !authLoading) {
       if (profile) {
-        const destination = profile.user_type === "creator" ? "/portal" : "/dashboard";
+        let destination = "/dashboard";
+        if (profile.user_type === "creator") destination = "/portal";
+        else if (profile.user_type === "employee") destination = "/employee";
         navigate(destination, { replace: true });
       }
     }

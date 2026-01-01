@@ -543,6 +543,7 @@ export type Database = {
       employees: {
         Row: {
           assigned_creators: number
+          auth_user_id: string | null
           avatar_seed: string | null
           created_at: string
           department: string | null
@@ -557,6 +558,7 @@ export type Database = {
         }
         Insert: {
           assigned_creators?: number
+          auth_user_id?: string | null
           avatar_seed?: string | null
           created_at?: string
           department?: string | null
@@ -571,6 +573,7 @@ export type Database = {
         }
         Update: {
           assigned_creators?: number
+          auth_user_id?: string | null
           avatar_seed?: string | null
           created_at?: string
           department?: string | null

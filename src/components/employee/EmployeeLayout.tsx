@@ -1,0 +1,75 @@
+import { ReactNode } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Home, MessageSquare, Calendar, Clock, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import logo from "@/assets/logo.png";
+
+interface EmployeeLayoutProps {
+  children: ReactNode;
+}
+
+export function EmployeeLayout({ children }: EmployeeLayoutProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { signOut, profile } = useAuth();
+
+  const navItems = [
+    { icon: Home, label: "Dashboard", path: "/employee" },
+    { icon: MessageSquare, label: "Messages", path: "/employee/messages" },
+    { icon: Calendar, label: "Shifts", path: "/employee/shifts" },
+    { icon: Clock, label: "Time Logs", path: "/employee/time-logs" },
+  ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="Logo" className="h-8 w-auto" />
+            <span className="text-sm font-medium text-muted-foreground">Employee Portal</span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 pb-20 overflow-y-auto">
+        {children}
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-xl z-40">
+        <div className="flex items-center justify-around py-2">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={cn(
+                  "flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors",
+                  isActive 
+                    ? "text-primary" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="text-xs">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
+  );
+}
