@@ -14,7 +14,8 @@ import {
   UserPlus,
   Headphones,
   CalendarClock,
-  MessageCircle
+  MessageCircle,
+  TrendingUp
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -41,6 +42,7 @@ const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Employees", url: "/employees", icon: UserCog },
+  { title: "Performance", url: "/employees/performance", icon: TrendingUp },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "SOP Library", url: "/sop", icon: BookOpen },

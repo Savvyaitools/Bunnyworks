@@ -543,6 +543,124 @@ export type Database = {
           },
         ]
       }
+      employee_kpis: {
+        Row: {
+          avg_response_time_minutes: number | null
+          created_at: string
+          creators_managed: number
+          employee_id: string
+          id: string
+          messages_sent: number
+          notes: string | null
+          period_end: string
+          period_start: string
+          rating: number | null
+          revenue_generated: number
+          tasks_assigned: number
+          tasks_completed: number
+          updated_at: string
+        }
+        Insert: {
+          avg_response_time_minutes?: number | null
+          created_at?: string
+          creators_managed?: number
+          employee_id: string
+          id?: string
+          messages_sent?: number
+          notes?: string | null
+          period_end: string
+          period_start: string
+          rating?: number | null
+          revenue_generated?: number
+          tasks_assigned?: number
+          tasks_completed?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_response_time_minutes?: number | null
+          created_at?: string
+          creators_managed?: number
+          employee_id?: string
+          id?: string
+          messages_sent?: number
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          rating?: number | null
+          revenue_generated?: number
+          tasks_assigned?: number
+          tasks_completed?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_kpis_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_payroll: {
+        Row: {
+          base_salary: number
+          bonus: number
+          commission_earned: number
+          created_at: string
+          deductions: number
+          employee_id: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          status: string
+          total_payout: number
+          updated_at: string
+        }
+        Insert: {
+          base_salary?: number
+          bonus?: number
+          commission_earned?: number
+          created_at?: string
+          deductions?: number
+          employee_id: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          total_payout?: number
+          updated_at?: string
+        }
+        Update: {
+          base_salary?: number
+          bonus?: number
+          commission_earned?: number
+          created_at?: string
+          deductions?: number
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          total_payout?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_payroll_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           address: string | null
