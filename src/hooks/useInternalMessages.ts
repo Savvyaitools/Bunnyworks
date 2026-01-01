@@ -1,41 +1,36 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export interface InternalMessage {
   id: string;
   sender_id: string;
-  sender_type: "chatter" | "agency";
+  sender_type: "chatter" | "agency" | "employee";
   recipient_id: string;
-  recipient_type: "chatter" | "agency";
+  recipient_type: "chatter" | "agency" | "employee";
   content: string;
   read: boolean;
   created_at: string;
 }
 
 export function useInternalMessages() {
-  const [messages, setMessages] = useState<InternalMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchMessages = useCallback(async () => {
-    try {
+  const { data: messages = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["internal-messages"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("internal_messages")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setMessages(data as InternalMessage[]);
-    } catch (error) {
-      console.error("Error fetching internal messages:", error);
-      toast.error("Failed to load messages");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as InternalMessage[];
+    },
+  });
 
-  const sendMessage = async (input: Omit<InternalMessage, "id" | "created_at" | "read">) => {
-    try {
+  const sendMessageMutation = useMutation({
+    mutationFn: async (input: Omit<InternalMessage, "id" | "created_at" | "read">) => {
       const { data, error } = await supabase
         .from("internal_messages")
         .insert({ ...input, read: false })
@@ -43,15 +38,16 @@ export function useInternalMessages() {
         .single();
 
       if (error) throw error;
-      setMessages((prev) => [data as InternalMessage, ...prev]);
-      toast.success("Message sent");
       return data as InternalMessage;
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message");
-      return null;
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["internal-messages"] });
+      toast.success("Message sent");
+    },
+    onError: (error) => {
+      toast.error("Failed to send message: " + error.message);
+    },
+  });
 
   const markAsRead = async (messageIds: string[]) => {
     try {
@@ -61,17 +57,11 @@ export function useInternalMessages() {
         .in("id", messageIds);
 
       if (error) throw error;
-      setMessages((prev) =>
-        prev.map((m) => (messageIds.includes(m.id) ? { ...m, read: true } : m))
-      );
+      queryClient.invalidateQueries({ queryKey: ["internal-messages"] });
     } catch (error) {
       console.error("Error marking messages as read:", error);
     }
   };
-
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
 
   const unreadCount = messages.filter((m) => !m.read).length;
 
@@ -79,8 +69,8 @@ export function useInternalMessages() {
     messages,
     loading,
     unreadCount,
-    sendMessage,
+    sendMessage: sendMessageMutation.mutateAsync,
     markAsRead,
-    refetch: fetchMessages,
+    refetch,
   };
 }

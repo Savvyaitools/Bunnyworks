@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMemo, useCallback } from "react";
 
 export interface Creator {
   id: string;
@@ -30,44 +31,37 @@ export type CreateCreatorInput = Omit<Creator, "id" | "created_at" | "updated_at
 export type UpdateCreatorInput = Partial<CreateCreatorInput>;
 
 export function useCreators() {
-  const [creators, setCreators] = useState<Creator[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchCreators = useCallback(async () => {
-    try {
+  const { data: creators = [], isLoading: loading } = useQuery({
+    queryKey: ["creators"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("creators")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setCreators(data as Creator[]);
-    } catch (error) {
-      console.error("Error fetching creators:", error);
-      toast.error("Failed to load creators");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as Creator[];
+    },
+  });
 
   const getCreatorById = useCallback(async (id: string): Promise<Creator | null> => {
-    try {
-      const { data, error } = await supabase
-        .from("creators")
-        .select("*")
-        .eq("id", id)
-        .single();
+    const { data, error } = await supabase
+      .from("creators")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-      if (error) throw error;
-      return data as Creator;
-    } catch (error) {
+    if (error) {
       console.error("Error fetching creator:", error);
       return null;
     }
+    return data as Creator;
   }, []);
 
-  const createCreator = async (input: CreateCreatorInput) => {
-    try {
+  const createCreator = useMutation({
+    mutationFn: async (input: CreateCreatorInput) => {
       const { data, error } = await supabase
         .from("creators")
         .insert(input)
@@ -75,18 +69,19 @@ export function useCreators() {
         .single();
 
       if (error) throw error;
-      setCreators((prev) => [data as Creator, ...prev]);
-      toast.success("Creator added successfully");
       return data as Creator;
-    } catch (error) {
-      console.error("Error creating creator:", error);
-      toast.error("Failed to add creator");
-      return null;
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creators"] });
+      toast.success("Creator added successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to add creator: " + error.message);
+    },
+  });
 
-  const updateCreator = async (id: string, input: UpdateCreatorInput) => {
-    try {
+  const updateCreatorMutation = useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: UpdateCreatorInput }) => {
       const { data, error } = await supabase
         .from("creators")
         .update(input)
@@ -95,51 +90,50 @@ export function useCreators() {
         .single();
 
       if (error) throw error;
-      setCreators((prev) => prev.map((c) => (c.id === id ? (data as Creator) : c)));
-      toast.success("Creator updated successfully");
       return data as Creator;
-    } catch (error) {
-      console.error("Error updating creator:", error);
-      toast.error("Failed to update creator");
-      return null;
-    }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creators"] });
+      toast.success("Creator updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update creator: " + error.message);
+    },
+  });
+
+  const updateCreator = async (id: string, input: UpdateCreatorInput) => {
+    return updateCreatorMutation.mutateAsync({ id, input });
   };
 
-  const deleteCreator = async (id: string) => {
-    try {
+  const deleteCreator = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from("creators").delete().eq("id", id);
-
       if (error) throw error;
-      setCreators((prev) => prev.filter((c) => c.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creators"] });
       toast.success("Creator deleted successfully");
-      return true;
-    } catch (error) {
-      console.error("Error deleting creator:", error);
-      toast.error("Failed to delete creator");
-      return false;
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to delete creator: " + error.message);
+    },
+  });
 
-  useEffect(() => {
-    fetchCreators();
-  }, [fetchCreators]);
-
-  const stats = {
+  const stats = useMemo(() => ({
     total: creators.length,
     active: creators.filter((c) => c.status === "Active").length,
     onboarding: creators.filter((c) => c.status === "Onboarding").length,
     paused: creators.filter((c) => c.status === "Paused").length,
     totalRevenue: creators.reduce((sum, c) => sum + Number(c.revenue), 0),
-  };
+  }), [creators]);
 
   return {
     creators,
     loading,
     stats,
     getCreatorById,
-    createCreator,
+    createCreator: createCreator.mutateAsync,
     updateCreator,
-    deleteCreator,
-    refetch: fetchCreators,
+    deleteCreator: deleteCreator.mutateAsync,
   };
 }

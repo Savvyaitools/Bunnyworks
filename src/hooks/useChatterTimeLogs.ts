@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMemo, useCallback } from "react";
 
 export interface ChatterTimeLog {
   id: string;
@@ -25,48 +26,39 @@ export interface TimeLogStats {
 }
 
 export function useChatterTimeLogs(chatterId?: string) {
-  const [timeLogs, setTimeLogs] = useState<ChatterTimeLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeSession, setActiveSession] = useState<ChatterTimeLog | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchTimeLogs = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("chatter_time_logs")
-      .select(`
-        *,
-        chatter:chatters(id, name, skill_grade)
-      `)
-      .order("clock_in", { ascending: false });
+  const { data: timeLogs = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["chatter-time-logs", chatterId],
+    queryFn: async () => {
+      let query = supabase
+        .from("chatter_time_logs")
+        .select(`
+          *,
+          chatter:chatters(id, name, skill_grade)
+        `)
+        .order("clock_in", { ascending: false });
 
-    if (chatterId) {
-      query = query.eq("chatter_id", chatterId);
-    }
+      if (chatterId) {
+        query = query.eq("chatter_id", chatterId);
+      }
 
-    const { data, error } = await query;
+      const { data, error } = await query;
 
-    if (error) {
-      console.error("Error fetching time logs:", error);
-      toast.error("Failed to load time logs");
-    } else {
-      setTimeLogs(data as ChatterTimeLog[]);
-      // Find active session (no clock_out)
-      const active = data?.find(log => !log.clock_out) || null;
-      setActiveSession(active as ChatterTimeLog | null);
-    }
-    setLoading(false);
-  }, [chatterId]);
+      if (error) throw error;
+      return data as ChatterTimeLog[];
+    },
+  });
 
-  useEffect(() => {
-    fetchTimeLogs();
-  }, [fetchTimeLogs]);
+  const activeSession = useMemo(() => {
+    return timeLogs.find(log => !log.clock_out) || null;
+  }, [timeLogs]);
 
-  const clockIn = async (chatterId: string, shiftId?: string, notes?: string) => {
-    // Check if already clocked in
+  const clockIn = useCallback(async (chatterIdParam: string, shiftId?: string, notes?: string) => {
     const { data: existing } = await supabase
       .from("chatter_time_logs")
       .select("id")
-      .eq("chatter_id", chatterId)
+      .eq("chatter_id", chatterIdParam)
       .is("clock_out", null)
       .maybeSingle();
 
@@ -78,7 +70,7 @@ export function useChatterTimeLogs(chatterId?: string) {
     const { data, error } = await supabase
       .from("chatter_time_logs")
       .insert({
-        chatter_id: chatterId,
+        chatter_id: chatterIdParam,
         shift_id: shiftId || null,
         notes: notes || null,
       })
@@ -92,11 +84,11 @@ export function useChatterTimeLogs(chatterId?: string) {
     }
 
     toast.success("Clocked in successfully!");
-    fetchTimeLogs();
+    queryClient.invalidateQueries({ queryKey: ["chatter-time-logs"] });
     return data;
-  };
+  }, [queryClient]);
 
-  const clockOut = async (logId: string) => {
+  const clockOut = useCallback(async (logId: string) => {
     const { error } = await supabase
       .from("chatter_time_logs")
       .update({ clock_out: new Date().toISOString() })
@@ -109,17 +101,17 @@ export function useChatterTimeLogs(chatterId?: string) {
     }
 
     toast.success("Clocked out successfully!");
-    fetchTimeLogs();
+    queryClient.invalidateQueries({ queryKey: ["chatter-time-logs"] });
     return true;
-  };
+  }, [queryClient]);
 
-  const getStatsForChatter = (chatterId: string): TimeLogStats => {
+  const getStatsForChatter = useCallback((chatterIdParam: string): TimeLogStats => {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(startOfDay);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Monday
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1);
 
-    const chatterLogs = timeLogs.filter(log => log.chatter_id === chatterId);
+    const chatterLogs = timeLogs.filter(log => log.chatter_id === chatterIdParam);
     
     const totalMinutesToday = chatterLogs
       .filter(log => new Date(log.clock_in) >= startOfDay)
@@ -136,16 +128,16 @@ export function useChatterTimeLogs(chatterId?: string) {
       totalHoursWeek: Math.round(totalMinutesWeek / 60 * 10) / 10,
       activeClockIn,
     };
-  };
+  }, [timeLogs]);
 
-  const getAllChatterStats = () => {
+  const getAllChatterStats = useCallback(() => {
     const chatterIds = [...new Set(timeLogs.map(log => log.chatter_id))];
     return chatterIds.map(id => ({
       chatterId: id,
       chatterName: timeLogs.find(log => log.chatter_id === id)?.chatter?.name || "Unknown",
       ...getStatsForChatter(id),
     }));
-  };
+  }, [timeLogs, getStatsForChatter]);
 
   return {
     timeLogs,
@@ -155,6 +147,6 @@ export function useChatterTimeLogs(chatterId?: string) {
     clockOut,
     getStatsForChatter,
     getAllChatterStats,
-    refetch: fetchTimeLogs,
+    refetch,
   };
 }

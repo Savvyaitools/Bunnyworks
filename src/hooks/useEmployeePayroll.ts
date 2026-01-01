@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMemo } from "react";
 
 export interface EmployeePayroll {
   id: string;
@@ -38,11 +39,11 @@ export interface CreatePayrollInput {
 }
 
 export function useEmployeePayroll() {
-  const [payrolls, setPayrolls] = useState<EmployeePayroll[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchPayrolls = useCallback(async () => {
-    try {
+  const { data: payrolls = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["employee-payroll"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("employee_payroll")
         .select(`
@@ -52,17 +53,12 @@ export function useEmployeePayroll() {
         .order("period_end", { ascending: false });
 
       if (error) throw error;
-      setPayrolls(data as unknown as EmployeePayroll[]);
-    } catch (error) {
-      console.error("Error fetching payrolls:", error);
-      toast.error("Failed to load payroll records");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as unknown as EmployeePayroll[];
+    },
+  });
 
-  const createPayroll = async (input: CreatePayrollInput) => {
-    try {
+  const createPayrollMutation = useMutation({
+    mutationFn: async (input: CreatePayrollInput) => {
       const total_payout = 
         input.base_salary + 
         (input.commission_earned || 0) + 
@@ -83,18 +79,19 @@ export function useEmployeePayroll() {
         .single();
 
       if (error) throw error;
-      setPayrolls((prev) => [data as unknown as EmployeePayroll, ...prev]);
-      toast.success("Payroll record created");
       return data;
-    } catch (error) {
-      console.error("Error creating payroll:", error);
-      toast.error("Failed to create payroll record");
-      return null;
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-payroll"] });
+      toast.success("Payroll record created");
+    },
+    onError: (error) => {
+      toast.error("Failed to create payroll record: " + error.message);
+    },
+  });
 
-  const updatePayrollStatus = async (id: string, status: "pending" | "approved" | "paid") => {
-    try {
+  const updatePayrollStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "pending" | "approved" | "paid" }) => {
       const updateData: Record<string, unknown> = { status };
       if (status === "paid") {
         updateData.paid_at = new Date().toISOString();
@@ -106,35 +103,32 @@ export function useEmployeePayroll() {
         .eq("id", id);
 
       if (error) throw error;
-      setPayrolls((prev) =>
-        prev.map((p) =>
-          p.id === id
-            ? { ...p, status, paid_at: status === "paid" ? new Date().toISOString() : p.paid_at }
-            : p
-        )
-      );
+    },
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ["employee-payroll"] });
       toast.success(`Payroll ${status}`);
-    } catch (error) {
-      console.error("Error updating payroll:", error);
-      toast.error("Failed to update payroll");
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to update payroll: " + error.message);
+    },
+  });
 
-  const deletePayroll = async (id: string) => {
-    try {
+  const deletePayrollMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from("employee_payroll").delete().eq("id", id);
       if (error) throw error;
-      setPayrolls((prev) => prev.filter((p) => p.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-payroll"] });
       toast.success("Payroll record deleted");
-    } catch (error) {
-      console.error("Error deleting payroll:", error);
-      toast.error("Failed to delete payroll");
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to delete payroll: " + error.message);
+    },
+  });
 
   const calculateCommission = async (employeeId: string, periodStart: string, periodEnd: string) => {
     try {
-      // Get employee's commission rate
       const { data: employee } = await supabase
         .from("employees")
         .select("commission_rate")
@@ -143,7 +137,6 @@ export function useEmployeePayroll() {
 
       if (!employee?.commission_rate) return 0;
 
-      // Get creators managed by this employee
       const { data: creators } = await supabase
         .from("creators")
         .select("id")
@@ -151,7 +144,6 @@ export function useEmployeePayroll() {
 
       if (!creators?.length) return 0;
 
-      // Get earnings for those creators in the period
       const creatorIds = creators.map((c) => c.id);
       const { data: earnings } = await supabase
         .from("creator_earnings")
@@ -170,24 +162,24 @@ export function useEmployeePayroll() {
     }
   };
 
-  useEffect(() => {
-    fetchPayrolls();
-  }, [fetchPayrolls]);
+  const updatePayrollStatus = async (id: string, status: "pending" | "approved" | "paid") => {
+    return updatePayrollStatusMutation.mutateAsync({ id, status });
+  };
 
-  const stats = {
+  const stats = useMemo(() => ({
     totalPending: payrolls.filter((p) => p.status === "pending").reduce((sum, p) => sum + p.total_payout, 0),
     totalPaid: payrolls.filter((p) => p.status === "paid").reduce((sum, p) => sum + p.total_payout, 0),
     pendingCount: payrolls.filter((p) => p.status === "pending").length,
-  };
+  }), [payrolls]);
 
   return {
     payrolls,
     loading,
     stats,
-    createPayroll,
+    createPayroll: createPayrollMutation.mutateAsync,
     updatePayrollStatus,
-    deletePayroll,
+    deletePayroll: deletePayrollMutation.mutateAsync,
     calculateCommission,
-    refetch: fetchPayrolls,
+    refetch,
   };
 }

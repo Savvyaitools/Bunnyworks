@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMemo } from "react";
 
 export interface Employee {
   id: string;
@@ -31,28 +32,23 @@ export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_
 export type UpdateEmployeeInput = Partial<CreateEmployeeInput>;
 
 export function useEmployees() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchEmployees = useCallback(async () => {
-    try {
+  const { data: employees = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setEmployees(data as Employee[]);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-      toast.error("Failed to load employees");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as Employee[];
+    },
+  });
 
-  const createEmployee = async (input: CreateEmployeeInput) => {
-    try {
+  const createEmployee = useMutation({
+    mutationFn: async (input: CreateEmployeeInput) => {
       const { data, error } = await supabase
         .from("employees")
         .insert(input)
@@ -60,18 +56,19 @@ export function useEmployees() {
         .single();
 
       if (error) throw error;
-      setEmployees((prev) => [data as Employee, ...prev]);
-      toast.success("Employee added successfully");
       return data as Employee;
-    } catch (error) {
-      console.error("Error creating employee:", error);
-      toast.error("Failed to add employee");
-      return null;
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Employee added successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to add employee: " + error.message);
+    },
+  });
 
-  const updateEmployee = async (id: string, input: UpdateEmployeeInput) => {
-    try {
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: UpdateEmployeeInput }) => {
       const { data, error } = await supabase
         .from("employees")
         .update(input)
@@ -80,48 +77,48 @@ export function useEmployees() {
         .single();
 
       if (error) throw error;
-      setEmployees((prev) => prev.map((e) => (e.id === id ? (data as Employee) : e)));
-      toast.success("Employee updated successfully");
       return data as Employee;
-    } catch (error) {
-      console.error("Error updating employee:", error);
-      toast.error("Failed to update employee");
-      return null;
-    }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Employee updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update employee: " + error.message);
+    },
+  });
+
+  const updateEmployee = async (id: string, input: UpdateEmployeeInput) => {
+    return updateEmployeeMutation.mutateAsync({ id, input });
   };
 
-  const deleteEmployee = async (id: string) => {
-    try {
+  const deleteEmployee = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from("employees").delete().eq("id", id);
-
       if (error) throw error;
-      setEmployees((prev) => prev.filter((e) => e.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Employee deleted successfully");
-      return true;
-    } catch (error) {
-      console.error("Error deleting employee:", error);
-      toast.error("Failed to delete employee");
-      return false;
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to delete employee: " + error.message);
+    },
+  });
 
-  useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
-
-  const stats = {
+  const stats = useMemo(() => ({
     total: employees.length,
     active: employees.filter((e) => e.status === "Active").length,
     onLeave: employees.filter((e) => e.status === "On Leave").length,
-  };
+  }), [employees]);
 
   return {
     employees,
     loading,
     stats,
-    createEmployee,
+    createEmployee: createEmployee.mutateAsync,
     updateEmployee,
-    deleteEmployee,
-    refetch: fetchEmployees,
+    deleteEmployee: deleteEmployee.mutateAsync,
+    refetch,
   };
 }

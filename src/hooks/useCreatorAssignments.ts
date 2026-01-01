@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -8,7 +8,6 @@ export interface CreatorAssignment {
   chatter_id: string;
   role: string;
   created_at: string;
-  // Joined data
   chatter?: {
     id: string;
     name: string;
@@ -21,11 +20,11 @@ export interface CreatorAssignment {
 }
 
 export function useCreatorAssignments() {
-  const [assignments, setAssignments] = useState<CreatorAssignment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchAssignments = useCallback(async () => {
-    try {
+  const { data: assignments = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["creator-assignments"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("creator_assignments")
         .select(`
@@ -36,17 +35,12 @@ export function useCreatorAssignments() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setAssignments(data as CreatorAssignment[]);
-    } catch (error) {
-      console.error("Error fetching assignments:", error);
-      toast.error("Failed to load assignments");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as CreatorAssignment[];
+    },
+  });
 
-  const createAssignment = async (creator_id: string, chatter_id: string, role: string = "chatter") => {
-    try {
+  const createAssignmentMutation = useMutation({
+    mutationFn: async ({ creator_id, chatter_id, role = "chatter" }: { creator_id: string; chatter_id: string; role?: string }) => {
       const { data, error } = await supabase
         .from("creator_assignments")
         .insert({ creator_id, chatter_id, role })
@@ -58,40 +52,40 @@ export function useCreatorAssignments() {
         .single();
 
       if (error) throw error;
-      setAssignments((prev) => [data as CreatorAssignment, ...prev]);
-      toast.success("Assignment created");
       return data as CreatorAssignment;
-    } catch (error) {
-      console.error("Error creating assignment:", error);
-      toast.error("Failed to create assignment");
-      return null;
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creator-assignments"] });
+      toast.success("Assignment created");
+    },
+    onError: (error) => {
+      toast.error("Failed to create assignment: " + error.message);
+    },
+  });
 
-  const deleteAssignment = async (id: string) => {
-    try {
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from("creator_assignments").delete().eq("id", id);
-
       if (error) throw error;
-      setAssignments((prev) => prev.filter((a) => a.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creator-assignments"] });
       toast.success("Assignment removed");
-      return true;
-    } catch (error) {
-      console.error("Error deleting assignment:", error);
-      toast.error("Failed to remove assignment");
-      return false;
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to remove assignment: " + error.message);
+    },
+  });
 
-  useEffect(() => {
-    fetchAssignments();
-  }, [fetchAssignments]);
+  const createAssignment = async (creator_id: string, chatter_id: string, role: string = "chatter") => {
+    return createAssignmentMutation.mutateAsync({ creator_id, chatter_id, role });
+  };
 
   return {
     assignments,
     loading,
     createAssignment,
-    deleteAssignment,
-    refetch: fetchAssignments,
+    deleteAssignment: deleteAssignmentMutation.mutateAsync,
+    refetch,
   };
 }
