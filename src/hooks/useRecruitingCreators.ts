@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMemo } from "react";
 
 export type RecruitingStatus = "prospecting" | "contacted" | "interviewed" | "approved" | "rejected";
 
@@ -22,11 +23,11 @@ export type CreateRecruitingInput = Omit<RecruitingCreator, "id" | "created_at" 
 export type UpdateRecruitingInput = Partial<CreateRecruitingInput>;
 
 export function useRecruitingCreators() {
-  const [recruitingCreators, setRecruitingCreators] = useState<RecruitingCreator[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchRecruitingCreators = useCallback(async () => {
-    try {
+  const { data: recruitingCreators = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["recruiting-creators"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("recruiting_creators")
         .select("*")
@@ -34,17 +35,12 @@ export function useRecruitingCreators() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setRecruitingCreators(data as RecruitingCreator[]);
-    } catch (error) {
-      console.error("Error fetching recruiting creators:", error);
-      toast.error("Failed to load recruiting creators");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as RecruitingCreator[];
+    },
+  });
 
-  const createRecruitingCreator = async (input: CreateRecruitingInput) => {
-    try {
+  const createRecruitingCreatorMutation = useMutation({
+    mutationFn: async (input: CreateRecruitingInput) => {
       const { data, error } = await supabase
         .from("recruiting_creators")
         .insert(input)
@@ -52,18 +48,19 @@ export function useRecruitingCreators() {
         .single();
 
       if (error) throw error;
-      setRecruitingCreators((prev) => [data as RecruitingCreator, ...prev]);
-      toast.success("Prospect added successfully");
       return data as RecruitingCreator;
-    } catch (error) {
-      console.error("Error creating recruiting creator:", error);
-      toast.error("Failed to add prospect");
-      return null;
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recruiting-creators"] });
+      toast.success("Prospect added successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to add prospect: " + error.message);
+    },
+  });
 
-  const updateRecruitingCreator = async (id: string, input: UpdateRecruitingInput) => {
-    try {
+  const updateRecruitingCreatorMutation = useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: UpdateRecruitingInput }) => {
       const { data, error } = await supabase
         .from("recruiting_creators")
         .update(input)
@@ -72,69 +69,71 @@ export function useRecruitingCreators() {
         .single();
 
       if (error) throw error;
-      setRecruitingCreators((prev) => prev.map((r) => (r.id === id ? (data as RecruitingCreator) : r)));
-      toast.success("Prospect updated successfully");
       return data as RecruitingCreator;
-    } catch (error) {
-      console.error("Error updating recruiting creator:", error);
-      toast.error("Failed to update prospect");
-      return null;
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recruiting-creators"] });
+      toast.success("Prospect updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update prospect: " + error.message);
+    },
+  });
 
-  const deleteRecruitingCreator = async (id: string) => {
-    try {
+  const deleteRecruitingCreatorMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from("recruiting_creators").delete().eq("id", id);
-
       if (error) throw error;
-      setRecruitingCreators((prev) => prev.filter((r) => r.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recruiting-creators"] });
       toast.success("Prospect removed successfully");
-      return true;
-    } catch (error) {
-      console.error("Error deleting recruiting creator:", error);
-      toast.error("Failed to remove prospect");
-      return false;
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to remove prospect: " + error.message);
+    },
+  });
 
-  const onboardCreator = async (id: string) => {
-    try {
+  const onboardCreatorMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { data, error } = await supabase.rpc("onboard_recruiting_creator", {
         recruiting_id: id,
       });
 
       if (error) throw error;
-      setRecruitingCreators((prev) => prev.filter((r) => r.id !== id));
-      toast.success("Creator onboarded successfully!");
       return data;
-    } catch (error: any) {
-      console.error("Error onboarding creator:", error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recruiting-creators"] });
+      queryClient.invalidateQueries({ queryKey: ["creators"] });
+      toast.success("Creator onboarded successfully!");
+    },
+    onError: (error) => {
       toast.error(error.message || "Failed to onboard creator");
-      return null;
-    }
+    },
+  });
+
+  const updateRecruitingCreator = async (id: string, input: UpdateRecruitingInput) => {
+    return updateRecruitingCreatorMutation.mutateAsync({ id, input });
   };
 
-  useEffect(() => {
-    fetchRecruitingCreators();
-  }, [fetchRecruitingCreators]);
-
-  const stats = {
+  const stats = useMemo(() => ({
     total: recruitingCreators.length,
     prospecting: recruitingCreators.filter((r) => r.status === "prospecting").length,
     contacted: recruitingCreators.filter((r) => r.status === "contacted").length,
     interviewed: recruitingCreators.filter((r) => r.status === "interviewed").length,
     approved: recruitingCreators.filter((r) => r.status === "approved").length,
     rejected: recruitingCreators.filter((r) => r.status === "rejected").length,
-  };
+  }), [recruitingCreators]);
 
   return {
     recruitingCreators,
     loading,
     stats,
-    createRecruitingCreator,
+    createRecruitingCreator: createRecruitingCreatorMutation.mutateAsync,
     updateRecruitingCreator,
-    deleteRecruitingCreator,
-    onboardCreator,
-    refetch: fetchRecruitingCreators,
+    deleteRecruitingCreator: deleteRecruitingCreatorMutation.mutateAsync,
+    onboardCreator: onboardCreatorMutation.mutateAsync,
+    refetch,
   };
 }

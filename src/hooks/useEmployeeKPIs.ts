@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -38,12 +38,11 @@ export interface EmployeePerformanceSummary {
 }
 
 export function useEmployeeKPIs() {
-  const [kpis, setKPIs] = useState<EmployeeKPI[]>([]);
-  const [performanceSummaries, setPerformanceSummaries] = useState<EmployeePerformanceSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchKPIs = useCallback(async () => {
-    try {
+  const { data: kpis = [], isLoading: kpisLoading, refetch: refetchKPIs } = useQuery({
+    queryKey: ["employee-kpis"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("employee_kpis")
         .select(`
@@ -53,25 +52,19 @@ export function useEmployeeKPIs() {
         .order("period_end", { ascending: false });
 
       if (error) throw error;
-      setKPIs(data as unknown as EmployeeKPI[]);
-    } catch (error) {
-      console.error("Error fetching KPIs:", error);
-      toast.error("Failed to load KPI records");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return data as unknown as EmployeeKPI[];
+    },
+  });
 
-  const fetchPerformanceSummaries = useCallback(async () => {
-    try {
-      // Get all employees
+  const { data: performanceSummaries = [], isLoading: summariesLoading, refetch: refetchSummaries } = useQuery({
+    queryKey: ["employee-performance-summaries"],
+    queryFn: async () => {
       const { data: employees } = await supabase
         .from("employees")
         .select("id, name, role, assigned_creators");
 
-      if (!employees) return;
+      if (!employees) return [];
 
-      // Get aggregated KPI data for each employee
       const summaries: EmployeePerformanceSummary[] = [];
 
       for (const emp of employees) {
@@ -99,14 +92,12 @@ export function useEmployeeKPIs() {
         });
       }
 
-      setPerformanceSummaries(summaries);
-    } catch (error) {
-      console.error("Error fetching performance summaries:", error);
-    }
-  }, []);
+      return summaries;
+    },
+  });
 
-  const createKPI = async (input: Omit<EmployeeKPI, "id" | "created_at" | "updated_at" | "employee">) => {
-    try {
+  const createKPIMutation = useMutation({
+    mutationFn: async (input: Omit<EmployeeKPI, "id" | "created_at" | "updated_at" | "employee">) => {
       const { data, error } = await supabase
         .from("employee_kpis")
         .insert(input)
@@ -117,18 +108,20 @@ export function useEmployeeKPIs() {
         .single();
 
       if (error) throw error;
-      setKPIs((prev) => [data as unknown as EmployeeKPI, ...prev]);
+      return data as unknown as EmployeeKPI;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-performance-summaries"] });
       toast.success("KPI record created");
-      return data;
-    } catch (error) {
-      console.error("Error creating KPI:", error);
-      toast.error("Failed to create KPI record");
-      return null;
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to create KPI record: " + error.message);
+    },
+  });
 
-  const updateKPI = async (id: string, input: Partial<EmployeeKPI>) => {
-    try {
+  const updateKPIMutation = useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: Partial<EmployeeKPI> }) => {
       const { data, error } = await supabase
         .from("employee_kpis")
         .update(input)
@@ -140,32 +133,35 @@ export function useEmployeeKPIs() {
         .single();
 
       if (error) throw error;
-      setKPIs((prev) => prev.map((k) => (k.id === id ? (data as unknown as EmployeeKPI) : k)));
+      return data as unknown as EmployeeKPI;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-performance-summaries"] });
       toast.success("KPI updated");
-      return data;
-    } catch (error) {
-      console.error("Error updating KPI:", error);
-      toast.error("Failed to update KPI");
-      return null;
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to update KPI: " + error.message);
+    },
+  });
 
-  const deleteKPI = async (id: string) => {
-    try {
+  const deleteKPIMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from("employee_kpis").delete().eq("id", id);
       if (error) throw error;
-      setKPIs((prev) => prev.filter((k) => k.id !== id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-performance-summaries"] });
       toast.success("KPI record deleted");
-    } catch (error) {
-      console.error("Error deleting KPI:", error);
-      toast.error("Failed to delete KPI");
-    }
-  };
+    },
+    onError: (error) => {
+      toast.error("Failed to delete KPI: " + error.message);
+    },
+  });
 
-  // Auto-generate KPIs from existing data
   const generateKPIsForEmployee = async (employeeId: string, periodStart: string, periodEnd: string) => {
     try {
-      // Get tasks assigned/completed
       const { data: tasks } = await supabase
         .from("tasks")
         .select("status")
@@ -176,7 +172,6 @@ export function useEmployeeKPIs() {
       const tasksAssigned = tasks?.length || 0;
       const tasksCompleted = tasks?.filter((t) => t.status === "Completed").length || 0;
 
-      // Get creators managed
       const { data: creators } = await supabase
         .from("creators")
         .select("id")
@@ -184,7 +179,6 @@ export function useEmployeeKPIs() {
 
       const creatorsManaged = creators?.length || 0;
 
-      // Get revenue from managed creators
       const creatorIds = creators?.map((c) => c.id) || [];
       let revenueGenerated = 0;
 
@@ -199,7 +193,6 @@ export function useEmployeeKPIs() {
         revenueGenerated = earnings?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
       }
 
-      // Get messages sent
       const { data: messages } = await supabase
         .from("internal_messages")
         .select("id")
@@ -210,7 +203,7 @@ export function useEmployeeKPIs() {
 
       const messagesSent = messages?.length || 0;
 
-      return createKPI({
+      return createKPIMutation.mutateAsync({
         employee_id: employeeId,
         period_start: periodStart,
         period_end: periodEnd,
@@ -230,22 +223,23 @@ export function useEmployeeKPIs() {
     }
   };
 
-  useEffect(() => {
-    fetchKPIs();
-    fetchPerformanceSummaries();
-  }, [fetchKPIs, fetchPerformanceSummaries]);
+  const updateKPI = async (id: string, input: Partial<EmployeeKPI>) => {
+    return updateKPIMutation.mutateAsync({ id, input });
+  };
+
+  const loading = kpisLoading || summariesLoading;
 
   return {
     kpis,
     performanceSummaries,
     loading,
-    createKPI,
+    createKPI: createKPIMutation.mutateAsync,
     updateKPI,
-    deleteKPI,
+    deleteKPI: deleteKPIMutation.mutateAsync,
     generateKPIsForEmployee,
     refetch: () => {
-      fetchKPIs();
-      fetchPerformanceSummaries();
+      refetchKPIs();
+      refetchSummaries();
     },
   };
 }

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useState, useCallback } from "react";
 
 export interface ContentFile {
   id: string;
@@ -20,13 +21,13 @@ export interface UploadProgress {
 }
 
 export function useContentFiles() {
-  const [files, setFiles] = useState<ContentFile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
 
-  const fetchFiles = async () => {
-    try {
+  const { data: files = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["content-files"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("content_files")
         .select("*")
@@ -34,24 +35,18 @@ export function useContentFiles() {
 
       if (error) throw error;
 
-      // Use signed URLs since content-vault is private
       const filesWithUrls = await Promise.all(
         (data || []).map(async (file) => {
           const { data: urlData, error: urlError } = await supabase.storage
             .from("content-vault")
-            .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+            .createSignedUrl(file.file_path, 3600);
           return { ...file, url: urlError ? undefined : urlData?.signedUrl };
         })
       );
 
-      setFiles(filesWithUrls);
-    } catch (error) {
-      console.error("Error fetching files:", error);
-      toast.error("Failed to load files");
-    } finally {
-      setLoading(false);
-    }
-  };
+      return filesWithUrls as ContentFile[];
+    },
+  });
 
   const uploadFile = async (file: File): Promise<boolean> => {
     const fileId = crypto.randomUUID();
@@ -65,7 +60,6 @@ export function useContentFiles() {
       const fileExt = file.name.split(".").pop();
       const filePath = `${fileId}.${fileExt}`;
 
-      // Simulate progress updates
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) =>
           prev.map((p) =>
@@ -126,10 +120,9 @@ export function useContentFiles() {
     
     if (successCount > 0) {
       toast.success(`${successCount} file(s) uploaded successfully`);
-      await fetchFiles();
+      queryClient.invalidateQueries({ queryKey: ["content-files"] });
     }
     
-    // Clear progress after delay
     setTimeout(() => {
       setUploadProgress([]);
     }, 2000);
@@ -153,7 +146,7 @@ export function useContentFiles() {
       if (dbError) throw dbError;
 
       toast.success("File deleted");
-      setFiles((prev) => prev.filter((f) => f.id !== id));
+      queryClient.invalidateQueries({ queryKey: ["content-files"] });
     } catch (error) {
       console.error("Error deleting file:", error);
       toast.error("Failed to delete file");
@@ -164,10 +157,6 @@ export function useContentFiles() {
     setUploadProgress([]);
   }, []);
 
-  useEffect(() => {
-    fetchFiles();
-  }, []);
-
   return {
     files,
     loading,
@@ -176,7 +165,7 @@ export function useContentFiles() {
     uploadFile,
     uploadMultipleFiles,
     deleteFile,
-    refetch: fetchFiles,
+    refetch,
     clearProgress,
   };
 }

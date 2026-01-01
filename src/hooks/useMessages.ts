@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useEffect, useMemo, useCallback } from "react";
 
 export interface Message {
   id: string;
@@ -13,14 +14,13 @@ export interface Message {
 }
 
 export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency") {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const queryClient = useQueryClient();
 
-  const fetchMessages = useCallback(async () => {
-    if (!conversationId) return;
+  const { data: messages = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["messages", conversationId],
+    queryFn: async () => {
+      if (!conversationId) return [];
 
-    try {
       const { data, error } = await supabase
         .from("messages")
         .select("*")
@@ -28,20 +28,17 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
         .order("created_at", { ascending: true });
 
       if (error) throw error;
+      return data as Message[];
+    },
+    enabled: !!conversationId,
+  });
 
-      setMessages((data || []) as Message[]);
+  const unreadCount = useMemo(() => 
+    messages.filter((m) => !m.read && m.sender_type !== senderType).length,
+    [messages, senderType]
+  );
 
-      // Count unread messages from the other party
-      const unread = (data || []).filter((m) => !m.read && m.sender_type !== senderType).length;
-      setUnreadCount(unread);
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [conversationId, senderType]);
-
-  const sendMessage = async (content: string, senderName: string) => {
+  const sendMessage = useCallback(async (content: string, senderName: string) => {
     if (!content.trim() || !conversationId) return;
 
     try {
@@ -58,9 +55,9 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
     }
-  };
+  }, [conversationId, senderType]);
 
-  const markAsRead = async () => {
+  const markAsRead = useCallback(async () => {
     if (!conversationId) return;
 
     try {
@@ -72,12 +69,12 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     } catch (error) {
       console.error("Error marking messages as read:", error);
     }
-  };
+  }, [conversationId, senderType]);
 
+  // Subscribe to real-time updates
   useEffect(() => {
-    fetchMessages();
+    if (!conversationId) return;
 
-    // Subscribe to real-time updates
     const channel = supabase
       .channel(`messages-${conversationId}`)
       .on(
@@ -90,14 +87,12 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          setMessages((prev) => [...prev, newMessage]);
+          queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
 
-          // Show notification for messages from the other party
           if (newMessage.sender_type !== senderType) {
             toast.info(`New message from ${newMessage.sender_name}`, {
               description: newMessage.content.slice(0, 50) + (newMessage.content.length > 50 ? "..." : ""),
             });
-            setUnreadCount((prev) => prev + 1);
           }
         },
       )
@@ -106,7 +101,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, senderType, fetchMessages]);
+  }, [conversationId, senderType, queryClient]);
 
   return {
     messages,
@@ -114,17 +109,15 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     unreadCount,
     sendMessage,
     markAsRead,
-    refetch: fetchMessages,
+    refetch,
   };
 }
 
 // Hook to get all unread message counts across conversations
 export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-  const [totalUnread, setTotalUnread] = useState(0);
-
-  const fetchUnreadCounts = useCallback(async () => {
-    try {
+  const { data, refetch } = useQuery({
+    queryKey: ["unread-messages", senderType],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("messages")
         .select("conversation_id")
@@ -138,17 +131,18 @@ export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
         counts[m.conversation_id] = (counts[m.conversation_id] || 0) + 1;
       });
 
-      setUnreadCounts(counts);
-      setTotalUnread(Object.values(counts).reduce((a, b) => a + b, 0));
-    } catch (error) {
-      console.error("Error fetching unread counts:", error);
-    }
-  }, [senderType]);
+      return counts;
+    },
+  });
 
+  const unreadCounts = data || {};
+  const totalUnread = useMemo(() => 
+    Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+    [unreadCounts]
+  );
+
+  // Subscribe to new messages
   useEffect(() => {
-    fetchUnreadCounts();
-
-    // Subscribe to new messages
     const channel = supabase
       .channel("unread-messages")
       .on(
@@ -159,7 +153,7 @@ export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
           table: "messages",
         },
         () => {
-          fetchUnreadCounts();
+          refetch();
         },
       )
       .on(
@@ -170,7 +164,7 @@ export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
           table: "messages",
         },
         () => {
-          fetchUnreadCounts();
+          refetch();
         },
       )
       .subscribe();
@@ -178,7 +172,7 @@ export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchUnreadCounts]);
+  }, [refetch]);
 
-  return { unreadCounts, totalUnread, refetch: fetchUnreadCounts };
+  return { unreadCounts, totalUnread, refetch };
 }

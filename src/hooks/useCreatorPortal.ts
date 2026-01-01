@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { useMemo, useCallback } from "react";
 
 export interface CreatorTask {
   id: string;
@@ -40,42 +41,79 @@ export interface CreatorProfile {
 
 export function useCreatorPortal() {
   const { user, profile } = useAuth();
-  const [creatorId, setCreatorId] = useState<string | null>(null);
-  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
-  const [tasks, setTasks] = useState<CreatorTask[]>([]);
-  const [invoices, setInvoices] = useState<CreatorInvoice[]>([]);
-  const [earnings, setEarnings] = useState<CreatorEarning[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  // Find the creator record matching the logged-in user's email (case-insensitive)
-  const fetchCreatorId = useCallback(async () => {
-    if (!user?.email) return null;
+  const isCreator = profile?.user_type === "creator";
 
-    const { data, error } = await supabase
-      .from("creators")
-      .select("id, name, email, status")
-      .ilike("email", user.email)
-      .maybeSingle();
+  const { data: creatorData, isLoading: creatorLoading } = useQuery({
+    queryKey: ["creator-portal-profile", user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
 
-    if (!error && data) {
-      setCreatorId(data.id);
-      setCreatorProfile(data);
-      return data.id;
-    }
-    return null;
-  }, [user?.email]);
+      const { data, error } = await supabase
+        .from("creators")
+        .select("id, name, email, status")
+        .ilike("email", user.email)
+        .maybeSingle();
 
-  const fetchTasks = useCallback(async (cId: string) => {
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("id, title, description, priority, status, due_date, created_at")
-      .eq("creator_id", cId)
-      .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as CreatorProfile | null;
+    },
+    enabled: !!user?.email && isCreator,
+  });
 
-    if (!error) {
-      setTasks(data || []);
-    }
-  }, []);
+  const creatorId = creatorData?.id;
+
+  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
+    queryKey: ["creator-portal-tasks", creatorId],
+    queryFn: async () => {
+      if (!creatorId) return [];
+
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("id, title, description, priority, status, due_date, created_at")
+        .eq("creator_id", creatorId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as CreatorTask[];
+    },
+    enabled: !!creatorId,
+  });
+
+  const { data: invoices = [], isLoading: invoicesLoading, refetch: refetchInvoices } = useQuery({
+    queryKey: ["creator-portal-invoices", creatorId],
+    queryFn: async () => {
+      if (!creatorId) return [];
+
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, amount, status, issue_date, due_date, notes")
+        .eq("creator_id", creatorId)
+        .order("issue_date", { ascending: false });
+
+      if (error) throw error;
+      return data as CreatorInvoice[];
+    },
+    enabled: !!creatorId,
+  });
+
+  const { data: earnings = [], isLoading: earningsLoading, refetch: refetchEarnings } = useQuery({
+    queryKey: ["creator-portal-earnings", creatorId],
+    queryFn: async () => {
+      if (!creatorId) return [];
+
+      const { data, error } = await supabase
+        .from("creator_earnings")
+        .select("*")
+        .eq("creator_id", creatorId)
+        .order("period_end", { ascending: false });
+
+      if (error) throw error;
+      return data as CreatorEarning[];
+    },
+    enabled: !!creatorId,
+  });
 
   const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
     const { error } = await supabase
@@ -88,66 +126,38 @@ export function useCreatorPortal() {
       return false;
     }
     
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
+    queryClient.invalidateQueries({ queryKey: ["creator-portal-tasks"] });
     return true;
-  }, []);
+  }, [queryClient]);
 
-  const fetchInvoices = useCallback(async (cId: string) => {
-    const { data, error } = await supabase
-      .from("invoices")
-      .select("id, invoice_number, amount, status, issue_date, due_date, notes")
-      .eq("creator_id", cId)
-      .order("issue_date", { ascending: false });
-
-    if (!error) {
-      setInvoices(data || []);
-    }
-  }, []);
-
-  const fetchEarnings = useCallback(async (cId: string) => {
-    const { data, error } = await supabase
-      .from("creator_earnings")
-      .select("*")
-      .eq("creator_id", cId)
-      .order("period_end", { ascending: false });
-
-    if (!error) {
-      setEarnings(data || []);
-    }
-  }, []);
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      const cId = await fetchCreatorId();
-      if (cId) {
-        await Promise.all([
-          fetchTasks(cId),
-          fetchInvoices(cId),
-          fetchEarnings(cId),
-        ]);
-      }
-      setLoading(false);
-    };
-
-    if (user && profile?.user_type === "creator") {
-      loadData();
-    } else {
-      setLoading(false);
-    }
-  }, [user, profile, fetchCreatorId, fetchTasks, fetchInvoices, fetchEarnings]);
+  const loading = creatorLoading || tasksLoading || invoicesLoading || earningsLoading;
 
   // Computed stats
-  const totalEarnings = earnings.reduce((sum, e) => sum + Number(e.amount), 0);
-  const activeTasks = tasks.filter((t) => t.status !== "Completed").length;
-  const pendingInvoices = invoices.filter((i) => i.status === "Pending").length;
-  const pendingInvoiceAmount = invoices
-    .filter((i) => i.status === "Pending")
-    .reduce((sum, i) => sum + Number(i.amount), 0);
+  const totalEarnings = useMemo(() => 
+    earnings.reduce((sum, e) => sum + Number(e.amount), 0), 
+    [earnings]
+  );
+  
+  const activeTasks = useMemo(() => 
+    tasks.filter((t) => t.status !== "Completed").length, 
+    [tasks]
+  );
+  
+  const pendingInvoices = useMemo(() => 
+    invoices.filter((i) => i.status === "Pending").length, 
+    [invoices]
+  );
+  
+  const pendingInvoiceAmount = useMemo(() => 
+    invoices
+      .filter((i) => i.status === "Pending")
+      .reduce((sum, i) => sum + Number(i.amount), 0),
+    [invoices]
+  );
 
   return {
     creatorId,
-    creatorProfile,
+    creatorProfile: creatorData,
     tasks,
     invoices,
     earnings,
@@ -157,8 +167,8 @@ export function useCreatorPortal() {
     pendingInvoices,
     pendingInvoiceAmount,
     updateTaskStatus,
-    refetchTasks: () => creatorId && fetchTasks(creatorId),
-    refetchInvoices: () => creatorId && fetchInvoices(creatorId),
-    refetchEarnings: () => creatorId && fetchEarnings(creatorId),
+    refetchTasks,
+    refetchInvoices,
+    refetchEarnings,
   };
 }
