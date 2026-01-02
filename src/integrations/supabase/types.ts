@@ -1345,6 +1345,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_agency_creator_limit: { Args: never; Returns: boolean }
+      check_agency_employee_limit: { Args: never; Returns: boolean }
+      get_agency_creator_count: {
+        Args: { p_agency_id: string }
+        Returns: number
+      }
+      get_agency_employee_count: {
+        Args: { p_agency_id: string }
+        Returns: number
+      }
       get_user_agency_id: { Args: never; Returns: string }
       has_role: {
         Args: {
