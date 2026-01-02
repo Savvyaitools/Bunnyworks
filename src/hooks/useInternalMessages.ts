@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSupabaseRead } from "./useSupabaseCRUD";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,17 +17,10 @@ export interface InternalMessage {
 export function useInternalMessages() {
   const queryClient = useQueryClient();
 
-  const { data: messages = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["internal-messages"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("internal_messages")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as InternalMessage[];
-    },
+  const { items: messages, loading, refetch } = useSupabaseRead<InternalMessage>({
+    table: "internal_messages",
+    queryKey: "internal-messages",
+    orderBy: { column: "created_at", ascending: false },
   });
 
   const sendMessageMutation = useMutation({

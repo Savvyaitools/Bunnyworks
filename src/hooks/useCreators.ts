@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSupabaseCRUD } from "./useSupabaseCRUD";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { useMemo, useCallback } from "react";
 
 export interface Creator {
@@ -31,18 +30,14 @@ export type CreateCreatorInput = Omit<Creator, "id" | "created_at" | "updated_at
 export type UpdateCreatorInput = Partial<CreateCreatorInput>;
 
 export function useCreators() {
-  const queryClient = useQueryClient();
-
-  const { data: creators = [], isLoading: loading } = useQuery({
-    queryKey: ["creators"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("creators")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as Creator[];
+  const crud = useSupabaseCRUD<Creator>({
+    table: "creators",
+    queryKey: "creators",
+    orderBy: { column: "created_at", ascending: false },
+    messages: {
+      createSuccess: "Creator added successfully",
+      updateSuccess: "Creator updated successfully",
+      deleteSuccess: "Creator deleted successfully",
     },
   });
 
@@ -60,80 +55,21 @@ export function useCreators() {
     return data as Creator;
   }, []);
 
-  const createCreator = useMutation({
-    mutationFn: async (input: CreateCreatorInput) => {
-      const { data, error } = await supabase
-        .from("creators")
-        .insert(input)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as Creator;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["creators"] });
-      toast.success("Creator added successfully");
-    },
-    onError: (error) => {
-      toast.error("Failed to add creator: " + error.message);
-    },
-  });
-
-  const updateCreatorMutation = useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: UpdateCreatorInput }) => {
-      const { data, error } = await supabase
-        .from("creators")
-        .update(input)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as Creator;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["creators"] });
-      toast.success("Creator updated successfully");
-    },
-    onError: (error) => {
-      toast.error("Failed to update creator: " + error.message);
-    },
-  });
-
-  const updateCreator = async (id: string, input: UpdateCreatorInput) => {
-    return updateCreatorMutation.mutateAsync({ id, input });
-  };
-
-  const deleteCreator = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("creators").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["creators"] });
-      toast.success("Creator deleted successfully");
-    },
-    onError: (error) => {
-      toast.error("Failed to delete creator: " + error.message);
-    },
-  });
-
   const stats = useMemo(() => ({
-    total: creators.length,
-    active: creators.filter((c) => c.status === "Active").length,
-    onboarding: creators.filter((c) => c.status === "Onboarding").length,
-    paused: creators.filter((c) => c.status === "Paused").length,
-    totalRevenue: creators.reduce((sum, c) => sum + Number(c.revenue), 0),
-  }), [creators]);
+    total: crud.items.length,
+    active: crud.items.filter((c) => c.status === "Active").length,
+    onboarding: crud.items.filter((c) => c.status === "Onboarding").length,
+    paused: crud.items.filter((c) => c.status === "Paused").length,
+    totalRevenue: crud.items.reduce((sum, c) => sum + Number(c.revenue), 0),
+  }), [crud.items]);
 
   return {
-    creators,
-    loading,
+    creators: crud.items,
+    loading: crud.loading,
     stats,
     getCreatorById,
-    createCreator: createCreator.mutateAsync,
-    updateCreator,
-    deleteCreator: deleteCreator.mutateAsync,
+    createCreator: crud.create,
+    updateCreator: crud.update,
+    deleteCreator: crud.remove,
   };
 }

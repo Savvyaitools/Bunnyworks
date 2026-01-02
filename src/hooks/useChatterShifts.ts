@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSupabaseRead } from "./useSupabaseCRUD";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useMemo } from "react";
 
 export interface ChatterShift {
   id: string;
@@ -25,24 +25,16 @@ export interface ChatterShift {
 
 export type CreateShiftInput = Omit<ChatterShift, "id" | "created_at" | "chatter" | "creator">;
 
+const SELECT_WITH_RELATIONS = `*, chatter:chatters(id, name, skill_grade), creator:creators(id, name)`;
+
 export function useChatterShifts() {
   const queryClient = useQueryClient();
 
-  const { data: shifts = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["chatter-shifts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("chatter_shifts")
-        .select(`
-          *,
-          chatter:chatters(id, name, skill_grade),
-          creator:creators(id, name)
-        `)
-        .order("shift_start", { ascending: true });
-
-      if (error) throw error;
-      return data as ChatterShift[];
-    },
+  const { items: shifts, loading, refetch } = useSupabaseRead<ChatterShift>({
+    table: "chatter_shifts",
+    queryKey: "chatter-shifts",
+    select: SELECT_WITH_RELATIONS,
+    orderBy: { column: "shift_start", ascending: true },
   });
 
   const createShiftMutation = useMutation({
@@ -50,11 +42,7 @@ export function useChatterShifts() {
       const { data, error } = await supabase
         .from("chatter_shifts")
         .insert(input)
-        .select(`
-          *,
-          chatter:chatters(id, name, skill_grade),
-          creator:creators(id, name)
-        `)
+        .select(SELECT_WITH_RELATIONS)
         .single();
 
       if (error) throw error;
@@ -75,11 +63,7 @@ export function useChatterShifts() {
         .from("chatter_shifts")
         .update(input)
         .eq("id", id)
-        .select(`
-          *,
-          chatter:chatters(id, name, skill_grade),
-          creator:creators(id, name)
-        `)
+        .select(SELECT_WITH_RELATIONS)
         .single();
 
       if (error) throw error;
@@ -108,15 +92,11 @@ export function useChatterShifts() {
     },
   });
 
-  const updateShift = async (id: string, input: Partial<CreateShiftInput>) => {
-    return updateShiftMutation.mutateAsync({ id, input });
-  };
-
   return {
     shifts,
     loading,
     createShift: createShiftMutation.mutateAsync,
-    updateShift,
+    updateShift: (id: string, input: Partial<CreateShiftInput>) => updateShiftMutation.mutateAsync({ id, input }),
     deleteShift: deleteShiftMutation.mutateAsync,
     refetch,
   };

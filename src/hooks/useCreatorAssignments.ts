@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSupabaseRead } from "./useSupabaseCRUD";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -22,21 +23,11 @@ export interface CreatorAssignment {
 export function useCreatorAssignments() {
   const queryClient = useQueryClient();
 
-  const { data: assignments = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["creator-assignments"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("creator_assignments")
-        .select(`
-          *,
-          chatter:chatters(id, name, skill_grade),
-          creator:creators(id, name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as CreatorAssignment[];
-    },
+  const { items: assignments, loading, refetch } = useSupabaseRead<CreatorAssignment>({
+    table: "creator_assignments",
+    queryKey: "creator-assignments",
+    select: `*, chatter:chatters(id, name, skill_grade), creator:creators(id, name)`,
+    orderBy: { column: "created_at", ascending: false },
   });
 
   const createAssignmentMutation = useMutation({
@@ -44,11 +35,7 @@ export function useCreatorAssignments() {
       const { data, error } = await supabase
         .from("creator_assignments")
         .insert({ creator_id, chatter_id, role })
-        .select(`
-          *,
-          chatter:chatters(id, name, skill_grade),
-          creator:creators(id, name)
-        `)
+        .select(`*, chatter:chatters(id, name, skill_grade), creator:creators(id, name)`)
         .single();
 
       if (error) throw error;
@@ -77,14 +64,11 @@ export function useCreatorAssignments() {
     },
   });
 
-  const createAssignment = async (creator_id: string, chatter_id: string, role: string = "chatter") => {
-    return createAssignmentMutation.mutateAsync({ creator_id, chatter_id, role });
-  };
-
   return {
     assignments,
     loading,
-    createAssignment,
+    createAssignment: (creator_id: string, chatter_id: string, role: string = "chatter") =>
+      createAssignmentMutation.mutateAsync({ creator_id, chatter_id, role }),
     deleteAssignment: deleteAssignmentMutation.mutateAsync,
     refetch,
   };
