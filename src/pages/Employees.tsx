@@ -12,20 +12,17 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useEmployees, Employee, CreateEmployeeInput } from "@/hooks/useEmployees";
+import { useEmployees, Employee } from "@/hooks/useEmployees";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { EmployeeCard } from "@/components/employees";
+import { EmployeeForm } from "@/components/forms";
+import type { EmployeeFormValues } from "@/lib/validations";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { employeeAccountSchema, type EmployeeAccountValues } from "@/lib/validations";
 
 const roleColors: Record<string, string> = {
   Manager: "bg-accent/20 text-accent border-accent/30",
@@ -51,116 +48,72 @@ export default function Employees() {
   const [isCreateAccountDialogOpen, setIsCreateAccountDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [creatingAccount, setCreatingAccount] = useState(false);
-  const [accountPassword, setAccountPassword] = useState("");
-  const [formData, setFormData] = useState<Partial<CreateEmployeeInput>>({
-    name: "",
-    email: "",
-    role: "",
-    department: "",
-    status: "Active",
-    assigned_creators: 0,
-    salary: 0,
-    commission_rate: 0,
-    bio: "",
-    skills: [],
-    education: "",
-    experience: "",
-    certifications: [],
-    emergency_contact: "",
-    address: "",
-    phone: "",
-  });
-  const [skillsInput, setSkillsInput] = useState("");
-  const [certsInput, setCertsInput] = useState("");
+  const [editDefaultValues, setEditDefaultValues] = useState<Partial<EmployeeFormValues>>({});
 
   const { employees, loading, stats, createEmployee, updateEmployee, deleteEmployee, refetch } = useEmployees();
+
+  const accountForm = useForm<EmployeeAccountValues>({
+    resolver: zodResolver(employeeAccountSchema),
+    defaultValues: { password: "" },
+  });
 
   const filteredEmployees = employees.filter((employee) =>
     employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      email: "",
-      role: "",
-      department: "",
-      status: "Active",
-      assigned_creators: 0,
-      salary: 0,
-      commission_rate: 0,
-      bio: "",
-      skills: [],
-      education: "",
-      experience: "",
-      certifications: [],
-      emergency_contact: "",
-      address: "",
-      phone: "",
-    });
-    setSkillsInput("");
-    setCertsInput("");
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email || !formData.role) return;
-
-    const skills = skillsInput.split(",").map(s => s.trim()).filter(Boolean);
-    const certs = certsInput.split(",").map(s => s.trim()).filter(Boolean);
+  const handleSubmit = async (data: EmployeeFormValues) => {
+    const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
+    const certs = data.certifications?.split(",").map(s => s.trim()).filter(Boolean) || [];
 
     await createEmployee({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone || null,
-      avatar_seed: formData.name.toLowerCase().split(" ")[0],
-      role: formData.role,
-      department: formData.department || null,
-      status: formData.status as "Active" | "On Leave" | "Inactive",
+      name: data.name,
+      email: data.email,
+      phone: data.phone || null,
+      avatar_seed: data.name.toLowerCase().split(" ")[0],
+      role: data.role,
+      department: data.department || null,
+      status: "Active",
       hire_date: new Date().toISOString().split("T")[0],
-      assigned_creators: formData.assigned_creators || 0,
-      salary: formData.salary || 0,
-      commission_rate: formData.commission_rate || 0,
-      bio: formData.bio || null,
+      assigned_creators: 0,
+      salary: data.salary || 0,
+      commission_rate: data.commission_rate || 0,
+      bio: data.bio || null,
       skills: skills.length > 0 ? skills : null,
-      education: formData.education || null,
-      experience: formData.experience || null,
+      education: data.education || null,
+      experience: data.experience || null,
       certifications: certs.length > 0 ? certs : null,
-      emergency_contact: formData.emergency_contact || null,
-      address: formData.address || null,
+      emergency_contact: data.emergency_contact || null,
+      address: data.address || null,
       auth_user_id: null,
     });
 
-    resetForm();
     setIsAddDialogOpen(false);
   };
 
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditSubmit = async (data: EmployeeFormValues) => {
     if (!selectedEmployee) return;
 
-    const skills = skillsInput.split(",").map(s => s.trim()).filter(Boolean);
-    const certs = certsInput.split(",").map(s => s.trim()).filter(Boolean);
+    const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
+    const certs = data.certifications?.split(",").map(s => s.trim()).filter(Boolean) || [];
 
     await updateEmployee(selectedEmployee.id, {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone || null,
-      role: formData.role,
-      department: formData.department || null,
-      salary: formData.salary || 0,
-      commission_rate: formData.commission_rate || 0,
-      bio: formData.bio || null,
+      name: data.name,
+      email: data.email,
+      phone: data.phone || null,
+      role: data.role,
+      department: data.department || null,
+      salary: data.salary || 0,
+      commission_rate: data.commission_rate || 0,
+      bio: data.bio || null,
       skills: skills.length > 0 ? skills : null,
-      education: formData.education || null,
-      experience: formData.experience || null,
+      education: data.education || null,
+      experience: data.experience || null,
       certifications: certs.length > 0 ? certs : null,
-      emergency_contact: formData.emergency_contact || null,
-      address: formData.address || null,
+      emergency_contact: data.emergency_contact || null,
+      address: data.address || null,
     });
 
-    resetForm();
     setIsEditDialogOpen(false);
     setSelectedEmployee(null);
   };
@@ -171,35 +124,33 @@ export default function Employees() {
 
   const openEditDialog = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setFormData({
+    setEditDefaultValues({
       name: employee.name,
       email: employee.email,
       phone: employee.phone || "",
       role: employee.role,
       department: employee.department || "",
-      status: employee.status,
-      assigned_creators: employee.assigned_creators,
       salary: employee.salary || 0,
       commission_rate: employee.commission_rate || 0,
       bio: employee.bio || "",
       education: employee.education || "",
       experience: employee.experience || "",
+      skills: employee.skills?.join(", ") || "",
+      certifications: employee.certifications?.join(", ") || "",
       emergency_contact: employee.emergency_contact || "",
       address: employee.address || "",
     });
-    setSkillsInput(employee.skills?.join(", ") || "");
-    setCertsInput(employee.certifications?.join(", ") || "");
     setIsEditDialogOpen(true);
   };
 
-  const handleCreateAccount = async () => {
-    if (!selectedEmployee || !accountPassword) return;
+  const handleCreateAccount = async (data: EmployeeAccountValues) => {
+    if (!selectedEmployee) return;
     
     setCreatingAccount(true);
     try {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: selectedEmployee.email,
-        password: accountPassword,
+        password: data.password,
         options: {
           data: {
             full_name: selectedEmployee.name,
@@ -238,7 +189,7 @@ export default function Employees() {
 
       toast.success(`Account created for ${selectedEmployee.name}`);
       setIsCreateAccountDialogOpen(false);
-      setAccountPassword("");
+      accountForm.reset();
       setSelectedEmployee(null);
       refetch();
     } catch (error) {
@@ -249,179 +200,13 @@ export default function Employees() {
 
   const openCreateAccountDialog = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setAccountPassword("");
+    accountForm.reset();
     setIsCreateAccountDialogOpen(true);
   };
 
   const startMessageWithEmployee = (employee: Employee) => {
     navigate("/internal-messages", { state: { preselectedEmployeeId: employee.id } });
   };
-
-  const EmployeeFormFields = () => (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Name *</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Employee name"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email *</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="employee@agency.com"
-            required
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            value={formData.phone || ""}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="+1 234 567 8900"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
-          <Input
-            id="address"
-            value={formData.address || ""}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            placeholder="City, Country"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="role">Role *</Label>
-          <Select
-            value={formData.role}
-            onValueChange={(v) => setFormData({ ...formData, role: v })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Manager">Manager</SelectItem>
-              <SelectItem value="Marketing">Marketing</SelectItem>
-              <SelectItem value="Quality Controller">Quality Controller</SelectItem>
-              <SelectItem value="Chatter">Chatter</SelectItem>
-              <SelectItem value="VA">VA</SelectItem>
-              <SelectItem value="Recruiter">Recruiter</SelectItem>
-              <SelectItem value="Finance">Finance</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="department">Department</Label>
-          <Select
-            value={formData.department || ""}
-            onValueChange={(v) => setFormData({ ...formData, department: v })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select dept" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Management">Management</SelectItem>
-              <SelectItem value="Production">Production</SelectItem>
-              <SelectItem value="Marketing">Marketing</SelectItem>
-              <SelectItem value="Strategy">Strategy</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="salary">Monthly Salary ($)</Label>
-          <Input
-            id="salary"
-            type="number"
-            value={formData.salary || ""}
-            onChange={(e) => setFormData({ ...formData, salary: parseFloat(e.target.value) || 0 })}
-            placeholder="5000"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="commission">Commission Rate (%)</Label>
-          <Input
-            id="commission"
-            type="number"
-            value={formData.commission_rate || ""}
-            onChange={(e) => setFormData({ ...formData, commission_rate: parseFloat(e.target.value) || 0 })}
-            placeholder="10"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="bio">Bio</Label>
-        <Textarea
-          id="bio"
-          value={formData.bio || ""}
-          onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-          placeholder="Brief description about the employee..."
-          rows={2}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="experience">Experience</Label>
-          <Input
-            id="experience"
-            value={formData.experience || ""}
-            onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
-            placeholder="5 years in marketing"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="education">Education</Label>
-          <Input
-            id="education"
-            value={formData.education || ""}
-            onChange={(e) => setFormData({ ...formData, education: e.target.value })}
-            placeholder="MBA from Stanford"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="skills">Skills (comma-separated)</Label>
-        <Input
-          id="skills"
-          value={skillsInput}
-          onChange={(e) => setSkillsInput(e.target.value)}
-          placeholder="Marketing, Sales, Analytics"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="certifications">Certifications (comma-separated)</Label>
-        <Input
-          id="certifications"
-          value={certsInput}
-          onChange={(e) => setCertsInput(e.target.value)}
-          placeholder="Google Analytics, HubSpot"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="emergency">Emergency Contact</Label>
-        <Input
-          id="emergency"
-          value={formData.emergency_contact || ""}
-          onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
-          placeholder="John Doe - +1 234 567 8900"
-        />
-      </div>
-    </>
-  );
 
   return (
     <DashboardLayout>
@@ -446,12 +231,7 @@ export default function Employees() {
                 <DialogTitle>Add New Employee</DialogTitle>
                 <DialogDescription>Fill in the employee details below.</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <EmployeeFormFields />
-                <Button type="submit" className="w-full bg-gradient-primary">
-                  Add Employee
-                </Button>
-              </form>
+              <EmployeeForm onSubmit={handleSubmit} />
             </DialogContent>
           </Dialog>
         </div>
@@ -516,12 +296,13 @@ export default function Employees() {
               <DialogTitle>Edit Employee</DialogTitle>
               <DialogDescription>Update the employee details below.</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <EmployeeFormFields />
-              <Button type="submit" className="w-full bg-gradient-primary">
-                Save Changes
-              </Button>
-            </form>
+            {isEditDialogOpen && (
+              <EmployeeForm 
+                onSubmit={handleEditSubmit}
+                defaultValues={editDefaultValues}
+                submitLabel="Save Changes"
+              />
+            )}
           </DialogContent>
         </Dialog>
 
@@ -534,7 +315,7 @@ export default function Employees() {
                 Create a login account for {selectedEmployee?.name}. They will be able to access the Employee Portal.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <form onSubmit={accountForm.handleSubmit(handleCreateAccount)} className="space-y-4">
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input value={selectedEmployee?.email || ""} disabled />
@@ -544,20 +325,22 @@ export default function Employees() {
                 <Input
                   id="password"
                   type="password"
-                  value={accountPassword}
-                  onChange={(e) => setAccountPassword(e.target.value)}
-                  placeholder="Set a password"
-                  required
+                  {...accountForm.register("password")}
+                  placeholder="Set a password (min 8 characters)"
+                  className={accountForm.formState.errors.password ? "border-destructive" : ""}
                 />
+                {accountForm.formState.errors.password && (
+                  <p className="text-sm text-destructive">{accountForm.formState.errors.password.message}</p>
+                )}
               </div>
               <Button
-                onClick={handleCreateAccount}
-                disabled={creatingAccount || !accountPassword}
+                type="submit"
+                disabled={creatingAccount}
                 className="w-full bg-gradient-primary"
               >
                 {creatingAccount ? "Creating..." : "Create Account"}
               </Button>
-            </div>
+            </form>
           </DialogContent>
         </Dialog>
       </div>

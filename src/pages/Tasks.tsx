@@ -12,8 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -26,6 +24,8 @@ import { useTasks, Task, CreateTaskInput } from "@/hooks/useTasks";
 import { useCreators } from "@/hooks/useCreators";
 import { useEmployees } from "@/hooks/useEmployees";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TaskForm } from "@/components/forms";
+import type { TaskFormValues } from "@/lib/validations";
 
 type Priority = "Low" | "Medium" | "High" | "Urgent";
 type TaskStatus = "To Do" | "In Progress" | "Review" | "Completed";
@@ -55,16 +55,6 @@ export default function Tasks() {
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | "All">("All");
   const [selectedRequestType, setSelectedRequestType] = useState<RequestType | "all">("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<CreateTaskInput> & { request_type?: RequestType }>({
-    title: "",
-    description: "",
-    status: "To Do",
-    priority: "Medium",
-    assignee_id: null,
-    creator_id: null,
-    due_date: null,
-    request_type: "general",
-  });
 
   const { tasks, loading, stats, createTask, updateTask, deleteTask } = useTasks();
   const { creators } = useCreators();
@@ -92,22 +82,17 @@ export default function Tasks() {
     "Completed": filteredTasks.filter(t => t.status === "Completed"),
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title) return;
-
+  const handleSubmit = async (data: TaskFormValues) => {
     await createTask({
-      title: formData.title,
-      description: formData.description || null,
-      status: formData.status as TaskStatus,
-      priority: formData.priority as Priority,
-      assignee_id: formData.assignee_id || null,
-      creator_id: formData.creator_id || null,
-      due_date: formData.due_date || null,
-      request_type: formData.request_type || "general",
+      title: data.title,
+      description: data.description || null,
+      status: "To Do" as TaskStatus,
+      priority: data.priority as Priority,
+      assignee_id: data.assignee_id === "none" ? null : data.assignee_id || null,
+      creator_id: data.creator_id === "none" ? null : data.creator_id || null,
+      due_date: data.due_date || null,
+      request_type: data.request_type || "general",
     } as CreateTaskInput);
-
-    setFormData({ title: "", description: "", status: "To Do", priority: "Medium", assignee_id: null, creator_id: null, due_date: null, request_type: "general" });
     setIsAddDialogOpen(false);
   };
 
@@ -159,109 +144,11 @@ export default function Tasks() {
               <DialogHeader>
                 <DialogTitle>Create New Task</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Task title"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description || ""}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Task description"
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Priority</Label>
-                    <Select
-                      value={formData.priority}
-                      onValueChange={(v) => setFormData({ ...formData, priority: v as Priority })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                        <SelectItem value="Urgent">Urgent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Request Type</Label>
-                    <Select
-                      value={formData.request_type}
-                      onValueChange={(v) => setFormData({ ...formData, request_type: v as RequestType })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="general">General</SelectItem>
-                        <SelectItem value="custom">Custom Request</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Input
-                    type="date"
-                    value={formData.due_date || ""}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value || null })}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Assign To</Label>
-                    <Select
-                      value={formData.assignee_id || "none"}
-                      onValueChange={(v) => setFormData({ ...formData, assignee_id: v === "none" ? null : v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select employee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Unassigned</SelectItem>
-                        {employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Creator</Label>
-                    <Select
-                      value={formData.creator_id || "none"}
-                      onValueChange={(v) => setFormData({ ...formData, creator_id: v === "none" ? null : v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select creator" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No creator</SelectItem>
-                        {creators.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full bg-gradient-primary">
-                  Create Task
-                </Button>
-              </form>
+              <TaskForm 
+                onSubmit={handleSubmit} 
+                creators={creators}
+                employees={employees}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -414,15 +301,15 @@ export default function Tasks() {
                       </div>
                     </div>
                   ))}
-
-                  {groupedTasks[status].length === 0 && (
-                    <div className="glass-card p-8 text-center">
-                      <p className="text-muted-foreground text-sm">No tasks</p>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {!loading && filteredTasks.length === 0 && (
+          <div className="text-center py-12 animate-fade-in">
+            <p className="text-muted-foreground">No tasks found matching your criteria.</p>
           </div>
         )}
       </div>
