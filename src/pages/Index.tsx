@@ -6,6 +6,7 @@ import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { CreatorTaskProgress } from "@/components/dashboard/CreatorTaskProgress";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/formatters";
 
 const Index = () => {
   // Fetch creators count
@@ -60,12 +61,8 @@ const Index = () => {
     },
   });
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(1)}k`;
-    }
-    return `$${value.toLocaleString()}`;
-  };
+  // Use compact format for dashboard metrics
+  const formatCompactCurrency = (value: number) => formatCurrency(value, true);
 
   // Calculate percentages for circular charts
   const revenueTarget = 100000; // Example target
@@ -78,14 +75,14 @@ const Index = () => {
   const metrics = [
     {
       title: "Total Revenue",
-      value: formatCurrency(revenueData || 0),
+      value: formatCompactCurrency(revenueData || 0),
       percentage: revenuePercentage,
       color: "hsl(217, 91%, 60%)", // Blue
       icon: DollarSign,
     },
     {
       title: "Agency Earnings",
-      value: formatCurrency(agencyEarnings),
+      value: formatCompactCurrency(agencyEarnings),
       percentage: agencyPercentage,
       color: "hsl(32, 95%, 55%)", // Orange
       icon: TrendingUp,

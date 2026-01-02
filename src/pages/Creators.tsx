@@ -14,14 +14,7 @@ import { Label } from "@/components/ui/label";
 import { useCreators } from "@/hooks/useCreators";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreatorCard } from "@/components/creators/CreatorCard";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
+import { formatCurrency } from "@/lib/formatters";
 
 export default function Creators() {
   const [searchQuery, setSearchQuery] = useState("");
