@@ -19,6 +19,7 @@ export type Database = {
           commission_rate: number
           created_at: string
           id: string
+          logo_url: string | null
           max_creators: number
           max_employees: number
           name: string
@@ -30,6 +31,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           id?: string
+          logo_url?: string | null
           max_creators?: number
           max_employees?: number
           name: string
@@ -41,6 +43,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           id?: string
+          logo_url?: string | null
           max_creators?: number
           max_employees?: number
           name?: string
