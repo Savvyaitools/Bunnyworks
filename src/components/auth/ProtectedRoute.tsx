@@ -5,6 +5,12 @@ import { useAgency } from "@/hooks/useAgency";
 import { Loader2 } from "lucide-react";
 import { AgencyOnboardingWizard } from "@/components/onboarding";
 
+/**
+ * Client-side route protection for UX purposes.
+ * NOTE: Actual security is enforced by Row-Level Security (RLS) policies in the database.
+ * This component prevents users from seeing UI they shouldn't access, but all data
+ * operations are secured server-side via RLS with agency_id isolation and user_type checks.
+ */
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedUserTypes?: ("agency" | "creator" | "employee")[];
