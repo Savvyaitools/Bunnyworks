@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "sonner";
+import bunnyLogo from "@/assets/bunny-logo.png";
 
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -91,9 +92,7 @@ export function AppSidebar() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Logo */}
-            <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow-sm">
-              <span className="text-lg font-bold text-primary-foreground">C</span>
-            </div>
+            <img src={bunnyLogo} alt="Pink Bunny" className="w-9 h-9 object-contain" />
             {!isCollapsed && (
               <div className="animate-fade-in">
                 <h1 className="font-semibold text-foreground">Creator OS</h1>
