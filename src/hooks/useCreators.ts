@@ -1,6 +1,8 @@
 import { useSupabaseCRUD } from "./useSupabaseCRUD";
+import { useAgency } from "./useAgency";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo, useCallback } from "react";
+import { toast } from "sonner";
 
 export interface Creator {
   id: string;
@@ -22,14 +24,17 @@ export interface Creator {
   tiktok_url: string | null;
   twitter_url: string | null;
   snapchat_url: string | null;
+  agency_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type CreateCreatorInput = Omit<Creator, "id" | "created_at" | "updated_at">;
+export type CreateCreatorInput = Omit<Creator, "id" | "created_at" | "updated_at" | "agency_id">;
 export type UpdateCreatorInput = Partial<CreateCreatorInput>;
 
 export function useCreators() {
+  const { agencyId, limits, invalidateLimits } = useAgency();
+
   const crud = useSupabaseCRUD<Creator>({
     table: "creators",
     queryKey: "creators",
@@ -63,13 +68,34 @@ export function useCreators() {
     totalRevenue: crud.items.reduce((sum, c) => sum + Number(c.revenue), 0),
   }), [crud.items]);
 
+  // Wrapper that adds agency_id and checks limits
+  const createCreator = useCallback(async (input: CreateCreatorInput) => {
+    // Check limit before creating
+    if (limits && !limits.canAddCreator) {
+      toast.error(`Creator limit reached (${limits.currentCreators}/${limits.maxCreators}). Upgrade your plan to add more creators.`);
+      throw new Error("Creator limit reached");
+    }
+
+    const result = await crud.create({ ...input, agency_id: agencyId });
+    invalidateLimits();
+    return result;
+  }, [crud, agencyId, limits, invalidateLimits]);
+
+  // Wrapper for delete to update limits
+  const deleteCreator = useCallback(async (id: string) => {
+    const result = await crud.remove(id);
+    invalidateLimits();
+    return result;
+  }, [crud, invalidateLimits]);
+
   return {
     creators: crud.items,
     loading: crud.loading,
     stats,
+    limits,
     getCreatorById,
-    createCreator: crud.create,
+    createCreator,
     updateCreator: crud.update,
-    deleteCreator: crud.remove,
+    deleteCreator,
   };
 }

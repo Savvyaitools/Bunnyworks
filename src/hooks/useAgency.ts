@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 
-interface Agency {
+export interface Agency {
   id: string;
   name: string;
   website: string | null;
@@ -13,6 +13,15 @@ interface Agency {
   max_employees: number;
   created_at: string;
   updated_at: string;
+}
+
+interface AgencyLimits {
+  currentCreators: number;
+  maxCreators: number;
+  currentEmployees: number;
+  maxEmployees: number;
+  canAddCreator: boolean;
+  canAddEmployee: boolean;
 }
 
 interface UpdateAgencyData {
@@ -48,6 +57,39 @@ export function useAgency() {
     enabled: !!agencyId,
   });
 
+  // Fetch current counts for limit checking
+  const { data: limits } = useQuery({
+    queryKey: ["agency-limits", agencyId],
+    queryFn: async (): Promise<AgencyLimits | null> => {
+      if (!agencyId || !agency) return null;
+
+      // Get creator count
+      const { count: creatorCount } = await supabase
+        .from("creators")
+        .select("*", { count: "exact", head: true })
+        .eq("agency_id", agencyId);
+
+      // Get employee count
+      const { count: employeeCount } = await supabase
+        .from("employees")
+        .select("*", { count: "exact", head: true })
+        .eq("agency_id", agencyId);
+
+      const currentCreators = creatorCount || 0;
+      const currentEmployees = employeeCount || 0;
+
+      return {
+        currentCreators,
+        maxCreators: agency.max_creators,
+        currentEmployees,
+        maxEmployees: agency.max_employees,
+        canAddCreator: currentCreators < agency.max_creators,
+        canAddEmployee: currentEmployees < agency.max_employees,
+      };
+    },
+    enabled: !!agencyId && !!agency,
+  });
+
   const updateAgency = useMutation({
     mutationFn: async (updates: UpdateAgencyData) => {
       if (!agency?.id) throw new Error("No agency found");
@@ -72,39 +114,18 @@ export function useAgency() {
     },
   });
 
+  const invalidateLimits = () => {
+    queryClient.invalidateQueries({ queryKey: ["agency-limits"] });
+  };
+
   return {
     agency,
+    agencyId,
     isLoading,
     refetch,
+    limits,
+    invalidateLimits,
     updateAgency: updateAgency.mutate,
     isUpdating: updateAgency.isPending,
   };
-}
-
-// Helper function to create an agency and link it to a profile
-export async function createAgencyForUser(userId: string, agencyName: string) {
-  // Create the agency
-  const { data: agency, error: agencyError } = await supabase
-    .from("agencies")
-    .insert({ name: agencyName })
-    .select()
-    .single();
-
-  if (agencyError) {
-    console.error("Error creating agency:", agencyError);
-    throw agencyError;
-  }
-
-  // Link the profile to the agency
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({ agency_id: agency.id })
-    .eq("id", userId);
-
-  if (profileError) {
-    console.error("Error linking profile to agency:", profileError);
-    throw profileError;
-  }
-
-  return agency;
 }

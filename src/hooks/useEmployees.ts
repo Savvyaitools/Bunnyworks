@@ -1,5 +1,7 @@
 import { useSupabaseCRUD } from "./useSupabaseCRUD";
-import { useMemo } from "react";
+import { useAgency } from "./useAgency";
+import { useMemo, useCallback } from "react";
+import { toast } from "sonner";
 
 export interface Employee {
   id: string;
@@ -12,6 +14,7 @@ export interface Employee {
   status: "Active" | "On Leave" | "Inactive";
   hire_date: string | null;
   assigned_creators: number;
+  agency_id: string | null;
   created_at: string;
   updated_at: string;
   auth_user_id: string | null;
@@ -26,10 +29,12 @@ export interface Employee {
   address: string | null;
 }
 
-export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_at">;
-export type UpdateEmployeeInput = Partial<Omit<Employee, "id" | "created_at" | "updated_at">>;
+export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_at" | "agency_id">;
+export type UpdateEmployeeInput = Partial<Omit<Employee, "id" | "created_at" | "updated_at" | "agency_id">>;
 
 export function useEmployees() {
+  const { agencyId, limits, invalidateLimits } = useAgency();
+
   const crud = useSupabaseCRUD<Employee>({
     table: "employees",
     queryKey: "employees",
@@ -47,13 +52,34 @@ export function useEmployees() {
     onLeave: crud.items.filter((e) => e.status === "On Leave").length,
   }), [crud.items]);
 
+  // Wrapper that adds agency_id and checks limits
+  const createEmployee = useCallback(async (input: CreateEmployeeInput) => {
+    // Check limit before creating
+    if (limits && !limits.canAddEmployee) {
+      toast.error(`Employee limit reached (${limits.currentEmployees}/${limits.maxEmployees}). Upgrade your plan to add more employees.`);
+      throw new Error("Employee limit reached");
+    }
+
+    const result = await crud.create({ ...input, agency_id: agencyId });
+    invalidateLimits();
+    return result;
+  }, [crud, agencyId, limits, invalidateLimits]);
+
+  // Wrapper for delete to update limits
+  const deleteEmployee = useCallback(async (id: string) => {
+    const result = await crud.remove(id);
+    invalidateLimits();
+    return result;
+  }, [crud, invalidateLimits]);
+
   return {
     employees: crud.items,
     loading: crud.loading,
     stats,
-    createEmployee: crud.create,
+    limits,
+    createEmployee,
     updateEmployee: crud.update,
-    deleteEmployee: crud.remove,
+    deleteEmployee,
     refetch: crud.refetch,
   };
 }

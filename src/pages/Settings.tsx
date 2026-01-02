@@ -24,7 +24,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
   const [saving, setSaving] = useState(false);
   const { profile, user } = useAuth();
-  const { agency, updateAgency, isUpdating } = useAgency();
+  const { agency, updateAgency, isUpdating, limits } = useAgency();
   
   // Profile form state
   const [profileData, setProfileData] = useState({
@@ -238,9 +238,12 @@ export default function Settings() {
                   <div className="p-4 rounded-lg bg-muted/30 border border-border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-foreground">Plan: {agency.subscription_tier}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Limits: {agency.max_creators} creators, {agency.max_employees} employees
+                        <p className="text-sm font-medium text-foreground">
+                          Plan: <span className="capitalize">{agency.subscription_tier}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Creators: {limits?.currentCreators ?? 0}/{agency.max_creators} • 
+                          Employees: {limits?.currentEmployees ?? 0}/{agency.max_employees}
                         </p>
                       </div>
                     </div>
