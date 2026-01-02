@@ -1,4 +1,5 @@
 import { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface CircularMetricCardProps {
   title: string;
@@ -17,9 +18,17 @@ export function CircularMetricCard({
   icon: Icon, 
   delay = 0 
 }: CircularMetricCardProps) {
+  const [animatedPercentage, setAnimatedPercentage] = useState(0);
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const strokeDashoffset = circumference - (animatedPercentage / 100) * circumference;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedPercentage(percentage);
+    }, delay + 100);
+    return () => clearTimeout(timer);
+  }, [percentage, delay]);
 
   return (
     <div 
@@ -39,7 +48,7 @@ export function CircularMetricCard({
             strokeWidth="8"
             className="text-muted/30"
           />
-          {/* Progress circle */}
+          {/* Progress circle with animation */}
           <circle
             cx="50"
             cy="50"
@@ -51,22 +60,22 @@ export function CircularMetricCard({
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             className="transition-all duration-1000 ease-out"
-            style={{ 
-              animationDelay: `${delay + 200}ms`,
+            style={{
+              filter: `drop-shadow(0 0 6px ${color}40)`,
             }}
           />
         </svg>
         {/* Center value */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-bold text-foreground">{Math.round(percentage)}</span>
+          <span className="text-lg font-bold text-foreground">{Math.round(animatedPercentage)}</span>
         </div>
       </div>
 
       {/* Label with icon */}
       <div className="flex items-center gap-2 mb-1">
         <div 
-          className="w-3 h-3 rounded-full" 
-          style={{ backgroundColor: color }}
+          className="w-3 h-3 rounded-full animate-pulse" 
+          style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}60` }}
         />
         <span className="text-sm font-medium text-muted-foreground">{title}</span>
       </div>
