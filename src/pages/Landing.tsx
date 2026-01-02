@@ -1,7 +1,7 @@
 import { ArrowRight, Star, Users, DollarSign, TrendingUp, Zap, Shield, Clock, CheckCircle, BarChart3, MessageSquare, Calendar, FileText, Award, Sparkles, Target, Rocket } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/logo.png";
+import bunnyLogo from "@/assets/bunny-logo.png";
 
 const features = [
   {
@@ -109,7 +109,7 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="Premium Fangirls" className="h-10 w-auto" />
+              <img src={bunnyLogo} alt="Pink Bunny" className="h-10 w-auto" />
               <span className="text-xl font-bold gradient-text">CreatorOS</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
@@ -155,7 +155,7 @@ const Landing = () => {
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm text-primary font-medium">The #1 Platform for Creator Agencies</span>
             </div>
-            <img src={logo} alt="Premium Fangirls Agency" className="h-32 w-auto mx-auto mb-8 animate-float" />
+            <img src={bunnyLogo} alt="Pink Bunny" className="h-32 w-auto mx-auto mb-8 animate-float" />
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
               <span className="text-foreground">Run Your Agency Like a</span>
               <br />
@@ -557,7 +557,7 @@ const Landing = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <img src={logo} alt="Premium Fangirls" className="h-8 w-auto" />
+                <img src={bunnyLogo} alt="Pink Bunny" className="h-8 w-auto" />
                 <span className="text-lg font-semibold text-foreground">CreatorOS</span>
               </div>
               <p className="text-muted-foreground text-sm max-w-sm">
