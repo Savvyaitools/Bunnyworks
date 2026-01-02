@@ -10,19 +10,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Creator } from "@/hooks/useCreators";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatters";
 
 interface CreatorCardProps {
   creator: Creator;
   onDelete: (id: string) => void;
   index?: number;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(amount);
 }
 
 export function CreatorCard({ creator, onDelete, index = 0 }: CreatorCardProps) {

@@ -32,6 +32,7 @@ import { useInvoices, generateInvoiceNumber } from "@/hooks/useInvoices";
 import { useCreators } from "@/hooks/useCreators";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, addDays } from "date-fns";
+import { formatCurrency } from "@/lib/formatters";
 
 type InvoiceStatus = "Paid" | "Pending" | "Overdue" | "Draft";
 
@@ -84,13 +85,6 @@ export default function Invoices() {
 
     setFormData({ creator_id: "", amount: "", status: "Draft", due_days: "14" });
     setIsAddDialogOpen(false);
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
