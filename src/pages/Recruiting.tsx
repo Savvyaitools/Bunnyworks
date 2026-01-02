@@ -114,7 +114,8 @@ export default function Recruiting() {
       status: formData.status as RecruitingStatus,
       notes: formData.notes || null,
       country: formData.country || null,
-    } as CreateRecruitingInput);
+      onboarded: false,
+    });
 
     setFormData({ name: "", alias: "", email: "", phone: "", source: "", status: "prospecting", notes: "", country: "" });
     setIsAddDialogOpen(false);

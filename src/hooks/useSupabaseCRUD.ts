@@ -60,9 +60,10 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
     },
   });
 
-  // Create mutation
+  // Create mutation - uses Partial<T> to allow flexible input
   const createMutation = useMutation({
-    mutationFn: async (input: Omit<T, "id" | "created_at" | "updated_at">) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mutationFn: async (input: Record<string, any>) => {
       const { data, error } = await supabase
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .from(table as any)

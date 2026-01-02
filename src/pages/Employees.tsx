@@ -129,6 +129,7 @@ export default function Employees() {
       certifications: certs.length > 0 ? certs : null,
       emergency_contact: formData.emergency_contact || null,
       address: formData.address || null,
+      auth_user_id: null,
     });
 
     resetForm();
