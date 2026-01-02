@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,21 +10,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { useCreators } from "@/hooks/useCreators";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreatorCard } from "@/components/creators/CreatorCard";
+import { CreatorForm } from "@/components/forms";
 import { formatCurrency } from "@/lib/formatters";
+import type { CreatorFormValues } from "@/lib/validations";
 
 export default function Creators() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    platform: "",
-    followers: "",
-  });
 
   const { creators, loading, stats, createCreator, deleteCreator } = useCreators();
 
@@ -35,20 +30,17 @@ export default function Creators() {
     return matchesSearch;
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email) return;
-
+  const handleSubmit = async (data: CreatorFormValues) => {
     await createCreator({
-      name: formData.name,
-      email: formData.email,
+      name: data.name,
+      email: data.email,
       phone: null,
-      avatar_seed: formData.name.toLowerCase().split(" ")[0],
+      avatar_seed: data.name.toLowerCase().split(" ")[0],
       avatar_url: null,
       status: "Active",
       revenue: 0,
-      platform: formData.platform || null,
-      followers: formData.followers || null,
+      platform: data.platform || null,
+      followers: data.followers || null,
       notes: null,
       alias: null,
       online_status: false,
@@ -59,8 +51,6 @@ export default function Creators() {
       twitter_url: null,
       snapchat_url: null,
     });
-
-    setFormData({ name: "", email: "", platform: "", followers: "" });
     setIsAddDialogOpen(false);
   };
 
@@ -86,52 +76,7 @@ export default function Creators() {
               <DialogHeader>
                 <DialogTitle>Add New Creator</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Creator name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="creator@email.com"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="platform">Platform</Label>
-                    <Input
-                      id="platform"
-                      value={formData.platform}
-                      onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-                      placeholder="Fansly, etc."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="followers">Followers</Label>
-                    <Input
-                      id="followers"
-                      value={formData.followers}
-                      onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
-                      placeholder="1.5M"
-                    />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full bg-gradient-primary">
-                  Add Creator
-                </Button>
-              </form>
+              <CreatorForm onSubmit={handleSubmit} />
             </DialogContent>
           </Dialog>
         </div>
