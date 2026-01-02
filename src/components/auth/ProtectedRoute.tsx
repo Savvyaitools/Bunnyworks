@@ -1,7 +1,9 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgency } from "@/hooks/useAgency";
 import { Loader2 } from "lucide-react";
+import { AgencyOnboardingWizard } from "@/components/onboarding";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,8 +13,9 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
+  const { agency, isLoading: agencyLoading } = useAgency();
 
-  if (loading) {
+  if (loading || (profile?.user_type === "agency" && agencyLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -39,5 +42,16 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
     }
   }
 
-  return <>{children}</>;
+  // Show onboarding wizard for agency users who haven't completed it
+  const showOnboarding = 
+    profile?.user_type === "agency" && 
+    agency && 
+    !agency.onboarding_completed;
+
+  return (
+    <>
+      {showOnboarding && <AgencyOnboardingWizard />}
+      {children}
+    </>
+  );
 }

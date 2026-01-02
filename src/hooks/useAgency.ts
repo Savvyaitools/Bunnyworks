@@ -7,10 +7,12 @@ export interface Agency {
   id: string;
   name: string;
   website: string | null;
+  logo_url: string | null;
   commission_rate: number;
   subscription_tier: string;
   max_creators: number;
   max_employees: number;
+  onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
 }
