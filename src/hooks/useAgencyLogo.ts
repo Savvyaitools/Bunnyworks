@@ -30,8 +30,9 @@ export function useAgencyLogo() {
 
     try {
       // Delete existing logo if present
-      if (agency?.logo_url) {
-        const existingPath = agency.logo_url.split("/agency-logos/")[1];
+      const currentLogo = (agency as any)?.logo_url;
+      if (currentLogo) {
+        const existingPath = currentLogo.split("/agency-logos/")[1];
         if (existingPath) {
           await supabase.storage.from("agency-logos").remove([existingPath]);
         }
@@ -74,13 +75,14 @@ export function useAgencyLogo() {
   };
 
   const deleteLogo = async () => {
-    if (!agencyId || !agency?.logo_url) return;
+    const currentLogo = (agency as any)?.logo_url;
+    if (!agencyId || !currentLogo) return;
 
     setUploading(true);
 
     try {
       // Extract path from URL
-      const path = agency.logo_url.split("/agency-logos/")[1];
+      const path = currentLogo.split("/agency-logos/")[1];
       if (path) {
         await supabase.storage.from("agency-logos").remove([path]);
       }
@@ -104,7 +106,7 @@ export function useAgencyLogo() {
   };
 
   return {
-    logoUrl: agency?.logo_url,
+    logoUrl: (agency as any)?.logo_url as string | null,
     uploading,
     uploadLogo,
     deleteLogo,

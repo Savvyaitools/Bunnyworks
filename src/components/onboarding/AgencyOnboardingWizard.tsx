@@ -119,7 +119,7 @@ export function AgencyOnboardingWizard() {
     try {
       const { error } = await supabase
         .from("agencies")
-        .update({ onboarding_completed: true })
+        .update({ onboarding_completed: true } as any)
         .eq("id", agencyId);
 
       if (error) throw error;

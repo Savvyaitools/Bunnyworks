@@ -9,9 +9,11 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgency } from "@/hooks/useAgency";
+import { useAgencyLogo } from "@/hooks/useAgencyLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared";
+import { LogoUpload } from "@/components/shared/LogoUpload";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
@@ -25,7 +27,15 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const { profile, user } = useAuth();
   const { agency, updateAgency, isUpdating, limits } = useAgency();
+  const { uploadLogo, deleteLogo, uploading: logoUploading, logoUrl } = useAgencyLogo();
   
+  // Set global handler for LogoUpload
+  useEffect(() => {
+    (window as any).__logoUploadHandler = uploadLogo;
+    return () => {
+      delete (window as any).__logoUploadHandler;
+    };
+  }, [uploadLogo]);
   // Profile form state
   const [profileData, setProfileData] = useState({
     full_name: profile?.full_name || "",
@@ -230,6 +240,21 @@ export default function Settings() {
                 <div>
                   <h2 className="text-xl font-semibold text-foreground">Agency Settings</h2>
                   <p className="text-sm text-muted-foreground">Configure your agency details and branding</p>
+                </div>
+
+                <Separator className="bg-border" />
+
+                {/* Logo Upload Section */}
+                <div className="space-y-4">
+                  <Label className="text-muted-foreground">Agency Logo</Label>
+                  <LogoUpload
+                    currentLogoUrl={logoUrl}
+                    agencyName={agency?.name || "Agency"}
+                    onUploadComplete={() => {}}
+                    onDelete={deleteLogo}
+                    uploading={logoUploading}
+                    size="lg"
+                  />
                 </div>
 
                 <Separator className="bg-border" />
