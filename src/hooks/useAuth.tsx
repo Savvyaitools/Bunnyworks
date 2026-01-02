@@ -8,6 +8,7 @@ interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   user_type: "agency" | "creator" | "employee";
+  agency_id: string | null;
 }
 
 interface AuthContextType {

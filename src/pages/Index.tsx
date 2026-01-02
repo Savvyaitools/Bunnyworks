@@ -7,8 +7,10 @@ import { CreatorTaskProgress } from "@/components/dashboard/CreatorTaskProgress"
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
-
+import { useAgency } from "@/hooks/useAgency";
 const Index = () => {
+  const { agency } = useAgency();
+  const commissionRate = agency?.commission_rate ?? 0.3;
   // Fetch creators count
   const { data: creatorsData } = useQuery({
     queryKey: ["creators-count"],
@@ -67,8 +69,8 @@ const Index = () => {
   // Calculate percentages for circular charts
   const revenueTarget = 100000; // Example target
   const revenuePercentage = Math.min(((revenueData || 0) / revenueTarget) * 100, 100);
-  const agencyEarnings = (revenueData || 0) * 0.3;
-  const agencyPercentage = Math.min((agencyEarnings / (revenueTarget * 0.3)) * 100, 100);
+  const agencyEarnings = (revenueData || 0) * commissionRate;
+  const agencyPercentage = Math.min((agencyEarnings / (revenueTarget * commissionRate)) * 100, 100);
   const creatorsPercentage = totalCreators ? ((creatorsData || 0) / totalCreators) * 100 : 0;
   const tasksPercentage = tasksData ? (tasksData.completed / tasksData.total) * 100 : 0;
 

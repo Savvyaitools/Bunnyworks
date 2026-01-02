@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Bell, Building, Shield } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgency } from "@/hooks/useAgency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared";
@@ -23,12 +24,31 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
   const [saving, setSaving] = useState(false);
   const { profile, user } = useAuth();
+  const { agency, updateAgency, isUpdating } = useAgency();
   
   // Profile form state
   const [profileData, setProfileData] = useState({
     full_name: profile?.full_name || "",
     email: profile?.email || "",
   });
+
+  // Agency form state
+  const [agencyData, setAgencyData] = useState({
+    name: "",
+    website: "",
+    commission_rate: 30,
+  });
+
+  // Sync agency data when loaded
+  useEffect(() => {
+    if (agency) {
+      setAgencyData({
+        name: agency.name || "",
+        website: agency.website || "",
+        commission_rate: (agency.commission_rate || 0.3) * 100,
+      });
+    }
+  }, [agency]);
 
   // Password form state
   const [passwordData, setPasswordData] = useState({
@@ -214,12 +234,26 @@ export default function Settings() {
 
                 <Separator className="bg-border" />
 
+                {agency && (
+                  <div className="p-4 rounded-lg bg-muted/30 border border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Plan: {agency.subscription_tier}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Limits: {agency.max_creators} creators, {agency.max_employees} employees
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="agencyName" className="text-muted-foreground">Agency Name</Label>
                     <Input 
                       id="agencyName" 
-                      defaultValue="PremiumFangirls" 
+                      value={agencyData.name}
+                      onChange={(e) => setAgencyData({ ...agencyData, name: e.target.value })}
                       className="bg-muted/50 border-border focus:border-primary"
                     />
                   </div>
@@ -227,7 +261,8 @@ export default function Settings() {
                     <Label htmlFor="website" className="text-muted-foreground">Website</Label>
                     <Input 
                       id="website" 
-                      defaultValue="https://premiumfangirls.com" 
+                      value={agencyData.website}
+                      onChange={(e) => setAgencyData({ ...agencyData, website: e.target.value })}
                       className="bg-muted/50 border-border focus:border-primary"
                     />
                   </div>
@@ -236,7 +271,10 @@ export default function Settings() {
                     <Input 
                       id="defaultSplit" 
                       type="number" 
-                      defaultValue="30" 
+                      min={0}
+                      max={100}
+                      value={agencyData.commission_rate}
+                      onChange={(e) => setAgencyData({ ...agencyData, commission_rate: Number(e.target.value) })}
                       className="bg-muted/50 border-border focus:border-primary max-w-32"
                     />
                     <p className="text-xs text-muted-foreground">This is the agency's default cut from creator earnings</p>
@@ -244,8 +282,16 @@ export default function Settings() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button className="bg-gradient-primary hover:opacity-90 shadow-glow-sm">
-                    Save Changes
+                  <Button 
+                    className="bg-gradient-primary hover:opacity-90 shadow-glow-sm"
+                    onClick={() => updateAgency({
+                      name: agencyData.name,
+                      website: agencyData.website || null,
+                      commission_rate: agencyData.commission_rate / 100,
+                    })}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </div>
