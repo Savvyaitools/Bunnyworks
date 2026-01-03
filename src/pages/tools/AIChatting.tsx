@@ -1,8 +1,8 @@
-import { ArrowRight, MessageSquare, Zap, Clock, Users, Shield, Bot, BarChart3, Sparkles, CheckCircle, Star, Play } from "lucide-react";
+import { ArrowRight, MessageSquare, Zap, Clock, Users, Shield, Bot, BarChart3, Sparkles, CheckCircle, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
-import demoVideo from "@/assets/demo-chatting.mp4";
+
 const features = [
   {
     icon: Bot,
@@ -126,26 +126,6 @@ const AIChatting = () => {
                   View Pricing
                 </Button>
               </Link>
-            </div>
-            
-            {/* Demo Video */}
-            <div className="mt-16 max-w-4xl mx-auto">
-              <div className="relative rounded-2xl overflow-hidden border border-primary/20 shadow-2xl shadow-primary/10">
-                <video 
-                  autoPlay 
-                  loop 
-                  muted 
-                  playsInline
-                  className="w-full h-auto"
-                >
-                  <source src={demoVideo} type="video/mp4" />
-                </video>
-                <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent pointer-events-none" />
-                <div className="absolute bottom-4 left-4 flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span>Live Demo</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
