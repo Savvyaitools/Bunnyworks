@@ -10,11 +10,13 @@ export default function DataImport() {
     imports,
     loading,
     uploading,
+    uploadProgress,
     processingImports,
     pendingReviewImports,
     approvedImports,
     rejectedImports,
-    uploadAndAnalyze,
+    uploadMultipleFiles,
+    clearProgress,
     approveImport,
     rejectImport,
     deleteImport,
@@ -104,8 +106,13 @@ export default function DataImport() {
 
           <TabsContent value="upload" className="space-y-6">
             <div className="glass-card p-6">
-              <h2 className="text-lg font-semibold mb-4">Upload Screenshot</h2>
-              <ImportUploader onUpload={uploadAndAnalyze} uploading={uploading} />
+              <h2 className="text-lg font-semibold mb-4">Upload Screenshots</h2>
+              <ImportUploader 
+                onUpload={uploadMultipleFiles} 
+                uploading={uploading} 
+                uploadProgress={uploadProgress}
+                onClearProgress={clearProgress}
+              />
             </div>
           </TabsContent>
 

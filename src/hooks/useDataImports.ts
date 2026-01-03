@@ -35,10 +35,20 @@ export interface ExtractedData {
   created_at: string;
 }
 
+export interface UploadProgress {
+  id: string;
+  fileName: string;
+  status: "uploading" | "analyzing" | "complete" | "error";
+  progress: number;
+  result?: "approved" | "pending_review" | "rejected";
+  message?: string;
+}
+
 export function useDataImports() {
   const queryClient = useQueryClient();
   const { agencyId } = useAgency();
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
 
   // Fetch all imports
   const { data: imports = [], isLoading: loading, refetch } = useQuery({
@@ -81,15 +91,20 @@ export function useDataImports() {
     return data || [];
   };
 
-  // Upload and analyze screenshot
-  const uploadAndAnalyze = async (file: File, creatorId?: string) => {
+  // Upload and analyze a single screenshot (internal use)
+  const uploadSingleFile = async (file: File, creatorId?: string, progressId?: string): Promise<{ success: boolean; result?: string; message?: string }> => {
     if (!agencyId) {
-      toast.error("Agency not found");
-      return null;
+      return { success: false, message: "Agency not found" };
     }
 
-    setUploading(true);
+    const fileId = progressId || crypto.randomUUID();
+
     try {
+      // Update progress: uploading
+      setUploadProgress((prev) =>
+        prev.map((p) => (p.id === fileId ? { ...p, status: "uploading" as const, progress: 30 } : p))
+      );
+
       // Generate unique file path
       const fileExt = file.name.split(".").pop();
       const filePath = `${agencyId}/${crypto.randomUUID()}.${fileExt}`;
@@ -100,6 +115,11 @@ export function useDataImports() {
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
+
+      // Update progress: creating record
+      setUploadProgress((prev) =>
+        prev.map((p) => (p.id === fileId ? { ...p, progress: 50 } : p))
+      );
 
       // Create import record
       const { data: importRecord, error: insertError } = await supabase
@@ -115,6 +135,11 @@ export function useDataImports() {
         .single();
 
       if (insertError) throw insertError;
+
+      // Update progress: analyzing
+      setUploadProgress((prev) =>
+        prev.map((p) => (p.id === fileId ? { ...p, status: "analyzing" as const, progress: 70 } : p))
+      );
 
       // Get signed URL for AI analysis
       const { data: urlData } = await supabase.storage
@@ -136,24 +161,97 @@ export function useDataImports() {
 
       if (analysisError) {
         console.error("Analysis error:", analysisError);
-        toast.error("Failed to analyze screenshot");
-      } else if (analysisResult.status === "rejected") {
-        toast.error(analysisResult.message || "Uploaded information is irrelevant to our Business");
-      } else if (analysisResult.status === "approved") {
-        toast.success("Screenshot analyzed and data extracted successfully!");
-      } else if (analysisResult.status === "pending_review") {
-        toast.info("Screenshot analyzed. Manual review required.");
+        return { success: false, message: "Failed to analyze screenshot" };
       }
 
-      queryClient.invalidateQueries({ queryKey: ["data-imports"] });
-      return importRecord;
+      // Update progress: complete
+      setUploadProgress((prev) =>
+        prev.map((p) =>
+          p.id === fileId
+            ? {
+                ...p,
+                status: "complete" as const,
+                progress: 100,
+                result: analysisResult.status,
+                message: analysisResult.message,
+              }
+            : p
+        )
+      );
+
+      return { success: true, result: analysisResult.status, message: analysisResult.message };
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Failed to upload screenshot");
-      return null;
-    } finally {
-      setUploading(false);
+      setUploadProgress((prev) =>
+        prev.map((p) =>
+          p.id === fileId
+            ? { ...p, status: "error" as const, progress: 100, message: "Upload failed" }
+            : p
+        )
+      );
+      return { success: false, message: "Failed to upload screenshot" };
     }
+  };
+
+  // Upload multiple files with progress tracking
+  const uploadMultipleFiles = async (files: File[], creatorId?: string) => {
+    if (!agencyId) {
+      toast.error("Agency not found");
+      return;
+    }
+
+    setUploading(true);
+
+    // Initialize progress for all files
+    const initialProgress: UploadProgress[] = files.map((file) => ({
+      id: crypto.randomUUID(),
+      fileName: file.name,
+      status: "uploading",
+      progress: 0,
+    }));
+    setUploadProgress(initialProgress);
+
+    // Process files in parallel (max 3 at a time)
+    const results = await Promise.all(
+      files.map((file, index) => uploadSingleFile(file, creatorId, initialProgress[index].id))
+    );
+
+    // Show summary toast
+    const successCount = results.filter((r) => r.success).length;
+    const approvedCount = results.filter((r) => r.result === "approved").length;
+    const reviewCount = results.filter((r) => r.result === "pending_review").length;
+    const rejectedCount = results.filter((r) => r.result === "rejected").length;
+
+    if (successCount > 0) {
+      const parts = [];
+      if (approvedCount > 0) parts.push(`${approvedCount} approved`);
+      if (reviewCount > 0) parts.push(`${reviewCount} pending review`);
+      if (rejectedCount > 0) parts.push(`${rejectedCount} rejected`);
+      toast.success(`Processed ${successCount} file(s): ${parts.join(", ")}`);
+    }
+
+    if (results.some((r) => !r.success)) {
+      toast.error(`${results.filter((r) => !r.success).length} file(s) failed to upload`);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["data-imports"] });
+
+    // Clear progress after delay
+    setTimeout(() => {
+      setUploadProgress([]);
+    }, 3000);
+
+    setUploading(false);
+  };
+
+  // Legacy single file upload (for backwards compatibility)
+  const uploadAndAnalyze = async (file: File, creatorId?: string) => {
+    await uploadMultipleFiles([file], creatorId);
+  };
+
+  // Clear upload progress
+  const clearProgress = () => {
+    setUploadProgress([]);
   };
 
   // Approve pending import
@@ -257,11 +355,14 @@ export function useDataImports() {
     imports,
     loading,
     uploading,
+    uploadProgress,
     processingImports,
     pendingReviewImports,
     approvedImports,
     rejectedImports,
     uploadAndAnalyze,
+    uploadMultipleFiles,
+    clearProgress,
     approveImport: approveImport.mutate,
     rejectImport: rejectImport.mutate,
     deleteImport: deleteImport.mutate,
