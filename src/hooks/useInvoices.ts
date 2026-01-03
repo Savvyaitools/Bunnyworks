@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAgency } from "./useAgency";
 
 export interface Invoice {
   id: string;
   invoice_number: string;
   creator_id: string | null;
+  agency_id: string | null;
   amount: number;
   status: string;
   issue_date: string;
@@ -20,9 +22,10 @@ export interface Invoice {
 
 export function useInvoices() {
   const queryClient = useQueryClient();
+  const { agencyId } = useAgency();
 
   const { data: invoices = [], isLoading: loading } = useQuery({
-    queryKey: ["invoices"],
+    queryKey: ["invoices", agencyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
@@ -35,13 +38,14 @@ export function useInvoices() {
       if (error) throw error;
       return data as Invoice[];
     },
+    enabled: !!agencyId,
   });
 
   const createInvoice = useMutation({
-    mutationFn: async (invoice: Omit<Invoice, "id" | "created_at" | "updated_at" | "creator">) => {
+    mutationFn: async (invoice: Omit<Invoice, "id" | "created_at" | "updated_at" | "creator" | "agency_id">) => {
       const { data, error } = await supabase
         .from("invoices")
-        .insert(invoice)
+        .insert({ ...invoice, agency_id: agencyId })
         .select()
         .single();
 

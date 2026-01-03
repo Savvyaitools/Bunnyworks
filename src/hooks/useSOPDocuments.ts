@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAgency } from "./useAgency";
 
 export interface SOPDocument {
   id: string;
@@ -10,15 +11,17 @@ export interface SOPDocument {
   file_path: string | null;
   file_type: string | null;
   roles: string[];
+  agency_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export function useSOPDocuments() {
   const queryClient = useQueryClient();
+  const { agencyId } = useAgency();
 
   const { data: documents = [], isLoading: loading } = useQuery({
-    queryKey: ["sop-documents"],
+    queryKey: ["sop-documents", agencyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sop_documents")
@@ -28,13 +31,14 @@ export function useSOPDocuments() {
       if (error) throw error;
       return data as SOPDocument[];
     },
+    enabled: !!agencyId,
   });
 
   const createDocument = useMutation({
-    mutationFn: async (doc: Omit<SOPDocument, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (doc: Omit<SOPDocument, "id" | "created_at" | "updated_at" | "agency_id">) => {
       const { data, error } = await supabase
         .from("sop_documents")
-        .insert(doc)
+        .insert({ ...doc, agency_id: agencyId })
         .select()
         .single();
 

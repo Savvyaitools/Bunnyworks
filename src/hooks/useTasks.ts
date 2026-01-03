@@ -1,5 +1,6 @@
 import { useSupabaseCRUD } from "./useSupabaseCRUD";
-import { useMemo } from "react";
+import { useAgency } from "./useAgency";
+import { useMemo, useCallback } from "react";
 
 export interface Task {
   id: string;
@@ -9,15 +10,20 @@ export interface Task {
   priority: "Low" | "Medium" | "High" | "Urgent";
   assignee_id: string | null;
   creator_id: string | null;
+  chatter_id: string | null;
+  request_type: string | null;
+  agency_id: string | null;
   due_date: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type CreateTaskInput = Omit<Task, "id" | "created_at" | "updated_at">;
+export type CreateTaskInput = Omit<Task, "id" | "created_at" | "updated_at" | "agency_id">;
 export type UpdateTaskInput = Partial<CreateTaskInput>;
 
 export function useTasks() {
+  const { agencyId } = useAgency();
+
   const crud = useSupabaseCRUD<Task>({
     table: "tasks",
     queryKey: "tasks",
@@ -37,11 +43,16 @@ export function useTasks() {
     completed: crud.items.filter((t) => t.status === "Completed").length,
   }), [crud.items]);
 
+  // Wrapper that adds agency_id when creating
+  const createTask = useCallback(async (input: CreateTaskInput) => {
+    return crud.create({ ...input, agency_id: agencyId });
+  }, [crud, agencyId]);
+
   return {
     tasks: crud.items,
     loading: crud.loading,
     stats,
-    createTask: crud.create,
+    createTask,
     updateTask: crud.update,
     deleteTask: crud.remove,
   };
