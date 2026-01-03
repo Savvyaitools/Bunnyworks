@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { EarningsBreakdown } from "./EarningsBreakdown";
 
 interface CreatorEarning {
   id: string;
@@ -126,7 +127,8 @@ export function CreatorEarnings({ creatorId }: CreatorEarningsProps) {
         </div>
       </div>
 
-      {/* Add Earning */}
+      {/* Earnings Breakdown by Source */}
+      <EarningsBreakdown creatorId={creatorId} />
       <div className="flex justify-end">
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
