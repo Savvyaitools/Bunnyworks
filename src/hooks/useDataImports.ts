@@ -345,6 +345,76 @@ export function useDataImports() {
     },
   });
 
+  // Retry stuck/failed import
+  const retryImport = useMutation({
+    mutationFn: async (importId: string) => {
+      // First, reset the import status to processing
+      const { error: updateError } = await supabase
+        .from("data_imports")
+        .update({ 
+          status: "processing",
+          rejection_reason: null,
+          confidence_score: null,
+        })
+        .eq("id", importId);
+
+      if (updateError) throw updateError;
+
+      // Delete any existing extracted data for this import
+      await supabase
+        .from("extracted_data")
+        .delete()
+        .eq("import_id", importId);
+
+      // Get the import record to get the file path
+      const { data: importRecord, error: fetchError } = await supabase
+        .from("data_imports")
+        .select("file_path")
+        .eq("id", importId)
+        .single();
+
+      if (fetchError || !importRecord) throw new Error("Import not found");
+
+      // Get a new signed URL
+      const { data: urlData } = await supabase.storage
+        .from("data-imports")
+        .createSignedUrl(importRecord.file_path, 3600);
+
+      if (!urlData?.signedUrl) {
+        throw new Error("Could not generate signed URL");
+      }
+
+      // Call edge function to re-analyze
+      const { data: analysisResult, error: analysisError } = await supabase.functions
+        .invoke("analyze-screenshot", {
+          body: {
+            importId: importId,
+            imageUrl: urlData.signedUrl,
+          },
+        });
+
+      if (analysisError) {
+        console.error("Analysis error:", analysisError);
+        throw new Error("Failed to analyze screenshot");
+      }
+
+      return analysisResult;
+    },
+    onSuccess: (result) => {
+      const statusMessage = result?.status === "approved" 
+        ? "approved automatically" 
+        : result?.status === "rejected"
+        ? "rejected"
+        : "sent for review";
+      toast.success(`Import re-analyzed and ${statusMessage}`);
+      queryClient.invalidateQueries({ queryKey: ["data-imports"] });
+    },
+    onError: (error) => {
+      console.error("Retry error:", error);
+      toast.error("Failed to retry import");
+    },
+  });
+
   // Filter helpers
   const processingImports = imports.filter(i => i.status === "processing");
   const pendingReviewImports = imports.filter(i => i.status === "pending_review");
@@ -366,6 +436,8 @@ export function useDataImports() {
     approveImport: approveImport.mutate,
     rejectImport: rejectImport.mutate,
     deleteImport: deleteImport.mutate,
+    retryImport: retryImport.mutate,
+    retryingImportId: retryImport.isPending ? retryImport.variables : null,
     getExtractedData,
     refetch,
   };
