@@ -2,7 +2,7 @@ import { DataImport } from "@/hooks/useDataImports";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, ExternalLink, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
+import { Trash2, ExternalLink, CheckCircle, XCircle, Clock, Loader2, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -15,10 +15,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ImportHistoryProps {
   imports: DataImport[];
   onDelete: (params: { importId: string; filePath: string }) => void;
+  onRetry?: (importId: string) => void;
+  retryingImportId?: string | null;
 }
 
 const statusConfig: Record<string, { icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
@@ -28,7 +31,7 @@ const statusConfig: Record<string, { icon: React.ElementType; variant: "default"
   rejected: { icon: XCircle, variant: "destructive", label: "Rejected" },
 };
 
-export function ImportHistory({ imports, onDelete }: ImportHistoryProps) {
+export function ImportHistory({ imports, onDelete, onRetry, retryingImportId }: ImportHistoryProps) {
   if (imports.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -55,6 +58,8 @@ export function ImportHistory({ imports, onDelete }: ImportHistoryProps) {
             const status = statusConfig[importItem.status] || statusConfig.processing;
             const StatusIcon = status.icon;
             const isProcessing = importItem.status === "processing";
+            const isRetrying = retryingImportId === importItem.id;
+            const canRetry = (importItem.status === "processing" || importItem.status === "rejected") && onRetry;
 
             return (
               <TableRow key={importItem.id}>
@@ -79,8 +84,8 @@ export function ImportHistory({ imports, onDelete }: ImportHistoryProps) {
                 </TableCell>
                 <TableCell>
                   <Badge variant={status.variant} className="gap-1">
-                    <StatusIcon className={`h-3 w-3 ${isProcessing ? "animate-spin" : ""}`} />
-                    {status.label}
+                    <StatusIcon className={`h-3 w-3 ${isProcessing || isRetrying ? "animate-spin" : ""}`} />
+                    {isRetrying ? "Retrying..." : status.label}
                   </Badge>
                   {importItem.rejection_reason && (
                     <p className="text-xs text-destructive mt-1 max-w-[200px] truncate">
@@ -108,6 +113,23 @@ export function ImportHistory({ imports, onDelete }: ImportHistoryProps) {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
+                    {canRetry && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => onRetry(importItem.id)}
+                            disabled={isRetrying}
+                          >
+                            <RotateCcw className={`h-4 w-4 ${isRetrying ? "animate-spin" : ""}`} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Retry analysis</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     {importItem.url && (
                       <Button
                         size="icon"

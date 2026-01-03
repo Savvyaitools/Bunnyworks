@@ -20,6 +20,8 @@ export default function DataImport() {
     approveImport,
     rejectImport,
     deleteImport,
+    retryImport,
+    retryingImportId,
     getExtractedData,
   } = useDataImports();
 
@@ -131,7 +133,12 @@ export default function DataImport() {
           <TabsContent value="history" className="space-y-6">
             <div className="glass-card p-6">
               <h2 className="text-lg font-semibold mb-4">Import History</h2>
-              <ImportHistory imports={imports} onDelete={deleteImport} />
+              <ImportHistory 
+                imports={imports} 
+                onDelete={deleteImport} 
+                onRetry={retryImport}
+                retryingImportId={retryingImportId}
+              />
             </div>
           </TabsContent>
         </Tabs>
