@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Mail, Phone, Instagram, Twitter, Link as LinkIcon, Edit, Save, X, Camera, Upload } from "lucide-react";
+import { Mail, Phone, Edit, Save, X, Camera, Upload } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,11 +25,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     email: creator.email,
     phone: creator.phone || "",
     notes: creator.notes || "",
-    onlyfans_url: creator.onlyfans_url || "",
-    instagram_url: creator.instagram_url || "",
-    tiktok_url: creator.tiktok_url || "",
-    twitter_url: creator.twitter_url || "",
-    snapchat_url: creator.snapchat_url || "",
   });
 
   const handleSave = async () => {
@@ -39,11 +34,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       email: formData.email,
       phone: formData.phone || null,
       notes: formData.notes || null,
-      onlyfans_url: formData.onlyfans_url || null,
-      instagram_url: formData.instagram_url || null,
-      tiktok_url: formData.tiktok_url || null,
-      twitter_url: formData.twitter_url || null,
-      snapchat_url: formData.snapchat_url || null,
     });
     setIsEditing(false);
   };
@@ -55,11 +45,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       email: creator.email,
       phone: creator.phone || "",
       notes: creator.notes || "",
-      onlyfans_url: creator.onlyfans_url || "",
-      instagram_url: creator.instagram_url || "",
-      tiktok_url: creator.tiktok_url || "",
-      twitter_url: creator.twitter_url || "",
-      snapchat_url: creator.snapchat_url || "",
     });
     setIsEditing(false);
   };
@@ -214,126 +199,37 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Contact Info */}
-        <div className="space-y-4">
-          <h3 className="font-semibold text-foreground">Contact Information</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Mail className="h-4 w-4 text-primary" />
-              </div>
-              {isEditing ? (
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              ) : (
-                <span className="text-foreground">{creator.email}</span>
-              )}
+      {/* Contact Info */}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-foreground">Contact Information</h3>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Mail className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Phone className="h-4 w-4 text-primary" />
-              </div>
-              {isEditing ? (
-                <Input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Phone number"
-                />
-              ) : (
-                <span className="text-foreground">{creator.phone || "No phone"}</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Social Links */}
-        <div className="space-y-4">
-          <h3 className="font-semibold text-foreground">Social Links</h3>
-          <div className="space-y-3">
             {isEditing ? (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Primary Platform</Label>
-                  <Input
-                    value={formData.onlyfans_url}
-                    onChange={(e) => setFormData({ ...formData, onlyfans_url: e.target.value })}
-                    placeholder="Primary platform URL"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Instagram</Label>
-                  <Input
-                    value={formData.instagram_url}
-                    onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
-                    placeholder="Instagram URL"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">TikTok</Label>
-                  <Input
-                    value={formData.tiktok_url}
-                    onChange={(e) => setFormData({ ...formData, tiktok_url: e.target.value })}
-                    placeholder="TikTok URL"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Twitter</Label>
-                  <Input
-                    value={formData.twitter_url}
-                    onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
-                    placeholder="Twitter URL"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Snapchat</Label>
-                  <Input
-                    value={formData.snapchat_url}
-                    onChange={(e) => setFormData({ ...formData, snapchat_url: e.target.value })}
-                    placeholder="Snapchat URL"
-                  />
-                </div>
-              </>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {creator.onlyfans_url && (
-                  <a href={creator.onlyfans_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <LinkIcon className="h-4 w-4" />
-                    <span className="text-sm">Platform</span>
-                  </a>
-                )}
-                {creator.instagram_url && (
-                  <a href={creator.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <Instagram className="h-4 w-4" />
-                    <span className="text-sm">Instagram</span>
-                  </a>
-                )}
-                {creator.tiktok_url && (
-                  <a href={creator.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <LinkIcon className="h-4 w-4" />
-                    <span className="text-sm">TikTok</span>
-                  </a>
-                )}
-                {creator.twitter_url && (
-                  <a href={creator.twitter_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <Twitter className="h-4 w-4" />
-                    <span className="text-sm">Twitter</span>
-                  </a>
-                )}
-                {creator.snapchat_url && (
-                  <a href={creator.snapchat_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                    <LinkIcon className="h-4 w-4" />
-                    <span className="text-sm">Snapchat</span>
-                  </a>
-                )}
-                {!creator.onlyfans_url && !creator.instagram_url && !creator.tiktok_url && !creator.twitter_url && !creator.snapchat_url && (
-                  <span className="text-muted-foreground text-sm">No social links added</span>
-                )}
-              </div>
+              <span className="text-foreground">{creator.email}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Phone className="h-4 w-4 text-primary" />
+            </div>
+            {isEditing ? (
+              <Input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="Phone number"
+              />
+            ) : (
+              <span className="text-foreground">{creator.phone || "No phone"}</span>
             )}
           </div>
         </div>
