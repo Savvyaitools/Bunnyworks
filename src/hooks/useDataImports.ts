@@ -324,10 +324,16 @@ export function useDataImports() {
   // Delete import
   const deleteImport = useMutation({
     mutationFn: async ({ importId, filePath }: { importId: string; filePath: string }) => {
+      // First delete extracted_data (in case no cascade)
+      await supabase
+        .from("extracted_data")
+        .delete()
+        .eq("import_id", importId);
+
       // Delete from storage
       await supabase.storage.from("data-imports").remove([filePath]);
       
-      // Delete record (cascades to extracted_data)
+      // Delete the import record
       const { error } = await supabase
         .from("data_imports")
         .delete()
@@ -337,7 +343,11 @@ export function useDataImports() {
     },
     onSuccess: () => {
       toast.success("Import deleted");
+      // Invalidate all related queries to update dashboard and other views
       queryClient.invalidateQueries({ queryKey: ["data-imports"] });
+      queryClient.invalidateQueries({ queryKey: ["creator-earnings"] });
+      queryClient.invalidateQueries({ queryKey: ["creators"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error) => {
       console.error("Delete error:", error);
