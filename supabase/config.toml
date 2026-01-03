@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.firecrawl-map]
 verify_jwt = true
+
+[functions.auto-retry-imports]
+verify_jwt = false
