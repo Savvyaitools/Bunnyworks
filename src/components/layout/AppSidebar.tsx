@@ -92,7 +92,7 @@ export function AppSidebar() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Logo */}
-            <img src={myCreatorSuiteLogo} alt="Creator OS" className="w-9 h-9 object-contain rounded" style={{ mixBlendMode: 'screen' }} />
+            <img src={myCreatorSuiteLogo} alt="Creator OS" className="w-9 h-9 object-contain" />
             {!isCollapsed && (
               <div className="animate-fade-in">
                 <h1 className="font-semibold text-foreground">Creator OS</h1>

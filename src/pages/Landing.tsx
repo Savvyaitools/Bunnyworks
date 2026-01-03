@@ -49,21 +49,21 @@ const secondaryTools = [
     icon: MessageSquare,
     title: "AI-Powered Chatting System",
     description: "Intelligent chat management for creators with automation, smart replies, and seamless fan engagement at scale.",
-    badge: "Included",
+    badge: "Enterprise",
     link: "/tools/chatting"
   },
   {
     icon: Mic,
     title: "AI NSFW Voice Cloner",
     description: "Clone creator voices for personalized audio content. Create authentic voice messages that fans love.",
-    badge: "Pro+",
+    badge: "Enterprise",
     link: "/tools/voice-cloner"
   },
   {
     icon: Image,
     title: "AI NSFW Content Generator",
     description: "Generate high-quality, platform-ready content using AI. Scale content production without limits.",
-    badge: "Pro+",
+    badge: "Enterprise",
     link: "/tools/content-generator"
   }
 ];
@@ -144,8 +144,7 @@ const Landing = () => {
               <img 
                 src={myCreatorSuiteLogo} 
                 alt="My Creator Suite" 
-                className="h-10 w-auto rounded-lg"
-                style={{ mixBlendMode: 'screen' }}
+                className="h-10 w-auto"
               />
               <span className="text-xl font-bold gradient-text">Creator OS</span>
             </div>
@@ -196,8 +195,7 @@ const Landing = () => {
             <img 
               src={myCreatorSuiteLogo} 
               alt="My Creator Suite" 
-              className="h-32 w-auto mx-auto mb-8 animate-float rounded-xl"
-              style={{ mixBlendMode: 'screen' }}
+              className="h-32 w-auto mx-auto mb-8 animate-float"
             />
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
               <span className="gradient-text">Creator OS</span>
@@ -641,8 +639,7 @@ const Landing = () => {
                 <img 
                   src={myCreatorSuiteLogo} 
                   alt="My Creator Suite" 
-                  className="h-8 w-auto rounded-lg"
-                  style={{ mixBlendMode: 'screen' }}
+                  className="h-8 w-auto"
                 />
                 <span className="text-lg font-semibold text-foreground">Creator OS</span>
               </div>
