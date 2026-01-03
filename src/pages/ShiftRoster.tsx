@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { 
   Plus, ChevronLeft, ChevronRight, 
   AlertTriangle, Shield, GripVertical,
-  Clock, User, Zap
+  Clock, User, Zap, MoreHorizontal, Edit, Trash2, LayoutGrid, Table as TableIcon
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,14 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -39,6 +47,7 @@ import { useCreators } from "@/hooks/useCreators";
 import { useChatterTimeLogs } from "@/hooks/useChatterTimeLogs";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useQCAssignments } from "@/hooks/useQCAssignments";
+import { useCreatorAssignments } from "@/hooks/useCreatorAssignments";
 import { TimeAnalytics } from "@/components/shifts";
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
 import { toast } from "@/hooks/use-toast";
@@ -190,6 +199,7 @@ function QCBadge({ qcName, shiftBlock, employees, onAssign }: QCBadgeProps) {
 export default function ShiftRoster() {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "table">("table");
   const [draggedChatter, setDraggedChatter] = useState<{ id: string; fromBlock: string } | null>(null);
   const [formData, setFormData] = useState({
     chatter_id: "",
@@ -200,12 +210,13 @@ export default function ShiftRoster() {
     notes: "",
   });
 
-  const { shifts, loading, createShift, updateShift } = useChatterShifts();
+  const { shifts, loading, createShift, updateShift, deleteShift } = useChatterShifts();
   const { chatters } = useChatters();
   const { creators } = useCreators();
   const { timeLogs } = useChatterTimeLogs();
   const { employees } = useEmployees();
   const { assignments: qcAssignments, assignQC, getQCForShift } = useQCAssignments();
+  const { assignments: creatorAssignments } = useCreatorAssignments();
 
   const activeClockedIn = useMemo(() => {
     return new Set(timeLogs.filter(log => !log.clock_out).map(log => log.chatter_id));
@@ -362,6 +373,27 @@ export default function ShiftRoster() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-card rounded-lg border border-border p-1">
+              <Button
+                variant={viewMode === "table" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode("table")}
+              >
+                <TableIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Week Navigation */}
             <div className="flex items-center gap-1 bg-card rounded-lg border border-border">
               <Button variant="ghost" size="icon" onClick={handlePrevWeek}>
                 <ChevronLeft className="h-4 w-4" />
@@ -485,9 +517,191 @@ export default function ShiftRoster() {
                   </div>
                 ))}
               </div>
+            ) : viewMode === "table" ? (
+              <>
+                {/* Table View */}
+                <div className="glass-card overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">Chatter</TableHead>
+                        <TableHead className="text-muted-foreground">Shift</TableHead>
+                        <TableHead className="text-muted-foreground">Grade</TableHead>
+                        <TableHead className="text-muted-foreground">Creator</TableHead>
+                        <TableHead className="text-muted-foreground">Status</TableHead>
+                        <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {shifts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                            <Clock className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                            <p>No shifts scheduled</p>
+                            <p className="text-sm">Click "Add Shift" to create one</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        shifts.map((shift) => {
+                          const chatter = chatters.find((c) => c.id === shift.chatter_id);
+                          const creator = creators.find((c) => c.id === shift.creator_id);
+                          const isOnline = activeClockedIn.has(shift.chatter_id);
+                          const grade = gradeStyles[chatter?.skill_grade || "B"] || gradeStyles.B;
+
+                          // Determine shift block
+                          const shiftHour = new Date(shift.shift_start).getHours();
+                          const shiftBlock = SHIFT_BLOCKS.find(
+                            (b) => shiftHour >= b.start && shiftHour < b.end
+                          );
+
+                          return (
+                            <TableRow key={shift.id} className="border-border">
+                              {/* Chatter */}
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-9 w-9">
+                                    <AvatarImage
+                                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatter?.avatar_seed || chatter?.name}`}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {chatter?.name?.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-medium text-foreground">
+                                    {chatter?.name || "Unknown"}
+                                  </span>
+                                </div>
+                              </TableCell>
+
+                              {/* Shift */}
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">{shiftBlock?.icon}</span>
+                                  <div>
+                                    <p className="font-medium text-foreground text-sm">
+                                      {shiftBlock?.label || "Custom"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {format(new Date(shift.shift_start), "h:mm a")} -{" "}
+                                      {format(new Date(shift.shift_end), "h:mm a")}
+                                    </p>
+                                  </div>
+                                </div>
+                              </TableCell>
+
+                              {/* Grade */}
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "font-semibold",
+                                    grade.bg,
+                                    grade.border,
+                                    grade.text
+                                  )}
+                                >
+                                  Grade {chatter?.skill_grade || "B"}
+                                </Badge>
+                              </TableCell>
+
+                              {/* Creator */}
+                              <TableCell>
+                                {creator ? (
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-7 w-7">
+                                      <AvatarImage
+                                        src={
+                                          creator.avatar_url ||
+                                          `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`
+                                        }
+                                      />
+                                      <AvatarFallback className="text-xs">
+                                        {creator.name?.charAt(0)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-foreground text-sm">
+                                      {creator.name}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">—</span>
+                                )}
+                              </TableCell>
+
+                              {/* Status */}
+                              <TableCell>
+                                {isOnline ? (
+                                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                    <span className="w-2 h-2 bg-emerald-400 rounded-full mr-1.5 animate-pulse" />
+                                    Online
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-muted/50 text-muted-foreground"
+                                  >
+                                    Offline
+                                  </Badge>
+                                )}
+                              </TableCell>
+
+                              {/* Actions */}
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setFormData({
+                                          chatter_id: shift.chatter_id,
+                                          creator_id: shift.creator_id,
+                                          shift_start: shift.shift_start.slice(0, 16),
+                                          shift_end: shift.shift_end.slice(0, 16),
+                                          shift_type: shift.shift_type || "regular",
+                                          notes: shift.notes || "",
+                                        });
+                                        setIsAddDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => deleteShift(shift.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
+                  {Object.entries(gradeStyles).map(([grade, style]) => (
+                    <div key={grade} className="flex items-center gap-2">
+                      <div className={cn("w-4 h-4 rounded", style.bg, style.border)} />
+                      <span className={style.text}>Grade {grade}</span>
+                      <span className="text-muted-foreground">— {style.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <>
-                {/* Shift Blocks Grid */}
+                {/* Grid View (Original) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {SHIFT_BLOCKS.map((block) => {
                     const chattersInBlock = getChattersInBlock(block.id);
