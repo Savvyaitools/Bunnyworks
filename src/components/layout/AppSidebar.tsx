@@ -201,7 +201,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Data Section */}
+        {/* Data Section - Hidden for future launch */}
+        {/* 
         {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</p>}
         <SidebarGroup>
           <SidebarGroupContent>
@@ -222,6 +223,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        */}
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t border-sidebar-border">
