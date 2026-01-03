@@ -70,6 +70,11 @@ export function useCreators() {
 
   // Wrapper that adds agency_id and checks limits
   const createCreator = useCallback(async (input: CreateCreatorInput) => {
+    if (!agencyId) {
+      toast.error("Agency not found. Please log in again.");
+      throw new Error("Agency ID not found");
+    }
+
     // Check limit before creating
     if (limits && !limits.canAddCreator) {
       toast.error(`Creator limit reached (${limits.currentCreators}/${limits.maxCreators}). Upgrade your plan to add more creators.`);

@@ -3,12 +3,12 @@ import { Upload, X, CheckCircle, AlertCircle, Image, Video, FileText, Loader2 } 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import type { UploadProgress } from "@/hooks/useContentFiles";
+import type { FileUploadProgress } from "@/hooks/useContentFiles";
 
 interface FileDropZoneProps {
   onFilesSelected: (files: File[]) => void;
   uploading: boolean;
-  uploadProgress: UploadProgress[];
+  uploadProgress: FileUploadProgress[];
 }
 
 export function FileDropZone({ onFilesSelected, uploading, uploadProgress }: FileDropZoneProps) {

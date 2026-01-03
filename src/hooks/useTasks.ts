@@ -45,6 +45,9 @@ export function useTasks() {
 
   // Wrapper that adds agency_id when creating
   const createTask = useCallback(async (input: CreateTaskInput) => {
+    if (!agencyId) {
+      throw new Error("Agency ID not found");
+    }
     return crud.create({ ...input, agency_id: agencyId });
   }, [crud, agencyId]);
 

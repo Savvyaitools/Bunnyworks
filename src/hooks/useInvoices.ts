@@ -43,6 +43,10 @@ export function useInvoices() {
 
   const createInvoice = useMutation({
     mutationFn: async (invoice: Omit<Invoice, "id" | "created_at" | "updated_at" | "creator" | "agency_id">) => {
+      if (!agencyId) {
+        throw new Error("Agency ID not found");
+      }
+
       const { data, error } = await supabase
         .from("invoices")
         .insert({ ...invoice, agency_id: agencyId })

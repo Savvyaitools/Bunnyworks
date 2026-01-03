@@ -36,6 +36,10 @@ export function useSOPDocuments() {
 
   const createDocument = useMutation({
     mutationFn: async (doc: Omit<SOPDocument, "id" | "created_at" | "updated_at" | "agency_id">) => {
+      if (!agencyId) {
+        throw new Error("Agency ID not found");
+      }
+
       const { data, error } = await supabase
         .from("sop_documents")
         .insert({ ...doc, agency_id: agencyId })
