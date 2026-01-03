@@ -2,7 +2,6 @@ import { ArrowRight, Star, Users, DollarSign, TrendingUp, Zap, Shield, Clock, Ch
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
-import demoVideo from "@/assets/demo-creator-os.mp4";
 
 const features = [
   {
@@ -213,28 +212,8 @@ const Landing = () => {
             <p className="text-sm text-muted-foreground mt-4">No credit card required • Full access • Cancel anytime</p>
           </div>
           
-          {/* Demo Video */}
-          <div className="mt-16 max-w-5xl mx-auto">
-            <div className="relative rounded-2xl overflow-hidden border border-primary/30 shadow-2xl shadow-primary/20">
-              <video 
-                autoPlay 
-                loop 
-                muted 
-                playsInline
-                className="w-full h-auto"
-              >
-                <source src={demoVideo} type="video/mp4" />
-              </video>
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent pointer-events-none" />
-              <div className="absolute bottom-6 left-6 flex items-center gap-3">
-                <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
-                <span className="text-foreground font-medium">Creator OS Dashboard — Live Preview</span>
-              </div>
-            </div>
-          </div>
-          
           {/* Stats */}
-          <div className="mt-16 grid grid-cols-1 sm:grid-cols-4 gap-6 max-w-4xl mx-auto">
+          <div className="mt-20 grid grid-cols-1 sm:grid-cols-4 gap-6 max-w-4xl mx-auto">
             {[
               { value: "500+", label: "Agencies Trust Us" },
               { value: "$50M+", label: "Revenue Tracked" },
