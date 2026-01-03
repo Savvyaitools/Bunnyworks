@@ -108,6 +108,14 @@ export default {
           "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.2)" },
           "50%": { boxShadow: "0 0 40px hsl(var(--primary) / 0.4)" },
         },
+        "neon-glow": {
+          "0%, 100%": { 
+            filter: "drop-shadow(0 0 8px hsl(var(--primary) / 0.6)) drop-shadow(0 0 20px hsl(var(--primary) / 0.4))",
+          },
+          "50%": { 
+            filter: "drop-shadow(0 0 12px hsl(var(--primary) / 0.8)) drop-shadow(0 0 30px hsl(var(--primary) / 0.5))",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -115,6 +123,7 @@ export default {
         "fade-in": "fade-in 0.5s ease-out",
         "slide-in-left": "slide-in-left 0.3s ease-out",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "neon-glow": "neon-glow 2.5s ease-in-out infinite",
       },
       backgroundImage: {
         'gradient-primary': 'linear-gradient(135deg, hsl(var(--primary)), hsl(280 70% 55%))',

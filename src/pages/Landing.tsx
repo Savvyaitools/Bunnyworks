@@ -144,7 +144,7 @@ const Landing = () => {
               <img 
                 src={myCreatorSuiteLogo} 
                 alt="My Creator Suite" 
-                className="h-10 w-auto"
+                className="h-10 w-auto animate-neon-glow"
               />
               <span className="text-xl font-bold gradient-text">Creator OS</span>
             </div>
@@ -195,7 +195,7 @@ const Landing = () => {
             <img 
               src={myCreatorSuiteLogo} 
               alt="My Creator Suite" 
-              className="h-32 w-auto mx-auto mb-8 animate-float"
+              className="h-32 w-auto mx-auto mb-8 animate-float animate-neon-glow"
             />
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
               <span className="gradient-text">Creator OS</span>
@@ -639,7 +639,7 @@ const Landing = () => {
                 <img 
                   src={myCreatorSuiteLogo} 
                   alt="My Creator Suite" 
-                  className="h-8 w-auto"
+                  className="h-8 w-auto animate-neon-glow"
                 />
                 <span className="text-lg font-semibold text-foreground">Creator OS</span>
               </div>
