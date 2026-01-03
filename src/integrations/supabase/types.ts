@@ -1043,6 +1043,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          agency_id: string | null
           content: string
           conversation_id: string
           created_at: string
@@ -1052,6 +1053,7 @@ export type Database = {
           sender_type: string
         }
         Insert: {
+          agency_id?: string | null
           content: string
           conversation_id: string
           created_at?: string
@@ -1061,6 +1063,7 @@ export type Database = {
           sender_type: string
         }
         Update: {
+          agency_id?: string | null
           content?: string
           conversation_id?: string
           created_at?: string
@@ -1069,7 +1072,15 @@ export type Database = {
           sender_name?: string
           sender_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
