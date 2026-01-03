@@ -1,7 +1,8 @@
-import { ArrowRight, Image, Zap, Clock, Users, Shield, Palette, Layers, Sparkles, CheckCircle, Lock, Wand2 } from "lucide-react";
+import { ArrowRight, Image, Zap, Clock, Users, Shield, Palette, Layers, Sparkles, CheckCircle, Lock, Wand2, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
+import demoVideo from "@/assets/demo-content-generator.mp4";
 
 const features = [
   {
@@ -135,6 +136,26 @@ const AIContentGenerator = () => {
                   View Pro Plans
                 </Button>
               </Link>
+            </div>
+            
+            {/* Demo Video */}
+            <div className="mt-16 max-w-4xl mx-auto">
+              <div className="relative rounded-2xl overflow-hidden border border-orange-500/20 shadow-2xl shadow-orange-500/10">
+                <video 
+                  autoPlay 
+                  loop 
+                  muted 
+                  playsInline
+                  className="w-full h-auto"
+                >
+                  <source src={demoVideo} type="video/mp4" />
+                </video>
+                <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-4 left-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                  <span>Live Demo</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
