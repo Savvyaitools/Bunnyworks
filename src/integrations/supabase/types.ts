@@ -1145,6 +1145,51 @@ export type Database = {
           },
         ]
       }
+      qc_shift_assignments: {
+        Row: {
+          agency_id: string | null
+          created_at: string
+          effective_date: string
+          id: string
+          qc_employee_id: string
+          shift_block: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string
+          effective_date?: string
+          id?: string
+          qc_employee_id: string
+          shift_block: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string
+          effective_date?: string
+          id?: string
+          qc_employee_id?: string
+          shift_block?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qc_shift_assignments_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qc_shift_assignments_qc_employee_id_fkey"
+            columns: ["qc_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recruiting_creators: {
         Row: {
           agency_id: string | null
