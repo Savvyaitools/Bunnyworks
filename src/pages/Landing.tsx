@@ -4,150 +4,125 @@ import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/landing/MobileNav";
 import { ScrollReveal, StaggerContainer, StaggerItem } from "@/components/landing/ScrollReveal";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
-
-const mainNavLinks = [
-  { label: "Features", href: "#features", isExternal: true },
-  { label: "AI Tools", href: "#tools", isExternal: true },
-  { label: "Testimonials", href: "#testimonials", isExternal: true },
-  { label: "Pricing", href: "#pricing", isExternal: true },
-];
-
-const features = [
-  {
-    icon: Users,
-    title: "Complete Creator Management",
-    description: "Centralized dashboard to manage all your creators, track their performance, and streamline communication in one powerful hub."
-  },
-  {
-    icon: DollarSign,
-    title: "Revenue & Commission Tracking",
-    description: "Real-time earnings tracking, automated commission calculations, and detailed financial reports to maximize your agency's profitability."
-  },
-  {
-    icon: TrendingUp,
-    title: "Advanced Growth Analytics",
-    description: "Deep-dive into performance metrics, identify growth opportunities, and make data-driven decisions to scale your agency faster."
-  },
-  {
-    icon: Zap,
-    title: "Workflow Automation",
-    description: "Automate repetitive tasks, set up smart notifications, and free up your team to focus on what matters most—growing revenue."
-  },
-  {
-    icon: Shield,
-    title: "Secure Creator Portal",
-    description: "White-labeled portal where creators access their earnings, download content plans, and communicate directly with your team."
-  },
-  {
-    icon: Clock,
-    title: "Real-time Collaboration",
-    description: "Instant notifications, live activity feeds, and team messaging keep everyone aligned and moving fast."
-  }
-];
-
-const secondaryTools = [
-  {
-    icon: MessageSquare,
-    title: "AI-Powered Chatting System",
-    description: "Intelligent chat management for creators with automation, smart replies, and seamless fan engagement at scale.",
-    badge: "Enterprise",
-    link: "/tools/chatting"
-  },
-  {
-    icon: Mic,
-    title: "AI NSFW Voice Cloner",
-    description: "Clone creator voices for personalized audio content. Create authentic voice messages that fans love.",
-    badge: "Enterprise",
-    link: "/tools/voice-cloner"
-  },
-  {
-    icon: Image,
-    title: "AI NSFW Content Generator",
-    description: "Generate high-quality, platform-ready content using AI. Scale content production without limits.",
-    badge: "Enterprise",
-    link: "/tools/content-generator"
-  }
-];
-
-const additionalFeatures = [
-  {
-    icon: Calendar,
-    title: "Content Planning",
-    description: "Visual content calendar with scheduling, reference media uploads, and multi-platform coordination."
-  },
-  {
-    icon: Headphones,
-    title: "Integrated Messaging",
-    description: "Built-in messaging between agency and creators with read receipts and conversation history."
-  },
-  {
-    icon: FileText,
-    title: "Invoice Management",
-    description: "Generate, track, and manage invoices with automatic payment status updates."
-  },
-  {
-    icon: BarChart3,
-    title: "Shift & Time Tracking",
-    description: "Monitor team shifts, clock-in/out times, and productivity analytics."
-  }
-];
-
-const testimonials = [
-  {
-    name: "Sarah M.",
-    role: "Agency Owner, 50+ Creators",
-    content: "Creator OS transformed how we manage our roster. Revenue tracking that used to take hours now happens automatically. We've scaled from 20 to 50 creators without adding admin staff.",
-    rating: 5,
-    highlight: "Revenue up 40%"
-  },
-  {
-    name: "Alex K.",
-    role: "Top-Tier Creator",
-    content: "The creator portal is a game-changer. I can see my earnings, download content plans, and message my team instantly. No more endless email chains or spreadsheet confusion.",
-    rating: 5,
-    highlight: "Hours saved weekly"
-  },
-  {
-    name: "Jessica R.",
-    role: "Agency Operations Director",
-    content: "We tried 5 different tools before finding Creator OS. Nothing else comes close for managing a serious agency. The automation alone saves us 20+ hours per week.",
-    rating: 5,
-    highlight: "20+ hours saved/week"
-  }
-];
-
-const useCases = [
-  {
-    title: "Growing Agencies",
-    description: "From 5 to 500 creators, our platform scales with you without the chaos.",
-    icon: Rocket
-  },
-  {
-    title: "Established Operations",
-    description: "Replace spreadsheets and scattered tools with one unified command center.",
-    icon: Target
-  },
-  {
-    title: "Premium Boutiques",
-    description: "White-label portal gives your creators a professional, branded experience.",
-    icon: Award
-  }
-];
-
+const mainNavLinks = [{
+  label: "Features",
+  href: "#features",
+  isExternal: true
+}, {
+  label: "AI Tools",
+  href: "#tools",
+  isExternal: true
+}, {
+  label: "Testimonials",
+  href: "#testimonials",
+  isExternal: true
+}, {
+  label: "Pricing",
+  href: "#pricing",
+  isExternal: true
+}];
+const features = [{
+  icon: Users,
+  title: "Complete Creator Management",
+  description: "Centralized dashboard to manage all your creators, track their performance, and streamline communication in one powerful hub."
+}, {
+  icon: DollarSign,
+  title: "Revenue & Commission Tracking",
+  description: "Real-time earnings tracking, automated commission calculations, and detailed financial reports to maximize your agency's profitability."
+}, {
+  icon: TrendingUp,
+  title: "Advanced Growth Analytics",
+  description: "Deep-dive into performance metrics, identify growth opportunities, and make data-driven decisions to scale your agency faster."
+}, {
+  icon: Zap,
+  title: "Workflow Automation",
+  description: "Automate repetitive tasks, set up smart notifications, and free up your team to focus on what matters most—growing revenue."
+}, {
+  icon: Shield,
+  title: "Secure Creator Portal",
+  description: "White-labeled portal where creators access their earnings, download content plans, and communicate directly with your team."
+}, {
+  icon: Clock,
+  title: "Real-time Collaboration",
+  description: "Instant notifications, live activity feeds, and team messaging keep everyone aligned and moving fast."
+}];
+const secondaryTools = [{
+  icon: MessageSquare,
+  title: "AI-Powered Chatting System",
+  description: "Intelligent chat management for creators with automation, smart replies, and seamless fan engagement at scale.",
+  badge: "Enterprise",
+  link: "/tools/chatting"
+}, {
+  icon: Mic,
+  title: "AI NSFW Voice Cloner",
+  description: "Clone creator voices for personalized audio content. Create authentic voice messages that fans love.",
+  badge: "Enterprise",
+  link: "/tools/voice-cloner"
+}, {
+  icon: Image,
+  title: "AI NSFW Content Generator",
+  description: "Generate high-quality, platform-ready content using AI. Scale content production without limits.",
+  badge: "Enterprise",
+  link: "/tools/content-generator"
+}];
+const additionalFeatures = [{
+  icon: Calendar,
+  title: "Content Planning",
+  description: "Visual content calendar with scheduling, reference media uploads, and multi-platform coordination."
+}, {
+  icon: Headphones,
+  title: "Integrated Messaging",
+  description: "Built-in messaging between agency and creators with read receipts and conversation history."
+}, {
+  icon: FileText,
+  title: "Invoice Management",
+  description: "Generate, track, and manage invoices with automatic payment status updates."
+}, {
+  icon: BarChart3,
+  title: "Shift & Time Tracking",
+  description: "Monitor team shifts, clock-in/out times, and productivity analytics."
+}];
+const testimonials = [{
+  name: "Sarah M.",
+  role: "Agency Owner, 50+ Creators",
+  content: "Creator OS transformed how we manage our roster. Revenue tracking that used to take hours now happens automatically. We've scaled from 20 to 50 creators without adding admin staff.",
+  rating: 5,
+  highlight: "Revenue up 40%"
+}, {
+  name: "Alex K.",
+  role: "Top-Tier Creator",
+  content: "The creator portal is a game-changer. I can see my earnings, download content plans, and message my team instantly. No more endless email chains or spreadsheet confusion.",
+  rating: 5,
+  highlight: "Hours saved weekly"
+}, {
+  name: "Jessica R.",
+  role: "Agency Operations Director",
+  content: "We tried 5 different tools before finding Creator OS. Nothing else comes close for managing a serious agency. The automation alone saves us 20+ hours per week.",
+  rating: 5,
+  highlight: "20+ hours saved/week"
+}];
+const useCases = [{
+  title: "Growing Agencies",
+  description: "From 5 to 500 creators, our platform scales with you without the chaos.",
+  icon: Rocket
+}, {
+  title: "Established Operations",
+  description: "Replace spreadsheets and scattered tools with one unified command center.",
+  icon: Target
+}, {
+  title: "Premium Boutiques",
+  description: "White-label portal gives your creators a professional, branded experience.",
+  icon: Award
+}];
 const Landing = () => {
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <img 
-                src={myCreatorSuiteLogo} 
-                alt="My Creator Suite" 
-                className="h-10 w-auto animate-neon-glow"
-              />
-              <span className="text-xl font-bold gradient-text">Creator OS</span>
+              <img src={myCreatorSuiteLogo} alt="My Creator Suite" className="h-10 w-auto animate-neon-glow" />
+              <span className="text-xl font-bold gradient-text">MyCreatorSuite</span>
             </div>
             <div className="hidden md:flex items-center gap-6 lg:gap-8">
               <a href="#features" className="text-sm lg:text-base text-muted-foreground hover:text-foreground transition-colors">
@@ -191,13 +166,9 @@ const Landing = () => {
           <div className="animate-fade-in">
             <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 sm:mb-8">
               <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
-              <span className="text-xs sm:text-sm text-primary font-medium">mycreatorsuite.com — The Complete Creator Agency Suite</span>
+              <span className="text-xs sm:text-sm text-primary font-medium">Launching — The Complete Creator Agency Suite</span>
             </div>
-            <img 
-              src={myCreatorSuiteLogo} 
-              alt="My Creator Suite" 
-              className="h-20 sm:h-28 lg:h-32 w-auto mx-auto mb-6 sm:mb-8 animate-float animate-neon-glow"
-            />
+            <img src={myCreatorSuiteLogo} alt="My Creator Suite" className="h-20 sm:h-28 lg:h-32 w-auto mx-auto mb-6 sm:mb-8 animate-float animate-neon-glow" />
             <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6">
               <span className="gradient-text">Creator OS</span>
               <br />
@@ -222,17 +193,22 @@ const Landing = () => {
           
           {/* Stats */}
           <div className="mt-12 sm:mt-20 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 max-w-4xl mx-auto">
-            {[
-              { value: "500+", label: "Agencies Trust Us" },
-              { value: "$50M+", label: "Revenue Tracked" },
-              { value: "10K+", label: "Creators Managed" },
-              { value: "99.9%", label: "Uptime Guaranteed" }
-            ].map((stat) => (
-              <div key={stat.label} className="glass-card p-4 sm:p-6">
+            {[{
+            value: "500+",
+            label: "Agencies Trust Us"
+          }, {
+            value: "$50M+",
+            label: "Revenue Tracked"
+          }, {
+            value: "10K+",
+            label: "Creators Managed"
+          }, {
+            value: "99.9%",
+            label: "Uptime Guaranteed"
+          }].map(stat => <div key={stat.label} className="glass-card p-4 sm:p-6">
                 <div className="text-xl sm:text-3xl font-bold gradient-text">{stat.value}</div>
                 <div className="text-muted-foreground mt-1 text-xs sm:text-sm">{stat.label}</div>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -250,15 +226,10 @@ const Landing = () => {
           </ScrollReveal>
           
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {secondaryTools.map((tool) => (
-              <StaggerItem key={tool.title}>
+            {secondaryTools.map(tool => <StaggerItem key={tool.title}>
                 <Link to={tool.link} className="glass-card p-5 sm:p-8 text-center relative overflow-hidden group hover:border-primary/50 transition-all cursor-pointer block h-full">
                   <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
-                    <span className={`text-[10px] sm:text-xs font-medium px-2 sm:px-3 py-0.5 sm:py-1 rounded-full ${
-                      tool.badge === "Included" 
-                        ? "bg-green-500/20 text-green-400" 
-                        : "bg-primary/20 text-primary"
-                    }`}>
+                    <span className={`text-[10px] sm:text-xs font-medium px-2 sm:px-3 py-0.5 sm:py-1 rounded-full ${tool.badge === "Included" ? "bg-green-500/20 text-green-400" : "bg-primary/20 text-primary"}`}>
                       {tool.badge}
                     </span>
                   </div>
@@ -269,8 +240,7 @@ const Landing = () => {
                   <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">{tool.description}</p>
                   <span className="text-primary text-xs sm:text-sm font-medium group-hover:underline">Learn more →</span>
                 </Link>
-              </StaggerItem>
-            ))}
+              </StaggerItem>)}
           </StaggerContainer>
         </div>
       </section>
@@ -288,23 +258,14 @@ const Landing = () => {
           </ScrollReveal>
           
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-8 sm:mb-12" staggerDelay={0.08}>
-            {[
-              "Tracking earnings across 10 different spreadsheets",
-              "Chasing creators for content submissions",
-              "Missing payment deadlines and losing trust",
-              "No visibility into team performance",
-              "Endless DMs and email threads",
-              "Scaling feels impossible without hiring more"
-            ].map((pain, index) => (
-              <StaggerItem key={index}>
+            {["Tracking earnings across 10 different spreadsheets", "Chasing creators for content submissions", "Missing payment deadlines and losing trust", "No visibility into team performance", "Endless DMs and email threads", "Scaling feels impossible without hiring more"].map((pain, index) => <StaggerItem key={index}>
                 <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border border-destructive/20 bg-destructive/5">
                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-destructive/20 flex items-center justify-center flex-shrink-0">
                     <span className="text-destructive text-xs sm:text-sm">✕</span>
                   </div>
                   <span className="text-sm sm:text-base text-foreground">{pain}</span>
                 </div>
-              </StaggerItem>
-            ))}
+              </StaggerItem>)}
           </StaggerContainer>
 
           <ScrollReveal className="text-center" delay={0.2}>
@@ -314,15 +275,13 @@ const Landing = () => {
           </ScrollReveal>
           
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {useCases.map((useCase) => (
-              <StaggerItem key={useCase.title}>
+            {useCases.map(useCase => <StaggerItem key={useCase.title}>
                 <div className="glass-card p-4 sm:p-6 text-left h-full">
                   <useCase.icon className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1 sm:mb-2">{useCase.title}</h3>
                   <p className="text-sm text-muted-foreground">{useCase.description}</p>
                 </div>
-              </StaggerItem>
-            ))}
+              </StaggerItem>)}
           </StaggerContainer>
         </div>
       </section>
@@ -340,8 +299,7 @@ const Landing = () => {
           </ScrollReveal>
           
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
-            {features.map((feature) => (
-              <StaggerItem key={feature.title}>
+            {features.map(feature => <StaggerItem key={feature.title}>
                 <div className="glass-card p-4 sm:p-6 hover:border-primary/30 transition-all duration-300 group h-full">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-primary/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
                     <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
@@ -349,20 +307,17 @@ const Landing = () => {
                   <h3 className="text-base sm:text-xl font-semibold text-foreground mb-1 sm:mb-2">{feature.title}</h3>
                   <p className="text-sm sm:text-base text-muted-foreground">{feature.description}</p>
                 </div>
-              </StaggerItem>
-            ))}
+              </StaggerItem>)}
           </StaggerContainer>
 
           <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" staggerDelay={0.08}>
-            {additionalFeatures.map((feature) => (
-              <StaggerItem key={feature.title}>
+            {additionalFeatures.map(feature => <StaggerItem key={feature.title}>
                 <div className="p-3 sm:p-4 rounded-lg border border-border bg-card/50 hover:border-primary/30 transition-colors h-full">
                   <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary mb-1.5 sm:mb-2" />
                   <h4 className="font-medium text-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">{feature.title}</h4>
                   <p className="text-[10px] sm:text-xs text-muted-foreground">{feature.description}</p>
                 </div>
-              </StaggerItem>
-            ))}
+              </StaggerItem>)}
           </StaggerContainer>
         </div>
       </section>
@@ -380,24 +335,19 @@ const Landing = () => {
           </ScrollReveal>
           
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {[
-              {
-                step: "1",
-                title: "Add Your Creators",
-                description: "Import your creator roster, set up profiles, and connect their social accounts. Takes less than 5 minutes per creator."
-              },
-              {
-                step: "2",
-                title: "Invite Your Team",
-                description: "Bring your managers, chatters, and admins on board. Set permissions and assign creators to team members."
-              },
-              {
-                step: "3",
-                title: "Watch Revenue Grow",
-                description: "Track earnings in real-time, automate tasks, and use insights to scale. Your creators get their own portal too."
-              }
-            ].map((item) => (
-              <StaggerItem key={item.step}>
+            {[{
+            step: "1",
+            title: "Add Your Creators",
+            description: "Import your creator roster, set up profiles, and connect their social accounts. Takes less than 5 minutes per creator."
+          }, {
+            step: "2",
+            title: "Invite Your Team",
+            description: "Bring your managers, chatters, and admins on board. Set permissions and assign creators to team members."
+          }, {
+            step: "3",
+            title: "Watch Revenue Grow",
+            description: "Track earnings in real-time, automate tasks, and use insights to scale. Your creators get their own portal too."
+          }].map(item => <StaggerItem key={item.step}>
                 <div className="glass-card p-5 sm:p-8 text-center h-full">
                   <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4 sm:mb-6">
                     <span className="text-xl sm:text-3xl font-bold gradient-text">{item.step}</span>
@@ -405,8 +355,7 @@ const Landing = () => {
                   <h3 className="text-base sm:text-xl font-semibold text-foreground mb-2 sm:mb-3">{item.title}</h3>
                   <p className="text-sm sm:text-base text-muted-foreground">{item.description}</p>
                 </div>
-              </StaggerItem>
-            ))}
+              </StaggerItem>)}
           </StaggerContainer>
         </div>
       </section>
@@ -424,14 +373,13 @@ const Landing = () => {
           </ScrollReveal>
           
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {testimonials.map((testimonial) => (
-              <StaggerItem key={testimonial.name}>
+            {testimonials.map(testimonial => <StaggerItem key={testimonial.name}>
                 <div className="glass-card p-4 sm:p-6 h-full">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
                     <div className="flex gap-0.5 sm:gap-1">
-                      {Array.from({ length: testimonial.rating }).map((_, i) => (
-                        <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 fill-primary text-primary" />
-                      ))}
+                      {Array.from({
+                    length: testimonial.rating
+                  }).map((_, i) => <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 fill-primary text-primary" />)}
                     </div>
                     <span className="text-[10px] sm:text-xs font-medium text-primary bg-primary/10 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                       {testimonial.highlight}
@@ -443,8 +391,7 @@ const Landing = () => {
                     <div className="text-xs sm:text-sm text-muted-foreground">{testimonial.role}</div>
                   </div>
                 </div>
-              </StaggerItem>
-            ))}
+              </StaggerItem>)}
           </StaggerContainer>
         </div>
       </section>
@@ -472,22 +419,10 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">per month</div>
               <p className="text-xs text-muted-foreground mb-4">Solo managers & small agencies who want clarity</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {[
-                  "Up to 2 creators",
-                  "Up to 3 employees",
-                  "50 GB Content Vault",
-                  "Creator profiles + onboarding",
-                  "Employee onboarding",
-                  "Task management",
-                  "Basic performance tracking",
-                  "Agency progress dashboard",
-                  "AI Chatting System"
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Up to 2 creators", "Up to 3 employees", "50 GB Content Vault", "Creator profiles + onboarding", "Employee onboarding", "Task management", "Basic performance tracking", "Agency progress dashboard", "AI Chatting System"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <div className="p-3 bg-muted/50 rounded-lg mb-4">
                 <p className="text-xs text-muted-foreground italic">"Is my operation even working?"</p>
@@ -510,24 +445,10 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">per month</div>
               <p className="text-xs text-muted-foreground mb-4">Real agencies running teams</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {[
-                  "Up to 6 creators",
-                  "Up to 15 employees",
-                  "200 GB Content Vault",
-                  "Recruitment form + lead pipeline",
-                  "Advanced creator profiles",
-                  "Role-based employee views",
-                  "Performance analytics",
-                  "Task backlog & bottleneck detection",
-                  "System health dashboard",
-                  "AI Chatting System",
-                  "Priority support"
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Up to 6 creators", "Up to 15 employees", "200 GB Content Vault", "Recruitment form + lead pipeline", "Advanced creator profiles", "Role-based employee views", "Performance analytics", "Task backlog & bottleneck detection", "System health dashboard", "AI Chatting System", "Priority support"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <div className="p-3 bg-primary/10 rounded-lg mb-4">
                 <p className="text-xs text-primary italic">"Where am I leaking money and time?"</p>
@@ -547,25 +468,10 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">per month</div>
               <p className="text-xs text-muted-foreground mb-4">Agencies unlocking AI capabilities</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {[
-                  "Up to 15 creators",
-                  "Up to 40 employees",
-                  "600 GB Content Vault",
-                  "Everything in Scale",
-                  "Advanced performance metrics",
-                  "Creator consistency scoring",
-                  "Staff reliability scoring",
-                  "Workflow friction indicators",
-                  "AI NSFW Voice Cloner",
-                  "AI NSFW Content Generator",
-                  "Executive dashboard",
-                  "Early access to features"
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Up to 15 creators", "Up to 40 employees", "600 GB Content Vault", "Everything in Scale", "Advanced performance metrics", "Creator consistency scoring", "Staff reliability scoring", "Workflow friction indicators", "AI NSFW Voice Cloner", "AI NSFW Content Generator", "Executive dashboard", "Early access to features"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <div className="p-3 bg-muted/50 rounded-lg mb-4">
                 <p className="text-xs text-muted-foreground italic">"Unlock the power of AI for my agency."</p>
@@ -585,23 +491,10 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">custom pricing</div>
               <p className="text-xs text-muted-foreground mb-4">Large agencies & multi-brand operators</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {[
-                  "Unlimited creators",
-                  "Unlimited employees",
-                  "1 TB+ Content Vault",
-                  "All AI Tools Included",
-                  "Fully customized dashboards",
-                  "Custom KPIs & metrics",
-                  "Agency-specific logic",
-                  "White-labeled experience",
-                  "Dedicated implementation",
-                  "SLA + roadmap influence"
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Unlimited creators", "Unlimited employees", "1 TB+ Content Vault", "All AI Tools Included", "Fully customized dashboards", "Custom KPIs & metrics", "Agency-specific logic", "White-labeled experience", "Dedicated implementation", "SLA + roadmap influence"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <div className="p-3 bg-muted/50 rounded-lg mb-4">
                 <p className="text-xs text-muted-foreground italic">"Run the agency like a company, not a hustle."</p>
@@ -648,11 +541,7 @@ const Landing = () => {
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
             <div className="col-span-2 sm:col-span-2 lg:col-span-2">
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <img 
-                  src={myCreatorSuiteLogo} 
-                  alt="My Creator Suite" 
-                  className="h-6 sm:h-8 w-auto animate-neon-glow"
-                />
+                <img src={myCreatorSuiteLogo} alt="My Creator Suite" className="h-6 sm:h-8 w-auto animate-neon-glow" />
                 <span className="text-base sm:text-lg font-semibold text-foreground">Creator OS</span>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-sm">
@@ -687,8 +576,6 @@ const Landing = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
