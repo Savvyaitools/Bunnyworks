@@ -21,6 +21,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAgency } from "@/hooks/useAgency";
 
 interface ContentFolder {
   id: string;
@@ -66,6 +67,7 @@ interface CreatorContentVaultProps {
 }
 
 export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
+  const { agencyId } = useAgency();
   const [folders, setFolders] = useState<ContentFolder[]>([]);
   const [files, setFiles] = useState<ContentFile[]>([]);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   }, [fetchContent]);
 
   const createFolder = async () => {
-    if (!newFolderName.trim()) return;
+    if (!newFolderName.trim() || !agencyId) return;
 
     const { error } = await supabase
       .from("content_folders")
@@ -138,6 +140,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
         name: newFolderName,
         creator_id: creatorId,
         parent_id: currentFolder,
+        agency_id: agencyId,
       });
 
     if (error) {
@@ -235,6 +238,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
             folder_id: currentFolder,
             creator_id: creatorId,
             content_type: selectedContentType,
+            agency_id: agencyId,
           });
 
         if (dbError) {

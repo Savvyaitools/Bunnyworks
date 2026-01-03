@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useContentPlanMedia, ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
-
+import { useAgency } from "@/hooks/useAgency";
 interface ContentPlan {
   id: string;
   title: string;
@@ -46,6 +46,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
+  const { agencyId } = useAgency();
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
@@ -89,7 +90,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   }, [fetchPlans]);
 
   const createPlan = async () => {
-    if (!formData.title.trim()) return;
+    if (!formData.title.trim() || !agencyId) return;
 
     const { error } = await supabase
       .from("content_plans")
@@ -99,6 +100,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         scheduled_date: formData.scheduled_date || null,
         platform: formData.platform || null,
         creator_id: creatorId,
+        agency_id: agencyId,
         status: "planned",
         reference_media: JSON.parse(JSON.stringify(pendingMedia)),
       }]);
