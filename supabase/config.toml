@@ -1,7 +1,7 @@
 project_id = "rforophgmeiueauuxhga"
 
 [functions.analyze-screenshot]
-verify_jwt = true
+verify_jwt = false
 
 [functions.firecrawl-scrape]
 verify_jwt = true
