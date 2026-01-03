@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAgency } from "./useAgency";
 
 export interface CalendarEvent {
   id: string;
@@ -11,15 +12,17 @@ export interface CalendarEvent {
   end_date: string | null;
   all_day: boolean;
   creator_id: string | null;
+  agency_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export function useCalendarEvents() {
   const queryClient = useQueryClient();
+  const { agencyId } = useAgency();
 
   const { data: events = [], isLoading: loading } = useQuery({
-    queryKey: ["calendar-events"],
+    queryKey: ["calendar-events", agencyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("calendar_events")
@@ -29,13 +32,14 @@ export function useCalendarEvents() {
       if (error) throw error;
       return data as CalendarEvent[];
     },
+    enabled: !!agencyId,
   });
 
   const createEvent = useMutation({
-    mutationFn: async (event: Omit<CalendarEvent, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (event: Omit<CalendarEvent, "id" | "created_at" | "updated_at" | "agency_id">) => {
       const { data, error } = await supabase
         .from("calendar_events")
-        .insert(event)
+        .insert({ ...event, agency_id: agencyId })
         .select()
         .single();
 
