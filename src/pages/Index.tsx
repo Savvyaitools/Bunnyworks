@@ -38,16 +38,41 @@ const Index = () => {
     },
   });
 
-  // Fetch total revenue from creator_earnings
+  // Fetch total revenue from creator_earnings (NET amounts) and extracted_data for GROSS
   const { data: revenueData } = useQuery({
     queryKey: ["total-revenue"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get NET earnings from creator_earnings
+      const { data: netData, error: netError } = await supabase
         .from("creator_earnings")
         .select("amount");
-      if (error) throw error;
-      const total = data?.reduce((sum, earning) => sum + Number(earning.amount), 0) || 0;
-      return total;
+      if (netError) throw netError;
+      const netTotal = netData?.reduce((sum, earning) => sum + Number(earning.amount), 0) || 0;
+      
+      // Get GROSS from extracted_data for calculating agency cut
+      const { data: extractedData, error: extractedError } = await supabase
+        .from("extracted_data")
+        .select("value, raw_text")
+        .eq("data_type", "earnings");
+      if (extractedError) throw extractedError;
+      
+      // Sum up GROSS values
+      const grossTotal = extractedData?.reduce((sum, item) => {
+        if (item.raw_text?.toLowerCase().includes("gross")) {
+          return sum + Number(item.value);
+        }
+        return sum;
+      }, 0) || 0;
+      
+      // If we have both GROSS and NET, agency earnings = GROSS - NET
+      // Otherwise estimate agency cut using commission rate
+      const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : netTotal * commissionRate;
+      
+      return {
+        netTotal,      // Creator's take-home
+        grossTotal,    // Total before platform fees
+        agencyEarnings // Agency's cut
+      };
     },
   });
 
@@ -66,28 +91,39 @@ const Index = () => {
   // Use compact format for dashboard metrics
   const formatCompactCurrency = (value: number) => formatCurrency(value, true);
 
+  // Extract revenue figures
+  const grossRevenue = revenueData?.grossTotal || revenueData?.netTotal || 0;
+  const netRevenue = revenueData?.netTotal || 0;
+  const agencyEarnings = revenueData?.agencyEarnings || 0;
+
   // Calculate percentages for circular charts
   const revenueTarget = 100000; // Example target
-  const revenuePercentage = Math.min(((revenueData || 0) / revenueTarget) * 100, 100);
-  const agencyEarnings = (revenueData || 0) * commissionRate;
-  const agencyPercentage = Math.min((agencyEarnings / (revenueTarget * commissionRate)) * 100, 100);
+  const revenuePercentage = Math.min((grossRevenue / revenueTarget) * 100, 100);
+  const agencyPercentage = Math.min((agencyEarnings / (revenueTarget * 0.2)) * 100, 100);
   const creatorsPercentage = totalCreators ? ((creatorsData || 0) / totalCreators) * 100 : 0;
   const tasksPercentage = tasksData ? (tasksData.completed / tasksData.total) * 100 : 0;
 
   const metrics = [
     {
-      title: "Total Revenue",
-      value: formatCompactCurrency(revenueData || 0),
+      title: "Gross Revenue",
+      value: formatCompactCurrency(grossRevenue),
       percentage: revenuePercentage,
       color: "hsl(217, 91%, 60%)", // Blue
       icon: DollarSign,
+    },
+    {
+      title: "Creator Net",
+      value: formatCompactCurrency(netRevenue),
+      percentage: Math.min((netRevenue / (revenueTarget * 0.8)) * 100, 100),
+      color: "hsl(142, 71%, 45%)", // Green
+      icon: TrendingUp,
     },
     {
       title: "Agency Earnings",
       value: formatCompactCurrency(agencyEarnings),
       percentage: agencyPercentage,
       color: "hsl(32, 95%, 55%)", // Orange
-      icon: TrendingUp,
+      icon: DollarSign,
     },
     {
       title: "Active Creators",

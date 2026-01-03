@@ -8,30 +8,59 @@ export function RevenueChart() {
   const { data: chartData, isLoading } = useQuery({
     queryKey: ["revenue-chart"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get NET earnings from creator_earnings
+      const { data: netData, error: netError } = await supabase
         .from("creator_earnings")
-        .select("amount, period_start, period_end")
+        .select("amount, period_start, notes")
         .order("period_start", { ascending: true });
       
-      if (error) throw error;
+      if (netError) throw netError;
+      
+      // Get GROSS from extracted_data
+      const { data: grossData, error: grossError } = await supabase
+        .from("extracted_data")
+        .select("value, period_start, raw_text")
+        .eq("data_type", "earnings");
+      
+      if (grossError) throw grossError;
       
       // Group by month
-      const monthlyData: Record<string, { agency: number; creator: number }> = {};
+      const monthlyData: Record<string, { net: number; gross: number; agency: number }> = {};
       
       // Initialize last 12 months with zeros
       for (let i = 11; i >= 0; i--) {
         const date = subMonths(new Date(), i);
         const monthKey = format(date, "MMM");
-        monthlyData[monthKey] = { agency: 0, creator: 0 };
+        monthlyData[monthKey] = { net: 0, gross: 0, agency: 0 };
       }
       
-      // Fill in actual data
-      data?.forEach((earning) => {
+      // Fill in NET data from creator_earnings
+      netData?.forEach((earning) => {
         const monthKey = format(new Date(earning.period_start), "MMM");
         if (monthlyData[monthKey]) {
-          const amount = Number(earning.amount);
-          monthlyData[monthKey].creator += amount;
-          monthlyData[monthKey].agency += amount * 0.3; // 30% agency cut
+          monthlyData[monthKey].net += Number(earning.amount);
+        }
+      });
+      
+      // Fill in GROSS data from extracted_data
+      grossData?.forEach((item) => {
+        if (item.raw_text?.toLowerCase().includes("gross") && item.period_start) {
+          const monthKey = format(new Date(item.period_start), "MMM");
+          if (monthlyData[monthKey]) {
+            monthlyData[monthKey].gross += Number(item.value);
+          }
+        }
+      });
+      
+      // Calculate agency earnings (GROSS - NET, or estimate if no GROSS)
+      Object.keys(monthlyData).forEach(month => {
+        const data = monthlyData[month];
+        if (data.gross > 0) {
+          data.agency = data.gross - data.net;
+        } else if (data.net > 0) {
+          // Estimate: typical platform takes 20%, so net is ~80% of gross
+          data.gross = data.net / 0.8;
+          data.agency = data.gross - data.net;
         }
       });
       
@@ -43,7 +72,7 @@ export function RevenueChart() {
   });
 
   const displayData = chartData || [];
-  const hasData = displayData.some(d => d.agency > 0 || d.creator > 0);
+  const hasData = displayData.some(d => d.net > 0 || d.agency > 0);
 
   return (
     <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "200ms" }}>
@@ -54,12 +83,12 @@ export function RevenueChart() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-primary" />
-            <span className="text-sm text-muted-foreground">Agency</span>
+            <span className="w-3 h-3 rounded-full bg-success" />
+            <span className="text-sm text-muted-foreground">Creator Net</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-accent" />
-            <span className="text-sm text-muted-foreground">Creator</span>
+            <span className="w-3 h-3 rounded-full bg-primary" />
+            <span className="text-sm text-muted-foreground">Agency</span>
           </div>
         </div>
       </div>
@@ -77,13 +106,13 @@ export function RevenueChart() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
+                <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0} />
+                </linearGradient>
                 <linearGradient id="colorAgency" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(330, 85%, 60%)" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="hsl(330, 85%, 60%)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorCreator" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(180, 70%, 50%)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(180, 70%, 50%)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis 
@@ -110,10 +139,11 @@ export function RevenueChart() {
               />
               <Area
                 type="monotone"
-                dataKey="creator"
-                stroke="hsl(180, 70%, 50%)"
+                dataKey="net"
+                stroke="hsl(142, 71%, 45%)"
                 strokeWidth={2}
-                fill="url(#colorCreator)"
+                fill="url(#colorNet)"
+                name="Creator Net"
               />
               <Area
                 type="monotone"
@@ -121,6 +151,7 @@ export function RevenueChart() {
                 stroke="hsl(330, 85%, 60%)"
                 strokeWidth={2}
                 fill="url(#colorAgency)"
+                name="Agency"
               />
             </AreaChart>
           </ResponsiveContainer>
