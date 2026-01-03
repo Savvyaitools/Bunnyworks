@@ -25,6 +25,7 @@ export interface Creator {
   twitter_url: string | null;
   snapchat_url: string | null;
   agency_id: string | null;
+  commission_rate: number | null;
   created_at: string;
   updated_at: string;
 }

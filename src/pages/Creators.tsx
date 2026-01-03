@@ -50,6 +50,7 @@ export default function Creators() {
       tiktok_url: null,
       twitter_url: null,
       snapchat_url: null,
+      commission_rate: null,
     });
     setIsAddDialogOpen(false);
   };

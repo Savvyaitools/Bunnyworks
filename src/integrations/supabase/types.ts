@@ -562,6 +562,7 @@ export type Database = {
           alias: string | null
           avatar_seed: string | null
           avatar_url: string | null
+          commission_rate: number | null
           created_at: string
           email: string
           followers: string | null
@@ -586,6 +587,7 @@ export type Database = {
           alias?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
+          commission_rate?: number | null
           created_at?: string
           email: string
           followers?: string | null
@@ -610,6 +612,7 @@ export type Database = {
           alias?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
+          commission_rate?: number | null
           created_at?: string
           email?: string
           followers?: string | null
