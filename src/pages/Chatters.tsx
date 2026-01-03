@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
-  Search, Plus, MoreVertical, Trash2, Star, 
-  Clock, Users, CheckCircle, XCircle
+  Search, MoreVertical, Trash2, Star, 
+  Clock, Users, CheckCircle
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
@@ -16,24 +16,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useChatters, SkillGrade, CreateChatterInput } from "@/hooks/useChatters";
+import { useChatters, SkillGrade } from "@/hooks/useChatters";
 import { useCreatorAssignments } from "@/hooks/useCreatorAssignments";
 
 const gradeStyles: Record<SkillGrade, string> = {
@@ -42,36 +27,12 @@ const gradeStyles: Record<SkillGrade, string> = {
   C: "bg-orange-500/20 text-orange-400 border-orange-500/30",
 };
 
-const gradeLabels: Record<SkillGrade, string> = {
-  A: "Grade A - Expert",
-  B: "Grade B - Intermediate",
-  C: "Grade C - Beginner",
-};
-
-const timezones = [
-  "UTC-8 (PST)",
-  "UTC-5 (EST)",
-  "UTC+0 (GMT)",
-  "UTC+1 (CET)",
-  "UTC+8 (SGT)",
-  "UTC+9 (JST)",
-];
 
 export default function Chatters() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGrade, setSelectedGrade] = useState<SkillGrade | "all">("all");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<CreateChatterInput>>({
-    name: "",
-    email: "",
-    skill_grade: "B",
-    timezone: "",
-    is_active: true,
-    auth_user_id: null,
-    avatar_seed: null,
-  });
 
-  const { chatters, loading, stats, createChatter, updateChatter, deleteChatter } = useChatters();
+  const { chatters, loading, stats, updateChatter, deleteChatter } = useChatters();
   const { assignments } = useCreatorAssignments();
 
   const getChatterAssignments = (chatterId: string) => {
@@ -85,24 +46,6 @@ export default function Chatters() {
     const matchesGrade = selectedGrade === "all" || chatter.skill_grade === selectedGrade;
     return matchesSearch && matchesGrade;
   });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name) return;
-
-    await createChatter({
-      name: formData.name,
-      email: formData.email || null,
-      skill_grade: formData.skill_grade as SkillGrade,
-      timezone: formData.timezone || null,
-      is_active: formData.is_active ?? true,
-      auth_user_id: null,
-      avatar_seed: formData.name.toLowerCase().replace(/\s/g, ""),
-    });
-
-    setFormData({ name: "", email: "", skill_grade: "B", timezone: "", is_active: true });
-    setIsAddDialogOpen(false);
-  };
 
   const handleGradeChange = async (id: string, grade: SkillGrade) => {
     await updateChatter(id, { skill_grade: grade });
@@ -123,86 +66,9 @@ export default function Chatters() {
               {loading ? "Loading..." : `${stats.total} chatters • ${stats.active} active`}
             </p>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow-sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Chatter
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-card border-border">
-              <DialogHeader>
-                <DialogTitle>Add New Chatter</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Chatter name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="chatter@email.com"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="grade">Skill Grade</Label>
-                    <Select
-                      value={formData.skill_grade}
-                      onValueChange={(v) => setFormData({ ...formData, skill_grade: v as SkillGrade })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="A">Grade A - Expert</SelectItem>
-                        <SelectItem value="B">Grade B - Intermediate</SelectItem>
-                        <SelectItem value="C">Grade C - Beginner</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <Select
-                      value={formData.timezone}
-                      onValueChange={(v) => setFormData({ ...formData, timezone: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select timezone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timezones.map((tz) => (
-                          <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="active">Active Status</Label>
-                  <Switch
-                    id="active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-gradient-primary">
-                  Add Chatter
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <p className="text-sm text-muted-foreground">
+            Add chatters from the Employees section with the "Chatter" role
+          </p>
         </div>
 
         {/* Stats */}
