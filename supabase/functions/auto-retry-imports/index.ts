@@ -72,13 +72,15 @@ serve(async (req) => {
           continue;
         }
 
-        // Call the analyze-screenshot function
+        // Call the analyze-screenshot function using the anon key for proper JWT format
+        const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
         const analyzeUrl = `${supabaseUrl}/functions/v1/analyze-screenshot`;
         const response = await fetch(analyzeUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseServiceKey}`,
+            "Authorization": `Bearer ${supabaseAnonKey}`,
+            "apikey": supabaseAnonKey,
           },
           body: JSON.stringify({
             importId: importItem.id,
