@@ -63,8 +63,7 @@ const AIChatting = () => {
               <img 
                 src={myCreatorSuiteLogo} 
                 alt="My Creator Suite" 
-                className="h-10 w-auto rounded-lg"
-                style={{ mixBlendMode: 'screen' }}
+                className="h-10 w-auto"
               />
               <span className="text-xl font-bold gradient-text">Creator OS</span>
             </Link>
