@@ -1,23 +1,41 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, Image, Loader2 } from "lucide-react";
+import { Upload, Image, Loader2, CheckCircle, XCircle, Clock, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { useCreators } from "@/hooks/useCreators";
+import { UploadProgress } from "@/hooks/useDataImports";
 
 interface ImportUploaderProps {
-  onUpload: (file: File, creatorId?: string) => Promise<any>;
+  onUpload: (files: File[], creatorId?: string) => Promise<void>;
   uploading: boolean;
+  uploadProgress: UploadProgress[];
+  onClearProgress: () => void;
 }
 
-export function ImportUploader({ onUpload, uploading }: ImportUploaderProps) {
+const statusConfig = {
+  uploading: { icon: Loader2, color: "text-primary", label: "Uploading..." },
+  analyzing: { icon: Loader2, color: "text-primary", label: "Analyzing..." },
+  complete: { icon: CheckCircle, color: "text-success", label: "Complete" },
+  error: { icon: XCircle, color: "text-destructive", label: "Failed" },
+};
+
+const resultConfig = {
+  approved: { icon: CheckCircle, color: "text-success", label: "Auto-approved" },
+  pending_review: { icon: Clock, color: "text-warning", label: "Pending review" },
+  rejected: { icon: XCircle, color: "text-destructive", label: "Rejected" },
+};
+
+export function ImportUploader({ onUpload, uploading, uploadProgress, onClearProgress }: ImportUploaderProps) {
   const [selectedCreator, setSelectedCreator] = useState<string>("");
   const { creators } = useCreators();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    for (const file of acceptedFiles) {
-      await onUpload(file, selectedCreator || undefined);
+    if (acceptedFiles.length > 0) {
+      await onUpload(acceptedFiles, selectedCreator || undefined);
     }
   }, [onUpload, selectedCreator]);
 
@@ -27,7 +45,10 @@ export function ImportUploader({ onUpload, uploading }: ImportUploaderProps) {
       "image/*": [".png", ".jpg", ".jpeg", ".webp", ".gif"],
     },
     disabled: uploading,
+    multiple: true,
   });
+
+  const hasProgress = uploadProgress.length > 0;
 
   return (
     <div className="space-y-4">
@@ -64,22 +85,12 @@ export function ImportUploader({ onUpload, uploading }: ImportUploaderProps) {
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center justify-center gap-4 text-center">
-          {uploading ? (
-            <>
-              <div className="p-4 rounded-full bg-primary/10">
-                <Loader2 className="h-8 w-8 text-primary animate-spin" />
-              </div>
-              <div>
-                <p className="font-medium">Uploading & Analyzing...</p>
-                <p className="text-sm text-muted-foreground">AI is extracting data from your screenshot</p>
-              </div>
-            </>
-          ) : isDragActive ? (
+          {isDragActive ? (
             <>
               <div className="p-4 rounded-full bg-primary/10">
                 <Image className="h-8 w-8 text-primary" />
               </div>
-              <p className="font-medium text-primary">Drop your screenshot here...</p>
+              <p className="font-medium text-primary">Drop your screenshots here...</p>
             </>
           ) : (
             <>
@@ -89,13 +100,63 @@ export function ImportUploader({ onUpload, uploading }: ImportUploaderProps) {
               <div>
                 <p className="font-medium">Drag & drop screenshots here</p>
                 <p className="text-sm text-muted-foreground">
-                  or click to browse • PNG, JPG, WEBP supported
+                  or click to browse • PNG, JPG, WEBP supported • Multiple files allowed
                 </p>
               </div>
             </>
           )}
         </div>
       </div>
+
+      {/* Upload Progress */}
+      {hasProgress && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Upload Progress</Label>
+            {!uploading && (
+              <Button variant="ghost" size="sm" onClick={onClearProgress}>
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {uploadProgress.map((item) => {
+              const status = statusConfig[item.status];
+              const result = item.result ? resultConfig[item.result] : null;
+              const StatusIcon = status.icon;
+              const isAnimating = item.status === "uploading" || item.status === "analyzing";
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg"
+                >
+                  <StatusIcon
+                    className={cn("h-5 w-5 shrink-0", status.color, isAnimating && "animate-spin")}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.fileName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Progress value={item.progress} className="h-1.5 flex-1" />
+                      <span className="text-xs text-muted-foreground w-8">{item.progress}%</span>
+                    </div>
+                    {item.status === "complete" && result && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <result.icon className={cn("h-3 w-3", result.color)} />
+                        <span className={cn("text-xs", result.color)}>{result.label}</span>
+                      </div>
+                    )}
+                    {item.status === "error" && item.message && (
+                      <p className="text-xs text-destructive mt-1">{item.message}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Help Text */}
       <div className="bg-muted/30 rounded-lg p-4 text-sm">
