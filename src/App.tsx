@@ -29,6 +29,7 @@ import PortalContentPlans from "./pages/portal/PortalContentPlans";
 import PortalTasks from "./pages/portal/PortalTasks";
 import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs } from "./pages/employee";
 import EmployeePerformance from "./pages/EmployeePerformance";
+import { AIChatting, AIVoiceCloner, AIContentGenerator } from "./pages/tools";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,11 @@ const AppRoutes = () => {
     <Routes>
       {/* Public Landing Page */}
       <Route path="/" element={<Landing />} />
+      
+      {/* Public Tool Pages */}
+      <Route path="/tools/chatting" element={<AIChatting />} />
+      <Route path="/tools/voice-cloner" element={<AIVoiceCloner />} />
+      <Route path="/tools/content-generator" element={<AIContentGenerator />} />
       
       {/* Auth Route */}
       <Route path="/auth" element={<Auth />} />

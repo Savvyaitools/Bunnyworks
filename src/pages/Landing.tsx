@@ -41,19 +41,22 @@ const secondaryTools = [
     icon: MessageSquare,
     title: "AI-Powered Chatting System",
     description: "Intelligent chat management for creators with automation, smart replies, and seamless fan engagement at scale.",
-    badge: "Included"
+    badge: "Included",
+    link: "/tools/chatting"
   },
   {
     icon: Mic,
     title: "AI NSFW Voice Cloner",
     description: "Clone creator voices for personalized audio content. Create authentic voice messages that fans love.",
-    badge: "Pro+"
+    badge: "Pro+",
+    link: "/tools/voice-cloner"
   },
   {
     icon: Image,
     title: "AI NSFW Content Generator",
     description: "Generate high-quality, platform-ready content using AI. Scale content production without limits.",
-    badge: "Pro+"
+    badge: "Pro+",
+    link: "/tools/content-generator"
   }
 ];
 
@@ -240,7 +243,7 @@ const Landing = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {secondaryTools.map((tool) => (
-              <div key={tool.title} className="glass-card p-8 text-center relative overflow-hidden group hover:border-primary/50 transition-all">
+              <Link key={tool.title} to={tool.link} className="glass-card p-8 text-center relative overflow-hidden group hover:border-primary/50 transition-all cursor-pointer">
                 <div className="absolute top-4 right-4">
                   <span className={`text-xs font-medium px-3 py-1 rounded-full ${
                     tool.badge === "Included" 
@@ -254,8 +257,9 @@ const Landing = () => {
                   <tool.icon className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground mb-3">{tool.title}</h3>
-                <p className="text-muted-foreground">{tool.description}</p>
-              </div>
+                <p className="text-muted-foreground mb-4">{tool.description}</p>
+                <span className="text-primary text-sm font-medium group-hover:underline">Learn more →</span>
+              </Link>
             ))}
           </div>
         </div>
