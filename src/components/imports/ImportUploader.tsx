@@ -55,12 +55,12 @@ export function ImportUploader({ onUpload, uploading, uploadProgress, onClearPro
       {/* Creator Selection */}
       <div className="space-y-2">
         <Label htmlFor="creator-select">Link to Creator (Optional)</Label>
-        <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+        <Select value={selectedCreator} onValueChange={(val) => setSelectedCreator(val === "none" ? "" : val)}>
           <SelectTrigger id="creator-select" className="w-full md:w-80">
             <SelectValue placeholder="Select a creator to link..." />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No creator (general import)</SelectItem>
+            <SelectItem value="none">No creator (general import)</SelectItem>
             {creators.map((creator) => (
               <SelectItem key={creator.id} value={creator.id}>
                 {creator.name}
