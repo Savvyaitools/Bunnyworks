@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, CalendarIcon, MoreHorizontal, Pencil, XCircle, UserX, Trash2 } from "lucide-react";
+import { useState, DragEvent } from "react";
+import { ChevronLeft, ChevronRight, Plus, CalendarIcon, MoreHorizontal, Pencil, XCircle, UserX, Trash2, GripVertical, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCalendarEvents, CalendarEvent } from "@/hooks/useCalendarEvents";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const eventTypeColors: Record<string, string> = {
   task: "bg-primary/80 text-primary-foreground",
@@ -50,6 +52,15 @@ const eventTypeColors: Record<string, string> = {
   no_show: "bg-warning/80 text-warning-foreground",
 };
 
+const eventTypeLabels: Record<string, string> = {
+  task: "Task",
+  meeting: "Meeting",
+  deadline: "Deadline",
+  content: "Content",
+  cancelled: "Cancelled",
+  no_show: "No Show",
+};
+
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function Calendar() {
@@ -57,7 +68,11 @@ export default function Calendar() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [draggedEvent, setDraggedEvent] = useState<CalendarEvent | null>(null);
+  const [dropTargetDay, setDropTargetDay] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -94,6 +109,11 @@ export default function Calendar() {
 
   const goToToday = () => {
     setCurrentDate(new Date());
+  };
+
+  const handleDayClick = (day: number) => {
+    setSelectedDay(day);
+    setIsDayDetailOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -179,6 +199,53 @@ export default function Calendar() {
     setIsDeleteDialogOpen(false);
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, event: CalendarEvent) => {
+    setDraggedEvent(event);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", event.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedEvent(null);
+    setDropTargetDay(null);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, day: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTargetDay(day);
+  };
+
+  const handleDragLeave = () => {
+    setDropTargetDay(null);
+  };
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>, targetDay: number) => {
+    e.preventDefault();
+    setDropTargetDay(null);
+
+    if (!draggedEvent) return;
+
+    const originalDate = new Date(draggedEvent.start_date);
+    const newDate = new Date(year, month, targetDay, originalDate.getHours(), originalDate.getMinutes());
+
+    if (originalDate.getDate() === targetDay && originalDate.getMonth() === month && originalDate.getFullYear() === year) {
+      return; // Same day, no need to update
+    }
+
+    await updateEvent({
+      id: draggedEvent.id,
+      start_date: newDate.toISOString(),
+    });
+
+    toast.success(`Event moved to ${format(newDate, "MMM d, yyyy")}`);
+    setDraggedEvent(null);
+  };
+
+  const selectedDayEvents = selectedDay ? eventsByDay[selectedDay] || [] : [];
+  const selectedFullDate = selectedDay ? new Date(year, month, selectedDay) : null;
+
   const days = [];
   
   // Empty cells for days before the first day of month
@@ -190,13 +257,19 @@ export default function Calendar() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dayEvents = eventsByDay[day] || [];
     const isToday = day === todayDay;
+    const isDropTarget = dropTargetDay === day;
 
     days.push(
       <div
         key={day}
+        onClick={() => handleDayClick(day)}
+        onDragOver={(e) => handleDragOver(e, day)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, day)}
         className={cn(
-          "h-28 p-2 rounded-lg border transition-all duration-200",
-          isToday ? "border-primary bg-primary/5" : "border-border bg-card/50 hover:bg-card"
+          "h-28 p-2 rounded-lg border transition-all duration-200 cursor-pointer",
+          isToday ? "border-primary bg-primary/5" : "border-border bg-card/50 hover:bg-card",
+          isDropTarget && "border-primary border-2 bg-primary/10 scale-[1.02]"
         )}
       >
         <div className="flex items-center justify-between mb-1">
@@ -216,14 +289,22 @@ export default function Calendar() {
           {dayEvents.slice(0, 2).map((event) => (
             <div
               key={event.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, event)}
+              onDragEnd={handleDragEnd}
+              onClick={(e) => e.stopPropagation()}
               className={cn(
-                "text-xs px-1.5 py-0.5 rounded truncate flex items-center justify-between group",
-                eventTypeColors[event.event_type] || eventTypeColors.task
+                "text-xs px-1.5 py-0.5 rounded truncate flex items-center justify-between group cursor-grab active:cursor-grabbing",
+                eventTypeColors[event.event_type] || eventTypeColors.task,
+                draggedEvent?.id === event.id && "opacity-50"
               )}
             >
-              <span className="truncate">
-                {format(new Date(event.start_date), "h:mm a")} {event.title}
-              </span>
+              <div className="flex items-center gap-1 truncate">
+                <GripVertical className="h-3 w-3 opacity-0 group-hover:opacity-50 flex-shrink-0" />
+                <span className="truncate">
+                  {format(new Date(event.start_date), "h:mm a")} {event.title}
+                </span>
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button 
@@ -407,6 +488,11 @@ export default function Calendar() {
           ))}
         </div>
 
+        {/* Drag hint */}
+        <p className="text-xs text-muted-foreground animate-fade-in" style={{ animationDelay: "180ms" }}>
+          💡 Tip: Drag events to reschedule them to a different day
+        </p>
+
         {/* Calendar Grid */}
         <div className="glass-card p-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
           {/* Day Headers */}
@@ -433,6 +519,135 @@ export default function Calendar() {
           </div>
         )}
       </div>
+
+      {/* Day Detail Dialog */}
+      <Dialog open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+              {selectedFullDate && format(selectedFullDate, "EEEE, MMMM d, yyyy")}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            {selectedDayEvents.length === 0 ? (
+              <div className="text-center py-8">
+                <CalendarIcon className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">No events on this day</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => {
+                    setIsDayDetailOpen(false);
+                    if (selectedFullDate) {
+                      setFormData({
+                        ...formData,
+                        date: format(selectedFullDate, "yyyy-MM-dd"),
+                      });
+                    }
+                    setIsAddDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedDayEvents
+                  .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+                  .map((event) => (
+                  <div
+                    key={event.id}
+                    className={cn(
+                      "p-4 rounded-lg border transition-all hover:shadow-md",
+                      "bg-card/80 border-border"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge className={cn("text-xs", eventTypeColors[event.event_type])}>
+                            {eventTypeLabels[event.event_type] || event.event_type}
+                          </Badge>
+                        </div>
+                        <h4 className={cn(
+                          "font-medium text-foreground",
+                          event.event_type === "cancelled" && "line-through text-muted-foreground"
+                        )}>
+                          {event.title}
+                        </h4>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {format(new Date(event.start_date), "h:mm a")}
+                        </div>
+                        {event.description && (
+                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                            {event.description}
+                          </p>
+                        )}
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem onClick={() => {
+                            setIsDayDetailOpen(false);
+                            handleEditClick(event);
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleStatusChange(event, "cancelled")}>
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Mark Cancelled
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(event, "no_show")}>
+                            <UserX className="h-4 w-4 mr-2" />
+                            Mark No Show
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setIsDayDetailOpen(false);
+                              handleDeleteClick(event);
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-2"
+                  onClick={() => {
+                    setIsDayDetailOpen(false);
+                    if (selectedFullDate) {
+                      setFormData({
+                        ...formData,
+                        date: format(selectedFullDate, "yyyy-MM-dd"),
+                      });
+                    }
+                    setIsAddDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </Button>
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Event Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
