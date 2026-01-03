@@ -30,8 +30,11 @@ import PortalTasks from "./pages/portal/PortalTasks";
 import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs } from "./pages/employee";
 import EmployeePerformance from "./pages/EmployeePerformance";
 import DataImport from "./pages/DataImport";
+import Applications from "./pages/Applications";
+import CreatorApplication from "./pages/apply/CreatorApplication";
+import EmployeeApplication from "./pages/apply/EmployeeApplication";
+import WebScraper from "./pages/tools/WebScraper";
 import { AIChatting, AIVoiceCloner, AIContentGenerator } from "./pages/tools";
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -49,6 +52,10 @@ const AppRoutes = () => {
     <Routes>
       {/* Public Landing Page */}
       <Route path="/" element={<Landing />} />
+      
+      {/* Public Application Forms */}
+      <Route path="/apply/creator/:agencyId" element={<CreatorApplication />} />
+      <Route path="/apply/employee/:agencyId" element={<EmployeeApplication />} />
       
       {/* Public Tool Pages */}
       <Route path="/tools/chatting" element={<AIChatting />} />
@@ -142,6 +149,16 @@ const AppRoutes = () => {
       <Route path="/data-import" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <DataImport />
+        </ProtectedRoute>
+      } />
+      <Route path="/applications" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <Applications />
+        </ProtectedRoute>
+      } />
+      <Route path="/tools/scraper" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <WebScraper />
         </ProtectedRoute>
       } />
       

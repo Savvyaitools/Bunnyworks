@@ -16,7 +16,9 @@ import {
   CalendarClock,
   MessageCircle,
   TrendingUp,
-  Upload
+  Upload,
+  ClipboardList,
+  Globe
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -54,6 +56,7 @@ const mainNavItems = [
 
 const recruitingNavItems = [
   { title: "Recruiting", url: "/recruiting", icon: UserPlus },
+  { title: "Applications", url: "/applications", icon: ClipboardList },
 ];
 
 const chattingNavItems = [
@@ -64,6 +67,7 @@ const chattingNavItems = [
 
 const dataNavItems = [
   { title: "Data Import", url: "/data-import", icon: Upload },
+  { title: "Web Scraper", url: "/tools/scraper", icon: Globe },
 ];
 
 const bottomNavItems = [

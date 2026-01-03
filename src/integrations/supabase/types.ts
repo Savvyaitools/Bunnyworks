@@ -1216,6 +1216,101 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_applications: {
+        Row: {
+          agency_id: string
+          application_type: string
+          bio: string | null
+          created_at: string
+          department_preference: string | null
+          email: string
+          experience: string | null
+          followers: string | null
+          id: string
+          instagram_url: string | null
+          name: string
+          notes: string | null
+          onlyfans_url: string | null
+          phone: string | null
+          platform: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role_preference: string | null
+          skills: string[] | null
+          snapchat_url: string | null
+          status: string
+          submitted_at: string
+          tiktok_url: string | null
+          twitter_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          application_type: string
+          bio?: string | null
+          created_at?: string
+          department_preference?: string | null
+          email: string
+          experience?: string | null
+          followers?: string | null
+          id?: string
+          instagram_url?: string | null
+          name: string
+          notes?: string | null
+          onlyfans_url?: string | null
+          phone?: string | null
+          platform?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_preference?: string | null
+          skills?: string[] | null
+          snapchat_url?: string | null
+          status?: string
+          submitted_at?: string
+          tiktok_url?: string | null
+          twitter_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          application_type?: string
+          bio?: string | null
+          created_at?: string
+          department_preference?: string | null
+          email?: string
+          experience?: string | null
+          followers?: string | null
+          id?: string
+          instagram_url?: string | null
+          name?: string
+          notes?: string | null
+          onlyfans_url?: string | null
+          phone?: string | null
+          platform?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_preference?: string | null
+          skills?: string[] | null
+          snapchat_url?: string | null
+          status?: string
+          submitted_at?: string
+          tiktok_url?: string | null
+          twitter_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_applications_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           agency_id: string | null
