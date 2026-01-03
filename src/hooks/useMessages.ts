@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useEffect, useMemo, useCallback } from "react";
+import { useAgency } from "./useAgency";
 
 export interface Message {
   id: string;
@@ -11,13 +12,15 @@ export interface Message {
   content: string;
   read: boolean;
   created_at: string;
+  agency_id?: string;
 }
 
 export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency") {
   const queryClient = useQueryClient();
+  const { agencyId } = useAgency();
 
   const { data: messages = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["messages", conversationId],
+    queryKey: ["messages", conversationId, agencyId],
     queryFn: async () => {
       if (!conversationId) return [];
 
@@ -48,6 +51,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
         sender_name: senderName,
         content: content.trim(),
         read: false,
+        agency_id: agencyId,
       });
 
       if (error) throw error;
@@ -55,7 +59,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
     }
-  }, [conversationId, senderType]);
+  }, [conversationId, senderType, agencyId]);
 
   const markAsRead = useCallback(async () => {
     if (!conversationId) return;
