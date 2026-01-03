@@ -324,7 +324,26 @@ export function useDataImports() {
   // Delete import
   const deleteImport = useMutation({
     mutationFn: async ({ importId, filePath }: { importId: string; filePath: string }) => {
-      // First delete extracted_data (in case no cascade)
+      // Get extracted_data to find notes pattern for creator_earnings cleanup
+      const { data: extractedData } = await supabase
+        .from("extracted_data")
+        .select("raw_text")
+        .eq("import_id", importId);
+
+      // Delete associated creator_earnings that were created from this import
+      // The notes field contains "Imported from screenshot" text
+      if (extractedData && extractedData.length > 0) {
+        for (const item of extractedData) {
+          if (item.raw_text) {
+            await supabase
+              .from("creator_earnings")
+              .delete()
+              .ilike("notes", `%${item.raw_text}%`);
+          }
+        }
+      }
+
+      // Delete extracted_data
       await supabase
         .from("extracted_data")
         .delete()
