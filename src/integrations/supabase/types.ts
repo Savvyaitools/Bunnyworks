@@ -646,6 +646,60 @@ export type Database = {
           },
         ]
       }
+      data_imports: {
+        Row: {
+          agency_id: string | null
+          confidence_score: number | null
+          created_at: string
+          creator_id: string | null
+          file_name: string
+          file_path: string
+          id: string
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          creator_id?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          creator_id?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_imports_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_imports_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_kpis: {
         Row: {
           avg_response_time_minutes: number | null
@@ -846,6 +900,53 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extracted_data: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          data_type: string
+          id: string
+          import_id: string
+          period_end: string | null
+          period_start: string | null
+          platform: string | null
+          raw_text: string | null
+          value: number
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          data_type: string
+          id?: string
+          import_id: string
+          period_end?: string | null
+          period_start?: string | null
+          platform?: string | null
+          raw_text?: string | null
+          value: number
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          data_type?: string
+          id?: string
+          import_id?: string
+          period_end?: string | null
+          period_start?: string | null
+          platform?: string | null
+          raw_text?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extracted_data_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "data_imports"
             referencedColumns: ["id"]
           },
         ]
