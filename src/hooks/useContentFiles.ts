@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState, useCallback } from "react";
+import { useAgency } from "./useAgency";
 
 export interface ContentFile {
   id: string;
@@ -11,10 +12,11 @@ export interface ContentFile {
   file_size: number;
   status: string;
   uploaded_at: string;
+  agency_id: string | null;
   url?: string;
 }
 
-export interface UploadProgress {
+export interface FileUploadProgress {
   fileName: string;
   progress: number;
   status: "uploading" | "complete" | "error";
@@ -22,11 +24,12 @@ export interface UploadProgress {
 
 export function useContentFiles() {
   const queryClient = useQueryClient();
+  const { agencyId } = useAgency();
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<FileUploadProgress[]>([]);
 
   const { data: files = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["content-files"],
+    queryKey: ["content-files", agencyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("content_files")
@@ -46,9 +49,15 @@ export function useContentFiles() {
 
       return filesWithUrls as ContentFile[];
     },
+    enabled: !!agencyId,
   });
 
   const uploadFile = async (file: File): Promise<boolean> => {
+    if (!agencyId) {
+      toast.error("Agency not found");
+      return false;
+    }
+
     const fileId = crypto.randomUUID();
     
     setUploadProgress((prev) => [
@@ -88,6 +97,7 @@ export function useContentFiles() {
         file_type: fileType,
         file_size: file.size,
         status: "Pending Review",
+        agency_id: agencyId,
       });
 
       if (insertError) throw insertError;

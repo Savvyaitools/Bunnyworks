@@ -37,6 +37,10 @@ export function useCalendarEvents() {
 
   const createEvent = useMutation({
     mutationFn: async (event: Omit<CalendarEvent, "id" | "created_at" | "updated_at" | "agency_id">) => {
+      if (!agencyId) {
+        throw new Error("Agency ID not found");
+      }
+
       const { data, error } = await supabase
         .from("calendar_events")
         .insert({ ...event, agency_id: agencyId })

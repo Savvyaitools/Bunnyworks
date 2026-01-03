@@ -72,6 +72,9 @@ export function useRecruitingCreators() {
 
   // Wrapper that adds agency_id when creating
   const createRecruitingCreator = useCallback(async (input: CreateRecruitingInput) => {
+    if (!agencyId) {
+      throw new Error("Agency ID not found");
+    }
     return crud.create({ ...input, agency_id: agencyId });
   }, [crud, agencyId]);
 

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAgency } from "./useAgency";
 
 export interface QCAssignment {
   id: string;
@@ -19,10 +20,11 @@ export interface QCAssignment {
 
 export function useQCAssignments(date?: string) {
   const queryClient = useQueryClient();
+  const { agencyId } = useAgency();
   const effectiveDate = date || new Date().toISOString().split("T")[0];
 
   const { data: assignments = [], isLoading } = useQuery({
-    queryKey: ["qc-assignments", effectiveDate],
+    queryKey: ["qc-assignments", effectiveDate, agencyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("qc_shift_assignments")
@@ -35,6 +37,7 @@ export function useQCAssignments(date?: string) {
       if (error) throw error;
       return (data || []) as QCAssignment[];
     },
+    enabled: !!agencyId,
   });
 
   const assignQC = useMutation({
@@ -47,6 +50,10 @@ export function useQCAssignments(date?: string) {
       employeeId: string;
       date?: string;
     }) => {
+      if (!agencyId) {
+        throw new Error("Agency ID not found");
+      }
+
       const effectiveDateToUse = date || effectiveDate;
 
       // First try to delete existing assignment for this shift block and date
@@ -63,6 +70,7 @@ export function useQCAssignments(date?: string) {
           shift_block: shiftBlock,
           qc_employee_id: employeeId,
           effective_date: effectiveDateToUse,
+          agency_id: agencyId,
         })
         .select()
         .single();

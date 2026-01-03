@@ -44,6 +44,12 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
   const sendMessage = useCallback(async (content: string, senderName: string) => {
     if (!content.trim() || !conversationId) return;
 
+    // Only require agency_id for agency senders
+    if (senderType === "agency" && !agencyId) {
+      toast.error("Agency not found");
+      return;
+    }
+
     try {
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -51,7 +57,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
         sender_name: senderName,
         content: content.trim(),
         read: false,
-        agency_id: agencyId,
+        agency_id: senderType === "agency" ? agencyId : null,
       });
 
       if (error) throw error;
