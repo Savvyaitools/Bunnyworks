@@ -29,6 +29,7 @@ import PortalContentPlans from "./pages/portal/PortalContentPlans";
 import PortalTasks from "./pages/portal/PortalTasks";
 import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs } from "./pages/employee";
 import EmployeePerformance from "./pages/EmployeePerformance";
+import DataImport from "./pages/DataImport";
 import { AIChatting, AIVoiceCloner, AIContentGenerator } from "./pages/tools";
 
 const queryClient = new QueryClient({
@@ -136,6 +137,11 @@ const AppRoutes = () => {
       <Route path="/internal-messages" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <InternalMessages />
+        </ProtectedRoute>
+      } />
+      <Route path="/data-import" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <DataImport />
         </ProtectedRoute>
       } />
       

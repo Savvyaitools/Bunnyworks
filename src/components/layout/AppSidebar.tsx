@@ -15,7 +15,8 @@ import {
   Headphones,
   CalendarClock,
   MessageCircle,
-  TrendingUp
+  TrendingUp,
+  Upload
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -59,6 +60,10 @@ const chattingNavItems = [
   { title: "Chatters", url: "/chatters", icon: Headphones },
   { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
   { title: "Internal Messages", url: "/internal-messages", icon: MessageCircle },
+];
+
+const dataNavItems = [
+  { title: "Data Import", url: "/data-import", icon: Upload },
 ];
 
 const bottomNavItems = [
@@ -176,6 +181,28 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {chattingNavItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={cn("nav-item w-full justify-start", isActive && "active")}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && <span className="flex-1">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Data Section */}
+        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</p>}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {dataNavItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
