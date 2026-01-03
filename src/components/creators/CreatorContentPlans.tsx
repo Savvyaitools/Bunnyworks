@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Calendar, X, Upload, Image, Video, Download, Trash2, FileUp } from "lucide-react";
+import { Plus, Calendar, X, Upload, Image, Video, Download, Trash2, FileUp, Heart, Sparkles, MessageCircle, Instagram, Music, Twitter, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -250,13 +250,48 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                     <SelectValue placeholder="Platform" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="OnlyFans">OnlyFans</SelectItem>
-                    <SelectItem value="Fansly">Fansly</SelectItem>
-                    <SelectItem value="Reddit">Reddit</SelectItem>
-                    <SelectItem value="Instagram">Instagram</SelectItem>
-                    <SelectItem value="TikTok">TikTok</SelectItem>
-                    <SelectItem value="Twitter">Twitter</SelectItem>
-                    <SelectItem value="YouTube">YouTube</SelectItem>
+                    <SelectItem value="OnlyFans">
+                      <span className="flex items-center gap-2">
+                        <Heart className="h-4 w-4 text-blue-400" />
+                        OnlyFans
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Fansly">
+                      <span className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-cyan-400" />
+                        Fansly
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Reddit">
+                      <span className="flex items-center gap-2">
+                        <MessageCircle className="h-4 w-4 text-orange-500" />
+                        Reddit
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Instagram">
+                      <span className="flex items-center gap-2">
+                        <Instagram className="h-4 w-4 text-pink-500" />
+                        Instagram
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="TikTok">
+                      <span className="flex items-center gap-2">
+                        <Music className="h-4 w-4 text-white" />
+                        TikTok
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Twitter">
+                      <span className="flex items-center gap-2">
+                        <Twitter className="h-4 w-4 text-blue-400" />
+                        Twitter
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="YouTube">
+                      <span className="flex items-center gap-2">
+                        <Youtube className="h-4 w-4 text-red-500" />
+                        YouTube
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
