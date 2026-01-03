@@ -1,7 +1,14 @@
 import { ArrowRight, Mic, Zap, Clock, Users, Shield, Headphones, Sparkles, CheckCircle, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { MobileNav } from "@/components/landing/MobileNav";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
+
+const navLinks = [
+  { label: "Home", href: "/" },
+  { label: "AI Chatting", href: "/tools/chatting" },
+  { label: "Content Generator", href: "/tools/content-generator" },
+];
 
 const features = [
   {
@@ -78,7 +85,7 @@ const AIVoiceCloner = () => {
                 Content Generator
               </Link>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-3">
               <Link to="/auth">
                 <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
                   Sign In
@@ -91,6 +98,7 @@ const AIVoiceCloner = () => {
                 </Button>
               </Link>
             </div>
+            <MobileNav links={navLinks} />
           </div>
         </div>
       </nav>
