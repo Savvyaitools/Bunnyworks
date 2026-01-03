@@ -419,7 +419,7 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">per month</div>
               <p className="text-xs text-muted-foreground mb-4">Solo managers & small agencies who want clarity</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["Up to 2 creators", "Up to 3 employees", "50 GB Content Vault", "Creator profiles + onboarding", "Employee onboarding", "Task management", "Basic performance tracking", "Agency progress dashboard", "AI Chatting System"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Up to 2 creators", "Up to 3 employees", "50 GB Content Vault", "Creator profiles + onboarding", "Employee onboarding", "Task management", "Basic performance tracking", "Agency progress dashboard"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </li>)}
@@ -445,7 +445,7 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">per month</div>
               <p className="text-xs text-muted-foreground mb-4">Real agencies running teams</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["Up to 6 creators", "Up to 15 employees", "200 GB Content Vault", "Recruitment form + lead pipeline", "Advanced creator profiles", "Role-based employee views", "Performance analytics", "Task backlog & bottleneck detection", "System health dashboard", "AI Chatting System", "Priority support"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Up to 6 creators", "Up to 15 employees", "200 GB Content Vault", "Recruitment form + lead pipeline", "Advanced creator profiles", "Role-based employee views", "Performance analytics", "Task backlog & bottleneck detection", "System health dashboard", "Priority support"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </li>)}
@@ -468,7 +468,7 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">per month</div>
               <p className="text-xs text-muted-foreground mb-4">Agencies unlocking AI capabilities</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["Up to 15 creators", "Up to 40 employees", "600 GB Content Vault", "Everything in Scale", "Advanced performance metrics", "Creator consistency scoring", "Staff reliability scoring", "Workflow friction indicators", "AI NSFW Voice Cloner", "AI NSFW Content Generator", "Executive dashboard", "Early access to features"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Up to 15 creators", "Up to 40 employees", "600 GB Content Vault", "Everything in Scale", "Advanced performance metrics", "Creator consistency scoring", "Staff reliability scoring", "Workflow friction indicators", "Executive dashboard", "Early access to features"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </li>)}
@@ -491,7 +491,7 @@ const Landing = () => {
               <div className="text-muted-foreground text-sm mb-4">custom pricing</div>
               <p className="text-xs text-muted-foreground mb-4">Large agencies & multi-brand operators</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["Unlimited creators", "Unlimited employees", "1 TB+ Content Vault", "All AI Tools Included", "Fully customized dashboards", "Custom KPIs & metrics", "Agency-specific logic", "White-labeled experience", "Dedicated implementation", "SLA + roadmap influence"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
+                {["Unlimited creators", "Unlimited employees", "1 TB+ Content Vault", "AI Chatting System", "AI NSFW Voice Cloner", "AI NSFW Content Generator", "Fully customized dashboards", "Custom KPIs & metrics", "Agency-specific logic", "White-labeled experience", "Dedicated implementation", "SLA + roadmap influence"].map(item => <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </li>)}
