@@ -51,7 +51,9 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const createFileInputRef = useRef<HTMLInputElement>(null);
   const { uploading, uploadMedia, deleteMedia, updatePlanMedia } = useContentPlanMedia();
+  const [pendingMedia, setPendingMedia] = useState<ContentReferenceMedia[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -91,24 +93,48 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
 
     const { error } = await supabase
       .from("content_plans")
-      .insert({
+      .insert([{
         title: formData.title,
         description: formData.description || null,
         scheduled_date: formData.scheduled_date || null,
         platform: formData.platform || null,
         creator_id: creatorId,
         status: "planned",
-        reference_media: [],
-      });
+        reference_media: JSON.parse(JSON.stringify(pendingMedia)),
+      }]);
 
     if (error) {
       toast.error("Failed to create content plan");
     } else {
       toast.success("Content plan created");
       setFormData({ title: "", description: "", scheduled_date: "", platform: "" });
+      setPendingMedia([]);
       setIsAddOpen(false);
       fetchPlans();
     }
+  };
+
+  const handleCreateFormFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+
+    const files = Array.from(e.target.files);
+    const tempPlanId = `temp-${Date.now()}`;
+
+    for (const file of files) {
+      const mediaItem = await uploadMedia(file, creatorId, tempPlanId);
+      if (mediaItem) {
+        setPendingMedia(prev => [...prev, mediaItem]);
+      }
+    }
+
+    if (createFileInputRef.current) {
+      createFileInputRef.current.value = "";
+    }
+  };
+
+  const removePendingMedia = async (mediaItem: ContentReferenceMedia) => {
+    await deleteMedia(mediaItem.url);
+    setPendingMedia(prev => prev.filter(m => m.id !== mediaItem.id));
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -232,6 +258,61 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                 </Select>
               </div>
               <Button onClick={createPlan} className="w-full">Create Plan</Button>
+
+              {/* Media Upload Section */}
+              <div className="pt-4 border-t border-border">
+                <p className="text-sm font-medium text-foreground mb-3">Reference Media (Optional)</p>
+                <div 
+                  className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => createFileInputRef.current?.click()}
+                >
+                  <input
+                    ref={createFileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleCreateFormFileUpload}
+                  />
+                  <FileUp className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
+                    {uploading ? "Uploading..." : "Click to upload images/videos"}
+                  </p>
+                </div>
+
+                {/* Pending Media Preview */}
+                {pendingMedia.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    {pendingMedia.map((media) => (
+                      <div 
+                        key={media.id} 
+                        className="relative group rounded-lg overflow-hidden border border-border bg-muted/50"
+                      >
+                        {media.type === "image" ? (
+                          <img 
+                            src={media.url} 
+                            alt={media.name}
+                            className="w-full h-16 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-16 flex items-center justify-center bg-muted">
+                            <Video className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removePendingMedia(media);
+                          }}
+                          className="absolute top-1 right-1 p-1 rounded-full bg-destructive/80 hover:bg-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </DialogContent>
         </Dialog>
