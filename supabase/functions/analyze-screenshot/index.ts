@@ -216,6 +216,7 @@ Respond ONLY with valid JSON in this exact format:
     }
 
     // If auto-approved and has earnings, insert into creator_earnings
+    // Only insert NET earnings (creator's actual take-home), not GROSS
     if (status === "approved") {
       const { data: importData } = await supabase
         .from("data_imports")
@@ -225,17 +226,32 @@ Respond ONLY with valid JSON in this exact format:
 
       if (importData?.creator_id) {
         const earningsExtractions = extractions.filter((e: any) => e.type === "earnings");
-        for (const earning of earningsExtractions) {
-          if (earning.period_start && earning.period_end) {
-            await supabase.from("creator_earnings").insert({
-              creator_id: importData.creator_id,
-              amount: earning.value,
-              period_start: earning.period_start,
-              period_end: earning.period_end,
-              platform: earning.platform || "Unknown",
-              notes: `Auto-imported from screenshot. Raw text: ${earning.raw_text || "N/A"}`,
-            });
-          }
+        
+        // Find NET and GROSS earnings for the same period
+        const netEarning = earningsExtractions.find((e: any) => 
+          e.raw_text?.toLowerCase().includes("net")
+        );
+        const grossEarning = earningsExtractions.find((e: any) => 
+          e.raw_text?.toLowerCase().includes("gross")
+        );
+        
+        // Prefer NET, fallback to first earnings if no explicit NET/GROSS distinction
+        const primaryEarning = netEarning || (earningsExtractions.length === 1 ? earningsExtractions[0] : null);
+        
+        if (primaryEarning && primaryEarning.period_start && primaryEarning.period_end) {
+          // Calculate agency cut if we have both GROSS and NET
+          const grossAmount = grossEarning?.value || primaryEarning.value;
+          const netAmount = netEarning?.value || primaryEarning.value;
+          const platformFee = grossAmount - netAmount;
+          
+          await supabase.from("creator_earnings").insert({
+            creator_id: importData.creator_id,
+            amount: netAmount, // Store NET (creator's actual earnings)
+            period_start: primaryEarning.period_start,
+            period_end: primaryEarning.period_end,
+            platform: primaryEarning.platform || "Unknown",
+            notes: `Net: $${netAmount.toFixed(2)}${grossEarning ? ` | Gross: $${grossAmount.toFixed(2)} | Platform fee: $${platformFee.toFixed(2)}` : ''}`,
+          });
         }
       }
     }
