@@ -1,7 +1,7 @@
-import { ArrowRight, Star, Users, DollarSign, TrendingUp, Zap, Shield, Clock, CheckCircle, BarChart3, MessageSquare, Calendar, FileText, Award, Sparkles, Target, Rocket } from "lucide-react";
+import { ArrowRight, Star, Users, DollarSign, TrendingUp, Zap, Shield, Clock, CheckCircle, BarChart3, MessageSquare, Calendar, FileText, Award, Sparkles, Target, Rocket, Mic, Image, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import bunnyLogo from "@/assets/bunny-logo.png";
+import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 
 const features = [
   {
@@ -36,6 +36,27 @@ const features = [
   }
 ];
 
+const secondaryTools = [
+  {
+    icon: MessageSquare,
+    title: "AI-Powered Chatting System",
+    description: "Intelligent chat management for creators with automation, smart replies, and seamless fan engagement at scale.",
+    badge: "Included"
+  },
+  {
+    icon: Mic,
+    title: "AI NSFW Voice Cloner",
+    description: "Clone creator voices for personalized audio content. Create authentic voice messages that fans love.",
+    badge: "Pro+"
+  },
+  {
+    icon: Image,
+    title: "AI NSFW Content Generator",
+    description: "Generate high-quality, platform-ready content using AI. Scale content production without limits.",
+    badge: "Pro+"
+  }
+];
+
 const additionalFeatures = [
   {
     icon: Calendar,
@@ -43,7 +64,7 @@ const additionalFeatures = [
     description: "Visual content calendar with scheduling, reference media uploads, and multi-platform coordination."
   },
   {
-    icon: MessageSquare,
+    icon: Headphones,
     title: "Integrated Messaging",
     description: "Built-in messaging between agency and creators with read receipts and conversation history."
   },
@@ -63,7 +84,7 @@ const testimonials = [
   {
     name: "Sarah M.",
     role: "Agency Owner, 50+ Creators",
-    content: "CreatorOS transformed how we manage our roster. Revenue tracking that used to take hours now happens automatically. We've scaled from 20 to 50 creators without adding admin staff.",
+    content: "Creator OS transformed how we manage our roster. Revenue tracking that used to take hours now happens automatically. We've scaled from 20 to 50 creators without adding admin staff.",
     rating: 5,
     highlight: "Revenue up 40%"
   },
@@ -77,7 +98,7 @@ const testimonials = [
   {
     name: "Jessica R.",
     role: "Agency Operations Director",
-    content: "We tried 5 different tools before finding CreatorOS. Nothing else comes close for managing a serious agency. The automation alone saves us 20+ hours per week.",
+    content: "We tried 5 different tools before finding Creator OS. Nothing else comes close for managing a serious agency. The automation alone saves us 20+ hours per week.",
     rating: 5,
     highlight: "20+ hours saved/week"
   }
@@ -109,15 +130,20 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <img src={bunnyLogo} alt="Pink Bunny" className="h-10 w-auto" />
-              <span className="text-xl font-bold gradient-text">CreatorOS</span>
+              <img 
+                src={myCreatorSuiteLogo} 
+                alt="My Creator Suite" 
+                className="h-10 w-auto rounded-lg"
+                style={{ mixBlendMode: 'screen' }}
+              />
+              <span className="text-xl font-bold gradient-text">Creator OS</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
                 Features
               </a>
-              <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
-                How It Works
+              <a href="#tools" className="text-muted-foreground hover:text-foreground transition-colors">
+                AI Tools
               </a>
               <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors">
                 Testimonials
@@ -153,17 +179,21 @@ const Landing = () => {
           <div className="animate-fade-in">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm text-primary font-medium">The #1 Platform for Creator Agencies</span>
+              <span className="text-sm text-primary font-medium">mycreatorsuite.com — The Complete Creator Agency Suite</span>
             </div>
-            <img src={bunnyLogo} alt="Pink Bunny" className="h-32 w-auto mx-auto mb-8 animate-float" />
+            <img 
+              src={myCreatorSuiteLogo} 
+              alt="My Creator Suite" 
+              className="h-32 w-auto mx-auto mb-8 animate-float rounded-xl"
+              style={{ mixBlendMode: 'screen' }}
+            />
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-              <span className="text-foreground">Run Your Agency Like a</span>
+              <span className="gradient-text">Creator OS</span>
               <br />
-              <span className="gradient-text">Well-Oiled Machine</span>
+              <span className="text-foreground text-4xl sm:text-5xl lg:text-6xl">Run Your Agency Like a Machine</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-              Stop juggling spreadsheets, DMs, and payment trackers. CreatorOS is the all-in-one command center 
-              that helps you manage creators, track revenue, and scale your agency—without the chaos.
+              The flagship agency management platform from My Creator Suite. Manage creators, track revenue, and scale your agency—plus access powerful AI tools for chatting, voice cloning, and content generation.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth">
@@ -196,8 +226,43 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Secondary Tools Section */}
+      <section id="tools" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-foreground mb-4">
+              Powerful <span className="gradient-text">AI Tools</span> Included
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Creator OS comes with a suite of AI-powered tools to supercharge your agency operations.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {secondaryTools.map((tool) => (
+              <div key={tool.title} className="glass-card p-8 text-center relative overflow-hidden group hover:border-primary/50 transition-all">
+                <div className="absolute top-4 right-4">
+                  <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                    tool.badge === "Included" 
+                      ? "bg-green-500/20 text-green-400" 
+                      : "bg-primary/20 text-primary"
+                  }`}>
+                    {tool.badge}
+                  </span>
+                </div>
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 group-hover:bg-primary/20 transition-colors">
+                  <tool.icon className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-3">{tool.title}</h3>
+                <p className="text-muted-foreground">{tool.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Pain Points Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
@@ -228,7 +293,7 @@ const Landing = () => {
 
           <div className="text-center">
             <p className="text-xl text-foreground mb-6">
-              With <span className="gradient-text font-semibold">CreatorOS</span>, these problems disappear.
+              With <span className="gradient-text font-semibold">Creator OS</span>, these problems disappear.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {useCases.map((useCase) => (
@@ -244,7 +309,7 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
@@ -284,7 +349,7 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
+      <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
@@ -328,14 +393,14 @@ const Landing = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8">
+      <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
               Trusted by <span className="gradient-text">Industry Leaders</span>
             </h2>
             <p className="text-muted-foreground text-lg">
-              See why top agencies choose CreatorOS to power their operations.
+              See why top agencies choose Creator OS to power their operations.
             </p>
           </div>
           
@@ -364,7 +429,7 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
+      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
@@ -394,7 +459,8 @@ const Landing = () => {
                   "Employee onboarding",
                   "Task management",
                   "Basic performance tracking",
-                  "Agency progress dashboard"
+                  "Agency progress dashboard",
+                  "AI Chatting System"
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
                     <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
@@ -433,6 +499,7 @@ const Landing = () => {
                   "Performance analytics",
                   "Task backlog & bottleneck detection",
                   "System health dashboard",
+                  "AI Chatting System",
                   "Priority support"
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2 text-muted-foreground text-sm">
@@ -453,11 +520,11 @@ const Landing = () => {
             <div className="glass-card p-6 flex flex-col">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-foreground">PRO</h3>
-                <p className="text-sm text-primary">"Performance Intelligence"</p>
+                <p className="text-sm text-primary">"AI-Powered Growth"</p>
               </div>
               <div className="text-3xl font-bold text-foreground mb-1">$249</div>
               <div className="text-muted-foreground text-sm mb-4">per month</div>
-              <p className="text-xs text-muted-foreground mb-4">Agencies optimizing for scale & profit</p>
+              <p className="text-xs text-muted-foreground mb-4">Agencies unlocking AI capabilities</p>
               <ul className="space-y-2 mb-6 flex-1">
                 {[
                   "Up to 15 creators",
@@ -468,8 +535,8 @@ const Landing = () => {
                   "Creator consistency scoring",
                   "Staff reliability scoring",
                   "Workflow friction indicators",
-                  "Comparative views",
-                  "NSFW AI voice cloning",
+                  "AI NSFW Voice Cloner",
+                  "AI NSFW Content Generator",
                   "Executive dashboard",
                   "Early access to features"
                 ].map((item) => (
@@ -480,7 +547,7 @@ const Landing = () => {
                 ))}
               </ul>
               <div className="p-3 bg-muted/50 rounded-lg mb-4">
-                <p className="text-xs text-muted-foreground italic">"Who or what is holding us back?"</p>
+                <p className="text-xs text-muted-foreground italic">"Unlock the power of AI for my agency."</p>
               </div>
               <Link to="/auth" className="mt-auto">
                 <Button variant="outline" className="w-full">Start 14-Day Free Trial</Button>
@@ -501,6 +568,7 @@ const Landing = () => {
                   "Unlimited creators",
                   "Unlimited employees",
                   "1 TB+ Content Vault",
+                  "All AI Tools Included",
                   "Fully customized dashboards",
                   "Custom KPIs & metrics",
                   "Agency-specific logic",
@@ -524,7 +592,7 @@ const Landing = () => {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
         <div className="max-w-4xl mx-auto text-center">
           <div className="glass-card p-12 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10" />
@@ -533,7 +601,7 @@ const Landing = () => {
                 Ready to Transform Your Agency?
               </h2>
               <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-                Join 500+ agencies already using CreatorOS to streamline operations, boost revenue, and scale without the stress.
+                Join 500+ agencies already using Creator OS to streamline operations, boost revenue, and scale without the stress.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/auth">
@@ -557,17 +625,23 @@ const Landing = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <img src={bunnyLogo} alt="Pink Bunny" className="h-8 w-auto" />
-                <span className="text-lg font-semibold text-foreground">CreatorOS</span>
+                <img 
+                  src={myCreatorSuiteLogo} 
+                  alt="My Creator Suite" 
+                  className="h-8 w-auto rounded-lg"
+                  style={{ mixBlendMode: 'screen' }}
+                />
+                <span className="text-lg font-semibold text-foreground">Creator OS</span>
               </div>
               <p className="text-muted-foreground text-sm max-w-sm">
-                The all-in-one platform for creator agencies to manage talent, track revenue, and scale operations.
+                The flagship product of mycreatorsuite.com — the all-in-one platform for creator agencies to manage talent, track revenue, and scale operations with AI-powered tools.
               </p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-3">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
+                <li><a href="#tools" className="hover:text-foreground transition-colors">AI Tools</a></li>
                 <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
                 <li><a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a></li>
               </ul>
@@ -583,10 +657,10 @@ const Landing = () => {
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-border">
             <div className="text-muted-foreground text-sm">
-              © 2024 Premium Fangirls Agency. All rights reserved.
+              © 2024 My Creator Suite. All rights reserved.
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>Built for agencies that want to win.</span>
+              <span>mycreatorsuite.com — Built for agencies that want to win.</span>
             </div>
           </div>
         </div>
