@@ -1,7 +1,15 @@
 import { ArrowRight, Star, Users, DollarSign, TrendingUp, Zap, Shield, Clock, CheckCircle, BarChart3, MessageSquare, Calendar, FileText, Award, Sparkles, Target, Rocket, Mic, Image, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { MobileNav } from "@/components/landing/MobileNav";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
+
+const mainNavLinks = [
+  { label: "Features", href: "#features", isExternal: true },
+  { label: "AI Tools", href: "#tools", isExternal: true },
+  { label: "Testimonials", href: "#testimonials", isExternal: true },
+  { label: "Pricing", href: "#pricing", isExternal: true },
+];
 
 const features = [
   {
@@ -155,7 +163,7 @@ const Landing = () => {
                 Pricing
               </a>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-3">
               <Link to="/auth">
                 <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
                   Sign In
@@ -168,6 +176,7 @@ const Landing = () => {
                 </Button>
               </Link>
             </div>
+            <MobileNav links={mainNavLinks} />
           </div>
         </div>
       </nav>
