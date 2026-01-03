@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarIcon, MoreHorizontal, Pencil, XCircle, UserX, Trash2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +20,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { useCalendarEvents, CalendarEvent } from "@/hooks/useCalendarEvents";
 import { format } from "date-fns";
 
 const eventTypeColors: Record<string, string> = {
@@ -29,6 +46,8 @@ const eventTypeColors: Record<string, string> = {
   meeting: "bg-accent/80 text-accent-foreground",
   deadline: "bg-destructive/80 text-destructive-foreground",
   content: "bg-success/80 text-success-foreground",
+  cancelled: "bg-muted text-muted-foreground line-through",
+  no_show: "bg-warning/80 text-warning-foreground",
 };
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -36,6 +55,9 @@ const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -44,7 +66,7 @@ export default function Calendar() {
     time: "09:00",
   });
 
-  const { events, loading, createEvent, getEventsByDay } = useCalendarEvents();
+  const { events, loading, createEvent, updateEvent, deleteEvent, getEventsByDay } = useCalendarEvents();
 
   const today = new Date();
   const isCurrentMonth = 
@@ -100,6 +122,63 @@ export default function Calendar() {
     setIsAddDialogOpen(false);
   };
 
+  const handleEditClick = (event: CalendarEvent) => {
+    const eventDate = new Date(event.start_date);
+    setSelectedEvent(event);
+    setFormData({
+      title: event.title,
+      description: event.description || "",
+      event_type: event.event_type,
+      date: format(eventDate, "yyyy-MM-dd"),
+      time: format(eventDate, "HH:mm"),
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEvent || !formData.title || !formData.date) return;
+
+    const startDate = new Date(`${formData.date}T${formData.time}:00`);
+
+    await updateEvent({
+      id: selectedEvent.id,
+      title: formData.title,
+      description: formData.description || null,
+      event_type: formData.event_type,
+      start_date: startDate.toISOString(),
+    });
+
+    setFormData({
+      title: "",
+      description: "",
+      event_type: "task",
+      date: format(new Date(), "yyyy-MM-dd"),
+      time: "09:00",
+    });
+    setSelectedEvent(null);
+    setIsEditDialogOpen(false);
+  };
+
+  const handleStatusChange = async (event: CalendarEvent, newStatus: string) => {
+    await updateEvent({
+      id: event.id,
+      event_type: newStatus,
+    });
+  };
+
+  const handleDeleteClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedEvent) return;
+    await deleteEvent(selectedEvent.id);
+    setSelectedEvent(null);
+    setIsDeleteDialogOpen(false);
+  };
+
   const days = [];
   
   // Empty cells for days before the first day of month
@@ -116,7 +195,7 @@ export default function Calendar() {
       <div
         key={day}
         className={cn(
-          "h-28 p-2 rounded-lg border transition-all duration-200 cursor-pointer hover:border-primary/50",
+          "h-28 p-2 rounded-lg border transition-all duration-200",
           isToday ? "border-primary bg-primary/5" : "border-border bg-card/50 hover:bg-card"
         )}
       >
@@ -138,11 +217,46 @@ export default function Calendar() {
             <div
               key={event.id}
               className={cn(
-                "text-xs px-1.5 py-0.5 rounded truncate",
+                "text-xs px-1.5 py-0.5 rounded truncate flex items-center justify-between group",
                 eventTypeColors[event.event_type] || eventTypeColors.task
               )}
             >
-              {format(new Date(event.start_date), "h:mm a")} {event.title}
+              <span className="truncate">
+                {format(new Date(event.start_date), "h:mm a")} {event.title}
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button 
+                    className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 p-0.5 rounded hover:bg-black/20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreHorizontal className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => handleEditClick(event)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleStatusChange(event, "cancelled")}>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Mark Cancelled
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(event, "no_show")}>
+                    <UserX className="h-4 w-4 mr-2" />
+                    Mark No Show
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => handleDeleteClick(event)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ))}
           {dayEvents.length > 2 && (
@@ -283,6 +397,8 @@ export default function Calendar() {
             { type: "meeting", label: "Meetings" },
             { type: "deadline", label: "Deadlines" },
             { type: "content", label: "Content" },
+            { type: "cancelled", label: "Cancelled" },
+            { type: "no_show", label: "No Show" },
           ].map((item) => (
             <div key={item.type} className="flex items-center gap-2">
               <div className={cn("w-3 h-3 rounded", eventTypeColors[item.type])} />
@@ -317,6 +433,105 @@ export default function Calendar() {
           </div>
         )}
       </div>
+
+      {/* Edit Event Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Edit Event</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Event title"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Event Type</Label>
+              <Select
+                value={formData.event_type}
+                onValueChange={(value) => setFormData({ ...formData, event_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="task">Task</SelectItem>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                  <SelectItem value="deadline">Deadline</SelectItem>
+                  <SelectItem value="content">Content</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="no_show">No Show</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Date</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-time">Time</Label>
+                <Input
+                  id="edit-time"
+                  type="time"
+                  value={formData.time}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description (Optional)</Label>
+              <Textarea
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Event details..."
+                rows={3}
+              />
+            </div>
+
+            <Button type="submit" className="w-full bg-gradient-primary">
+              Save Changes
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedEvent?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
