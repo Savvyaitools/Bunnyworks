@@ -100,7 +100,7 @@ export default function CreatorDetail() {
           </TabsContent>
 
           <TabsContent value="earnings" className="bg-card rounded-lg border border-border p-6">
-            <CreatorEarnings creatorId={creator.id} />
+            <CreatorEarnings creatorId={creator.id} creatorCommissionRate={creator.commission_rate} />
           </TabsContent>
         </Tabs>
       </div>

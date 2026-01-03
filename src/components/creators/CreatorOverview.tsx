@@ -1,14 +1,14 @@
 import { useState, useRef } from "react";
-import { Mail, Phone, Edit, Save, X, Camera, Upload } from "lucide-react";
+import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Creator, UpdateCreatorInput } from "@/hooks/useCreators";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAgency } from "@/hooks/useAgency";
 
 interface CreatorOverviewProps {
   creator: Creator;
@@ -16,6 +16,7 @@ interface CreatorOverviewProps {
 }
 
 export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
+  const { agency } = useAgency();
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,15 +26,21 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     email: creator.email,
     phone: creator.phone || "",
     notes: creator.notes || "",
+    commission_rate: creator.commission_rate !== null ? (creator.commission_rate * 100).toString() : "",
   });
 
   const handleSave = async () => {
+    const commissionValue = formData.commission_rate 
+      ? parseFloat(formData.commission_rate) / 100 
+      : null;
+    
     await onUpdate({
       name: formData.name,
       alias: formData.alias || null,
       email: formData.email,
       phone: formData.phone || null,
       notes: formData.notes || null,
+      commission_rate: commissionValue,
     });
     setIsEditing(false);
   };
@@ -45,6 +52,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       email: creator.email,
       phone: creator.phone || "",
       notes: creator.notes || "",
+      commission_rate: creator.commission_rate !== null ? (creator.commission_rate * 100).toString() : "",
     });
     setIsEditing(false);
   };
@@ -233,6 +241,37 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Commission Rate */}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-foreground flex items-center gap-2">
+          <Percent className="h-4 w-4" />
+          Commission Rate
+        </h3>
+        {isEditing ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              value={formData.commission_rate}
+              onChange={(e) => setFormData({ ...formData, commission_rate: e.target.value })}
+              placeholder={`Default: ${(agency?.commission_rate ?? 0.3) * 100}%`}
+              className="w-32"
+            />
+            <span className="text-muted-foreground">%</span>
+            <span className="text-xs text-muted-foreground ml-2">
+              Leave empty to use agency default ({((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}%)
+            </span>
+          </div>
+        ) : (
+          <p className="text-foreground">
+            {creator.commission_rate !== null 
+              ? `${(creator.commission_rate * 100).toFixed(0)}% (Custom)` 
+              : `${((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}% (Agency Default)`}
+          </p>
+        )}
       </div>
 
       {/* Notes */}
