@@ -480,6 +480,7 @@ export type Database = {
           created_at: string
           creator_id: string
           id: string
+          import_id: string | null
           notes: string | null
           period_end: string
           period_start: string
@@ -490,6 +491,7 @@ export type Database = {
           created_at?: string
           creator_id: string
           id?: string
+          import_id?: string | null
           notes?: string | null
           period_end: string
           period_start: string
@@ -500,6 +502,7 @@ export type Database = {
           created_at?: string
           creator_id?: string
           id?: string
+          import_id?: string | null
           notes?: string | null
           period_end?: string
           period_start?: string
@@ -511,6 +514,13 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_earnings_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "data_imports"
             referencedColumns: ["id"]
           },
         ]

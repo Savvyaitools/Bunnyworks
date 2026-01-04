@@ -8,49 +8,7 @@ import { useUnreadMessages } from "@/hooks/useMessages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/formatters";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  subtitle: string;
-  icon: React.ElementType;
-  trend?: string;
-  trendUp?: boolean;
-  loading?: boolean;
-}
-
-function StatCard({ title, value, subtitle, icon: Icon, trend, trendUp, loading }: StatCardProps) {
-  return (
-    <div className="stat-card animate-fade-in">
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-          <Icon className="h-6 w-6 text-accent" />
-        </div>
-        {trend && (
-          <Badge className={cn(
-            "text-xs",
-            trendUp ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"
-          )}>
-            {trendUp ? "↑" : "↓"} {trend}
-          </Badge>
-        )}
-      </div>
-      {loading ? (
-        <>
-          <Skeleton className="h-8 w-24 mb-1" />
-          <Skeleton className="h-4 w-32 mb-1" />
-          <Skeleton className="h-3 w-20" />
-        </>
-      ) : (
-        <>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-        </>
-      )}
-    </div>
-  );
-}
+import { StatCard } from "@/components/shared";
 
 function formatDueDate(dateString: string | null): string {
   if (!dateString) return "No date";
