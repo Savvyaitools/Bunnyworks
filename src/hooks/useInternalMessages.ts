@@ -2,7 +2,7 @@ import { useSupabaseRead } from "./useSupabaseCRUD";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 
 export interface InternalMessage {
   id: string;
@@ -65,6 +65,45 @@ export function useInternalMessages() {
     messages.filter((m) => !m.read).length, 
     [messages]
   );
+
+  // Subscribe to real-time updates for internal messages
+  useEffect(() => {
+    const channel = supabase
+      .channel("internal-messages-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "internal_messages",
+        },
+        (payload) => {
+          const newMessage = payload.new as InternalMessage;
+          queryClient.invalidateQueries({ queryKey: ["internal-messages"] });
+          
+          // Show toast for new messages (except ones we sent)
+          toast.info("New internal message received", {
+            description: newMessage.content.slice(0, 50) + (newMessage.content.length > 50 ? "..." : ""),
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "internal_messages",
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["internal-messages"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   return {
     messages,
