@@ -106,8 +106,10 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
   useEffect(() => {
     if (!conversationId) return;
 
+    console.log("[useMessages] Setting up realtime subscription for:", conversationId);
+
     const channel = supabase
-      .channel(`messages-${conversationId}`)
+      .channel(`messages-${conversationId}-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -117,8 +119,9 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          // Invalidate with the full query key including effectiveAgencyId
-          queryClient.invalidateQueries({ queryKey: ["messages", conversationId, effectiveAgencyId] });
+          console.log("[useMessages] Realtime event received:", payload.eventType, payload);
+          // Refetch messages directly for immediate update
+          refetch();
 
           if (payload.eventType === "INSERT") {
             const newMessage = payload.new as Message;
@@ -130,12 +133,15 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[useMessages] Subscription status:", status);
+      });
 
     return () => {
+      console.log("[useMessages] Cleaning up subscription for:", conversationId);
       supabase.removeChannel(channel);
     };
-  }, [conversationId, senderType, effectiveAgencyId, queryClient]);
+  }, [conversationId, senderType, refetch]);
 
   return {
     messages,
