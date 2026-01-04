@@ -215,8 +215,7 @@ Respond ONLY with valid JSON in this exact format:
       }
     }
 
-    // If auto-approved and has earnings, insert into creator_earnings
-    // Only insert NET earnings (creator's actual take-home), not GROSS
+    // If auto-approved and has earnings, insert into creator_earnings with import_id for cascade delete
     if (status === "approved") {
       const { data: importData } = await supabase
         .from("data_imports")
@@ -246,6 +245,7 @@ Respond ONLY with valid JSON in this exact format:
           
           await supabase.from("creator_earnings").insert({
             creator_id: importData.creator_id,
+            import_id: importId, // Link to source import for cascade deletion
             amount: netAmount, // Store NET (creator's actual earnings)
             period_start: primaryEarning.period_start,
             period_end: primaryEarning.period_end,

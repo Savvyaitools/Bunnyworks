@@ -268,7 +268,7 @@ export function useDataImports() {
 
       if (error) throw error;
 
-      // If creator is linked, insert earnings
+      // If creator is linked, insert earnings with import_id for cascade delete
       if (creatorId) {
         const extractedData = await getExtractedData(importId);
         const earnings = extractedData.filter(d => d.data_type === "earnings");
@@ -277,6 +277,7 @@ export function useDataImports() {
           if (earning.period_start && earning.period_end) {
             await supabase.from("creator_earnings").insert({
               creator_id: creatorId,
+              import_id: importId, // Link to source import for cascade deletion
               amount: earning.value,
               period_start: earning.period_start,
               period_end: earning.period_end,
@@ -321,38 +322,13 @@ export function useDataImports() {
     },
   });
 
-  // Delete import
+  // Delete import - cascade delete handles extracted_data and creator_earnings automatically
   const deleteImport = useMutation({
     mutationFn: async ({ importId, filePath }: { importId: string; filePath: string }) => {
-      // Get extracted_data to find notes pattern for creator_earnings cleanup
-      const { data: extractedData } = await supabase
-        .from("extracted_data")
-        .select("raw_text")
-        .eq("import_id", importId);
-
-      // Delete associated creator_earnings that were created from this import
-      // The notes field contains "Imported from screenshot" text
-      if (extractedData && extractedData.length > 0) {
-        for (const item of extractedData) {
-          if (item.raw_text) {
-            await supabase
-              .from("creator_earnings")
-              .delete()
-              .ilike("notes", `%${item.raw_text}%`);
-          }
-        }
-      }
-
-      // Delete extracted_data
-      await supabase
-        .from("extracted_data")
-        .delete()
-        .eq("import_id", importId);
-
-      // Delete from storage
+      // Delete from storage first
       await supabase.storage.from("data-imports").remove([filePath]);
       
-      // Delete the import record
+      // Delete the import record - cascade delete handles extracted_data and creator_earnings
       const { error } = await supabase
         .from("data_imports")
         .delete()
