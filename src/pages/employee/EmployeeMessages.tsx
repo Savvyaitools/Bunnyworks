@@ -1,14 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Send, Check, CheckCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmployeeLayout } from "@/components/employee/EmployeeLayout";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { MessageBubble, ChatInput, MessagingEmptyState } from "@/components/messaging";
 
 interface Message {
   id: string;
@@ -143,13 +139,6 @@ export default function EmployeeMessages() {
     setSending(false);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
   if (loading) {
     return (
       <EmployeeLayout>
@@ -164,9 +153,10 @@ export default function EmployeeMessages() {
   if (!employeeData) {
     return (
       <EmployeeLayout>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Account not linked to employee record.</p>
-        </div>
+        <MessagingEmptyState
+          type="not-linked"
+          description="Account not linked to employee record."
+        />
       </EmployeeLayout>
     );
   }
@@ -184,41 +174,18 @@ export default function EmployeeMessages() {
         <ScrollArea className="flex-1 glass-card p-4" ref={scrollRef}>
           <div className="space-y-3">
             {messages.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
-              </div>
+              <MessagingEmptyState type="no-messages" />
             ) : (
               messages.map((msg) => {
                 const isOwn = msg.sender_type === "employee" && msg.sender_id === employeeData.id;
                 return (
-                  <div
+                  <MessageBubble
                     key={msg.id}
-                    className={cn(
-                      "flex flex-col max-w-[80%]",
-                      isOwn ? "ml-auto items-end" : "mr-auto items-start"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "rounded-2xl px-4 py-2",
-                        isOwn
-                          ? "bg-primary text-primary-foreground rounded-br-md"
-                          : "bg-muted text-foreground rounded-bl-md"
-                      )}
-                    >
-                      <p className="text-sm">{msg.content}</p>
-                    </div>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                      <span>{format(new Date(msg.created_at), "h:mm a")}</span>
-                      {isOwn && (
-                        msg.read ? (
-                          <CheckCheck className="h-3 w-3 text-primary" />
-                        ) : (
-                          <Check className="h-3 w-3" />
-                        )
-                      )}
-                    </div>
-                  </div>
+                    content={msg.content}
+                    timestamp={msg.created_at}
+                    isOwn={isOwn}
+                    read={msg.read}
+                  />
                 );
               })
             )}
@@ -226,22 +193,14 @@ export default function EmployeeMessages() {
         </ScrollArea>
 
         {/* Input */}
-        <div className="mt-4 flex gap-2">
-          <Input
-            placeholder="Type a message..."
+        <div className="mt-4">
+          <ChatInput
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={handleKeyPress}
-            className="flex-1 bg-card border-border"
+            onChange={setNewMessage}
+            onSend={handleSend}
             disabled={sending}
+            sending={sending}
           />
-          <Button 
-            onClick={handleSend} 
-            disabled={!newMessage.trim() || sending}
-            className="bg-gradient-primary"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </EmployeeLayout>
