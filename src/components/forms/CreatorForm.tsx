@@ -1,9 +1,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { creatorFormSchema, type CreatorFormValues } from "@/lib/validations";
+import { FormField, FormRow } from "./FormField";
+import { FormSubmitButton } from "./FormSubmitButton";
 
 interface CreatorFormProps {
   onSubmit: (data: CreatorFormValues) => Promise<void>;
@@ -33,68 +32,51 @@ export function CreatorForm({ onSubmit, isSubmitting }: CreatorFormProps) {
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          {...register("name")}
-          placeholder="Creator name"
-          className={errors.name ? "border-destructive" : ""}
+      <FormField
+        type="text"
+        name="name"
+        label="Name"
+        placeholder="Creator name"
+        register={register}
+        error={errors.name}
+        required
+      />
+
+      <FormField
+        type="email"
+        name="email"
+        label="Email"
+        placeholder="creator@email.com"
+        register={register}
+        error={errors.email}
+        required
+      />
+
+      <FormRow>
+        <FormField
+          type="text"
+          name="platform"
+          label="Platform"
+          placeholder="Fansly, etc."
+          register={register}
+          error={errors.platform}
         />
-        {errors.name && (
-          <p className="text-sm text-destructive">{errors.name.message}</p>
-        )}
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          {...register("email")}
-          placeholder="creator@email.com"
-          className={errors.email ? "border-destructive" : ""}
+        <FormField
+          type="text"
+          name="followers"
+          label="Followers"
+          placeholder="1.5M"
+          register={register}
+          error={errors.followers}
         />
-        {errors.email && (
-          <p className="text-sm text-destructive">{errors.email.message}</p>
-        )}
-      </div>
+      </FormRow>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="platform">Platform</Label>
-          <Input
-            id="platform"
-            {...register("platform")}
-            placeholder="Fansly, etc."
-            className={errors.platform ? "border-destructive" : ""}
-          />
-          {errors.platform && (
-            <p className="text-sm text-destructive">{errors.platform.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="followers">Followers</Label>
-          <Input
-            id="followers"
-            {...register("followers")}
-            placeholder="1.5M"
-            className={errors.followers ? "border-destructive" : ""}
-          />
-          {errors.followers && (
-            <p className="text-sm text-destructive">{errors.followers.message}</p>
-          )}
-        </div>
-      </div>
-
-      <Button 
-        type="submit" 
-        className="w-full bg-gradient-primary"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? "Adding..." : "Add Creator"}
-      </Button>
+      <FormSubmitButton
+        isSubmitting={isSubmitting}
+        label="Add Creator"
+        loadingLabel="Adding..."
+      />
     </form>
   );
 }

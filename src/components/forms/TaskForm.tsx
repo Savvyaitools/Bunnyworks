@@ -1,17 +1,8 @@
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { taskFormSchema, type TaskFormValues } from "@/lib/validations";
+import { FormField, FormRow } from "./FormField";
+import { FormSubmitButton } from "./FormSubmitButton";
 import type { Creator } from "@/hooks/useCreators";
 import type { Employee } from "@/hooks/useEmployees";
 
@@ -47,146 +38,103 @@ export function TaskForm({ onSubmit, isSubmitting, creators, employees }: TaskFo
     reset();
   };
 
+  const priorityOptions = [
+    { value: "Low", label: "Low" },
+    { value: "Medium", label: "Medium" },
+    { value: "High", label: "High" },
+    { value: "Urgent", label: "Urgent" },
+  ];
+
+  const requestTypeOptions = [
+    { value: "general", label: "General" },
+    { value: "custom", label: "Custom Request" },
+  ];
+
+  const employeeOptions = [
+    { value: "none", label: "Unassigned" },
+    ...employees.map((emp) => ({ value: emp.id, label: emp.name })),
+  ];
+
+  const creatorOptions = [
+    { value: "none", label: "No creator" },
+    ...creators.map((c) => ({ value: c.id, label: c.name })),
+  ];
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">Title</Label>
-        <Input
-          id="title"
-          {...register("title")}
-          placeholder="Task title"
-          className={errors.title ? "border-destructive" : ""}
+      <FormField
+        type="text"
+        name="title"
+        label="Title"
+        placeholder="Task title"
+        register={register}
+        error={errors.title}
+        required
+      />
+
+      <FormField
+        type="textarea"
+        name="description"
+        label="Description"
+        placeholder="Task description"
+        register={register}
+        error={errors.description}
+        rows={3}
+      />
+
+      <FormRow>
+        <FormField
+          type="select"
+          name="priority"
+          label="Priority"
+          control={control}
+          options={priorityOptions}
+          error={errors.priority}
         />
-        {errors.title && (
-          <p className="text-sm text-destructive">{errors.title.message}</p>
-        )}
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          {...register("description")}
-          placeholder="Task description"
-          rows={3}
-          className={errors.description ? "border-destructive" : ""}
+        <FormField
+          type="select"
+          name="request_type"
+          label="Request Type"
+          control={control}
+          options={requestTypeOptions}
+          error={errors.request_type}
         />
-        {errors.description && (
-          <p className="text-sm text-destructive">{errors.description.message}</p>
-        )}
-      </div>
+      </FormRow>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Priority</Label>
-          <Controller
-            name="priority"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger className={errors.priority ? "border-destructive" : ""}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.priority && (
-            <p className="text-sm text-destructive">{errors.priority.message}</p>
-          )}
-        </div>
+      <FormField
+        type="date"
+        name="due_date"
+        label="Due Date"
+        register={register}
+        error={errors.due_date}
+      />
 
-        <div className="space-y-2">
-          <Label>Request Type</Label>
-          <Controller
-            name="request_type"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger className={errors.request_type ? "border-destructive" : ""}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">General</SelectItem>
-                  <SelectItem value="custom">Custom Request</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.request_type && (
-            <p className="text-sm text-destructive">{errors.request_type.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Due Date</Label>
-        <Input
-          type="date"
-          {...register("due_date")}
-          className={errors.due_date ? "border-destructive" : ""}
+      <FormRow>
+        <FormField
+          type="select"
+          name="assignee_id"
+          label="Assign To"
+          control={control}
+          options={employeeOptions}
+          placeholder="Select employee"
         />
-        {errors.due_date && (
-          <p className="text-sm text-destructive">{errors.due_date.message}</p>
-        )}
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Assign To</Label>
-          <Controller
-            name="assignee_id"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value || "none"} onValueChange={field.onChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
+        <FormField
+          type="select"
+          name="creator_id"
+          label="Creator"
+          control={control}
+          options={creatorOptions}
+          placeholder="Select creator"
+        />
+      </FormRow>
 
-        <div className="space-y-2">
-          <Label>Creator</Label>
-          <Controller
-            name="creator_id"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value || "none"} onValueChange={field.onChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select creator" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No creator</SelectItem>
-                  {creators.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-      </div>
-
-      <Button 
-        type="submit" 
-        className="w-full bg-gradient-primary"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? "Creating..." : "Create Task"}
-      </Button>
+      <FormSubmitButton
+        isSubmitting={isSubmitting}
+        label="Create Task"
+        loadingLabel="Creating..."
+      />
     </form>
   );
 }
