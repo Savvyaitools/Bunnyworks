@@ -2,6 +2,7 @@ import { useSupabaseRead } from "./useSupabaseCRUD";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMemo, useCallback } from "react";
 
 export interface InternalMessage {
   id: string;
@@ -43,7 +44,9 @@ export function useInternalMessages() {
     },
   });
 
-  const markAsRead = async (messageIds: string[]) => {
+  const markAsRead = useCallback(async (messageIds: string[]) => {
+    if (messageIds.length === 0) return;
+    
     try {
       const { error } = await supabase
         .from("internal_messages")
@@ -55,9 +58,13 @@ export function useInternalMessages() {
     } catch (error) {
       console.error("Error marking messages as read:", error);
     }
-  };
+  }, [queryClient]);
 
-  const unreadCount = messages.filter((m) => !m.read).length;
+  // Memoize unread count to prevent recalculation on every render
+  const unreadCount = useMemo(() => 
+    messages.filter((m) => !m.read).length, 
+    [messages]
+  );
 
   return {
     messages,
