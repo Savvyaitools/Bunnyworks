@@ -111,19 +111,22 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "messages",
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          const newMessage = payload.new as Message;
-          queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+          // Invalidate with the full query key including effectiveAgencyId
+          queryClient.invalidateQueries({ queryKey: ["messages", conversationId, effectiveAgencyId] });
 
-          if (newMessage.sender_type !== senderType) {
-            toast.info(`New message from ${newMessage.sender_name}`, {
-              description: newMessage.content.slice(0, 50) + (newMessage.content.length > 50 ? "..." : ""),
-            });
+          if (payload.eventType === "INSERT") {
+            const newMessage = payload.new as Message;
+            if (newMessage.sender_type !== senderType) {
+              toast.info(`New message from ${newMessage.sender_name}`, {
+                description: newMessage.content.slice(0, 50) + (newMessage.content.length > 50 ? "..." : ""),
+              });
+            }
           }
         },
       )
@@ -132,7 +135,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, senderType, queryClient]);
+  }, [conversationId, senderType, effectiveAgencyId, queryClient]);
 
   return {
     messages,
