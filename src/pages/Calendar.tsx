@@ -292,7 +292,10 @@ export default function Calendar() {
               draggable
               onDragStart={(e) => handleDragStart(e, event)}
               onDragEnd={handleDragEnd}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditClick(event);
+              }}
               className={cn(
                 "text-xs px-1.5 py-0.5 rounded truncate flex items-center justify-between group cursor-grab active:cursor-grabbing",
                 eventTypeColors[event.event_type] || eventTypeColors.task,
@@ -559,8 +562,12 @@ export default function Calendar() {
                   .map((event) => (
                   <div
                     key={event.id}
+                    onClick={() => {
+                      setIsDayDetailOpen(false);
+                      handleEditClick(event);
+                    }}
                     className={cn(
-                      "p-4 rounded-lg border transition-all hover:shadow-md",
+                      "p-4 rounded-lg border transition-all hover:shadow-md cursor-pointer",
                       "bg-card/80 border-border"
                     )}
                   >
