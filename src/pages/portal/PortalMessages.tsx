@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Bell, Check, CheckCheck } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import { useMessages } from "@/hooks/useMessages";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
-import { formatTime } from "@/lib/formatters";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MessageBubble, ChatInput, MessagingEmptyState } from "@/components/messaging";
 
 export default function PortalMessages() {
   const { creatorId, creatorProfile, loading: creatorLoading } = useCreatorPortal();
@@ -24,13 +20,6 @@ export default function PortalMessages() {
     if (!messageInput.trim() || !creatorProfile) return;
     await sendMessage(messageInput, creatorProfile.name);
     setMessageInput("");
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   };
 
   // Scroll to bottom on new messages
@@ -67,14 +56,11 @@ export default function PortalMessages() {
   if (!creatorId) {
     return (
       <PortalLayout>
-        <div className="h-[calc(100vh-8rem)] flex items-center justify-center animate-fade-in">
-          <div className="text-center glass-card p-12 max-w-md">
-            <Bell className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Account Not Linked</h2>
-            <p className="text-muted-foreground">
-              Your account is not linked to a creator profile. Please contact the agency to set up your account.
-            </p>
-          </div>
+        <div className="h-[calc(100vh-8rem)] glass-card animate-fade-in">
+          <MessagingEmptyState
+            type="not-linked"
+            description="Your account is not linked to a creator profile. Please contact the agency to set up your account."
+          />
         </div>
       </PortalLayout>
     );
@@ -95,74 +81,31 @@ export default function PortalMessages() {
             {loading ? (
               <div className="text-center text-muted-foreground py-8">Loading messages...</div>
             ) : messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No messages yet. Start the conversation!</p>
-              </div>
+              <MessagingEmptyState type="no-messages" />
             ) : (
               messages.map((message) => (
-                <div
+                <MessageBubble
                   key={message.id}
-                  className={cn("flex", message.sender_type === "creator" ? "justify-end" : "justify-start")}
-                >
-                  <div
-                    className={cn(
-                      "message-bubble",
-                      message.sender_type === "creator"
-                        ? "bg-accent text-accent-foreground rounded-br-md"
-                        : "message-bubble-received",
-                    )}
-                  >
-                    {message.sender_type === "agency" && (
-                      <p className="text-xs font-medium mb-1 opacity-70">{message.sender_name}</p>
-                    )}
-                    <p className="text-sm">{message.content}</p>
-                    <div className={cn(
-                      "flex items-center gap-1 mt-1",
-                      message.sender_type === "creator" ? "justify-end" : "justify-start"
-                    )}>
-                      <p
-                        className={cn(
-                          "text-xs",
-                          message.sender_type === "creator" ? "text-accent-foreground/70" : "text-muted-foreground",
-                        )}
-                      >
-                        {formatTime(message.created_at)}
-                      </p>
-                      {message.sender_type === "creator" && (
-                        message.read ? (
-                          <CheckCheck className="h-3.5 w-3.5 text-accent-foreground/90" />
-                        ) : (
-                          <Check className="h-3.5 w-3.5 text-accent-foreground/50" />
-                        )
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  content={message.content}
+                  timestamp={message.created_at}
+                  isOwn={message.sender_type === "creator"}
+                  senderName={message.sender_name}
+                  showSenderName={message.sender_type === "agency"}
+                  read={message.read}
+                  variant="accent"
+                />
               ))
             )}
           </div>
         </ScrollArea>
 
         {/* Message Input */}
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Type a message..."
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="bg-muted/50 border-border focus:border-accent"
-            />
-            <Button
-              className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-glow-sm shrink-0"
-              onClick={handleSend}
-              disabled={!messageInput.trim()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <ChatInput
+          value={messageInput}
+          onChange={setMessageInput}
+          onSend={handleSend}
+          variant="accent"
+        />
       </div>
     </PortalLayout>
   );

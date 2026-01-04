@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Search, Users, MessageSquare } from "lucide-react";
+import { Search, MoreVertical } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { useInternalMessages } from "@/hooks/useInternalMessages";
 import { useChatters } from "@/hooks/useChatters";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/shared";
-import { formatTime } from "@/lib/formatters";
+import { 
+  MessageBubble, 
+  ChatInput, 
+  ConversationItem, 
+  MessagingEmptyState 
+} from "@/components/messaging";
 
 export default function InternalMessages() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,7 +69,7 @@ export default function InternalMessages() {
         markAsRead(unreadIds);
       }
     }
-  }, [selectedChatterId, messages]);
+  }, [selectedChatterId, messages, markAsRead]);
 
   const handleSend = async () => {
     if (!messageInput.trim() || !selectedChatterId || !profile) return;
@@ -80,13 +83,6 @@ export default function InternalMessages() {
     });
 
     setMessageInput("");
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   };
 
   return (
@@ -121,47 +117,21 @@ export default function InternalMessages() {
                 ))}
               </div>
             ) : filteredChatters.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No chatters found</p>
-              </div>
+              <MessagingEmptyState type="no-conversations" title="No chatters found" />
             ) : (
               <div className="p-2">
-                {filteredChatters.map((chatter) => {
-                  const unreadCount = getUnreadCount(chatter.id);
-                  const isSelected = selectedChatterId === chatter.id;
-
-                  return (
-                    <button
-                      key={chatter.id}
-                      onClick={() => setSelectedChatterId(chatter.id)}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors",
-                        isSelected
-                          ? "bg-primary/10 border border-primary/30"
-                          : "hover:bg-muted/50"
-                      )}
-                    >
-                                    <UserAvatar 
-                                        name={chatter.name} 
-                                        avatarSeed={chatter.avatar_seed} 
-                                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-foreground truncate">{chatter.name}</p>
-                          {unreadCount > 0 && (
-                            <Badge className="bg-primary text-primary-foreground text-xs">
-                              {unreadCount}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          Grade {chatter.skill_grade} • {chatter.is_active ? "Active" : "Inactive"}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+                {filteredChatters.map((chatter) => (
+                  <ConversationItem
+                    key={chatter.id}
+                    id={chatter.id}
+                    name={chatter.name}
+                    avatarSeed={chatter.avatar_seed || undefined}
+                    subtitle={`Grade ${chatter.skill_grade} • ${chatter.is_active ? "Active" : "Inactive"}`}
+                    unreadCount={getUnreadCount(chatter.id)}
+                    isSelected={selectedChatterId === chatter.id}
+                    onClick={() => setSelectedChatterId(chatter.id)}
+                  />
+                ))}
               </div>
             )}
           </ScrollArea>
@@ -172,17 +142,22 @@ export default function InternalMessages() {
           {selectedChatter ? (
             <>
               {/* Header */}
-              <div className="p-4 border-b border-border flex items-center gap-3">
-                <UserAvatar 
-                  name={selectedChatter.name} 
-                  avatarSeed={selectedChatter.avatar_seed} 
-                />
-                <div>
-                  <p className="font-medium text-foreground">{selectedChatter.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Grade {selectedChatter.skill_grade} • {selectedChatter.timezone || "No timezone"}
-                  </p>
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <UserAvatar 
+                    name={selectedChatter.name} 
+                    avatarSeed={selectedChatter.avatar_seed} 
+                  />
+                  <div>
+                    <p className="font-medium text-foreground">{selectedChatter.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Grade {selectedChatter.skill_grade} • {selectedChatter.timezone || "No timezone"}
+                    </p>
+                  </div>
                 </div>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
               </div>
 
               {/* Messages */}
@@ -190,83 +165,40 @@ export default function InternalMessages() {
                 {loading ? (
                   <div className="space-y-4">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className={cn("flex", i % 2 === 0 ? "justify-end" : "justify-start")}>
+                      <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
                         <Skeleton className="h-16 w-64 rounded-lg" />
                       </div>
                     ))}
                   </div>
                 ) : conversationMessages.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>No messages yet</p>
-                      <p className="text-sm">Start the conversation</p>
-                    </div>
-                  </div>
+                  <MessagingEmptyState type="no-messages" />
                 ) : (
                   <div className="space-y-4">
-                    {conversationMessages.map((message) => {
-                      const isFromAgency = message.sender_type === "agency";
-                      return (
-                        <div
-                          key={message.id}
-                          className={cn("flex", isFromAgency ? "justify-end" : "justify-start")}
-                        >
-                          <div
-                            className={cn(
-                              "max-w-[70%] rounded-lg p-3",
-                              isFromAgency
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
-                            )}
-                          >
-                            <p className="text-sm">{message.content}</p>
-                            <p className={cn(
-                              "text-xs mt-1",
-                              isFromAgency ? "text-primary-foreground/70" : "text-muted-foreground"
-                            )}>
-                              {formatTime(message.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {conversationMessages.map((message) => (
+                      <MessageBubble
+                        key={message.id}
+                        content={message.content}
+                        timestamp={message.created_at}
+                        isOwn={message.sender_type === "agency"}
+                        read={message.read}
+                        showReadReceipt={false}
+                      />
+                    ))}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
               </ScrollArea>
 
               {/* Input */}
-              <div className="p-4 border-t border-border">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Type a message..."
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    className="flex-1 bg-muted/50 border-border"
-                  />
-                  <Button
-                    onClick={handleSend}
-                    disabled={!messageInput.trim()}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  ⚠️ Internal messages only. Chatters cannot communicate with creators.
-                </p>
-              </div>
+              <ChatInput
+                value={messageInput}
+                onChange={setMessageInput}
+                onSend={handleSend}
+                helperText="⚠️ Internal messages only. Chatters cannot communicate with creators."
+              />
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium">Select a chatter</p>
-                <p className="text-sm">Choose a chatter to start messaging</p>
-              </div>
-            </div>
+            <MessagingEmptyState type="select-conversation" title="Select a chatter" />
           )}
         </div>
       </div>
