@@ -66,31 +66,30 @@ export default function BrowserSync() {
   }, [agency]);
 
   const handleToggleBrowserSync = async (enabled: boolean) => {
-    console.log("Toggle clicked, enabled:", enabled, "agency:", agency?.id);
     if (!agency) {
-      console.error("No agency found");
       toast.error("Agency not loaded. Please refresh the page.");
       return;
     }
-    setTogglingSync(true);
-    
-    try {
-      console.log("Updating agency browser_sync_enabled to:", enabled);
-      const { data, error } = await supabase
-        .from("agencies")
-        .update({ browser_sync_enabled: enabled } as any)
-        .eq("id", agency.id)
-        .select();
 
-      console.log("Update result:", { data, error });
+    const previous = browserSyncEnabled;
+
+    // Optimistic UI update so the toggle feels responsive
+    setBrowserSyncEnabled(enabled);
+    setTogglingSync(true);
+
+    try {
+      const { error } = await supabase
+        .from("agencies")
+        .update({ browser_sync_enabled: enabled })
+        .eq("id", agency.id);
 
       if (error) throw error;
-      
-      setBrowserSyncEnabled(enabled);
+
       toast.success(enabled ? "Browser Sync enabled" : "Browser Sync disabled");
       refetchAgency();
     } catch (error) {
       console.error("Error toggling browser sync:", error);
+      setBrowserSyncEnabled(previous);
       toast.error("Failed to update Browser Sync setting");
     } finally {
       setTogglingSync(false);
@@ -177,7 +176,7 @@ export default function BrowserSync() {
             <Switch 
               checked={browserSyncEnabled}
               onCheckedChange={handleToggleBrowserSync}
-              disabled={togglingSync || isLoadingAgency || !agency}
+              disabled={togglingSync || isLoadingAgency}
               className="data-[state=checked]:bg-primary"
             />
           </div>
