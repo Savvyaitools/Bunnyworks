@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function BrowserSync() {
-  const { agency, refetch: refetchAgency } = useAgency();
+  const { agency, refetch: refetchAgency, isLoading: isLoadingAgency } = useAgency();
   
   const [browserSyncEnabled, setBrowserSyncEnabled] = useState(false);
   const [syncToken, setSyncToken] = useState<string | null>(null);
@@ -66,14 +66,23 @@ export default function BrowserSync() {
   }, [agency]);
 
   const handleToggleBrowserSync = async (enabled: boolean) => {
-    if (!agency) return;
+    console.log("Toggle clicked, enabled:", enabled, "agency:", agency?.id);
+    if (!agency) {
+      console.error("No agency found");
+      toast.error("Agency not loaded. Please refresh the page.");
+      return;
+    }
     setTogglingSync(true);
     
     try {
-      const { error } = await supabase
+      console.log("Updating agency browser_sync_enabled to:", enabled);
+      const { data, error } = await supabase
         .from("agencies")
         .update({ browser_sync_enabled: enabled } as any)
-        .eq("id", agency.id);
+        .eq("id", agency.id)
+        .select();
+
+      console.log("Update result:", { data, error });
 
       if (error) throw error;
       
@@ -168,7 +177,7 @@ export default function BrowserSync() {
             <Switch 
               checked={browserSyncEnabled}
               onCheckedChange={handleToggleBrowserSync}
-              disabled={togglingSync}
+              disabled={togglingSync || isLoadingAgency || !agency}
               className="data-[state=checked]:bg-primary"
             />
           </div>
