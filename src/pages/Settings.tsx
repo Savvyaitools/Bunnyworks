@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { User, Bell, Building, Shield, Plug, Copy, RefreshCw, Check, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { User, Bell, Building, Shield, Plug, Copy, RefreshCw, Check, Loader2, ExternalLink, Download } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,49 @@ export default function Settings() {
   const [generatingToken, setGeneratingToken] = useState(false);
   const [copied, setCopied] = useState(false);
   const [togglingSync, setTogglingSync] = useState(false);
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [checkingExtension, setCheckingExtension] = useState(true);
+
+  // Extension ID - replace with your actual published extension ID
+  const EXTENSION_ID = "YOUR_CHROME_EXTENSION_ID";
+  const CHROME_STORE_URL = `https://chrome.google.com/webstore/detail/${EXTENSION_ID}`;
+
+  // Check if Chrome extension is installed
+  const checkExtensionInstalled = useCallback(async () => {
+    setCheckingExtension(true);
+    try {
+      // Check if extension injected a marker element (safest cross-browser approach)
+      const extensionMarker = document.getElementById('creator-os-extension-marker');
+      if (extensionMarker) {
+        setExtensionInstalled(true);
+        setCheckingExtension(false);
+        return;
+      }
+
+      // Try Chrome runtime messaging if available
+      const chromeRuntime = (window as any).chrome?.runtime;
+      if (chromeRuntime?.sendMessage) {
+        chromeRuntime.sendMessage(EXTENSION_ID, { type: 'PING' }, (response: any) => {
+          setExtensionInstalled(!!response);
+          setCheckingExtension(false);
+        });
+        // Timeout fallback
+        setTimeout(() => {
+          setCheckingExtension(false);
+        }, 1000);
+      } else {
+        setExtensionInstalled(false);
+        setCheckingExtension(false);
+      }
+    } catch {
+      setExtensionInstalled(false);
+      setCheckingExtension(false);
+    }
+  }, [EXTENSION_ID]);
+
+  useEffect(() => {
+    checkExtensionInstalled();
+  }, [checkExtensionInstalled]);
 
   // Sync browser sync state when agency loads
   useEffect(() => {
@@ -151,6 +194,18 @@ export default function Settings() {
     } catch (error) {
       toast.error("Failed to copy token");
     }
+  };
+
+  // Open the Chrome extension popup with token
+  const handleOpenExtension = () => {
+    if (!syncToken) return;
+    const extensionUrl = `chrome-extension://${EXTENSION_ID}/popup.html?token=${encodeURIComponent(syncToken)}`;
+    window.open(extensionUrl, '_blank');
+  };
+
+  // Open Chrome Web Store to install extension
+  const handleInstallExtension = () => {
+    window.open(CHROME_STORE_URL, '_blank');
   };
 
   const handleSaveProfile = async () => {
@@ -447,6 +502,41 @@ export default function Settings() {
 
                   {browserSyncEnabled && (
                     <div className="p-4 rounded-lg bg-muted/20 border border-border space-y-4">
+                      {/* Chrome Extension Status */}
+                      <div>
+                        <h3 className="text-sm font-medium text-foreground mb-2">Chrome Extension</h3>
+                        {checkingExtension ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Checking extension status...
+                          </div>
+                        ) : extensionInstalled ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            <span className="text-xs text-green-500 font-medium">Extension installed</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-amber-500" />
+                              <span className="text-xs text-amber-500 font-medium">Extension not detected</span>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleInstallExtension}
+                              className="gap-2"
+                            >
+                              <Download className="h-4 w-4" />
+                              Install Chrome Extension
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      <Separator className="bg-border" />
+
+                      {/* Sync Token Section */}
                       <div>
                         <h3 className="text-sm font-medium text-foreground mb-2">Sync Token</h3>
                         <p className="text-xs text-muted-foreground mb-3">
@@ -473,31 +563,61 @@ export default function Settings() {
                         </Button>
 
                         {syncToken && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Input
-                                value={syncToken}
-                                readOnly
-                                className="bg-muted/50 border-border font-mono text-xs"
-                              />
+                          <div className="space-y-3">
+                            {tokenExpiry && (
+                              <p className="text-xs text-muted-foreground">
+                                Token expires at: {tokenExpiry.toLocaleTimeString()}
+                              </p>
+                            )}
+                            
+                            {/* Action Buttons */}
+                            <div className="flex flex-wrap gap-2">
+                              {extensionInstalled ? (
+                                <Button
+                                  onClick={handleOpenExtension}
+                                  className="gap-2 bg-gradient-primary hover:opacity-90"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Open Browser Sync Extension
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  onClick={handleInstallExtension}
+                                  className="gap-2"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Install Extension First
+                                </Button>
+                              )}
                               <Button
-                                variant="ghost"
-                                size="icon"
+                                variant="outline"
                                 onClick={handleCopyToken}
-                                className="shrink-0"
+                                className="gap-2"
                               >
                                 {copied ? (
-                                  <Check className="h-4 w-4 text-green-500" />
+                                  <>
+                                    <Check className="h-4 w-4 text-green-500" />
+                                    Copied!
+                                  </>
                                 ) : (
-                                  <Copy className="h-4 w-4" />
+                                  <>
+                                    <Copy className="h-4 w-4" />
+                                    Copy Token
+                                  </>
                                 )}
                               </Button>
                             </div>
-                            {tokenExpiry && (
-                              <p className="text-xs text-muted-foreground">
-                                Expires at: {tokenExpiry.toLocaleTimeString()}
-                              </p>
-                            )}
+
+                            {/* Token Display (collapsed by default) */}
+                            <details className="text-xs">
+                              <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                Show raw token
+                              </summary>
+                              <code className="block mt-2 p-2 bg-muted/50 rounded border border-border font-mono text-xs break-all">
+                                {syncToken}
+                              </code>
+                            </details>
                           </div>
                         )}
                       </div>
@@ -507,11 +627,11 @@ export default function Settings() {
                       <div>
                         <h3 className="text-sm font-medium text-foreground mb-2">How it works</h3>
                         <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                          <li>Enable Browser Sync above</li>
-                          <li>Generate a temporary sync token</li>
-                          <li>Paste the token into your Chrome extension</li>
+                          <li>Install the Creator OS Chrome extension</li>
+                          <li>Generate a temporary sync token above</li>
+                          <li>Click "Open Browser Sync Extension" - token auto-fills</li>
                           <li>Browse to your creator platform and sync metrics</li>
-                          <li>Data will appear in your Data Import review queue</li>
+                          <li>Data will appear in your Manual Data Import review queue</li>
                         </ol>
                       </div>
                     </div>
