@@ -18,7 +18,8 @@ import {
   TrendingUp,
   Upload,
   ClipboardList,
-  Globe
+  Globe,
+  Plug
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -56,6 +57,7 @@ const mainNavItems = [
 
 const recruitingNavItems = [
   { title: "Recruiting", url: "/recruiting", icon: UserPlus },
+  { title: "Find Creators", url: "/tools/scraper", icon: Globe },
   { title: "Applications", url: "/applications", icon: ClipboardList },
 ];
 
@@ -65,9 +67,9 @@ const chattingNavItems = [
   { title: "Internal Messages", url: "/internal-messages", icon: MessageCircle },
 ];
 
-const dataNavItems = [
-  { title: "Data Import", url: "/data-import", icon: Upload },
-  { title: "Web Scraper", url: "/tools/scraper", icon: Globe },
+const integrationsNavItems = [
+  { title: "Manual Data Import", url: "/data-import", icon: Upload },
+  { title: "Browser Sync", url: "/settings", icon: Plug },
 ];
 
 const bottomNavItems = [
@@ -201,12 +203,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Data Section */}
-        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</p>}
+        {/* Integrations Section */}
+        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Integrations</p>}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {dataNavItems.map((item) => {
+              {integrationsNavItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
