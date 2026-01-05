@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       agencies: {
         Row: {
+          browser_sync_enabled: boolean | null
           commission_rate: number
           created_at: string
           id: string
@@ -29,6 +30,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          browser_sync_enabled?: boolean | null
           commission_rate?: number
           created_at?: string
           id?: string
@@ -42,6 +44,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          browser_sync_enabled?: boolean | null
           commission_rate?: number
           created_at?: string
           id?: string
@@ -55,6 +58,41 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      browser_sync_tokens: {
+        Row: {
+          agency_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_sync_tokens_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       calendar_events: {
         Row: {
@@ -668,7 +706,9 @@ export type Database = {
           file_name: string
           file_path: string
           id: string
+          raw_payload: Json | null
           rejection_reason: string | null
+          source: string | null
           status: string
           updated_at: string
         }
@@ -680,7 +720,9 @@ export type Database = {
           file_name: string
           file_path: string
           id?: string
+          raw_payload?: Json | null
           rejection_reason?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }
@@ -692,7 +734,9 @@ export type Database = {
           file_name?: string
           file_path?: string
           id?: string
+          raw_payload?: Json | null
           rejection_reason?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }

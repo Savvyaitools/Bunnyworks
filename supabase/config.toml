@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.auto-retry-imports]
 verify_jwt = false
+
+[functions.ingest-browser-sync]
+verify_jwt = false
