@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creator OS Browser Sync</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 320px;
+      min-height: 400px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%);
+      color: #e0e0e0;
+    }
+    
+    .container {
+      padding: 20px;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #d946ef, #a855f7);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .header-text h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+    }
+    
+    .header-text p {
+      font-size: 11px;
+      color: #888;
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .status-dot.connected {
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+    }
+    
+    .status-dot.disconnected {
+      background: #f59e0b;
+    }
+    
+    .status-text {
+      font-size: 13px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      font-family: monospace;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #d946ef;
+    }
+    
+    .form-group input::placeholder {
+      color: #555;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #d946ef, #a855f7);
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e0e0e0;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .message {
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    
+    .message.success {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .message.error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .message.visible {
+      display: block;
+    }
+    
+    .section {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .section h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #d946ef;
+    }
+    
+    .info-list {
+      list-style: none;
+    }
+    
+    .info-list li {
+      font-size: 12px;
+      color: #888;
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .info-list li::before {
+      content: "•";
+      color: #d946ef;
+    }
+    
+    .footer {
+      text-align: center;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .footer a {
+      color: #d946ef;
+      text-decoration: none;
+      font-size: 12px;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🐰</div>
+      <div class="header-text">
+        <h1>Creator OS</h1>
+        <p>Browser Sync Extension</p>
+      </div>
+    </div>
+    
+    <div id="status" class="status">
+      <div id="status-dot" class="status-dot disconnected"></div>
+      <span id="status-text" class="status-text">Not connected</span>
+    </div>
+    
+    <div id="message" class="message"></div>
+    
+    <div class="form-group">
+      <label for="token">Sync Token</label>
+      <input type="text" id="token" placeholder="Paste your sync token here..." />
+    </div>
+    
+    <button id="connect-btn" class="btn btn-primary">Connect</button>
+    
+    <div class="section">
+      <h3>How to use</h3>
+      <ul class="info-list">
+        <li>Get a sync token from Creator OS settings</li>
+        <li>Paste the token above and click Connect</li>
+        <li>Navigate to your creator platform</li>
+        <li>Click "Sync Current Page" to capture data</li>
+      </ul>
+    </div>
+    
+    <button id="sync-btn" class="btn btn-secondary" disabled>Sync Current Page</button>
+    
+    <div class="footer">
+      <a href="https://creatorOS.app" target="_blank">Open Creator OS Dashboard</a>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
