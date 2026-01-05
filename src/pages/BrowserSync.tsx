@@ -72,7 +72,7 @@ export default function BrowserSync() {
     try {
       const { error } = await supabase
         .from("agencies")
-        .update({ browser_sync_enabled: enabled })
+        .update({ browser_sync_enabled: enabled } as any)
         .eq("id", agency.id);
 
       if (error) throw error;
