@@ -13,6 +13,7 @@ export interface Agency {
   max_creators: number;
   max_employees: number;
   onboarding_completed: boolean;
+  browser_sync_enabled: boolean | null;
   created_at: string;
   updated_at: string;
 }
