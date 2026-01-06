@@ -563,6 +563,63 @@ export type Database = {
           },
         ]
       }
+      creator_session_links: {
+        Row: {
+          agency_id: string
+          created_at: string
+          created_by: string
+          creator_id: string
+          encrypted_session: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          platform: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          created_by: string
+          creator_id: string
+          encrypted_session: string
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          platform: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          created_by?: string
+          creator_id?: string
+          encrypted_session?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          platform?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_session_links_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_session_links_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_social_accounts: {
         Row: {
           account_type: string
@@ -1506,6 +1563,106 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_access_logs: {
+        Row: {
+          action: string
+          chatter_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          session_link_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          chatter_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          session_link_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          chatter_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          session_link_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_access_logs_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_access_logs_session_link_id_fkey"
+            columns: ["session_link_id"]
+            isOneToOne: false
+            referencedRelation: "creator_session_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_link_assignments: {
+        Row: {
+          access_count: number
+          accessed_at: string | null
+          assigned_at: string
+          chatter_id: string
+          id: string
+          last_access_ip: string | null
+          session_link_id: string
+          shift_id: string | null
+        }
+        Insert: {
+          access_count?: number
+          accessed_at?: string | null
+          assigned_at?: string
+          chatter_id: string
+          id?: string
+          last_access_ip?: string | null
+          session_link_id: string
+          shift_id?: string | null
+        }
+        Update: {
+          access_count?: number
+          accessed_at?: string | null
+          assigned_at?: string
+          chatter_id?: string
+          id?: string
+          last_access_ip?: string | null
+          session_link_id?: string
+          shift_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_link_assignments_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_link_assignments_session_link_id_fkey"
+            columns: ["session_link_id"]
+            isOneToOne: false
+            referencedRelation: "creator_session_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_link_assignments_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "chatter_shifts"
             referencedColumns: ["id"]
           },
         ]
