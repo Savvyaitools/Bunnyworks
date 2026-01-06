@@ -145,7 +145,13 @@ export default function BrowserSync() {
   };
 
   const handleInstallExtension = () => {
-    window.open(CHROME_STORE_URL, '_blank');
+    // Copy the extension URL to clipboard since chrome:// URLs can't be opened programmatically
+    const extensionUrl = "chrome://extensions/?id=pdmkofggpojdooohngnghkjlihboppff";
+    navigator.clipboard.writeText(extensionUrl).then(() => {
+      toast.info("Extension URL copied! Paste it in your browser address bar to manage the extension.");
+    }).catch(() => {
+      toast.info(`Go to: ${extensionUrl}`);
+    });
   };
 
   return (
