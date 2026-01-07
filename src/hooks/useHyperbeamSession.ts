@@ -21,7 +21,6 @@ interface SessionState {
 interface CreateAdminSessionParams {
   sessionLinkId: string;
   platform: string;
-  startUrl?: string;
 }
 
 interface LaunchChatterSessionParams {
@@ -74,17 +73,16 @@ export function useHyperbeamSession() {
     }
   }, []);
 
-  const createAdminSession = useCallback(async ({ sessionLinkId, platform, startUrl }: CreateAdminSessionParams) => {
+  const createAdminSession = useCallback(async ({ sessionLinkId, platform }: CreateAdminSessionParams) => {
     const data = await invokeEdgeFunction("create_admin_session", {
       session_link_id: sessionLinkId,
       platform,
-      ...(startUrl && { start_url: startUrl }),
     });
 
     setState(prev => ({
       ...prev,
-      embedUrl: data.embed_url,
-      sessionId: data.session_id,
+      embedUrl: data.embedUrl,
+      sessionId: data.sessionId,
       isConnected: true,
     }));
 
@@ -100,8 +98,8 @@ export function useHyperbeamSession() {
 
     setState(prev => ({
       ...prev,
-      embedUrl: data.embed_url,
-      sessionId: data.session_id,
+      embedUrl: data.embedUrl,
+      sessionId: data.sessionId,
       isConnected: true,
     }));
 

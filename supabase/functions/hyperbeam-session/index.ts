@@ -300,12 +300,12 @@ async function saveProfile(supabase: any, apiKey: string, params: any) {
     throw new Error("No profile ID available. Session may not have profile saving enabled.");
   }
 
-  // Update session link with profile ID
+  // Update session link with profile ID and set status to "ready"
   const { error: dbError } = await supabase
     .from("creator_session_links")
     .update({
       hyperbeam_profile_id: profileId,
-      session_status: "authenticated",
+      session_status: "ready",
       last_saved_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -567,6 +567,7 @@ async function getSessionStatus(supabase: any, apiKey: string, params: any) {
 
   if (!hbResponse.ok) {
     return new Response(JSON.stringify({ 
+      success: false,
       active: false, 
       error: "Session not found or expired" 
     }), {
@@ -577,6 +578,7 @@ async function getSessionStatus(supabase: any, apiKey: string, params: any) {
   const hbData = await hbResponse.json();
 
   return new Response(JSON.stringify({
+    success: true,
     active: true,
     profileId: hbData.profile_id,
     createdAt: hbData.created_at,
