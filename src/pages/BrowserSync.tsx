@@ -1,16 +1,33 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plug, Copy, RefreshCw, Check, Loader2, ExternalLink, Download } from "lucide-react";
+import { Plug, Copy, RefreshCw, Check, Loader2, ExternalLink, Download, DollarSign } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAgency } from "@/hooks/useAgency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { OnlyFansSync } from "@/components/browser/OnlyFansSync";
+import { useCreators } from "@/hooks/useCreators";
+
+interface ConnectedAccount {
+  id: string;
+  creator_id: string;
+  platform: string;
+  username: string;
+  of_account_id: string | null;
+  of_connected_at: string | null;
+  of_last_synced_at: string | null;
+  creator?: {
+    name: string;
+  };
+}
 
 export default function BrowserSync() {
   const { agency, refetch: refetchAgency, isLoading: isLoadingAgency } = useAgency();
+  const { creators } = useCreators();
   
   const [browserSyncEnabled, setBrowserSyncEnabled] = useState(false);
   const [syncToken, setSyncToken] = useState<string | null>(null);
@@ -20,10 +37,30 @@ export default function BrowserSync() {
   const [togglingSync, setTogglingSync] = useState(false);
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [checkingExtension, setCheckingExtension] = useState(true);
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
 
   // Extension ID - replace with actual published extension ID
   const EXTENSION_ID = "YOUR_CHROME_EXTENSION_ID";
-  const CHROME_STORE_URL = `https://chrome.google.com/webstore/detail/${EXTENSION_ID}`;
+
+  // Fetch connected OnlyFans accounts
+  const fetchConnectedAccounts = useCallback(async () => {
+    setLoadingAccounts(true);
+    const { data, error } = await supabase
+      .from("creator_social_accounts")
+      .select("*, creator:creators(name)")
+      .eq("platform", "onlyfans")
+      .not("of_account_id", "is", null);
+
+    if (!error && data) {
+      setConnectedAccounts(data as ConnectedAccount[]);
+    }
+    setLoadingAccounts(false);
+  }, []);
+
+  useEffect(() => {
+    fetchConnectedAccounts();
+  }, [fetchConnectedAccounts]);
 
   // Check if Chrome extension is installed
   const checkExtensionInstalled = useCallback(async () => {
@@ -72,8 +109,6 @@ export default function BrowserSync() {
     }
 
     const previous = browserSyncEnabled;
-
-    // Optimistic UI update so the toggle feels responsive
     setBrowserSyncEnabled(enabled);
     setTogglingSync(true);
 
@@ -145,7 +180,6 @@ export default function BrowserSync() {
   };
 
   const handleInstallExtension = () => {
-    // Copy the extension URL to clipboard since chrome:// URLs can't be opened programmatically
     const extensionUrl = "chrome://extensions/?id=pdmkofggpojdooohngnghkjlihboppff";
     navigator.clipboard.writeText(extensionUrl).then(() => {
       toast.info("Extension URL copied! Paste it in your browser address bar to manage the extension.");
@@ -159,169 +193,218 @@ export default function BrowserSync() {
       <div className="space-y-6">
         <div className="animate-fade-in">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Browser</h1>
-          <p className="text-muted-foreground mt-1">Sync data directly from your browser using a Chrome extension</p>
+          <p className="text-muted-foreground mt-1">Sync data and manage OnlyFans accounts</p>
         </div>
 
-        <div className="glass-card p-6 space-y-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
-          {/* Enable/Disable Toggle */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Plug className="h-6 w-6 text-primary" />
-              </div>
+        <Tabs defaultValue="onlyfans" className="animate-fade-in" style={{ animationDelay: "100ms" }}>
+          <TabsList>
+            <TabsTrigger value="onlyfans" className="gap-2">
+              <DollarSign className="h-4 w-4" />
+              OnlyFans API
+            </TabsTrigger>
+            <TabsTrigger value="extension" className="gap-2">
+              <Plug className="h-4 w-4" />
+              Chrome Extension
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="onlyfans" className="space-y-4">
+            <div className="glass-card p-6 space-y-4">
               <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-foreground">Browser Sync</p>
-                  <Badge variant="outline" className="text-xs">Beta</Badge>
-                </div>
+                <h2 className="text-lg font-semibold">Connected Accounts</h2>
                 <p className="text-sm text-muted-foreground">
-                  Enable to sync data from your browser extension
+                  OnlyFans accounts connected via API for automatic earnings sync
                 </p>
+              </div>
+
+              {loadingAccounts ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <OnlyFansSync 
+                  accounts={connectedAccounts} 
+                  onRefresh={fetchConnectedAccounts} 
+                />
+              )}
+
+              <Separator />
+
+              <div className="text-sm text-muted-foreground">
+                <p className="font-medium text-foreground mb-2">How to connect an account:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Go to a creator's profile page</li>
+                  <li>Open the "Marketing" tab</li>
+                  <li>Click "Connect OnlyFans" to add their account</li>
+                  <li>Earnings will sync automatically from the API</li>
+                </ol>
               </div>
             </div>
-            <Switch 
-              checked={browserSyncEnabled}
-              onCheckedChange={handleToggleBrowserSync}
-              disabled={togglingSync || isLoadingAgency}
-              className="data-[state=checked]:bg-primary"
-            />
-          </div>
+          </TabsContent>
 
-          {browserSyncEnabled && (
-            <div className="p-4 rounded-lg bg-muted/20 border border-border space-y-4">
-              {/* Chrome Extension Status */}
-              <div>
-                <h3 className="text-sm font-medium text-foreground mb-2">Chrome Extension</h3>
-                {checkingExtension ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Checking extension status...
+          <TabsContent value="extension" className="space-y-4">
+            <div className="glass-card p-6 space-y-6">
+              {/* Enable/Disable Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Plug className="h-6 w-6 text-primary" />
                   </div>
-                ) : extensionInstalled ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500" />
-                    <span className="text-xs text-green-500 font-medium">Extension installed</span>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
+                  <div>
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-amber-500" />
-                      <span className="text-xs text-amber-500 font-medium">Extension not detected</span>
+                      <p className="font-medium text-foreground">Browser Sync</p>
+                      <Badge variant="outline" className="text-xs">Beta</Badge>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleInstallExtension}
-                      className="gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Install Chrome Extension
-                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                      Enable to sync data from your browser extension
+                    </p>
                   </div>
-                )}
+                </div>
+                <Switch 
+                  checked={browserSyncEnabled}
+                  onCheckedChange={handleToggleBrowserSync}
+                  disabled={togglingSync || isLoadingAgency}
+                  className="data-[state=checked]:bg-primary"
+                />
               </div>
 
-              <Separator className="bg-border" />
-
-              {/* Sync Token Section */}
-              <div>
-                <h3 className="text-sm font-medium text-foreground mb-2">Sync Token</h3>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Generate a temporary token to authenticate the browser extension. Tokens expire after 10 minutes.
-                </p>
-                
-                <Button
-                  variant="outline"
-                  onClick={handleGenerateToken}
-                  disabled={generatingToken}
-                  className="mb-3"
-                >
-                  {generatingToken ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Generate Temporary Token
-                    </>
-                  )}
-                </Button>
-
-                {syncToken && (
-                  <div className="space-y-3">
-                    {tokenExpiry && (
-                      <p className="text-xs text-muted-foreground">
-                        Token expires at: {tokenExpiry.toLocaleTimeString()}
-                      </p>
-                    )}
-                    
-                    <div className="flex flex-wrap gap-2">
-                      {extensionInstalled ? (
-                        <Button
-                          onClick={handleOpenExtension}
-                          className="gap-2 bg-gradient-primary hover:opacity-90"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Open Browser Sync Extension
-                        </Button>
-                      ) : (
+              {browserSyncEnabled && (
+                <div className="p-4 rounded-lg bg-muted/20 border border-border space-y-4">
+                  {/* Chrome Extension Status */}
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground mb-2">Chrome Extension</h3>
+                    {checkingExtension ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Checking extension status...
+                      </div>
+                    ) : extensionInstalled ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                        <span className="text-xs text-green-500 font-medium">Extension installed</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-amber-500" />
+                          <span className="text-xs text-amber-500 font-medium">Extension not detected</span>
+                        </div>
                         <Button
                           variant="outline"
+                          size="sm"
                           onClick={handleInstallExtension}
                           className="gap-2"
                         >
                           <Download className="h-4 w-4" />
-                          Install Extension First
+                          Install Chrome Extension
                         </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        onClick={handleCopyToken}
-                        className="gap-2"
-                      >
-                        {copied ? (
-                          <>
-                            <Check className="h-4 w-4 text-green-500" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4" />
-                            Copy Token
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    <details className="text-xs">
-                      <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                        Show raw token
-                      </summary>
-                      <code className="block mt-2 p-2 bg-muted/50 rounded border border-border font-mono text-xs break-all">
-                        {syncToken}
-                      </code>
-                    </details>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <Separator className="bg-border" />
+                  <Separator className="bg-border" />
 
-              <div>
-                <h3 className="text-sm font-medium text-foreground mb-2">How it works</h3>
-                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Install the Creator OS Chrome extension</li>
-                  <li>Generate a temporary sync token above</li>
-                  <li>Click "Open Browser Sync Extension" - token auto-fills</li>
-                  <li>Browse to your creator platform and sync metrics</li>
-                  <li>Data will appear in your Manual Data Import review queue</li>
-                </ol>
-              </div>
+                  {/* Sync Token Section */}
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground mb-2">Sync Token</h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Generate a temporary token to authenticate the browser extension. Tokens expire after 10 minutes.
+                    </p>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={handleGenerateToken}
+                      disabled={generatingToken}
+                      className="mb-3"
+                    >
+                      {generatingToken ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Generate Temporary Token
+                        </>
+                      )}
+                    </Button>
+
+                    {syncToken && (
+                      <div className="space-y-3">
+                        {tokenExpiry && (
+                          <p className="text-xs text-muted-foreground">
+                            Token expires at: {tokenExpiry.toLocaleTimeString()}
+                          </p>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {extensionInstalled ? (
+                            <Button
+                              onClick={handleOpenExtension}
+                              className="gap-2 bg-gradient-primary hover:opacity-90"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              Open Browser Sync Extension
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              onClick={handleInstallExtension}
+                              className="gap-2"
+                            >
+                              <Download className="h-4 w-4" />
+                              Install Extension First
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            onClick={handleCopyToken}
+                            className="gap-2"
+                          >
+                            {copied ? (
+                              <>
+                                <Check className="h-4 w-4 text-green-500" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-4 w-4" />
+                                Copy Token
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        <details className="text-xs">
+                          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                            Show raw token
+                          </summary>
+                          <code className="block mt-2 p-2 bg-muted/50 rounded border border-border font-mono text-xs break-all">
+                            {syncToken}
+                          </code>
+                        </details>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator className="bg-border" />
+
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground mb-2">How it works</h3>
+                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Install the Creator OS Chrome extension</li>
+                      <li>Generate a temporary sync token above</li>
+                      <li>Click "Open Browser Sync Extension" - token auto-fills</li>
+                      <li>Browse to your creator platform and sync metrics</li>
+                      <li>Data will appear in your Manual Data Import review queue</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
