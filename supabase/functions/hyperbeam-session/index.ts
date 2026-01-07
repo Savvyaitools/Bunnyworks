@@ -78,10 +78,31 @@ serve(async (req) => {
 
 // Create admin session for initial OnlyFans login
 async function createAdminSession(supabase: any, apiKey: string, userId: string, params: any) {
-  const { creatorId, platform, agencyId } = params;
+  let { creatorId, platform, agencyId, session_link_id } = params;
+
+  // If session_link_id is provided, look up the session link to get creatorId, platform, agencyId
+  if (session_link_id) {
+    const { data: sessionLink, error: linkError } = await supabase
+      .from("creator_session_links")
+      .select("creator_id, platform, agency_id")
+      .eq("id", session_link_id)
+      .single();
+
+    if (linkError || !sessionLink) {
+      console.error("Failed to find session link:", linkError);
+      return new Response(JSON.stringify({ error: "Session link not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    creatorId = sessionLink.creator_id;
+    platform = sessionLink.platform;
+    agencyId = sessionLink.agency_id;
+  }
 
   if (!creatorId || !platform || !agencyId) {
-    return new Response(JSON.stringify({ error: "creatorId, platform, and agencyId are required" }), {
+    return new Response(JSON.stringify({ error: "creatorId, platform, and agencyId are required (or provide session_link_id)" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -203,13 +224,32 @@ async function createAdminSession(supabase: any, apiKey: string, userId: string,
 
 // Save profile after admin has logged in
 async function saveProfile(supabase: any, apiKey: string, params: any) {
-  const { sessionLinkId, hyperbeamSessionId } = params;
+  // Accept both camelCase and snake_case params
+  const sessionLinkId = params.sessionLinkId || params.session_link_id;
+  let hyperbeamSessionId = params.hyperbeamSessionId || params.hyperbeam_session_id;
 
-  if (!sessionLinkId || !hyperbeamSessionId) {
-    return new Response(JSON.stringify({ error: "sessionLinkId and hyperbeamSessionId are required" }), {
+  if (!sessionLinkId) {
+    return new Response(JSON.stringify({ error: "sessionLinkId or session_link_id is required" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  // If hyperbeamSessionId not provided, look it up from the session link
+  if (!hyperbeamSessionId) {
+    const { data: sessionLink, error } = await supabase
+      .from("creator_session_links")
+      .select("hyperbeam_session_id")
+      .eq("id", sessionLinkId)
+      .single();
+
+    if (error || !sessionLink?.hyperbeam_session_id) {
+      return new Response(JSON.stringify({ error: "No active Hyperbeam session found for this session link" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    hyperbeamSessionId = sessionLink.hyperbeam_session_id;
   }
 
   console.log(`Saving profile for session ${hyperbeamSessionId}`);
@@ -402,10 +442,24 @@ async function launchChatterSession(supabase: any, apiKey: string, userId: strin
 
 // Terminate an active session
 async function terminateSession(supabase: any, apiKey: string, params: any) {
-  const { hyperbeamSessionId, activeSessionId } = params;
+  // Accept both camelCase and snake_case params
+  const sessionLinkId = params.sessionLinkId || params.session_link_id;
+  let hyperbeamSessionId = params.hyperbeamSessionId || params.hyperbeam_session_id;
+  const activeSessionId = params.activeSessionId || params.active_session_id;
+
+  // If hyperbeamSessionId not provided but sessionLinkId is, look it up
+  if (!hyperbeamSessionId && sessionLinkId) {
+    const { data: sessionLink } = await supabase
+      .from("creator_session_links")
+      .select("hyperbeam_session_id")
+      .eq("id", sessionLinkId)
+      .single();
+
+    hyperbeamSessionId = sessionLink?.hyperbeam_session_id;
+  }
 
   if (!hyperbeamSessionId) {
-    return new Response(JSON.stringify({ error: "hyperbeamSessionId is required" }), {
+    return new Response(JSON.stringify({ error: "hyperbeamSessionId or session_link_id is required" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -448,10 +502,23 @@ async function terminateSession(supabase: any, apiKey: string, params: any) {
 
 // Get session status
 async function getSessionStatus(supabase: any, apiKey: string, params: any) {
-  const { hyperbeamSessionId } = params;
+  // Accept both camelCase and snake_case params
+  const sessionLinkId = params.sessionLinkId || params.session_link_id;
+  let hyperbeamSessionId = params.hyperbeamSessionId || params.hyperbeam_session_id;
+
+  // If hyperbeamSessionId not provided but sessionLinkId is, look it up
+  if (!hyperbeamSessionId && sessionLinkId) {
+    const { data: sessionLink } = await supabase
+      .from("creator_session_links")
+      .select("hyperbeam_session_id")
+      .eq("id", sessionLinkId)
+      .single();
+
+    hyperbeamSessionId = sessionLink?.hyperbeam_session_id;
+  }
 
   if (!hyperbeamSessionId) {
-    return new Response(JSON.stringify({ error: "hyperbeamSessionId is required" }), {
+    return new Response(JSON.stringify({ error: "hyperbeamSessionId or session_link_id is required" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
