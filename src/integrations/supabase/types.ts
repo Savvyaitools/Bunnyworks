@@ -14,6 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_browser_sessions: {
+        Row: {
+          admin_token: string | null
+          agency_id: string
+          chatter_id: string | null
+          created_at: string | null
+          embed_url: string
+          ended_at: string | null
+          hyperbeam_session_id: string
+          id: string
+          is_active: boolean | null
+          session_link_id: string | null
+          session_type: string | null
+          started_at: string | null
+        }
+        Insert: {
+          admin_token?: string | null
+          agency_id: string
+          chatter_id?: string | null
+          created_at?: string | null
+          embed_url: string
+          ended_at?: string | null
+          hyperbeam_session_id: string
+          id?: string
+          is_active?: boolean | null
+          session_link_id?: string | null
+          session_type?: string | null
+          started_at?: string | null
+        }
+        Update: {
+          admin_token?: string | null
+          agency_id?: string
+          chatter_id?: string | null
+          created_at?: string | null
+          embed_url?: string
+          ended_at?: string | null
+          hyperbeam_session_id?: string
+          id?: string
+          is_active?: boolean | null
+          session_link_id?: string | null
+          session_type?: string | null
+          started_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_browser_sessions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "active_browser_sessions_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "active_browser_sessions_session_link_id_fkey"
+            columns: ["session_link_id"]
+            isOneToOne: false
+            referencedRelation: "creator_session_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agencies: {
         Row: {
           browser_sync_enabled: boolean | null
@@ -571,10 +638,15 @@ export type Database = {
           creator_id: string
           encrypted_session: string
           expires_at: string
+          hyperbeam_admin_token: string | null
+          hyperbeam_profile_id: string | null
+          hyperbeam_session_id: string | null
           id: string
           is_active: boolean
+          last_saved_at: string | null
           notes: string | null
           platform: string
+          session_status: string | null
           updated_at: string
         }
         Insert: {
@@ -584,10 +656,15 @@ export type Database = {
           creator_id: string
           encrypted_session: string
           expires_at: string
+          hyperbeam_admin_token?: string | null
+          hyperbeam_profile_id?: string | null
+          hyperbeam_session_id?: string | null
           id?: string
           is_active?: boolean
+          last_saved_at?: string | null
           notes?: string | null
           platform: string
+          session_status?: string | null
           updated_at?: string
         }
         Update: {
@@ -597,10 +674,15 @@ export type Database = {
           creator_id?: string
           encrypted_session?: string
           expires_at?: string
+          hyperbeam_admin_token?: string | null
+          hyperbeam_profile_id?: string | null
+          hyperbeam_session_id?: string | null
           id?: string
           is_active?: boolean
+          last_saved_at?: string | null
           notes?: string | null
           platform?: string
+          session_status?: string | null
           updated_at?: string
         }
         Relationships: [
