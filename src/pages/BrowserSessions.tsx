@@ -58,11 +58,9 @@ export default function BrowserSessions() {
     setActiveSessionLinkId(sessionLinkId);
 
     try {
-      const platformConfig = PLATFORMS.find(p => p.value === platform);
       await hyperbeam.createAdminSession({
         sessionLinkId,
         platform,
-        startUrl: platformConfig?.url,
       });
     } catch (err) {
       console.error("Failed to start session:", err);
