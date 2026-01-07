@@ -3,8 +3,8 @@ import { Globe, Play, Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BrowserbaseEmbed } from "./BrowserbaseEmbed";
-import { useBrowserbaseSession } from "@/hooks/useBrowserbaseSession";
+import { EmbeddedBrowser } from "./EmbeddedBrowser";
+import { useHyperbeamSession } from "@/hooks/useHyperbeamSession";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +36,7 @@ interface ChatterSessionLauncherProps {
 }
 
 export function ChatterSessionLauncher({ chatterId, className }: ChatterSessionLauncherProps) {
-  const browserbase = useBrowserbaseSession();
+  const hyperbeam = useHyperbeamSession();
   const [assignments, setAssignments] = useState<SessionLinkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSessionLinkId, setActiveSessionLinkId] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export function ChatterSessionLauncher({ chatterId, className }: ChatterSessionL
     setActiveSessionLinkId(sessionLinkId);
 
     try {
-      await browserbase.launchChatterSession({
+      await hyperbeam.launchChatterSession({
         sessionLinkId,
         chatterId,
       });
@@ -94,7 +94,7 @@ export function ChatterSessionLauncher({ chatterId, className }: ChatterSessionL
   };
 
   const handleDisconnect = () => {
-    browserbase.disconnect();
+    hyperbeam.disconnect();
     setActiveSessionLinkId(null);
   };
 
@@ -169,7 +169,7 @@ export function ChatterSessionLauncher({ chatterId, className }: ChatterSessionL
                       </div>
                       <Button
                         onClick={() => isActive ? handleDisconnect() : handleLaunchSession(link.id)}
-                        disabled={launchingSession || browserbase.isLoading}
+                        disabled={launchingSession || hyperbeam.isLoading}
                         variant={isActive ? "destructive" : "default"}
                         className="gap-2"
                       >
@@ -197,7 +197,7 @@ export function ChatterSessionLauncher({ chatterId, className }: ChatterSessionL
       </Card>
 
       {/* Embedded Browser */}
-      {browserbase.embedUrl && (
+      {hyperbeam.embedUrl && (
         <Card className="glass-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -209,9 +209,9 @@ export function ChatterSessionLauncher({ chatterId, className }: ChatterSessionL
             </div>
           </CardHeader>
           <CardContent>
-            <BrowserbaseEmbed
-              embedUrl={browserbase.embedUrl}
-              onReady={() => {}}
+            <EmbeddedBrowser
+              embedUrl={hyperbeam.embedUrl}
+              onReady={(hb) => hyperbeam.setHyperbeamInstance(hb)}
               onDisconnect={handleDisconnect}
               className="h-[600px]"
             />

@@ -12,9 +12,9 @@ export interface CreatorSessionLink {
   is_active: boolean;
   created_by: string;
   notes: string | null;
-  browserbase_session_id: string | null;
-  browserbase_context_id: string | null;
-  browserbase_live_url: string | null;
+  hyperbeam_session_id: string | null;
+  hyperbeam_admin_token: string | null;
+  hyperbeam_profile_id: string | null;
   session_status: string | null;
   last_saved_at: string | null;
   created_at: string;
@@ -71,7 +71,7 @@ export function useCreatorSessionLinks(creatorId?: string) {
   }, [crud.items]);
 
   const getPendingSessionLinks = useCallback(() => {
-    return crud.items.filter(link => link.session_status === "pending" || !link.browserbase_context_id);
+    return crud.items.filter(link => link.session_status === "pending" || !link.hyperbeam_profile_id);
   }, [crud.items]);
 
   return {

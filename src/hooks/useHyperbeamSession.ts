@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+type HyperbeamInstance = Awaited<ReturnType<typeof import("@hyperbeam/web").default>>;
 
 export type SessionAction = 
   | "create_admin_session" 
@@ -14,13 +15,13 @@ interface SessionState {
   isConnected: boolean;
   embedUrl: string | null;
   sessionId: string | null;
-  contextId: string | null;
   error: string | null;
 }
 
 interface CreateAdminSessionParams {
   sessionLinkId: string;
   platform: string;
+  startUrl?: string;
 }
 
 interface LaunchChatterSessionParams {
@@ -40,21 +41,22 @@ interface GetSessionStatusParams {
   sessionLinkId: string;
 }
 
-export function useBrowserbaseSession() {
+export function useHyperbeamSession() {
   const [state, setState] = useState<SessionState>({
     isLoading: false,
     isConnected: false,
     embedUrl: null,
     sessionId: null,
-    contextId: null,
     error: null,
   });
+
+  const hyperbeamRef = useRef<HyperbeamInstance | null>(null);
 
   const invokeEdgeFunction = useCallback(async (action: SessionAction, params: Record<string, string>) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const { data, error } = await supabase.functions.invoke("browserbase-session", {
+      const { data, error } = await supabase.functions.invoke("hyperbeam-session", {
         body: { action, ...params },
       });
 
@@ -72,21 +74,21 @@ export function useBrowserbaseSession() {
     }
   }, []);
 
-  const createAdminSession = useCallback(async ({ sessionLinkId, platform }: CreateAdminSessionParams) => {
+  const createAdminSession = useCallback(async ({ sessionLinkId, platform, startUrl }: CreateAdminSessionParams) => {
     const data = await invokeEdgeFunction("create_admin_session", {
       session_link_id: sessionLinkId,
       platform,
+      ...(startUrl && { start_url: startUrl }),
     });
 
     setState(prev => ({
       ...prev,
-      embedUrl: data.embedUrl,
-      sessionId: data.sessionId,
-      contextId: data.contextId,
+      embedUrl: data.embed_url,
+      sessionId: data.session_id,
       isConnected: true,
     }));
 
-    toast.success("Browser session started. Please log in to the platform.");
+    toast.success("Admin session created. Please log in to the platform.");
     return data;
   }, [invokeEdgeFunction]);
 
@@ -98,8 +100,8 @@ export function useBrowserbaseSession() {
 
     setState(prev => ({
       ...prev,
-      embedUrl: data.embedUrl,
-      sessionId: data.sessionId,
+      embedUrl: data.embed_url,
+      sessionId: data.session_id,
       isConnected: true,
     }));
 
@@ -112,13 +114,6 @@ export function useBrowserbaseSession() {
       session_link_id: sessionLinkId,
     });
 
-    setState(prev => ({
-      ...prev,
-      embedUrl: null,
-      sessionId: null,
-      isConnected: false,
-    }));
-
     toast.success("Session profile saved successfully");
     return data;
   }, [invokeEdgeFunction]);
@@ -128,12 +123,17 @@ export function useBrowserbaseSession() {
       session_link_id: sessionLinkId,
     });
 
+    // Cleanup local state
+    if (hyperbeamRef.current) {
+      hyperbeamRef.current.destroy();
+      hyperbeamRef.current = null;
+    }
+
     setState({
       isLoading: false,
       isConnected: false,
       embedUrl: null,
       sessionId: null,
-      contextId: null,
       error: null,
     });
 
@@ -147,24 +147,34 @@ export function useBrowserbaseSession() {
     });
   }, [invokeEdgeFunction]);
 
+  const setHyperbeamInstance = useCallback((instance: HyperbeamInstance | null) => {
+    hyperbeamRef.current = instance;
+  }, []);
+
   const disconnect = useCallback(() => {
+    if (hyperbeamRef.current) {
+      hyperbeamRef.current.destroy();
+      hyperbeamRef.current = null;
+    }
+
     setState({
       isLoading: false,
       isConnected: false,
       embedUrl: null,
       sessionId: null,
-      contextId: null,
       error: null,
     });
   }, []);
 
   return {
     ...state,
+    hyperbeamInstance: hyperbeamRef.current,
     createAdminSession,
     launchChatterSession,
     saveProfile,
     terminateSession,
     getSessionStatus,
+    setHyperbeamInstance,
     disconnect,
   };
 }
