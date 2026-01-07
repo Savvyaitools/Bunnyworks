@@ -71,7 +71,7 @@ const chattingNavItems = [
 
 const integrationsNavItems = [
   { title: "Manual Data Import", url: "/data-import", icon: Upload },
-  { title: "Browser Session", url: "/browser-sync", icon: Plug },
+  { title: "Browser Sync", url: "/browser-sync", icon: Plug },
 ];
 
 const bottomNavItems = [
