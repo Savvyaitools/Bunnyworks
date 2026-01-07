@@ -19,8 +19,7 @@ import {
   Upload,
   ClipboardList,
   Globe,
-  Plug,
-  Monitor
+  Plug
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -65,13 +64,12 @@ const recruitingNavItems = [
 const chattingNavItems = [
   { title: "Chatters", url: "/chatters", icon: Headphones },
   { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
-  { title: "Browser Sessions", url: "/browser-sessions", icon: Monitor },
   { title: "Internal Messages", url: "/internal-messages", icon: MessageCircle },
 ];
 
 const integrationsNavItems = [
   { title: "Manual Data Import", url: "/data-import", icon: Upload },
-  { title: "Browser Sync", url: "/browser-sync", icon: Plug },
+  { title: "Browser", url: "/browser-sync", icon: Plug },
 ];
 
 const bottomNavItems = [

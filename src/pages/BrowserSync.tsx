@@ -158,7 +158,7 @@ export default function BrowserSync() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Browser Sync</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Browser</h1>
           <p className="text-muted-foreground mt-1">Sync data directly from your browser using a Chrome extension</p>
         </div>
 

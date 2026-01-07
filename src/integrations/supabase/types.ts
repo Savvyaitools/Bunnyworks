@@ -16,13 +16,13 @@ export type Database = {
     Tables: {
       active_browser_sessions: {
         Row: {
-          admin_token: string | null
           agency_id: string
+          browserbase_live_url: string | null
+          browserbase_session_id: string
           chatter_id: string | null
           created_at: string | null
           embed_url: string
           ended_at: string | null
-          hyperbeam_session_id: string
           id: string
           is_active: boolean | null
           session_link_id: string | null
@@ -30,13 +30,13 @@ export type Database = {
           started_at: string | null
         }
         Insert: {
-          admin_token?: string | null
           agency_id: string
+          browserbase_live_url?: string | null
+          browserbase_session_id: string
           chatter_id?: string | null
           created_at?: string | null
           embed_url: string
           ended_at?: string | null
-          hyperbeam_session_id: string
           id?: string
           is_active?: boolean | null
           session_link_id?: string | null
@@ -44,13 +44,13 @@ export type Database = {
           started_at?: string | null
         }
         Update: {
-          admin_token?: string | null
           agency_id?: string
+          browserbase_live_url?: string | null
+          browserbase_session_id?: string
           chatter_id?: string | null
           created_at?: string | null
           embed_url?: string
           ended_at?: string | null
-          hyperbeam_session_id?: string
           id?: string
           is_active?: boolean | null
           session_link_id?: string | null
@@ -633,14 +633,14 @@ export type Database = {
       creator_session_links: {
         Row: {
           agency_id: string
+          browserbase_context_id: string | null
+          browserbase_live_url: string | null
+          browserbase_session_id: string | null
           created_at: string
           created_by: string
           creator_id: string
           encrypted_session: string
           expires_at: string
-          hyperbeam_admin_token: string | null
-          hyperbeam_profile_id: string | null
-          hyperbeam_session_id: string | null
           id: string
           is_active: boolean
           last_saved_at: string | null
@@ -651,14 +651,14 @@ export type Database = {
         }
         Insert: {
           agency_id: string
+          browserbase_context_id?: string | null
+          browserbase_live_url?: string | null
+          browserbase_session_id?: string | null
           created_at?: string
           created_by: string
           creator_id: string
           encrypted_session: string
           expires_at: string
-          hyperbeam_admin_token?: string | null
-          hyperbeam_profile_id?: string | null
-          hyperbeam_session_id?: string | null
           id?: string
           is_active?: boolean
           last_saved_at?: string | null
@@ -669,14 +669,14 @@ export type Database = {
         }
         Update: {
           agency_id?: string
+          browserbase_context_id?: string | null
+          browserbase_live_url?: string | null
+          browserbase_session_id?: string | null
           created_at?: string
           created_by?: string
           creator_id?: string
           encrypted_session?: string
           expires_at?: string
-          hyperbeam_admin_token?: string | null
-          hyperbeam_profile_id?: string | null
-          hyperbeam_session_id?: string | null
           id?: string
           is_active?: boolean
           last_saved_at?: string | null
