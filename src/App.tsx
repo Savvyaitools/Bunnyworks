@@ -35,7 +35,6 @@ import CreatorApplication from "./pages/apply/CreatorApplication";
 import EmployeeApplication from "./pages/apply/EmployeeApplication";
 import WebScraper from "./pages/tools/WebScraper";
 import { AIChatting, AIVoiceCloner, AIContentGenerator } from "./pages/tools";
-import BrowserSync from "./pages/BrowserSync";
 import BrowserSessions from "./pages/BrowserSessions";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -161,11 +160,6 @@ const AppRoutes = () => {
       <Route path="/tools/scraper" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <WebScraper />
-        </ProtectedRoute>
-      } />
-      <Route path="/browser-sync" element={
-        <ProtectedRoute allowedUserTypes={["agency"]}>
-          <BrowserSync />
         </ProtectedRoute>
       } />
       <Route path="/browser-sessions" element={
