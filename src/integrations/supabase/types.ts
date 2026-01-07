@@ -708,6 +708,9 @@ export type Database = {
           created_at: string
           creator_id: string
           id: string
+          of_account_id: string | null
+          of_connected_at: string | null
+          of_last_synced_at: string | null
           platform: string
           profile_url: string | null
           updated_at: string
@@ -718,6 +721,9 @@ export type Database = {
           created_at?: string
           creator_id: string
           id?: string
+          of_account_id?: string | null
+          of_connected_at?: string | null
+          of_last_synced_at?: string | null
           platform: string
           profile_url?: string | null
           updated_at?: string
@@ -728,6 +734,9 @@ export type Database = {
           created_at?: string
           creator_id?: string
           id?: string
+          of_account_id?: string | null
+          of_connected_at?: string | null
+          of_last_synced_at?: string | null
           platform?: string
           profile_url?: string | null
           updated_at?: string

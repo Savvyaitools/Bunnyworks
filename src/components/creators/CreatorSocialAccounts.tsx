@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ExternalLink, Trash2, Instagram, Youtube } from "lucide-react";
+import { Plus, ExternalLink, Trash2, Instagram, Youtube, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreatorSocialAccounts } from "@/hooks/useCreatorSocialAccounts";
+import { OnlyFansAccountConnect } from "@/components/browser/OnlyFansAccountConnect";
 import { cn } from "@/lib/utils";
 
 interface CreatorSocialAccountsProps {
@@ -40,6 +41,7 @@ const platformColors: Record<string, string> = {
   fanvue: "bg-purple-500",
   twitch: "bg-purple-600",
   reddit: "bg-orange-500",
+  onlyfans: "bg-[#00AFF0]",
 };
 
 const platforms = [
@@ -55,7 +57,7 @@ const platforms = [
 ];
 
 export function CreatorSocialAccounts({ creatorId }: CreatorSocialAccountsProps) {
-  const { accounts, loading, createAccount, deleteAccount, getPlatformUrl } = useCreatorSocialAccounts(creatorId);
+  const { accounts, loading, createAccount, deleteAccount, getPlatformUrl, refetch } = useCreatorSocialAccounts(creatorId);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [formData, setFormData] = useState({
     platform: "",
@@ -63,6 +65,8 @@ export function CreatorSocialAccounts({ creatorId }: CreatorSocialAccountsProps)
     account_type: "creator_managed" as "agency_managed" | "creator_managed",
   });
 
+  // Check if OnlyFans is already connected
+  const hasOnlyFans = accounts.some(a => a.platform === "onlyfans");
   const handleSubmit = async () => {
     if (!formData.platform || !formData.username) return;
     
@@ -96,7 +100,10 @@ export function CreatorSocialAccounts({ creatorId }: CreatorSocialAccountsProps)
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {!hasOnlyFans && (
+          <OnlyFansAccountConnect creatorId={creatorId} onSuccess={refetch} />
+        )}
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="bg-gradient-primary">
