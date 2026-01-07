@@ -18,5 +18,5 @@ verify_jwt = false
 [functions.ingest-browser-sync]
 verify_jwt = false
 
-[functions.hyperbeam-session]
+[functions.browserbase-session]
 verify_jwt = false

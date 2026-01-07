@@ -1,77 +1,40 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import Hyperbeam from "@hyperbeam/web";
-import { Loader2, Maximize2, Minimize2, Volume2, VolumeX, RefreshCw } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Loader2, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type HyperbeamInstance = Awaited<ReturnType<typeof Hyperbeam>>;
-
-interface EmbeddedBrowserProps {
+interface BrowserbaseEmbedProps {
   embedUrl: string;
-  onReady?: (hb: HyperbeamInstance) => void;
+  onReady?: () => void;
   onDisconnect?: () => void;
   className?: string;
   showControls?: boolean;
 }
 
-export function EmbeddedBrowser({
+export function BrowserbaseEmbed({
   embedUrl,
   onReady,
   onDisconnect,
   className,
   showControls = true,
-}: EmbeddedBrowserProps) {
+}: BrowserbaseEmbedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const hyperbeamRef = useRef<HyperbeamInstance | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const initHyperbeam = useCallback(async () => {
-    if (!containerRef.current || !embedUrl) return;
-
-    setIsLoading(true);
+  const handleIframeLoad = useCallback(() => {
+    setIsLoading(false);
     setError(null);
+    onReady?.();
+  }, [onReady]);
 
-    try {
-      // Cleanup previous instance if exists
-      if (hyperbeamRef.current) {
-        hyperbeamRef.current.destroy();
-        hyperbeamRef.current = null;
-      }
-
-      // Clear container
-      containerRef.current.innerHTML = "";
-
-      const hb = await Hyperbeam(containerRef.current, embedUrl, {
-        timeout: 30000,
-        frameCb: () => {
-          setIsLoading(false);
-        },
-      });
-
-      hyperbeamRef.current = hb;
-      onReady?.(hb);
-    } catch (err: any) {
-      console.error("Hyperbeam initialization error:", err);
-      setError(err.message || "Failed to connect to browser session");
-      setIsLoading(false);
-    }
-  }, [embedUrl, onReady]);
-
-  useEffect(() => {
-    initHyperbeam();
-
-    return () => {
-      if (hyperbeamRef.current) {
-        hyperbeamRef.current.destroy();
-        hyperbeamRef.current = null;
-        onDisconnect?.();
-      }
-    };
-  }, [initHyperbeam, onDisconnect]);
+  const handleIframeError = useCallback(() => {
+    setIsLoading(false);
+    setError("Failed to load browser session");
+  }, []);
 
   const handleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
@@ -89,17 +52,12 @@ export function EmbeddedBrowser({
     }
   }, []);
 
-  const handleMuteToggle = useCallback(() => {
-    if (!hyperbeamRef.current) return;
-    
-    const newMutedState = !isMuted;
-    hyperbeamRef.current.volume = newMutedState ? 0 : 1;
-    setIsMuted(newMutedState);
-  }, [isMuted]);
-
   const handleRefresh = useCallback(() => {
-    initHyperbeam();
-  }, [initHyperbeam]);
+    if (iframeRef.current) {
+      setIsLoading(true);
+      iframeRef.current.src = embedUrl;
+    }
+  }, [embedUrl]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -109,6 +67,12 @@ export function EmbeddedBrowser({
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
+
+  // Reset loading state when embedUrl changes
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+  }, [embedUrl]);
 
   if (error) {
     return (
@@ -126,7 +90,7 @@ export function EmbeddedBrowser({
   }
 
   return (
-    <div className={cn("relative flex flex-col", className)}>
+    <div ref={containerRef} className={cn("relative flex flex-col", className)}>
       {/* Controls Bar */}
       {showControls && (
         <div className="flex items-center justify-between gap-2 rounded-t-lg border border-b-0 border-border bg-muted/50 px-3 py-2">
@@ -141,19 +105,6 @@ export function EmbeddedBrowser({
           </div>
           
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={handleMuteToggle}
-              title={isMuted ? "Unmute" : "Mute"}
-            >
-              {isMuted ? (
-                <VolumeX className="h-4 w-4" />
-              ) : (
-                <Volume2 className="h-4 w-4" />
-              )}
-            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -192,10 +143,14 @@ export function EmbeddedBrowser({
           </div>
         )}
         
-        <div
-          ref={containerRef}
-          className="h-full w-full"
+        <iframe
+          ref={iframeRef}
+          src={embedUrl}
+          className="h-full w-full border-0"
           style={{ minHeight: "400px" }}
+          allow="clipboard-read; clipboard-write"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
         />
       </div>
     </div>
