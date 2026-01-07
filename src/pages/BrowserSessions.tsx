@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { EmbeddedBrowser } from "@/components/browser";
+import { EmbeddedBrowser, SessionAssignmentPanel } from "@/components/browser";
 import { useCreators } from "@/hooks/useCreators";
 import { useCreatorSessionLinks } from "@/hooks/useCreatorSessionLinks";
 import { useHyperbeamSession } from "@/hooks/useHyperbeamSession";
@@ -368,6 +368,12 @@ export default function BrowserSessions() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Session Assignments */}
+        <SessionAssignmentPanel 
+          sessionLinks={sessionLinks} 
+          getCreatorName={getCreatorName} 
+        />
       </div>
     </DashboardLayout>
   );
