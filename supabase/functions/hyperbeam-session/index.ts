@@ -139,7 +139,19 @@ async function createAdminSession(supabase: any, apiKey: string, userId: string,
   if (!hbResponse.ok) {
     const errorText = await hbResponse.text();
     console.error("Hyperbeam API error:", errorText);
-    throw new Error(`Failed to create Hyperbeam session: ${errorText}`);
+
+    // Return 200 so the client can display the real error message (Supabase client hides bodies for non-2xx)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error:
+          "Hyperbeam API rejected VM creation. " +
+          (errorText.includes("err_api_restricted")
+            ? "Your Hyperbeam account has a restricted feature enabled in this request. Please contact Hyperbeam to enable it on your account (the API returned err_api_restricted)."
+            : errorText),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const hbData = await hbResponse.json();
@@ -265,7 +277,18 @@ async function saveProfile(supabase: any, apiKey: string, params: any) {
   if (!hbResponse.ok) {
     const errorText = await hbResponse.text();
     console.error("Failed to get session info:", errorText);
-    throw new Error("Failed to get session info from Hyperbeam");
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error:
+          "Hyperbeam API rejected fetching VM details. " +
+          (errorText.includes("err_api_restricted")
+            ? "Your Hyperbeam account has a restricted feature enabled. Please contact Hyperbeam to enable it (err_api_restricted)."
+            : errorText),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const hbData = await hbResponse.json();
@@ -398,7 +421,18 @@ async function launchChatterSession(supabase: any, apiKey: string, userId: strin
   if (!hbResponse.ok) {
     const errorText = await hbResponse.text();
     console.error("Hyperbeam API error:", errorText);
-    throw new Error("Failed to create chatter session");
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error:
+          "Hyperbeam API rejected VM creation for chatter session. " +
+          (errorText.includes("err_api_restricted")
+            ? "Your Hyperbeam account has a restricted feature enabled in this request. Please contact Hyperbeam to enable it (err_api_restricted)."
+            : errorText),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const hbData = await hbResponse.json();
