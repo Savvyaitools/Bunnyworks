@@ -8,10 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { EmbeddedBrowser, SessionAssignmentPanel } from "@/components/browser";
+import { BrowserbaseEmbed, SessionAssignmentPanel } from "@/components/browser";
 import { useCreators } from "@/hooks/useCreators";
 import { useCreatorSessionLinks } from "@/hooks/useCreatorSessionLinks";
-import { useHyperbeamSession } from "@/hooks/useHyperbeamSession";
+import { useBrowserbaseSession } from "@/hooks/useBrowserbaseSession";
 import { cn } from "@/lib/utils";
 
 const PLATFORMS = [
@@ -24,7 +24,7 @@ const PLATFORMS = [
 export default function BrowserSessions() {
   const { creators, loading: loadingCreators } = useCreators();
   const { sessionLinks, loading: loadingLinks, createSessionLink, deleteSessionLink, refetch } = useCreatorSessionLinks();
-  const hyperbeam = useHyperbeamSession();
+  const browserbase = useBrowserbaseSession();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedCreatorId, setSelectedCreatorId] = useState<string>("");
@@ -58,7 +58,7 @@ export default function BrowserSessions() {
     setActiveSessionLinkId(sessionLinkId);
 
     try {
-      await hyperbeam.createAdminSession({
+      await browserbase.createAdminSession({
         sessionLinkId,
         platform,
       });
@@ -74,7 +74,7 @@ export default function BrowserSessions() {
     if (!activeSessionLinkId) return;
 
     try {
-      await hyperbeam.saveProfile({ sessionLinkId: activeSessionLinkId });
+      await browserbase.saveProfile({ sessionLinkId: activeSessionLinkId });
       refetch();
     } catch (err) {
       console.error("Failed to save profile:", err);
@@ -85,7 +85,7 @@ export default function BrowserSessions() {
     if (!activeSessionLinkId) return;
 
     try {
-      await hyperbeam.terminateSession({ sessionLinkId: activeSessionLinkId });
+      await browserbase.terminateSession({ sessionLinkId: activeSessionLinkId });
       setActiveSessionLinkId(null);
       refetch();
     } catch (err) {
@@ -95,14 +95,14 @@ export default function BrowserSessions() {
 
   const handleDeleteSessionLink = async (id: string) => {
     if (activeSessionLinkId === id) {
-      await hyperbeam.terminateSession({ sessionLinkId: id });
+      await browserbase.terminateSession({ sessionLinkId: id });
       setActiveSessionLinkId(null);
     }
     await deleteSessionLink(id);
   };
 
   const getStatusBadge = (link: typeof sessionLinks[0]) => {
-    if (link.session_status === "ready" && link.hyperbeam_profile_id) {
+    if (link.session_status === "ready" && link.browserbase_context_id) {
       return <Badge className="bg-green-500/20 text-green-500 border-green-500/30">Ready</Badge>;
     }
     if (link.session_status === "active") {
@@ -258,7 +258,7 @@ export default function BrowserSessions() {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() => handleStartAdminSession(link.id, link.platform)}
-                            disabled={hyperbeam.isLoading || creatingSession}
+                            disabled={browserbase.isLoading || creatingSession}
                             title="Launch Session"
                           >
                             <Play className="h-4 w-4" />
@@ -269,7 +269,7 @@ export default function BrowserSessions() {
                             size="icon"
                             className="h-8 w-8 text-amber-500"
                             onClick={() => handleStartAdminSession(link.id, link.platform)}
-                            disabled={hyperbeam.isLoading || creatingSession}
+                            disabled={browserbase.isLoading || creatingSession}
                             title="Setup Session"
                           >
                             <AlertCircle className="h-4 w-4" />
@@ -302,19 +302,19 @@ export default function BrowserSessions() {
                     Cloud Browser
                   </CardTitle>
                   <CardDescription>
-                    {hyperbeam.isConnected 
+                    {browserbase.isConnected 
                       ? "Log in to the platform, then save the profile"
                       : "Select a session to start"
                     }
                   </CardDescription>
                 </div>
-                {hyperbeam.isConnected && (
+                {browserbase.isConnected && (
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleSaveProfile}
-                      disabled={hyperbeam.isLoading}
+                      disabled={browserbase.isLoading}
                       className="gap-2"
                     >
                       <Save className="h-4 w-4" />
@@ -324,7 +324,7 @@ export default function BrowserSessions() {
                       variant="destructive"
                       size="sm"
                       onClick={handleTerminateSession}
-                      disabled={hyperbeam.isLoading}
+                      disabled={browserbase.isLoading}
                       className="gap-2"
                     >
                       <StopCircle className="h-4 w-4" />
@@ -335,16 +335,16 @@ export default function BrowserSessions() {
               </div>
             </CardHeader>
             <CardContent>
-              {hyperbeam.embedUrl ? (
-                <EmbeddedBrowser
-                  embedUrl={hyperbeam.embedUrl}
-                  onReady={(hb) => hyperbeam.setHyperbeamInstance(hb)}
-                  onDisconnect={() => hyperbeam.disconnect()}
+              {browserbase.embedUrl ? (
+                <BrowserbaseEmbed
+                  embedUrl={browserbase.embedUrl}
+                  onReady={() => {}}
+                  onDisconnect={() => browserbase.disconnect()}
                   className="h-[500px]"
                 />
               ) : (
                 <div className="h-[500px] rounded-lg border border-dashed border-border bg-muted/20 flex flex-col items-center justify-center">
-                  {creatingSession || hyperbeam.isLoading ? (
+                  {creatingSession || browserbase.isLoading ? (
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       <p className="text-sm text-muted-foreground">Starting browser session...</p>
@@ -360,8 +360,8 @@ export default function BrowserSessions() {
                   )}
                 </div>
               )}
-              {hyperbeam.error && (
-                <p className="text-xs text-destructive mt-2">{hyperbeam.error}</p>
+              {browserbase.error && (
+                <p className="text-xs text-destructive mt-2">{browserbase.error}</p>
               )}
             </CardContent>
           </Card>
