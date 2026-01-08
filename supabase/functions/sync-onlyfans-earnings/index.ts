@@ -1,0 +1,154 @@
+import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const ONLYFANS_API_BASE = "https://app.onlyfansapi.com/api";
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  console.log("Starting OnlyFans earnings sync job...");
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const apiKey = Deno.env.get("ONLYFANS_API_KEY");
+
+    if (!apiKey) {
+      console.error("ONLYFANS_API_KEY not configured");
+      return new Response(
+        JSON.stringify({ error: "OnlyFans API not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get all connected OnlyFans accounts
+    const { data: accounts, error: fetchError } = await supabase
+      .from("creator_social_accounts")
+      .select("id, creator_id, of_account_id, username")
+      .eq("platform", "onlyfans")
+      .not("of_account_id", "is", null);
+
+    if (fetchError) {
+      console.error("Error fetching accounts:", fetchError);
+      throw fetchError;
+    }
+
+    console.log(`Found ${accounts?.length || 0} OnlyFans accounts to sync`);
+
+    const results: { accountId: string; success: boolean; error?: string }[] = [];
+
+    for (const account of accounts || []) {
+      try {
+        console.log(`Syncing earnings for account: ${account.of_account_id}`);
+
+        // Fetch earnings from OnlyFans API
+        const response = await fetch(
+          `${ONLYFANS_API_BASE}/${account.of_account_id}/payouts/earning-statistics`,
+          {
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`API error for ${account.of_account_id}:`, errorText);
+          results.push({ accountId: account.of_account_id, success: false, error: errorText });
+          continue;
+        }
+
+        const earnings = await response.json();
+        console.log(`Earnings data for ${account.of_account_id}:`, earnings);
+
+        // Calculate period (current month)
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+
+        // Check if we already have an earning record for this period
+        const { data: existingEarning } = await supabase
+          .from("creator_earnings")
+          .select("id")
+          .eq("creator_id", account.creator_id)
+          .eq("platform", "onlyfans")
+          .gte("period_start", periodStart)
+          .lte("period_end", periodEnd)
+          .maybeSingle();
+
+        const totalEarnings = earnings.total || 0;
+
+        if (existingEarning) {
+          // Update existing record
+          await supabase
+            .from("creator_earnings")
+            .update({
+              amount: totalEarnings,
+              notes: `Auto-synced: Tips: $${earnings.tips || 0}, Subs: $${earnings.subscriptions || 0}, Messages: $${earnings.messages || 0}`,
+            })
+            .eq("id", existingEarning.id);
+
+          console.log(`Updated earnings for ${account.of_account_id}: $${totalEarnings}`);
+        } else {
+          // Insert new record
+          await supabase
+            .from("creator_earnings")
+            .insert({
+              creator_id: account.creator_id,
+              platform: "onlyfans",
+              amount: totalEarnings,
+              period_start: periodStart,
+              period_end: periodEnd,
+              notes: `Auto-synced: Tips: $${earnings.tips || 0}, Subs: $${earnings.subscriptions || 0}, Messages: $${earnings.messages || 0}`,
+            });
+
+          console.log(`Inserted new earnings for ${account.of_account_id}: $${totalEarnings}`);
+        }
+
+        // Update last synced timestamp
+        await supabase
+          .from("creator_social_accounts")
+          .update({ of_last_synced_at: new Date().toISOString() })
+          .eq("id", account.id);
+
+        results.push({ accountId: account.of_account_id, success: true });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        console.error(`Error syncing ${account.of_account_id}:`, errorMsg);
+        results.push({ accountId: account.of_account_id, success: false, error: errorMsg });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    console.log(`Sync complete: ${successCount} succeeded, ${failCount} failed`);
+
+    return new Response(
+      JSON.stringify({
+        message: "Sync complete",
+        total: results.length,
+        success: successCount,
+        failed: failCount,
+        results,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    console.error("Sync job error:", error);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

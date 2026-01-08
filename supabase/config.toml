@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.onlyfans-api]
 verify_jwt = false
+
+[functions.sync-onlyfans-earnings]
+verify_jwt = false
