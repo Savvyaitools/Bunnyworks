@@ -112,6 +112,28 @@ export const employeeFormSchema = z.object({
     .max(200, "Address must be less than 200 characters")
     .optional()
     .or(z.literal("")),
+  // Chatter-specific fields
+  skill_grade: z
+    .enum(["A", "B", "C"])
+    .optional(),
+  timezone: z
+    .string()
+    .trim()
+    .max(100, "Timezone must be less than 100 characters")
+    .optional()
+    .or(z.literal("")),
+  daily_target_messages: z
+    .number()
+    .min(0, "Target cannot be negative")
+    .max(10000, "Target seems too high")
+    .optional()
+    .or(z.literal(100)),
+  daily_target_ppv: z
+    .number()
+    .min(0, "Target cannot be negative")
+    .max(1000, "Target seems too high")
+    .optional()
+    .or(z.literal(20)),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;

@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { employeeFormSchema, type EmployeeFormValues } from "@/lib/validations";
 import { FormField, FormRow } from "./FormField";
@@ -40,9 +40,17 @@ export function EmployeeForm({
       certifications: "",
       emergency_contact: "",
       address: "",
+      skill_grade: "B",
+      timezone: "",
+      daily_target_messages: 100,
+      daily_target_ppv: 20,
       ...defaultValues,
     },
   });
+
+  // Watch the role field to conditionally show chatter fields
+  const selectedRole = useWatch({ control, name: "role" });
+  const isChatterRole = selectedRole === "Chatter";
 
   const handleFormSubmit = async (data: EmployeeFormValues) => {
     await onSubmit(data);
@@ -66,6 +74,23 @@ export function EmployeeForm({
     { value: "Production", label: "Production" },
     { value: "Marketing", label: "Marketing" },
     { value: "Strategy", label: "Strategy" },
+  ];
+
+  const skillGradeOptions = [
+    { value: "A", label: "Grade A (Expert)" },
+    { value: "B", label: "Grade B (Intermediate)" },
+    { value: "C", label: "Grade C (Beginner)" },
+  ];
+
+  const timezoneOptions = [
+    { value: "America/New_York", label: "EST (New York)" },
+    { value: "America/Chicago", label: "CST (Chicago)" },
+    { value: "America/Denver", label: "MST (Denver)" },
+    { value: "America/Los_Angeles", label: "PST (Los Angeles)" },
+    { value: "Europe/London", label: "GMT (London)" },
+    { value: "Europe/Paris", label: "CET (Paris)" },
+    { value: "Asia/Dubai", label: "GST (Dubai)" },
+    { value: "Asia/Manila", label: "PHT (Manila)" },
   ];
 
   return (
@@ -130,6 +155,53 @@ export function EmployeeForm({
           placeholder="Select dept"
         />
       </FormRow>
+
+      {/* Chatter-specific fields - only show when role is Chatter */}
+      {isChatterRole && (
+        <>
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">Chatter Settings</h4>
+          </div>
+          <FormRow>
+            <FormField
+              type="select"
+              name="skill_grade"
+              label="Skill Grade"
+              control={control}
+              options={skillGradeOptions}
+              placeholder="Select grade"
+            />
+            <FormField
+              type="select"
+              name="timezone"
+              label="Timezone"
+              control={control}
+              options={timezoneOptions}
+              placeholder="Select timezone"
+            />
+          </FormRow>
+          <FormRow>
+            <FormField
+              type="number"
+              name="daily_target_messages"
+              label="Daily Message Target"
+              placeholder="100"
+              register={register}
+              error={errors.daily_target_messages}
+              valueAsNumber
+            />
+            <FormField
+              type="number"
+              name="daily_target_ppv"
+              label="Daily PPV Target"
+              placeholder="20"
+              register={register}
+              error={errors.daily_target_ppv}
+              valueAsNumber
+            />
+          </FormRow>
+        </>
+      )}
 
       <FormRow>
         <FormField

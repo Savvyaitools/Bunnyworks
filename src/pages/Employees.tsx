@@ -65,6 +65,7 @@ export default function Employees() {
   const handleSubmit = async (data: EmployeeFormValues) => {
     const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
     const certs = data.certifications?.split(",").map(s => s.trim()).filter(Boolean) || [];
+    const isChatter = data.role === "Chatter";
 
     await createEmployee({
       name: data.name,
@@ -86,6 +87,12 @@ export default function Employees() {
       emergency_contact: data.emergency_contact || null,
       address: data.address || null,
       auth_user_id: null,
+      // Chatter-specific fields
+      skill_grade: (data.skill_grade || "B") as "A" | "B" | "C",
+      is_chatter: isChatter,
+      daily_target_messages: data.daily_target_messages || 100,
+      daily_target_ppv: data.daily_target_ppv || 20,
+      timezone: data.timezone || null,
     });
 
     setIsAddDialogOpen(false);
@@ -96,6 +103,8 @@ export default function Employees() {
 
     const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
     const certs = data.certifications?.split(",").map(s => s.trim()).filter(Boolean) || [];
+
+    const isChatter = data.role === "Chatter";
 
     await updateEmployee(selectedEmployee.id, {
       name: data.name,
@@ -112,6 +121,12 @@ export default function Employees() {
       certifications: certs.length > 0 ? certs : null,
       emergency_contact: data.emergency_contact || null,
       address: data.address || null,
+      // Chatter-specific fields
+      skill_grade: data.skill_grade || "B",
+      is_chatter: isChatter,
+      daily_target_messages: data.daily_target_messages || 100,
+      daily_target_ppv: data.daily_target_ppv || 20,
+      timezone: data.timezone || null,
     });
 
     setIsEditDialogOpen(false);
@@ -139,6 +154,11 @@ export default function Employees() {
       certifications: employee.certifications?.join(", ") || "",
       emergency_contact: employee.emergency_contact || "",
       address: employee.address || "",
+      // Chatter-specific fields
+      skill_grade: employee.skill_grade || "B",
+      timezone: employee.timezone || "",
+      daily_target_messages: employee.daily_target_messages || 100,
+      daily_target_ppv: employee.daily_target_ppv || 20,
     });
     setIsEditDialogOpen(true);
   };

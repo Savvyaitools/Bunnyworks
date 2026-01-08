@@ -7,6 +7,7 @@ export interface CreatorAssignment {
   id: string;
   creator_id: string;
   chatter_id: string;
+  employee_id?: string;
   role: string;
   created_at: string;
   chatter?: {
@@ -26,16 +27,17 @@ export function useCreatorAssignments() {
   const { items: assignments, loading, refetch } = useSupabaseRead<CreatorAssignment>({
     table: "creator_assignments",
     queryKey: "creator-assignments",
-    select: `*, chatter:chatters(id, name, skill_grade), creator:creators(id, name)`,
+    select: `*, chatter:employees!creator_assignments_employee_id_fkey(id, name, skill_grade), creator:creators(id, name)`,
     orderBy: { column: "created_at", ascending: false },
   });
 
   const createAssignmentMutation = useMutation({
-    mutationFn: async ({ creator_id, chatter_id, role = "chatter" }: { creator_id: string; chatter_id: string; role?: string }) => {
+    mutationFn: async ({ creator_id, employee_id, role = "chatter" }: { creator_id: string; employee_id: string; role?: string }) => {
+      // Insert with both chatter_id (for backwards compat until migration complete) and employee_id
       const { data, error } = await supabase
         .from("creator_assignments")
-        .insert({ creator_id, chatter_id, role })
-        .select(`*, chatter:chatters(id, name, skill_grade), creator:creators(id, name)`)
+        .insert({ creator_id, chatter_id: employee_id, employee_id, role } as any)
+        .select(`*, chatter:employees!creator_assignments_employee_id_fkey(id, name, skill_grade), creator:creators(id, name)`)
         .single();
 
       if (error) throw error;
@@ -67,8 +69,8 @@ export function useCreatorAssignments() {
   return {
     assignments,
     loading,
-    createAssignment: (creator_id: string, chatter_id: string, role: string = "chatter") =>
-      createAssignmentMutation.mutateAsync({ creator_id, chatter_id, role }),
+    createAssignment: (creator_id: string, employee_id: string, role: string = "chatter") =>
+      createAssignmentMutation.mutateAsync({ creator_id, employee_id, role }),
     deleteAssignment: deleteAssignmentMutation.mutateAsync,
     refetch,
   };
