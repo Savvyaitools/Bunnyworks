@@ -1,4 +1,4 @@
-import { ArrowRight, Mic, Zap, Clock, Users, Shield, Headphones, Sparkles, CheckCircle, Lock } from "lucide-react";
+import { ArrowRight, Mic, Zap, Clock, Users, Shield, Headphones, Sparkles, CheckCircle, Lock, Heart, Gift, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/landing/MobileNav";
@@ -14,48 +14,57 @@ const features = [
   {
     icon: Mic,
     title: "Ultra-Realistic Voice Cloning",
-    description: "Clone any creator's voice with just 30 seconds of audio. Indistinguishable from the real thing."
+    description: "Clone any creator's voice with just 30 seconds of audio. Indistinguishable from the real thing—fans can't tell the difference."
   },
   {
     icon: Headphones,
     title: "Custom Audio Messages",
-    description: "Generate personalized voice messages for fans that sound exactly like your creator."
+    description: "Generate personalized voice messages for fans that sound exactly like your creator, at any time of day."
   },
   {
     icon: Zap,
     title: "Instant Generation",
-    description: "Create voice content in seconds. No waiting, no recording sessions needed."
+    description: "Create voice content in seconds. No waiting, no recording sessions needed—just type and generate."
   },
   {
     icon: Users,
     title: "Multi-Voice Library",
-    description: "Store and manage voice profiles for all your creators in one secure vault."
+    description: "Store and manage voice profiles for all your creators in one secure vault with easy access."
   },
   {
     icon: Shield,
     title: "Privacy Protected",
-    description: "Voice data is encrypted and never shared. Full control over who can use each voice."
+    description: "Voice data is encrypted and never shared. Full control over who can use each voice profile."
   },
   {
     icon: Clock,
     title: "24/7 Voice Content",
-    description: "Create voice content anytime, even when your creator is sleeping or unavailable."
+    description: "Create voice content anytime, even when your creator is sleeping, traveling, or unavailable."
   }
 ];
 
 const useCases = [
   {
-    title: "Personalized Voice Notes",
-    description: "Send custom voice messages to top fans for birthdays, milestones, or special requests."
+    icon: Gift,
+    title: "Birthday Shoutouts & Milestones",
+    description: "Send custom voice messages to top fans for birthdays, subscription anniversaries, or spending milestones."
   },
   {
-    title: "Audio Content at Scale",
-    description: "Create voice content for hundreds of fans simultaneously without burning out creators."
+    icon: Heart,
+    title: "Personalized Welcome Messages",
+    description: "Generate unique welcome audio for new subscribers that makes them feel special from day one."
   },
   {
-    title: "Custom Greetings",
-    description: "Generate personalized welcome messages, thank you notes, and exclusive audio content."
+    icon: Star,
+    title: "Custom PPV Audio Content",
+    description: "Create voice notes and audio content for premium PPV bundles without any studio time."
   }
+];
+
+const stats = [
+  { value: "30s", label: "Audio Sample Needed" },
+  { value: "99%", label: "Voice Accuracy" },
+  { value: "∞", label: "Messages You Can Create" }
 ];
 
 const AIVoiceCloner = () => {
@@ -68,7 +77,7 @@ const AIVoiceCloner = () => {
             <Link to="/" className="flex items-center gap-3">
               <img 
                 src={myCreatorSuiteLogo} 
-                alt="My Creator Suite" 
+                alt="Creator OS - AI Voice Cloner" 
                 className="h-10 w-auto animate-neon-glow"
               />
               <span className="text-xl font-bold gradient-text">Creator OS</span>
@@ -118,13 +127,13 @@ const AIVoiceCloner = () => {
             </div>
             
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-              <span className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">AI Voice Cloner</span>
+              <span className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Clone Your Creator's Voice</span>
               <br />
-              <span className="text-foreground text-3xl sm:text-4xl lg:text-5xl">Your Creator's Voice, On Demand</span>
+              <span className="text-foreground text-3xl sm:text-4xl lg:text-5xl">Personalized Audio Content Without Studio Time</span>
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-              Clone your creator's voice with stunning accuracy. Generate personalized audio content that fans can't tell from the real thing—all without needing your creator in the studio.
+              Generate authentic voice messages, custom audio greetings, and personalized content—all in your creator's exact voice. Fans can't tell the difference, and your creators save hours every week.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -144,8 +153,20 @@ const AIVoiceCloner = () => {
         </div>
       </section>
 
+      {/* Stats Section */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-card/30">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {stats.map((stat) => (
+            <div key={stat.label} className="glass-card p-6 text-center">
+              <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">{stat.value}</div>
+              <div className="text-muted-foreground mt-1 text-sm">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* How It Works */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
@@ -155,9 +176,9 @@ const AIVoiceCloner = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { step: "1", title: "Upload Sample", description: "Provide 30 seconds of your creator's voice. Clear audio, any content." },
-              { step: "2", title: "AI Training", description: "Our AI learns every nuance—tone, accent, breathing patterns, emotion." },
-              { step: "3", title: "Generate Content", description: "Type any text and get authentic audio in your creator's voice instantly." }
+              { step: "1", title: "Upload Voice Sample", description: "Provide 30 seconds of your creator's voice. Clear audio, any content—a podcast clip, voice note, or recording." },
+              { step: "2", title: "AI Training", description: "Our AI learns every nuance—tone, accent, breathing patterns, emotion, and speech rhythm in minutes." },
+              { step: "3", title: "Generate Content", description: "Type any text and get authentic audio in your creator's voice instantly. Unlimited generations." }
             ].map((item) => (
               <div key={item.step} className="glass-card p-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 flex items-center justify-center mx-auto mb-6">
@@ -172,7 +193,7 @@ const AIVoiceCloner = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
@@ -198,17 +219,21 @@ const AIVoiceCloner = () => {
       </section>
 
       {/* Use Cases */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">
               Use <span className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Cases</span>
             </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Real ways OFM agencies use voice cloning to increase fan engagement and revenue.
+            </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {useCases.map((useCase) => (
               <div key={useCase.title} className="glass-card p-6">
+                <useCase.icon className="h-8 w-8 text-purple-400 mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">{useCase.title}</h3>
                 <p className="text-muted-foreground text-sm">{useCase.description}</p>
               </div>
@@ -218,7 +243,7 @@ const AIVoiceCloner = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30">
         <div className="max-w-4xl mx-auto text-center">
           <div className="glass-card p-12 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10" />
@@ -228,7 +253,7 @@ const AIVoiceCloner = () => {
                 Unlock Voice Cloning Today
               </h2>
               <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-                Available on Pro and Enterprise plans. Start creating personalized voice content at scale.
+                Available on Pro and Enterprise plans. Start creating personalized voice content at scale and watch fan engagement soar.
               </p>
               <Link to="/auth">
                 <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-lg px-8 py-6">
@@ -247,14 +272,14 @@ const AIVoiceCloner = () => {
           <div className="flex items-center gap-3">
             <img 
               src={myCreatorSuiteLogo} 
-              alt="My Creator Suite" 
+              alt="Creator OS" 
               className="h-8 w-auto rounded-lg"
               style={{ mixBlendMode: 'screen' }}
             />
             <span className="text-lg font-semibold text-foreground">Creator OS</span>
           </div>
           <div className="text-muted-foreground text-sm">
-            © 2024 My Creator Suite. All rights reserved.
+            © 2025 My Creator Suite. All rights reserved.
           </div>
         </div>
       </footer>
