@@ -1,4 +1,4 @@
-import { ArrowRight, Image, Zap, Clock, Users, Shield, Palette, Layers, Sparkles, CheckCircle, Lock, Wand2 } from "lucide-react";
+import { ArrowRight, Image, Zap, Clock, Users, Shield, Palette, Layers, Sparkles, Lock, Wand2, Camera, Repeat } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/landing/MobileNav";
@@ -14,51 +14,60 @@ const features = [
   {
     icon: Wand2,
     title: "AI Image Generation",
-    description: "Generate stunning, platform-ready images in your creator's style with simple text prompts."
+    description: "Generate stunning, platform-ready images in your creator's style with simple text prompts. No photoshoots required."
   },
   {
     icon: Palette,
     title: "Style Consistency",
-    description: "Train the AI on your creator's aesthetic to maintain brand consistency across all generated content."
+    description: "Train the AI on your creator's aesthetic to maintain brand consistency across all generated content automatically."
   },
   {
     icon: Zap,
     title: "Instant Creation",
-    description: "Generate high-quality content in seconds. No photoshoots, no editing, no waiting."
+    description: "Generate high-quality content in seconds. No photoshoots, no editing, no waiting—just describe and create."
   },
   {
     icon: Layers,
     title: "Bulk Generation",
-    description: "Create dozens of unique images at once. Perfect for content calendars and mass posting."
+    description: "Create dozens of unique images at once. Perfect for content calendars, mass posting, and PPV bundles."
   },
   {
     icon: Shield,
     title: "Platform Compliant",
-    description: "Content is optimized for adult platform guidelines while maximizing engagement."
+    description: "Content is optimized for adult platform guidelines while maximizing engagement and conversion rates."
   },
   {
     icon: Clock,
     title: "Never Run Out",
-    description: "Unlimited content possibilities. Keep fans engaged with fresh content daily."
+    description: "Unlimited content possibilities. Keep fans engaged with fresh content daily without creator burnout."
   }
 ];
 
 const contentTypes = [
   {
+    icon: Camera,
     title: "Lifestyle Content",
-    description: "Generate casual, everyday content that feels authentic and relatable.",
+    description: "Generate casual, everyday content that feels authentic and relatable to fans.",
     examples: ["Morning routines", "Outfit showcases", "Behind-the-scenes"]
   },
   {
+    icon: Sparkles,
     title: "Themed Shoots",
-    description: "Create themed content sets without expensive photoshoots.",
+    description: "Create themed content sets without expensive photoshoots or locations.",
     examples: ["Holiday specials", "Cosplay", "Fantasy scenarios"]
   },
   {
+    icon: Repeat,
     title: "Fan Requests",
-    description: "Fulfill custom content requests at scale without creator burnout.",
+    description: "Fulfill custom content requests at scale without creator burnout or scheduling.",
     examples: ["Personalized content", "Specific scenarios", "Custom outfits"]
   }
+];
+
+const stats = [
+  { value: "10x", label: "Faster Content Production" },
+  { value: "95%", label: "Platform Acceptance Rate" },
+  { value: "∞", label: "Variations From One Training Set" }
 ];
 
 const AIContentGenerator = () => {
@@ -71,7 +80,7 @@ const AIContentGenerator = () => {
             <Link to="/" className="flex items-center gap-3">
               <img 
                 src={myCreatorSuiteLogo} 
-                alt="My Creator Suite" 
+                alt="Creator OS - AI Content Generator" 
                 className="h-10 w-auto animate-neon-glow"
               />
               <span className="text-xl font-bold gradient-text">Creator OS</span>
@@ -121,13 +130,13 @@ const AIContentGenerator = () => {
             </div>
             
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-              <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">AI Content Generator</span>
+              <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">Unlimited Content, Zero Creator Burnout</span>
               <br />
-              <span className="text-foreground text-3xl sm:text-4xl lg:text-5xl">Unlimited Content, Zero Burnout</span>
+              <span className="text-foreground text-3xl sm:text-4xl lg:text-5xl">AI-Generated Images in Your Creator's Style</span>
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-              Generate stunning, platform-ready content using AI. Scale your content production infinitely while maintaining your creator's unique style and aesthetic.
+              Train our AI on your creator's aesthetic and generate platform-ready content in seconds. Scale content production 10x without photoshoots or editing marathons—just describe and create.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -150,11 +159,7 @@ const AIContentGenerator = () => {
       {/* Stats */}
       <section className="py-12 px-4 sm:px-6 lg:px-8 bg-card/30">
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[
-            { value: "10x", label: "More Content Output" },
-            { value: "90%", label: "Less Production Time" },
-            { value: "∞", label: "Content Possibilities" }
-          ].map((stat) => (
+          {stats.map((stat) => (
             <div key={stat.label} className="glass-card p-6 text-center">
               <div className="text-3xl font-bold bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">{stat.value}</div>
               <div className="text-muted-foreground mt-1 text-sm">{stat.label}</div>
@@ -170,6 +175,9 @@ const AIContentGenerator = () => {
             <h2 className="text-4xl font-bold text-foreground mb-4">
               Powerful <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">Features</span>
             </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Everything you need to create stunning content at scale without the overhead.
+            </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -196,11 +204,15 @@ const AIContentGenerator = () => {
             <h2 className="text-4xl font-bold text-foreground mb-4">
               What You Can <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">Create</span>
             </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Generate any type of content your agency needs to keep fans engaged and paying.
+            </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {contentTypes.map((type) => (
               <div key={type.title} className="glass-card p-6">
+                <type.icon className="h-8 w-8 text-orange-400 mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">{type.title}</h3>
                 <p className="text-muted-foreground text-sm mb-4">{type.description}</p>
                 <div className="flex flex-wrap gap-2">
@@ -227,10 +239,10 @@ const AIContentGenerator = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
-              { step: "1", title: "Upload References", description: "Provide sample images to train the AI on your creator's style." },
-              { step: "2", title: "Define Style", description: "Set preferences for lighting, poses, aesthetics, and brand guidelines." },
-              { step: "3", title: "Generate Content", description: "Describe what you want and let AI create stunning visuals." },
-              { step: "4", title: "Publish & Profit", description: "Download, edit if needed, and post to platforms instantly." }
+              { step: "1", title: "Upload References", description: "Provide sample images to train the AI on your creator's unique style and aesthetic." },
+              { step: "2", title: "Define Style", description: "Set preferences for lighting, poses, aesthetics, and brand guidelines to ensure consistency." },
+              { step: "3", title: "Generate Content", description: "Describe what you want and let AI create stunning visuals in seconds—unlimited variations." },
+              { step: "4", title: "Publish & Profit", description: "Download, make any final tweaks, and post to platforms instantly to drive revenue." }
             ].map((item) => (
               <div key={item.step} className="glass-card p-6 text-center">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500/20 to-red-500/20 flex items-center justify-center mx-auto mb-4">
@@ -255,7 +267,7 @@ const AIContentGenerator = () => {
                 Unlock Unlimited Content Creation
               </h2>
               <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-                Available on Pro and Enterprise plans. Start generating content that converts.
+                Available on Pro and Enterprise plans. Start generating content that converts and keeps fans coming back for more.
               </p>
               <Link to="/auth">
                 <Button size="lg" className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-lg px-8 py-6">
@@ -274,14 +286,14 @@ const AIContentGenerator = () => {
           <div className="flex items-center gap-3">
             <img 
               src={myCreatorSuiteLogo} 
-              alt="My Creator Suite" 
+              alt="Creator OS" 
               className="h-8 w-auto rounded-lg"
               style={{ mixBlendMode: 'screen' }}
             />
             <span className="text-lg font-semibold text-foreground">Creator OS</span>
           </div>
           <div className="text-muted-foreground text-sm">
-            © 2024 My Creator Suite. All rights reserved.
+            © 2025 My Creator Suite. All rights reserved.
           </div>
         </div>
       </footer>
