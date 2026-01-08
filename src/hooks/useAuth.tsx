@@ -16,6 +16,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  userType: "agency" | "creator" | "employee" | null;
   signUp: (email: string, password: string, fullName: string, userType: "agency" | "creator" | "employee") => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -110,8 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
+  // Compute userType from profile or fallback to auth metadata
+  const userType: "agency" | "creator" | "employee" | null = 
+    profile?.user_type ?? 
+    (user?.user_metadata?.user_type as "agency" | "creator" | "employee" | undefined) ?? 
+    null;
+
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, userType, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

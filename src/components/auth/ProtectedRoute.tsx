@@ -17,11 +17,11 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, userType } = useAuth();
   const location = useLocation();
   const { agency, isLoading: agencyLoading } = useAgency();
 
-  if (loading || (profile?.user_type === "agency" && agencyLoading)) {
+  if (loading || (userType === "agency" && agencyLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -36,12 +36,12 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // If user types are specified, check if user has access
-  if (allowedUserTypes && profile && !allowedUserTypes.includes(profile.user_type)) {
+  // If user types are specified, check if user has access (use userType which includes metadata fallback)
+  if (allowedUserTypes && userType && !allowedUserTypes.includes(userType)) {
     // Redirect to appropriate area based on user type
-    if (profile.user_type === "creator") {
+    if (userType === "creator") {
       return <Navigate to="/portal" replace />;
-    } else if (profile.user_type === "employee") {
+    } else if (userType === "employee") {
       return <Navigate to="/employee" replace />;
     } else {
       return <Navigate to="/dashboard" replace />;
@@ -50,7 +50,7 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
 
   // Show onboarding wizard for agency users who haven't completed it
   const showOnboarding = 
-    profile?.user_type === "agency" && 
+    userType === "agency" && 
     agency && 
     !agency.onboarding_completed;
 
