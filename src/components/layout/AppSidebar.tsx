@@ -43,34 +43,35 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 
+// MAIN section - core agency management
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Creators", url: "/creators", icon: Users },
-  { title: "Employees", url: "/employees", icon: UserCog },
-  { title: "Performance", url: "/employees/performance", icon: TrendingUp },
+  { title: "Team", url: "/team", icon: UserCog },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: Calendar },
-  { title: "SOP Library", url: "/sop", icon: BookOpen },
   { title: "Invoices", url: "/invoices", icon: FileText },
-  { title: "Messages", url: "/messages", icon: MessageSquare, badge: 3 },
 ];
 
+// ONLYFANS section - subscriber & chatter management
+const onlyfansNavItems = [
+  { title: "Subscriber DMs", url: "/subscriber-dms", icon: MessageCircle },
+  { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
+  { title: "Team Chat", url: "/team-chat", icon: MessageSquare },
+];
+
+// RECRUITING section
 const recruitingNavItems = [
   { title: "Recruiting", url: "/recruiting", icon: UserPlus },
   { title: "Find Creators", url: "/tools/scraper", icon: Globe },
   { title: "Applications", url: "/applications", icon: ClipboardList },
 ];
 
-const chattingNavItems = [
-  { title: "OF Dashboard", url: "/of-dashboard", icon: MessageCircle },
-  { title: "Chatters", url: "/chatters", icon: Headphones },
-  { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
-  { title: "Internal Messages", url: "/internal-messages", icon: MessageSquare },
-];
-
-const integrationsNavItems = [
-  { title: "Manual Data Import", url: "/data-import", icon: Upload },
-  { title: "Browser", url: "/browser-sync", icon: Plug },
+// RESOURCES section - utilities & tools
+const resourcesNavItems = [
+  { title: "SOP Library", url: "/sop", icon: BookOpen },
+  { title: "Data Import", url: "/data-import", icon: Upload },
+  { title: "Browser Sync", url: "/browser-sync", icon: Plug },
 ];
 
 const bottomNavItems = [
@@ -126,7 +127,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => {
-                const isActive = location.pathname === item.url;
+                const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
@@ -138,19 +139,29 @@ export function AppSidebar() {
                         )}
                       >
                         <item.icon className="h-5 w-5 shrink-0" />
-                        {!isCollapsed && (
-                          <>
-                            <span className="flex-1">{item.title}</span>
-                            {item.badge && (
-                              <Badge 
-                                variant="default" 
-                                className="h-5 min-w-5 px-1.5 text-xs bg-primary text-primary-foreground"
-                              >
-                                {item.badge}
-                              </Badge>
-                            )}
-                          </>
-                        )}
+                        {!isCollapsed && <span className="flex-1">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* OnlyFans Section */}
+        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">OnlyFans</p>}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {onlyfansNavItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={cn("nav-item w-full justify-start", isActive && "active")}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && <span className="flex-1">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -182,34 +193,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Chatting Section */}
-        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chatting</p>}
+        {/* Resources Section */}
+        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resources</p>}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {chattingNavItems.map((item) => {
-                const isActive = location.pathname === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink to={item.url} className={cn("nav-item w-full justify-start", isActive && "active")}>
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        {!isCollapsed && <span className="flex-1">{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Integrations Section */}
-        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Integrations</p>}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {integrationsNavItems.map((item) => {
+              {resourcesNavItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>

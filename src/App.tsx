@@ -87,6 +87,23 @@ const AppRoutes = () => {
           <CreatorDetail />
         </ProtectedRoute>
       } />
+      {/* Team Routes (new) */}
+      <Route path="/team" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <Employees />
+        </ProtectedRoute>
+      } />
+      <Route path="/team/chatters" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <Chatters />
+        </ProtectedRoute>
+      } />
+      <Route path="/team/performance" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <EmployeePerformance />
+        </ProtectedRoute>
+      } />
+      {/* Legacy redirects */}
       <Route path="/employees" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <Employees />
@@ -137,6 +154,13 @@ const AppRoutes = () => {
           <Recruiting />
         </ProtectedRoute>
       } />
+      {/* Team Chat (renamed from internal-messages) */}
+      <Route path="/team-chat" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <InternalMessages />
+        </ProtectedRoute>
+      } />
+      {/* Legacy routes */}
       <Route path="/chatters" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <Chatters />
@@ -172,6 +196,13 @@ const AppRoutes = () => {
           <BrowserSync />
         </ProtectedRoute>
       } />
+      {/* Subscriber DMs (renamed from of-dashboard) */}
+      <Route path="/subscriber-dms" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <OnlyFansDashboard />
+        </ProtectedRoute>
+      } />
+      {/* Legacy route */}
       <Route path="/of-dashboard" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <OnlyFansDashboard />
