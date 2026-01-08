@@ -113,8 +113,8 @@ export default function OnlyFansDashboard() {
         {/* Header with Account Selector */}
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold">OnlyFans Dashboard</h1>
-            <p className="text-muted-foreground">Manage DMs, subscribers, and earnings</p>
+            <h1 className="text-2xl font-bold">Subscriber DMs</h1>
+            <p className="text-muted-foreground">Manage messages, subscribers, and earnings</p>
           </div>
           <div className="md:ml-auto flex items-center gap-3">
             <Badge variant="outline" className="gap-1">

@@ -91,7 +91,7 @@ export default function InternalMessages() {
         {/* Chatters List */}
         <div className="w-80 border-r border-border flex flex-col">
           <div className="p-4 border-b border-border">
-            <h2 className="text-lg font-semibold text-foreground mb-3">Internal Messages</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-3">Team Chat</h2>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
