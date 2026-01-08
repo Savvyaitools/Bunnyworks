@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
           email: params.email,
           password: params.password,
           ...(params.code && { code: params.code }),
+          ...(params.force_connect && { force_connect: true }),
         };
         break;
 

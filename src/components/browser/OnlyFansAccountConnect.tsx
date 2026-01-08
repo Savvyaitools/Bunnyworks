@@ -24,13 +24,45 @@ export function OnlyFansAccountConnect({ creatorId, onSuccess }: OnlyFansAccount
   
   const { authenticate, loading, error } = useOnlyFansAPI();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, forceConnect = false) => {
     e.preventDefault();
     
-    const result = await authenticate(email, password, requires2FA ? code : undefined);
+    const result = await authenticate(email, password, requires2FA ? code : undefined, forceConnect);
     
     if (result.requires2FA) {
       setRequires2FA(true);
+      return;
+    }
+
+    // If duplicate account, auto-retry with force_connect
+    if (result.duplicateAccount && result.accountId) {
+      toast.info("Account already connected, reconnecting...");
+      setSaving(true);
+      
+      // Use the existing account ID directly
+      const { error: dbError } = await supabase
+        .from("creator_social_accounts")
+        .insert({
+          creator_id: creatorId,
+          platform: "onlyfans",
+          username: email.split("@")[0],
+          account_type: "agency_managed",
+          of_account_id: result.accountId,
+          of_connected_at: new Date().toISOString(),
+        });
+
+      setSaving(false);
+
+      if (dbError) {
+        toast.error("Failed to save account connection");
+        console.error(dbError);
+        return;
+      }
+
+      toast.success("OnlyFans account connected successfully!");
+      setOpen(false);
+      resetForm();
+      onSuccess();
       return;
     }
 
@@ -43,7 +75,7 @@ export function OnlyFansAccountConnect({ creatorId, onSuccess }: OnlyFansAccount
         .insert({
           creator_id: creatorId,
           platform: "onlyfans",
-          username: email.split("@")[0], // Use email prefix as username
+          username: email.split("@")[0],
           account_type: "agency_managed",
           of_account_id: result.accountId,
           of_connected_at: new Date().toISOString(),
