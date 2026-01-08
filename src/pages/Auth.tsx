@@ -44,11 +44,16 @@ export default function Auth() {
     }
   }, [user, profile, authLoading, navigate]);
 
-  // Force redirect after a short delay if profile takes too long
+  // Force redirect after a short delay if profile takes too long - use auth metadata as fallback
   useEffect(() => {
     if (user && !profile && !authLoading) {
       const timeout = setTimeout(() => {
-        navigate("/dashboard", { replace: true });
+        // Use user metadata from auth session as fallback
+        const userTypeFromMeta = user.user_metadata?.user_type as string | undefined;
+        let destination = "/dashboard"; // default for agency
+        if (userTypeFromMeta === "creator") destination = "/portal";
+        else if (userTypeFromMeta === "employee") destination = "/employee";
+        navigate(destination, { replace: true });
       }, 2000);
       return () => clearTimeout(timeout);
     }
