@@ -1,14 +1,20 @@
-import { DollarSign, TrendingUp, Users, CheckSquare } from "lucide-react";
+import { useState } from "react";
+import { DollarSign, TrendingUp, Users, CheckSquare, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { CircularMetricCard, RevenueChart, ActivityFeed } from "@/components/dashboard";
 import { TasksCompletionChart } from "@/components/dashboard/TasksCompletionChart";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { CreatorTaskProgress } from "@/components/dashboard/CreatorTaskProgress";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { useAgency } from "@/hooks/useAgency";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+
 const Index = () => {
+  const [syncing, setSyncing] = useState(false);
+  const queryClient = useQueryClient();
   const { agency } = useAgency();
   const commissionRate = agency?.commission_rate ?? 0.3;
   // Fetch creators count
@@ -141,17 +147,47 @@ const Index = () => {
     },
   ];
 
+  const handleSyncNow = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-onlyfans-earnings");
+      
+      if (error) throw error;
+      
+      toast.success(`Sync complete: ${data.success} accounts synced`);
+      
+      // Refresh revenue data
+      queryClient.invalidateQueries({ queryKey: ["total-revenue"] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Sync failed";
+      toast.error(message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            Agency Command Center
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Real-time overview of your agency performance
-          </p>
+        <div className="flex items-start justify-between animate-fade-in">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">
+              Agency Command Center
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Real-time overview of your agency performance
+            </p>
+          </div>
+          <Button
+            onClick={handleSyncNow}
+            disabled={syncing}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Sync Earnings"}
+          </Button>
         </div>
 
         {/* Circular Metrics Grid */}
