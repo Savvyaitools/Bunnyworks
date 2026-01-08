@@ -62,9 +62,10 @@ const recruitingNavItems = [
 ];
 
 const chattingNavItems = [
+  { title: "OF Dashboard", url: "/of-dashboard", icon: MessageCircle },
   { title: "Chatters", url: "/chatters", icon: Headphones },
   { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
-  { title: "Internal Messages", url: "/internal-messages", icon: MessageCircle },
+  { title: "Internal Messages", url: "/internal-messages", icon: MessageSquare },
 ];
 
 const integrationsNavItems = [

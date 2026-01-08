@@ -39,6 +39,7 @@ import EmployeeApplication from "./pages/apply/EmployeeApplication";
 import WebScraper from "./pages/tools/WebScraper";
 import { AIChatting, AIVoiceCloner, AIContentGenerator } from "./pages/tools";
 import BrowserSync from "./pages/BrowserSync";
+import OnlyFansDashboard from "./pages/OnlyFansDashboard";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -169,6 +170,11 @@ const AppRoutes = () => {
       <Route path="/browser-sync" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <BrowserSync />
+        </ProtectedRoute>
+      } />
+      <Route path="/of-dashboard" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <OnlyFansDashboard />
         </ProtectedRoute>
       } />
       

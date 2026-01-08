@@ -82,7 +82,7 @@ export function ChatList({ accountId, selectedChatId, onSelectChat }: ChatListPr
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search conversations..."
+            placeholder="Search subscribers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -93,7 +93,7 @@ export function ChatList({ accountId, selectedChatId, onSelectChat }: ChatListPr
       <ScrollArea className="flex-1 h-[calc(100%-80px)]">
         {filteredChats.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
-            {searchQuery ? "No conversations found" : "No conversations yet"}
+            {searchQuery ? "No messages found" : "No messages yet"}
           </div>
         ) : (
           <div className="divide-y">
