@@ -150,6 +150,20 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       console.error("OnlyFans API error:", responseData);
+      
+      // Handle duplicate account specially - return 200 with duplicate info
+      if (responseData.error === "duplicate_account" && responseData.existing_account) {
+        console.log("Duplicate account detected, returning existing account info");
+        return new Response(
+          JSON.stringify({ 
+            duplicate_account: true,
+            existing_account: responseData.existing_account,
+            message: responseData.message
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: responseData.message || responseData.error || "API request failed",
