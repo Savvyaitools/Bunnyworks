@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, MessageSquare, Calendar, Clock, LogOut, User } from "lucide-react";
+import { Home, MessageSquare, Calendar, Clock, LogOut, User, BarChart3, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,10 +16,10 @@ export function EmployeeLayout({ children }: EmployeeLayoutProps) {
   const { signOut, profile } = useAuth();
 
   const navItems = [
-    { icon: Home, label: "Dashboard", path: "/employee" },
-    { icon: MessageSquare, label: "Messages", path: "/employee/messages" },
+    { icon: Home, label: "Home", path: "/employee" },
+    { icon: MessageCircle, label: "OnlyFans", path: "/employee/onlyfans" },
+    { icon: BarChart3, label: "Stats", path: "/employee/performance" },
     { icon: Calendar, label: "Shifts", path: "/employee/shifts" },
-    { icon: Clock, label: "Time Logs", path: "/employee/time-logs" },
   ];
 
   const handleSignOut = async () => {
