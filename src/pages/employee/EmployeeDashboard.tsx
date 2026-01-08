@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Calendar, MessageSquare, ClipboardList, User } from "lucide-react";
+import { Clock, Calendar, MessageSquare, ClipboardList, User, MessageCircle, BarChart3, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmployeeLayout } from "@/components/employee/EmployeeLayout";
 import { ClockInWidget } from "@/components/shifts/ClockInWidget";
 import { cn } from "@/lib/utils";
@@ -141,36 +142,34 @@ export default function EmployeeDashboard() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4 animate-fade-in" style={{ animationDelay: "50ms" }}>
           <button 
-            onClick={() => navigate("/employee/messages")}
+            onClick={() => navigate("/employee/onlyfans")}
             className="stat-card text-left hover:border-primary/40 transition-colors"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-foreground">{unreadMessages}</p>
-                <p className="text-sm text-muted-foreground">Unread Messages</p>
+                <p className="text-lg font-bold text-foreground">OnlyFans</p>
+                <p className="text-sm text-muted-foreground">Chats & Messages</p>
               </div>
               <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                <MessageSquare className="h-5 w-5 text-primary" />
+                <MessageCircle className="h-5 w-5 text-primary" />
               </div>
             </div>
           </button>
           
-          {isChatter && (
-            <button 
-              onClick={() => navigate("/employee/shifts")}
-              className="stat-card text-left hover:border-accent/40 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-foreground">View</p>
-                  <p className="text-sm text-muted-foreground">My Shifts</p>
-                </div>
-                <div className="h-10 w-10 rounded-lg bg-accent/20 flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-accent" />
-                </div>
+          <button 
+            onClick={() => navigate("/employee/performance")}
+            className="stat-card text-left hover:border-accent/40 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg font-bold text-foreground">Performance</p>
+                <p className="text-sm text-muted-foreground">View Stats</p>
               </div>
-            </button>
-          )}
+              <div className="h-10 w-10 rounded-lg bg-accent/20 flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-accent" />
+              </div>
+            </div>
+          </button>
         </div>
 
         {/* Clock In Widget for Chatters */}
@@ -188,10 +187,18 @@ export default function EmployeeDashboard() {
             <Button 
               variant="outline" 
               className="h-auto py-4 flex flex-col items-center gap-2"
-              onClick={() => navigate("/employee/messages")}
+              onClick={() => navigate("/employee/onlyfans")}
             >
-              <MessageSquare className="h-5 w-5" />
-              <span>Messages</span>
+              <MessageCircle className="h-5 w-5" />
+              <span>OnlyFans</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-auto py-4 flex flex-col items-center gap-2"
+              onClick={() => navigate("/employee/performance")}
+            >
+              <TrendingUp className="h-5 w-5" />
+              <span>My Stats</span>
             </Button>
             {isChatter && (
               <>

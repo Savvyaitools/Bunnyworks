@@ -19,6 +19,7 @@ import Invoices from "./pages/Invoices";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
+import EmployeeAuth from "./pages/EmployeeAuth";
 import NotFound from "./pages/NotFound";
 import Recruiting from "./pages/Recruiting";
 import Chatters from "./pages/Chatters";
@@ -29,6 +30,7 @@ import PortalContentPlans from "./pages/portal/PortalContentPlans";
 import PortalTasks from "./pages/portal/PortalTasks";
 import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs } from "./pages/employee";
 import EmployeeOnlyFans from "./pages/employee/EmployeeOnlyFans";
+import EmployeePerformancePage from "./pages/employee/EmployeePerformance";
 import EmployeePerformance from "./pages/EmployeePerformance";
 import DataImport from "./pages/DataImport";
 import Applications from "./pages/Applications";
@@ -64,8 +66,9 @@ const AppRoutes = () => {
       <Route path="/tools/voice-cloner" element={<AIVoiceCloner />} />
       <Route path="/tools/content-generator" element={<AIContentGenerator />} />
       
-      {/* Auth Route */}
+      {/* Auth Routes */}
       <Route path="/auth" element={<Auth />} />
+      <Route path="/employee-login" element={<EmployeeAuth />} />
       
       {/* Agency Routes - Protected */}
       <Route path="/dashboard" element={
@@ -225,6 +228,11 @@ const AppRoutes = () => {
       <Route path="/employee/onlyfans" element={
         <ProtectedRoute allowedUserTypes={["employee"]}>
           <EmployeeOnlyFans />
+        </ProtectedRoute>
+      } />
+      <Route path="/employee/performance" element={
+        <ProtectedRoute allowedUserTypes={["employee"]}>
+          <EmployeePerformancePage />
         </ProtectedRoute>
       } />
       
