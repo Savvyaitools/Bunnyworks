@@ -75,6 +75,40 @@ Deno.serve(async (req) => {
         const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
         const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
 
+        // Parse the actual API response structure
+        const monthsData = earnings?.data?.list?.months || {};
+        const totalData = earnings?.data?.list?.total || {};
+        
+        // Get current month timestamp (first of the month at midnight UTC)
+        const currentMonthTimestamp = Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000);
+        
+        // Find current month's data from the months object
+        let currentMonthNet = 0;
+        let currentMonthTips = 0;
+        let currentMonthSubs = 0;
+        let currentMonthMessages = 0;
+        
+        // Look for the current month in the API response
+        for (const [timestamp, monthData] of Object.entries(monthsData)) {
+          const monthDate = new Date(parseInt(timestamp) * 1000);
+          if (monthDate.getMonth() === now.getMonth() && monthDate.getFullYear() === now.getFullYear()) {
+            const data = monthData as { total_net?: number; tips?: { total_net?: number }[]; subscribes?: { total_net?: number }[]; chat_messages?: { total_net?: number }[] };
+            currentMonthNet = data.total_net || 0;
+            currentMonthTips = data.tips?.reduce((sum: number, t: { total_net?: number }) => sum + (t.total_net || 0), 0) || 0;
+            currentMonthSubs = data.subscribes?.reduce((sum: number, s: { total_net?: number }) => sum + (s.total_net || 0), 0) || 0;
+            currentMonthMessages = data.chat_messages?.reduce((sum: number, m: { total_net?: number }) => sum + (m.total_net || 0), 0) || 0;
+            break;
+          }
+        }
+        
+        // Also store all-time totals for reference
+        const allTimeTips = totalData?.tips?.total_net || 0;
+        const allTimeSubs = totalData?.subscribes?.total_net || 0;
+        const allTimeMessages = totalData?.chat_messages?.total_net || 0;
+        const allTimeTotal = totalData?.all?.total_net || 0;
+
+        console.log(`Current month net: $${currentMonthNet}, All-time total: $${allTimeTotal}`);
+
         // Check if we already have an earning record for this period
         const { data: existingEarning } = await supabase
           .from("creator_earnings")
@@ -85,19 +119,17 @@ Deno.serve(async (req) => {
           .lte("period_end", periodEnd)
           .maybeSingle();
 
-        const totalEarnings = earnings.total || 0;
-
         if (existingEarning) {
           // Update existing record
           await supabase
             .from("creator_earnings")
             .update({
-              amount: totalEarnings,
-              notes: `Auto-synced: Tips: $${earnings.tips || 0}, Subs: $${earnings.subscriptions || 0}, Messages: $${earnings.messages || 0}`,
+              amount: currentMonthNet,
+              notes: `Auto-synced: Tips: $${currentMonthTips.toFixed(2)}, Subs: $${currentMonthSubs.toFixed(2)}, Messages: $${currentMonthMessages.toFixed(2)} | All-time: $${allTimeTotal.toFixed(2)}`,
             })
             .eq("id", existingEarning.id);
 
-          console.log(`Updated earnings for ${account.of_account_id}: $${totalEarnings}`);
+          console.log(`Updated earnings for ${account.of_account_id}: $${currentMonthNet}`);
         } else {
           // Insert new record
           await supabase
@@ -105,13 +137,13 @@ Deno.serve(async (req) => {
             .insert({
               creator_id: account.creator_id,
               platform: "onlyfans",
-              amount: totalEarnings,
+              amount: currentMonthNet,
               period_start: periodStart,
               period_end: periodEnd,
-              notes: `Auto-synced: Tips: $${earnings.tips || 0}, Subs: $${earnings.subscriptions || 0}, Messages: $${earnings.messages || 0}`,
+              notes: `Auto-synced: Tips: $${currentMonthTips.toFixed(2)}, Subs: $${currentMonthSubs.toFixed(2)}, Messages: $${currentMonthMessages.toFixed(2)} | All-time: $${allTimeTotal.toFixed(2)}`,
             });
 
-          console.log(`Inserted new earnings for ${account.of_account_id}: $${totalEarnings}`);
+          console.log(`Inserted new earnings for ${account.of_account_id}: $${currentMonthNet}`);
         }
 
         // Update last synced timestamp
