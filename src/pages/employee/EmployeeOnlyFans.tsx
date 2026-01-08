@@ -145,7 +145,7 @@ export default function EmployeeOnlyFans() {
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">OnlyFans Dashboard</h1>
-            <p className="text-muted-foreground">Manage chats, fans, and content</p>
+            <p className="text-muted-foreground">Manage DMs, subscribers, and content</p>
           </div>
           <div className="md:ml-auto">
             <AccountSelector
@@ -162,9 +162,9 @@ export default function EmployeeOnlyFans() {
         {/* Permission Badges */}
         {currentPermissions && (
           <div className="flex flex-wrap gap-2">
-            {currentPermissions.can_view_chats && <Badge variant="secondary">Chats</Badge>}
-            {currentPermissions.can_send_messages && <Badge variant="secondary">Send Messages</Badge>}
-            {currentPermissions.can_view_fans && <Badge variant="secondary">Fans</Badge>}
+            {currentPermissions.can_view_chats && <Badge variant="secondary">Messages</Badge>}
+            {currentPermissions.can_send_messages && <Badge variant="secondary">Reply to DMs</Badge>}
+            {currentPermissions.can_view_fans && <Badge variant="secondary">Subscribers</Badge>}
             {currentPermissions.can_view_earnings && <Badge variant="secondary">Earnings</Badge>}
             {currentPermissions.can_view_posts && <Badge variant="secondary">Posts</Badge>}
           </div>
@@ -177,13 +177,13 @@ export default function EmployeeOnlyFans() {
               {currentPermissions.can_view_chats && (
                 <TabsTrigger value="chats" className="gap-2">
                   <MessageCircle className="h-4 w-4" />
-                  Chats
+                  Messages
                 </TabsTrigger>
               )}
               {currentPermissions.can_view_fans && (
                 <TabsTrigger value="fans" className="gap-2">
                   <Users className="h-4 w-4" />
-                  Fans
+                  Subscribers
                 </TabsTrigger>
               )}
               {currentPermissions.can_view_earnings && (
@@ -200,7 +200,7 @@ export default function EmployeeOnlyFans() {
                   {/* Chat List */}
                   <Card className="lg:col-span-1">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Conversations</CardTitle>
+                      <CardTitle className="text-lg">DMs</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ChatList

@@ -58,7 +58,7 @@ export function FanList({ accountId }: FanListProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-xl">Fans</CardTitle>
+        <CardTitle className="text-xl">Subscribers</CardTitle>
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{activeFans.length}</span> active •{" "}
@@ -72,7 +72,7 @@ export function FanList({ accountId }: FanListProps) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search fans..."
+              placeholder="Search subscribers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -82,11 +82,11 @@ export function FanList({ accountId }: FanListProps) {
             <TabsList>
               <TabsTrigger value="active" className="gap-2">
                 <Users className="h-4 w-4" />
-                Active
+                Active Subs
               </TabsTrigger>
               <TabsTrigger value="expired" className="gap-2">
                 <UserX className="h-4 w-4" />
-                Expired
+                Expired Subs
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -102,10 +102,10 @@ export function FanList({ accountId }: FanListProps) {
         ) : currentFans.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             {searchQuery
-              ? "No fans found matching your search"
+              ? "No subscribers found matching your search"
               : activeTab === "active"
-              ? "No active fans"
-              : "No expired fans"}
+              ? "No active subscribers"
+              : "No expired subscribers"}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
