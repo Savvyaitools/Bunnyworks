@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, MoreVertical } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { EmployeeLayout } from "@/components/employee";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
-import { useCreators } from "@/hooks/useCreators";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { UserAvatar } from "@/components/shared";
 import { 
   MessageBubble, 
@@ -14,42 +17,66 @@ import {
   MessagingEmptyState 
 } from "@/components/messaging";
 
-interface Conversation {
+interface AssignedCreator {
   id: string;
   name: string;
-  avatar: string;
-  online: boolean;
+  alias: string | null;
+  avatar_url: string | null;
+  avatar_seed: string | null;
+  online_status: boolean | null;
 }
 
-export default function Messages() {
-  const [selectedConvo, setSelectedConvo] = useState<Conversation | null>(null);
+export default function EmployeeCreatorMessages() {
+  const { user } = useAuth();
+  const [selectedCreator, setSelectedCreator] = useState<AssignedCreator | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { creators } = useCreators();
+  // Fetch creators that this employee manages
+  const { data: assignedCreators = [], isLoading: creatorsLoading } = useQuery({
+    queryKey: ["employee-assigned-creators", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
 
-  // Build conversations from creators only (employees use Team Chat)
-  const conversations: Conversation[] = creators.map((c) => ({
-    id: `creator-${c.id}`,
-    name: c.alias || c.name,
-    avatar: c.avatar_seed || c.name.toLowerCase().split(" ")[0],
-    online: c.online_status || false,
-  }));
+      // Get the employee record for this user
+      const { data: employee, error: empError } = await supabase
+        .from("employees")
+        .select("id, role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
 
-  const currentConvo = selectedConvo || conversations[0];
-  const conversationId = currentConvo?.id || "";
+      if (empError || !employee) return [];
+
+      // Chatters cannot access creator messages
+      if (employee.role === "Chatter") return [];
+
+      // Get creators managed by this employee
+      const { data: creators, error } = await supabase
+        .from("creators")
+        .select("id, name, alias, avatar_url, avatar_seed, online_status")
+        .eq("manager_id", employee.id);
+
+      if (error) return [];
+      return creators as AssignedCreator[];
+    },
+    enabled: !!user?.id,
+  });
+
+  const currentCreator = selectedCreator || assignedCreators[0];
+  const conversationId = currentCreator ? `creator-${currentCreator.id}` : "";
 
   const { messages, loading, sendMessage, markAsRead } = useMessages(conversationId, "agency");
   const { unreadCounts } = useUnreadMessages("agency");
 
-  const filteredConversations = conversations.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCreators = assignedCreators.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.alias?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleSend = async () => {
-    if (!messageInput.trim() || !currentConvo) return;
-    await sendMessage(messageInput, "Agency Team");
+    if (!messageInput.trim() || !currentCreator) return;
+    await sendMessage(messageInput, "Manager");
     setMessageInput("");
   };
 
@@ -65,39 +92,47 @@ export default function Messages() {
 
   // Mark as read when selecting conversation
   useEffect(() => {
-    if (currentConvo) {
+    if (currentCreator) {
       markAsRead();
     }
-  }, [currentConvo?.id, markAsRead]);
+  }, [currentCreator?.id, markAsRead]);
 
-  // Empty state when no creators or employees
-  if (conversations.length === 0) {
+  if (creatorsLoading) {
     return (
-      <DashboardLayout>
-        <div className="h-[calc(100vh-8rem)] glass-card animate-fade-in">
+      <EmployeeLayout>
+        <div className="h-[calc(100vh-8rem)] p-4">
+          <Skeleton className="h-full w-full rounded-xl" />
+        </div>
+      </EmployeeLayout>
+    );
+  }
+
+  // No assigned creators
+  if (assignedCreators.length === 0) {
+    return (
+      <EmployeeLayout>
+        <div className="h-[calc(100vh-8rem)] glass-card m-4 animate-fade-in">
           <MessagingEmptyState
             type="no-conversations"
-            actions={[
-              { label: "Add Creators", href: "/creators" },
-              { label: "Add Employees", href: "/employees" },
-            ]}
+            title="No Assigned Creators"
+            description="You don't have any creators assigned to you. Contact your agency manager to get assigned to creators."
           />
         </div>
-      </DashboardLayout>
+      </EmployeeLayout>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="h-[calc(100vh-8rem)] flex gap-4 animate-fade-in">
-        {/* Conversations List */}
+    <EmployeeLayout>
+      <div className="h-[calc(100vh-8rem)] flex gap-4 p-4 animate-fade-in">
+        {/* Creators List */}
         <div className="w-80 flex flex-col glass-card">
           <div className="p-4 border-b border-border">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Messages</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Creator Messages</h2>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search conversations..."
+                placeholder="Search creators..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-muted/50 border-border focus:border-primary"
@@ -107,19 +142,19 @@ export default function Messages() {
 
           <ScrollArea className="flex-1">
             <div className="p-2">
-              {filteredConversations.map((convo) => (
+              {filteredCreators.map((creator) => (
                 <ConversationItem
-                  key={convo.id}
-                  id={convo.id}
-                  name={convo.name}
-                  avatarSeed={convo.avatar}
-                  subtitle="Click to start chatting"
+                  key={creator.id}
+                  id={creator.id}
+                  name={creator.alias || creator.name}
+                  avatarSeed={creator.avatar_seed || creator.name.toLowerCase().split(" ")[0]}
+                  subtitle="Creator"
                   badge="Creator"
                   badgeVariant="creator"
-                  unreadCount={unreadCounts[convo.id] || 0}
-                  isOnline={convo.online}
-                  isSelected={currentConvo?.id === convo.id}
-                  onClick={() => setSelectedConvo(convo)}
+                  unreadCount={unreadCounts[`creator-${creator.id}`] || 0}
+                  isOnline={creator.online_status || false}
+                  isSelected={currentCreator?.id === creator.id}
+                  onClick={() => setSelectedCreator(creator)}
                 />
               ))}
             </div>
@@ -128,21 +163,23 @@ export default function Messages() {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col glass-card">
-          {currentConvo ? (
+          {currentCreator ? (
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <UserAvatar
-                    name={currentConvo.name}
-                    avatarSeed={currentConvo.avatar}
+                    name={currentCreator.alias || currentCreator.name}
+                    avatarSeed={currentCreator.avatar_seed || undefined}
                     showOnlineStatus
-                    isOnline={currentConvo.online}
+                    isOnline={currentCreator.online_status || false}
                   />
                   <div>
-                    <h3 className="font-semibold text-foreground">{currentConvo.name}</h3>
+                    <h3 className="font-semibold text-foreground">
+                      {currentCreator.alias || currentCreator.name}
+                    </h3>
                     <p className="text-xs text-muted-foreground">
-                      {currentConvo.online ? "Online" : "Offline"}
+                      {currentCreator.online_status ? "Online" : "Offline"}
                     </p>
                   </div>
                 </div>
@@ -186,6 +223,6 @@ export default function Messages() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </EmployeeLayout>
   );
 }
