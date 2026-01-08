@@ -964,6 +964,143 @@ export type Database = {
           },
         ]
       }
+      employee_of_activity_logs: {
+        Row: {
+          action: string
+          agency_id: string
+          created_at: string | null
+          creator_id: string | null
+          details: Json | null
+          employee_id: string | null
+          id: string
+          ip_address: string | null
+          of_account_id: string
+        }
+        Insert: {
+          action: string
+          agency_id: string
+          created_at?: string | null
+          creator_id?: string | null
+          details?: Json | null
+          employee_id?: string | null
+          id?: string
+          ip_address?: string | null
+          of_account_id: string
+        }
+        Update: {
+          action?: string
+          agency_id?: string
+          created_at?: string | null
+          creator_id?: string | null
+          details?: Json | null
+          employee_id?: string | null
+          id?: string
+          ip_address?: string | null
+          of_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_of_activity_logs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_of_activity_logs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_of_activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_of_permissions: {
+        Row: {
+          agency_id: string
+          can_create_posts: boolean | null
+          can_send_mass_messages: boolean | null
+          can_send_messages: boolean | null
+          can_view_chats: boolean | null
+          can_view_earnings: boolean | null
+          can_view_fans: boolean | null
+          can_view_notifications: boolean | null
+          can_view_posts: boolean | null
+          can_view_vault: boolean | null
+          created_at: string | null
+          creator_id: string
+          employee_id: string
+          granted_by: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          can_create_posts?: boolean | null
+          can_send_mass_messages?: boolean | null
+          can_send_messages?: boolean | null
+          can_view_chats?: boolean | null
+          can_view_earnings?: boolean | null
+          can_view_fans?: boolean | null
+          can_view_notifications?: boolean | null
+          can_view_posts?: boolean | null
+          can_view_vault?: boolean | null
+          created_at?: string | null
+          creator_id: string
+          employee_id: string
+          granted_by?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          can_create_posts?: boolean | null
+          can_send_mass_messages?: boolean | null
+          can_send_messages?: boolean | null
+          can_view_chats?: boolean | null
+          can_view_earnings?: boolean | null
+          can_view_fans?: boolean | null
+          can_view_notifications?: boolean | null
+          can_view_posts?: boolean | null
+          can_view_vault?: boolean | null
+          created_at?: string | null
+          creator_id?: string
+          employee_id?: string
+          granted_by?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_of_permissions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_of_permissions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_of_permissions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_payroll: {
         Row: {
           base_salary: number
