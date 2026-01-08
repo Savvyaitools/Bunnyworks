@@ -58,24 +58,30 @@ export function useOnlyFansAPI() {
     }
   };
 
-  const authenticate = async (email: string, password: string, code?: string) => {
-    const result = await callAPI<{ account_id: string; requires_2fa?: boolean }>("authenticate", {
+  const authenticate = async (email: string, password: string, code?: string, forceConnect?: boolean) => {
+    const result = await callAPI<{ account_id: string; requires_2fa?: boolean; error?: string; existing_account?: { id: string } }>("authenticate", {
       email,
       password,
       ...(code && { code }),
+      ...(forceConnect && { force_connect: true }),
     });
 
     if (result?.requires_2fa) {
       toast.info("2FA required - please enter your verification code");
-      return { requires2FA: true, accountId: null };
+      return { requires2FA: true, accountId: null, duplicateAccount: false };
     }
 
     if (result?.account_id) {
       toast.success("OnlyFans account connected successfully!");
-      return { requires2FA: false, accountId: result.account_id };
+      return { requires2FA: false, accountId: result.account_id, duplicateAccount: false };
     }
 
-    return { requires2FA: false, accountId: null };
+    // Check if it's a duplicate account error - use the existing account id
+    if (result?.existing_account?.id) {
+      return { requires2FA: false, accountId: result.existing_account.id, duplicateAccount: true };
+    }
+
+    return { requires2FA: false, accountId: null, duplicateAccount: false };
   };
 
   const listAccounts = async () => {
