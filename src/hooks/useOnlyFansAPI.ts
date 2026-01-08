@@ -43,7 +43,8 @@ export function useOnlyFansAPI() {
         throw new Error(fnError.message);
       }
 
-      if (data?.error) {
+      // Don't throw on error if it's a duplicate_account response (we handle it specially)
+      if (data?.error && !data?.duplicate_account) {
         throw new Error(data.error);
       }
 
