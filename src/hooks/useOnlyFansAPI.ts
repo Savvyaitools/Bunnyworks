@@ -59,7 +59,12 @@ export function useOnlyFansAPI() {
   };
 
   const authenticate = async (email: string, password: string, code?: string, forceConnect?: boolean) => {
-    const result = await callAPI<{ account_id: string; requires_2fa?: boolean; error?: string; existing_account?: { id: string } }>("authenticate", {
+    const result = await callAPI<{ 
+      account_id?: string; 
+      requires_2fa?: boolean; 
+      duplicate_account?: boolean;
+      existing_account?: { id: string; display_name?: string };
+    }>("authenticate", {
       email,
       password,
       ...(code && { code }),
@@ -76,8 +81,8 @@ export function useOnlyFansAPI() {
       return { requires2FA: false, accountId: result.account_id, duplicateAccount: false };
     }
 
-    // Check if it's a duplicate account error - use the existing account id
-    if (result?.existing_account?.id) {
+    // Handle duplicate account - return the existing account ID
+    if (result?.duplicate_account && result?.existing_account?.id) {
       return { requires2FA: false, accountId: result.existing_account.id, duplicateAccount: true };
     }
 
