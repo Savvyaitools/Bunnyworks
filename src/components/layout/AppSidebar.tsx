@@ -47,6 +47,7 @@ import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Creators", url: "/creators", icon: Users },
+  { title: "Creator Messages", url: "/messages", icon: MessageSquare },
   { title: "Team", url: "/team", icon: UserCog },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: Calendar },

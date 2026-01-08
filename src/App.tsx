@@ -28,7 +28,7 @@ import InternalMessages from "./pages/InternalMessages";
 import { PortalDashboard, PortalMessages, PortalInvoices, PortalContent } from "./pages/portal";
 import PortalContentPlans from "./pages/portal/PortalContentPlans";
 import PortalTasks from "./pages/portal/PortalTasks";
-import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs } from "./pages/employee";
+import { EmployeeDashboard, EmployeeMessages, EmployeeShifts, EmployeeTimeLogs, EmployeeCreatorMessages } from "./pages/employee";
 import EmployeeOnlyFans from "./pages/employee/EmployeeOnlyFans";
 import EmployeePerformancePage from "./pages/employee/EmployeePerformance";
 import EmployeePerformance from "./pages/EmployeePerformance";
@@ -270,6 +270,11 @@ const AppRoutes = () => {
       <Route path="/employee/performance" element={
         <ProtectedRoute allowedUserTypes={["employee"]}>
           <EmployeePerformancePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/employee/creator-messages" element={
+        <ProtectedRoute allowedUserTypes={["employee"]}>
+          <EmployeeCreatorMessages />
         </ProtectedRoute>
       } />
       
