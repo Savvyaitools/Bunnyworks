@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     let body: Record<string, unknown> | null = null;
 
     switch (action) {
-      case "authenticate":
+      case "authenticate": {
         endpoint = "/authenticate";
         method = "POST";
         body = {
@@ -62,7 +62,115 @@ Deno.serve(async (req) => {
           ...(params.code && { code: params.code }),
           ...(params.force_connect && { force_connect: true }),
         };
-        break;
+        
+        // Make initial auth request
+        const authUrl = `${ONLYFANS_API_BASE}${endpoint}`;
+        console.log(`Calling OnlyFans API: POST ${authUrl}`);
+        
+        const authResponse = await fetch(authUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        });
+        
+        const authData = await authResponse.json();
+        console.log("Initial auth response:", authData);
+        
+        if (!authResponse.ok) {
+          // Handle duplicate account
+          if (authData.error === "duplicate_account" && authData.existing_account) {
+            console.log("Duplicate account detected, returning existing account info");
+            return new Response(
+              JSON.stringify({ 
+                duplicate_account: true,
+                existing_account: authData.existing_account,
+                account_id: authData.existing_account.id,
+                message: authData.message
+              }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          
+          return new Response(
+            JSON.stringify({ error: authData.message || authData.error || "Authentication failed" }),
+            { status: authResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // If we get a polling URL, poll for result
+        if (authData.polling_url) {
+          console.log("Polling for auth result...");
+          
+          // Poll up to 30 times (30 seconds)
+          for (let i = 0; i < 30; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const pollResponse = await fetch(authData.polling_url, {
+              headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+            });
+            
+            const pollData = await pollResponse.json();
+            console.log(`Poll attempt ${i + 1}:`, pollData);
+            
+            if (pollData.status === "completed" || pollData.account_id) {
+              return new Response(
+                JSON.stringify({ account_id: pollData.account_id || pollData.id }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+            
+            if (pollData.status === "requires_2fa" || pollData.requires_2fa) {
+              return new Response(
+                JSON.stringify({ requires_2fa: true }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+            
+            if (pollData.status === "failed" || pollData.error) {
+              // Check for duplicate account in poll response
+              if (pollData.error === "duplicate_account" && pollData.existing_account) {
+                return new Response(
+                  JSON.stringify({ 
+                    duplicate_account: true,
+                    existing_account: pollData.existing_account,
+                    account_id: pollData.existing_account.id,
+                  }),
+                  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
+              
+              return new Response(
+                JSON.stringify({ error: pollData.message || pollData.error || "Authentication failed" }),
+                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
+          
+          return new Response(
+            JSON.stringify({ error: "Authentication timeout" }),
+            { status: 408, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // Direct response with account_id
+        if (authData.account_id || authData.id) {
+          return new Response(
+            JSON.stringify({ account_id: authData.account_id || authData.id }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        return new Response(
+          JSON.stringify(authData),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       case "get-earnings":
         if (!accountId) {
