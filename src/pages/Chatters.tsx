@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useChatters, SkillGrade } from "@/hooks/useChatters";
+import { useChatters, type SkillGrade } from "@/hooks/useChatters";
 import { useCreatorAssignments } from "@/hooks/useCreatorAssignments";
 
 const gradeStyles: Record<SkillGrade, string> = {
@@ -36,7 +36,7 @@ export default function Chatters() {
   const { assignments } = useCreatorAssignments();
 
   const getChatterAssignments = (chatterId: string) => {
-    return assignments.filter((a) => a.chatter_id === chatterId);
+    return assignments.filter((a) => a.employee_id === chatterId || a.chatter_id === chatterId);
   };
 
   const filteredChatters = chatters.filter((chatter) => {
@@ -232,6 +232,10 @@ export default function Chatters() {
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Users className="h-4 w-4" />
                       <span>{chatterAssignments.length} assigned creators</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                      <span>📨 Target: {chatter.daily_target_messages}/day</span>
+                      <span>💰 PPV: {chatter.daily_target_ppv}/day</span>
                     </div>
                   </div>
 

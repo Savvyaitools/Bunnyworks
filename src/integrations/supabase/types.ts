@@ -223,6 +223,7 @@ export type Database = {
           chatter_id: string
           created_at: string
           creator_id: string
+          employee_id: string | null
           id: string
           notes: string | null
           shift_end: string
@@ -233,6 +234,7 @@ export type Database = {
           chatter_id: string
           created_at?: string
           creator_id: string
+          employee_id?: string | null
           id?: string
           notes?: string | null
           shift_end: string
@@ -243,6 +245,7 @@ export type Database = {
           chatter_id?: string
           created_at?: string
           creator_id?: string
+          employee_id?: string | null
           id?: string
           notes?: string | null
           shift_end?: string
@@ -264,6 +267,13 @@ export type Database = {
             referencedRelation: "creators"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "chatter_shifts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
         ]
       }
       chatter_time_logs: {
@@ -273,6 +283,7 @@ export type Database = {
           clock_out: string | null
           created_at: string
           duration_minutes: number | null
+          employee_id: string | null
           id: string
           notes: string | null
           shift_id: string | null
@@ -283,6 +294,7 @@ export type Database = {
           clock_out?: string | null
           created_at?: string
           duration_minutes?: number | null
+          employee_id?: string | null
           id?: string
           notes?: string | null
           shift_id?: string | null
@@ -293,6 +305,7 @@ export type Database = {
           clock_out?: string | null
           created_at?: string
           duration_minutes?: number | null
+          employee_id?: string | null
           id?: string
           notes?: string | null
           shift_id?: string | null
@@ -303,6 +316,13 @@ export type Database = {
             columns: ["chatter_id"]
             isOneToOne: false
             referencedRelation: "chatters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_time_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -545,6 +565,7 @@ export type Database = {
           chatter_id: string
           created_at: string
           creator_id: string
+          employee_id: string | null
           id: string
           role: string | null
         }
@@ -552,6 +573,7 @@ export type Database = {
           chatter_id: string
           created_at?: string
           creator_id: string
+          employee_id?: string | null
           id?: string
           role?: string | null
         }
@@ -559,6 +581,7 @@ export type Database = {
           chatter_id?: string
           created_at?: string
           creator_id?: string
+          employee_id?: string | null
           id?: string
           role?: string | null
         }
@@ -575,6 +598,13 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -1171,6 +1201,8 @@ export type Database = {
           certifications: string[] | null
           commission_rate: number | null
           created_at: string
+          daily_target_messages: number | null
+          daily_target_ppv: number | null
           department: string | null
           education: string | null
           email: string
@@ -1178,12 +1210,15 @@ export type Database = {
           experience: string | null
           hire_date: string | null
           id: string
+          is_chatter: boolean | null
           name: string
           phone: string | null
           role: string
           salary: number | null
+          skill_grade: string | null
           skills: string[] | null
           status: string
+          timezone: string | null
           updated_at: string
         }
         Insert: {
@@ -1196,6 +1231,8 @@ export type Database = {
           certifications?: string[] | null
           commission_rate?: number | null
           created_at?: string
+          daily_target_messages?: number | null
+          daily_target_ppv?: number | null
           department?: string | null
           education?: string | null
           email: string
@@ -1203,12 +1240,15 @@ export type Database = {
           experience?: string | null
           hire_date?: string | null
           id?: string
+          is_chatter?: boolean | null
           name: string
           phone?: string | null
           role: string
           salary?: number | null
+          skill_grade?: string | null
           skills?: string[] | null
           status?: string
+          timezone?: string | null
           updated_at?: string
         }
         Update: {
@@ -1221,6 +1261,8 @@ export type Database = {
           certifications?: string[] | null
           commission_rate?: number | null
           created_at?: string
+          daily_target_messages?: number | null
+          daily_target_ppv?: number | null
           department?: string | null
           education?: string | null
           email?: string
@@ -1228,12 +1270,15 @@ export type Database = {
           experience?: string | null
           hire_date?: string | null
           id?: string
+          is_chatter?: boolean | null
           name?: string
           phone?: string | null
           role?: string
           salary?: number | null
+          skill_grade?: string | null
           skills?: string[] | null
           status?: string
+          timezone?: string | null
           updated_at?: string
         }
         Relationships: [

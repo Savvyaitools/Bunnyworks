@@ -1,9 +1,9 @@
-import { useSupabaseCRUD } from "./useSupabaseCRUD";
 import { useMemo, useCallback } from "react";
-import { useAgency } from "./useAgency";
+import { useEmployees, SkillGrade, Employee } from "./useEmployees";
 
-export type SkillGrade = "A" | "B" | "C";
+export type { SkillGrade };
 
+// Chatter interface for backward compatibility
 export interface Chatter {
   id: string;
   auth_user_id: string | null;
@@ -16,47 +16,73 @@ export interface Chatter {
   agency_id: string | null;
   created_at: string;
   updated_at: string;
+  daily_target_messages: number;
+  daily_target_ppv: number;
 }
 
 export type CreateChatterInput = Omit<Chatter, "id" | "created_at" | "updated_at" | "agency_id">;
 export type UpdateChatterInput = Partial<CreateChatterInput>;
 
+// Map employee to chatter interface
+function employeeToChatter(employee: Employee): Chatter {
+  return {
+    id: employee.id,
+    auth_user_id: employee.auth_user_id,
+    name: employee.name,
+    email: employee.email,
+    skill_grade: employee.skill_grade,
+    timezone: employee.timezone,
+    is_active: employee.status === "Active",
+    avatar_seed: employee.avatar_seed,
+    agency_id: employee.agency_id,
+    created_at: employee.created_at,
+    updated_at: employee.updated_at,
+    daily_target_messages: employee.daily_target_messages,
+    daily_target_ppv: employee.daily_target_ppv,
+  };
+}
+
 export function useChatters() {
-  const { agencyId } = useAgency();
+  const { 
+    chatters: chatterEmployees, 
+    chatterStats, 
+    loading, 
+    updateEmployee,
+    deleteEmployee,
+  } = useEmployees();
 
-  const crud = useSupabaseCRUD<Chatter>({
-    table: "chatters",
-    queryKey: "chatters",
-    orderBy: { column: "created_at", ascending: false },
-    messages: {
-      createSuccess: "Chatter added successfully",
-      updateSuccess: "Chatter updated successfully",
-      deleteSuccess: "Chatter removed successfully",
-    },
-  });
+  // Map employees to chatter interface for backward compatibility
+  const chatters = useMemo(() => 
+    chatterEmployees.map(employeeToChatter),
+    [chatterEmployees]
+  );
 
-  const stats = useMemo(() => ({
-    total: crud.items.length,
-    active: crud.items.filter((c) => c.is_active).length,
-    gradeA: crud.items.filter((c) => c.skill_grade === "A").length,
-    gradeB: crud.items.filter((c) => c.skill_grade === "B").length,
-    gradeC: crud.items.filter((c) => c.skill_grade === "C").length,
-  }), [crud.items]);
+  // Update chatter (maps to employee update)
+  const updateChatter = useCallback(async (id: string, input: UpdateChatterInput) => {
+    const employeeUpdate: Record<string, unknown> = {};
+    
+    if (input.skill_grade !== undefined) employeeUpdate.skill_grade = input.skill_grade;
+    if (input.timezone !== undefined) employeeUpdate.timezone = input.timezone;
+    if (input.is_active !== undefined) employeeUpdate.status = input.is_active ? "Active" : "Inactive";
+    if (input.name !== undefined) employeeUpdate.name = input.name;
+    if (input.email !== undefined) employeeUpdate.email = input.email;
+    if (input.avatar_seed !== undefined) employeeUpdate.avatar_seed = input.avatar_seed;
+    if (input.daily_target_messages !== undefined) employeeUpdate.daily_target_messages = input.daily_target_messages;
+    if (input.daily_target_ppv !== undefined) employeeUpdate.daily_target_ppv = input.daily_target_ppv;
+    
+    return updateEmployee(id, employeeUpdate);
+  }, [updateEmployee]);
 
-  // Wrapper that adds agency_id when creating
-  const createChatter = useCallback(async (input: CreateChatterInput) => {
-    if (!agencyId) {
-      throw new Error("Agency ID not found");
-    }
-    return crud.create({ ...input, agency_id: agencyId });
-  }, [crud, agencyId]);
+  // Delete chatter (maps to employee delete)
+  const deleteChatter = useCallback(async (id: string) => {
+    return deleteEmployee(id);
+  }, [deleteEmployee]);
 
   return {
-    chatters: crud.items,
-    loading: crud.loading,
-    stats,
-    createChatter,
-    updateChatter: crud.update,
-    deleteChatter: crud.remove,
+    chatters,
+    loading,
+    stats: chatterStats,
+    updateChatter,
+    deleteChatter,
   };
 }

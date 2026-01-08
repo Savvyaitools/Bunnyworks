@@ -3,6 +3,8 @@ import { useAgency } from "./useAgency";
 import { useMemo, useCallback } from "react";
 import { toast } from "sonner";
 
+export type SkillGrade = "A" | "B" | "C";
+
 export interface Employee {
   id: string;
   name: string;
@@ -27,6 +29,12 @@ export interface Employee {
   certifications: string[] | null;
   emergency_contact: string | null;
   address: string | null;
+  // Chatter-specific fields
+  skill_grade: SkillGrade;
+  is_chatter: boolean;
+  daily_target_messages: number;
+  daily_target_ppv: number;
+  timezone: string | null;
 }
 
 export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_at" | "agency_id">;
@@ -51,6 +59,20 @@ export function useEmployees() {
     active: crud.items.filter((e) => e.status === "Active").length,
     onLeave: crud.items.filter((e) => e.status === "On Leave").length,
   }), [crud.items]);
+
+  // Chatter-specific helpers
+  const chatters = useMemo(() => 
+    crud.items.filter((e) => e.is_chatter), 
+    [crud.items]
+  );
+
+  const chatterStats = useMemo(() => ({
+    total: chatters.length,
+    active: chatters.filter((c) => c.status === "Active").length,
+    gradeA: chatters.filter((c) => c.skill_grade === "A").length,
+    gradeB: chatters.filter((c) => c.skill_grade === "B").length,
+    gradeC: chatters.filter((c) => c.skill_grade === "C").length,
+  }), [chatters]);
 
   // Wrapper that adds agency_id and checks limits
   const createEmployee = useCallback(async (input: CreateEmployeeInput) => {
@@ -86,5 +108,8 @@ export function useEmployees() {
     updateEmployee: crud.update,
     deleteEmployee,
     refetch: crud.refetch,
+    // Chatter-specific exports
+    chatters,
+    chatterStats,
   };
 }
