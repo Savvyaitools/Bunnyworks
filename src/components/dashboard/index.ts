@@ -6,3 +6,6 @@ export { MiniSparklineCard } from "./MiniSparklineCard";
 export { CreatorRevenueChart } from "./CreatorRevenueChart";
 export { DashboardTabs } from "./DashboardTabs";
 export { DateRangePicker } from "./DateRangePicker";
+export { ChatterLeaderboard } from "./ChatterLeaderboard";
+export { LiveActivityFeed } from "./LiveActivityFeed";
+export { TodayStats } from "./TodayStats";

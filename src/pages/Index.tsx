@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { RefreshCw, Users, DollarSign, CheckSquare, TrendingUp } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
-import { ActivityFeed, RevenueChart } from "@/components/dashboard";
+import { RevenueChart } from "@/components/dashboard";
 import { TasksCompletionChart } from "@/components/dashboard/TasksCompletionChart";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { CreatorTaskProgress } from "@/components/dashboard/CreatorTaskProgress";
@@ -10,13 +10,15 @@ import { CreatorRevenueChart } from "@/components/dashboard/CreatorRevenueChart"
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { CircularMetricCard } from "@/components/dashboard/CircularMetricCard";
+import { ChatterLeaderboard } from "@/components/dashboard/ChatterLeaderboard";
+import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
+import { TodayStats } from "@/components/dashboard/TodayStats";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { useAgency } from "@/hooks/useAgency";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
 const Index = () => {
   const [syncing, setSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -155,25 +157,8 @@ const Index = () => {
 
   const renderOverviewTab = () => (
     <>
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="glass-card p-5 animate-fade-in" style={{ animationDelay: "100ms" }}>
-          <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
-          <p className="text-2xl font-bold text-foreground">{formatCompactCurrency(grossRevenue)}</p>
-        </div>
-        <div className="glass-card p-5 animate-fade-in" style={{ animationDelay: "150ms" }}>
-          <p className="text-sm text-muted-foreground mb-1">Active Creators</p>
-          <p className="text-2xl font-bold text-foreground">{creatorsData || 0}</p>
-        </div>
-        <div className="glass-card p-5 animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <p className="text-sm text-muted-foreground mb-1">Team Members</p>
-          <p className="text-2xl font-bold text-foreground">{employeesCount || 0}</p>
-        </div>
-        <div className="glass-card p-5 animate-fade-in" style={{ animationDelay: "250ms" }}>
-          <p className="text-sm text-muted-foreground mb-1">Tasks Completed</p>
-          <p className="text-2xl font-bold text-foreground">{tasksData?.completed || 0}</p>
-        </div>
-      </div>
+      {/* OFM Today Stats */}
+      <TodayStats />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -181,19 +166,22 @@ const Index = () => {
           <RevenueChart />
         </div>
         <div>
-          <ActivityFeed />
+          <ChatterLeaderboard />
         </div>
       </div>
 
-      {/* Goals */}
+      {/* Live Activity & Goals */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
           <CreatorTaskProgress />
         </div>
         <div>
-          <GoalProgress />
+          <LiveActivityFeed />
         </div>
       </div>
+
+      {/* Goals */}
+      <GoalProgress />
     </>
   );
 
@@ -264,8 +252,8 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Activity Feed */}
-      <ActivityFeed />
+      {/* Live Activity Feed */}
+      <LiveActivityFeed />
     </>
   );
 
