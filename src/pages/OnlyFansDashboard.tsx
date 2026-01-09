@@ -27,7 +27,7 @@ interface SocialAccountWithOF {
 }
 
 export default function OnlyFansDashboard() {
-  const { agency } = useAgency();
+  const { agency, isLoading: agencyLoading } = useAgency();
   const [selectedAccount, setSelectedAccount] = useState<SocialAccountWithOF | null>(null);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountWithOF[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
@@ -37,6 +37,9 @@ export default function OnlyFansDashboard() {
   // Fetch all social accounts for the agency's creators
   useEffect(() => {
     const fetchSocialAccounts = async () => {
+      // Wait for agency to load before deciding there's nothing
+      if (agencyLoading) return;
+      
       if (!agency?.id) {
         setAccountsLoading(false);
         return;
@@ -76,9 +79,9 @@ export default function OnlyFansDashboard() {
     };
 
     fetchSocialAccounts();
-  }, [agency?.id, selectedAccount]);
+  }, [agency?.id, agencyLoading, selectedAccount]);
 
-  if (accountsLoading) {
+  if (accountsLoading || agencyLoading) {
     return (
       <DashboardLayout>
         <div className="p-6 space-y-4">
