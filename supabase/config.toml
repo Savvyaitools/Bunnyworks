@@ -4,13 +4,13 @@ project_id = "rforophgmeiueauuxhga"
 verify_jwt = false
 
 [functions.firecrawl-scrape]
-verify_jwt = true
+verify_jwt = false
 
 [functions.firecrawl-search]
-verify_jwt = true
+verify_jwt = false
 
 [functions.firecrawl-map]
-verify_jwt = true
+verify_jwt = false
 
 [functions.auto-retry-imports]
 verify_jwt = false
