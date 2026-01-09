@@ -51,7 +51,7 @@ export default function OnlyFansDashboard() {
           username,
           creator:creators!inner(id, name, alias, avatar_url, agency_id)
         `)
-        .eq("platform", "OnlyFans")
+        .ilike("platform", "onlyfans")
         .eq("creators.agency_id", agency.id)
         .not("of_account_id", "is", null);
 
