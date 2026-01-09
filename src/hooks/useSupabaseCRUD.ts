@@ -8,6 +8,8 @@ interface CRUDConfig {
   select?: string;
   orderBy?: { column: string; ascending?: boolean };
   filter?: { column: string; value: unknown };
+  /** When false, the initial SELECT query will not run. */
+  enabled?: boolean;
   messages?: {
     createSuccess?: string;
     createError?: string;
@@ -26,6 +28,7 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
     select = "*",
     orderBy,
     filter,
+    enabled = true,
     messages = {},
   } = config;
 
@@ -42,6 +45,7 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
   // Fetch all items
   const { data: items = [], isLoading: loading, refetch } = useQuery({
     queryKey: [queryKey, filter?.value],
+    enabled,
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let query = supabase.from(table as any).select(select);
@@ -139,10 +143,11 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
 
 // Simplified hook for read-only data
 export function useSupabaseRead<T>(config: Omit<CRUDConfig, "messages">) {
-  const { table, queryKey, select = "*", orderBy, filter } = config;
+  const { table, queryKey, select = "*", orderBy, filter, enabled = true } = config;
 
   const { data: items = [], isLoading: loading, refetch } = useQuery({
     queryKey: [queryKey, filter?.value],
+    enabled,
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let query = supabase.from(table as any).select(select);

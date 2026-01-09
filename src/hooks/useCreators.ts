@@ -39,6 +39,8 @@ export function useCreators() {
   const crud = useSupabaseCRUD<Creator>({
     table: "creators",
     queryKey: "creators",
+    enabled: Boolean(agencyId),
+    filter: agencyId ? { column: "agency_id", value: agencyId } : undefined,
     orderBy: { column: "created_at", ascending: false },
     messages: {
       createSuccess: "Creator added successfully",
@@ -47,19 +49,25 @@ export function useCreators() {
     },
   });
 
-  const getCreatorById = useCallback(async (id: string): Promise<Creator | null> => {
-    const { data, error } = await supabase
-      .from("creators")
-      .select("*")
-      .eq("id", id)
-      .single();
+  const getCreatorById = useCallback(
+    async (id: string): Promise<Creator | null> => {
+      if (!agencyId) return null;
 
-    if (error) {
-      console.error("Error fetching creator:", error);
-      return null;
-    }
-    return data as Creator;
-  }, []);
+      const { data, error } = await supabase
+        .from("creators")
+        .select("*")
+        .eq("id", id)
+        .eq("agency_id", agencyId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching creator:", error);
+        return null;
+      }
+      return data as Creator;
+    },
+    [agencyId]
+  );
 
   const stats = useMemo(() => ({
     total: crud.items.length,
