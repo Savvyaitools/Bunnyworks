@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Download, Image, Video, FileText } from "lucide-react";
+import { Calendar, Download, Image, Video, FileText, Heart, Instagram } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ interface ContentPlan {
   platform: string | null;
   creator_id: string;
   reference_media: ContentReferenceMedia[] | null;
+  content_category: "platform" | "social" | null;
 }
 
 const statusStyles: Record<string, string> = {
@@ -33,12 +35,16 @@ const statusStyles: Record<string, string> = {
   cancelled: "bg-red-500/20 text-red-400",
 };
 
+const PLATFORM_PLATFORMS = ["OnlyFans", "Fansly"];
+const SOCIAL_PLATFORMS = ["Instagram", "TikTok", "Twitter", "YouTube", "Reddit"];
+
 export default function PortalContentPlans() {
   const { creatorId, loading: creatorLoading } = useCreatorPortal();
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"platform" | "social">("platform");
 
   const fetchPlans = useCallback(async () => {
     if (!creatorId) return;
@@ -100,6 +106,16 @@ export default function PortalContentPlans() {
       console.error("Download failed:", error);
     }
   };
+
+  // Filter plans by category
+  const platformPlans = plans.filter(p => 
+    p.content_category === "platform" || 
+    (!p.content_category && PLATFORM_PLATFORMS.includes(p.platform || ''))
+  );
+  const socialPlans = plans.filter(p => 
+    p.content_category === "social" || 
+    (!p.content_category && SOCIAL_PLATFORMS.includes(p.platform || ''))
+  );
 
   const upcomingPlans = plans.filter(p => p.status === "planned" || p.status === "in_progress");
   const completedPlans = plans.filter(p => p.status === "completed");
@@ -222,7 +238,7 @@ export default function PortalContentPlans() {
           </DialogContent>
         </Dialog>
 
-        {/* Content Plans List */}
+        {/* Content Plans List with Tabs */}
         <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "150ms" }}>
           <h2 className="text-lg font-semibold text-foreground mb-4">Your Content Plans</h2>
           
@@ -235,61 +251,108 @@ export default function PortalContentPlans() {
               <p className="text-sm mt-1">Your agency will add content plans here.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="p-4 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-semibold text-foreground">{plan.title}</h4>
-                        <Badge className={cn("text-xs", statusStyles[plan.status] || "bg-muted text-muted-foreground")}>
-                          {plan.status.replace("_", " ")}
-                        </Badge>
-                        {plan.platform && (
-                          <Badge variant="outline" className="text-xs">
-                            {plan.platform}
-                          </Badge>
-                        )}
-                      </div>
-                      {plan.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {plan.scheduled_date && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(plan.scheduled_date).toLocaleDateString()}
-                          </span>
-                        )}
-                        {(plan.reference_media?.length || 0) > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Image className="h-3 w-3" />
-                            {plan.reference_media?.length} reference file(s)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {(plan.reference_media?.length || 0) > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() => openMediaDialog(plan)}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        View Media
-                      </Button>
-                    )}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "platform" | "social")}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="platform" className="gap-2">
+                  <Heart className="h-4 w-4" />
+                  Platform Content ({platformPlans.length})
+                </TabsTrigger>
+                <TabsTrigger value="social" className="gap-2">
+                  <Instagram className="h-4 w-4" />
+                  Social Media ({socialPlans.length})
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="platform">
+                {platformPlans.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No platform content plans yet.</p>
                   </div>
-                </div>
-              ))}
-            </div>
+                ) : (
+                  <div className="space-y-3">
+                    {platformPlans.map((plan) => (
+                      <PlanCard key={plan.id} plan={plan} openMediaDialog={openMediaDialog} statusStyles={statusStyles} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="social">
+                {socialPlans.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Instagram className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No social media content plans yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {socialPlans.map((plan) => (
+                      <PlanCard key={plan.id} plan={plan} openMediaDialog={openMediaDialog} statusStyles={statusStyles} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </div>
     </PortalLayout>
+  );
+}
+
+// Extracted PlanCard component for reuse
+function PlanCard({ 
+  plan, 
+  openMediaDialog, 
+  statusStyles 
+}: { 
+  plan: ContentPlan; 
+  openMediaDialog: (plan: ContentPlan) => void;
+  statusStyles: Record<string, string>;
+}) {
+  return (
+    <div className="p-4 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <h4 className="font-semibold text-foreground">{plan.title}</h4>
+            <Badge className={cn("text-xs", statusStyles[plan.status] || "bg-muted text-muted-foreground")}>
+              {plan.status.replace("_", " ")}
+            </Badge>
+            {plan.platform && (
+              <Badge variant="outline" className="text-xs">
+                {plan.platform}
+              </Badge>
+            )}
+          </div>
+          {plan.description && (
+            <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
+          )}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            {plan.scheduled_date && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {new Date(plan.scheduled_date).toLocaleDateString()}
+              </span>
+            )}
+            {(plan.reference_media?.length || 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Image className="h-3 w-3" />
+                {plan.reference_media?.length} reference file(s)
+              </span>
+            )}
+          </div>
+        </div>
+        {(plan.reference_media?.length || 0) > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => openMediaDialog(plan)}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            View Media
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
