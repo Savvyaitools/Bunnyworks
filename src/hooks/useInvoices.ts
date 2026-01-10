@@ -27,12 +27,15 @@ export function useInvoices() {
   const { data: invoices = [], isLoading: loading } = useQuery({
     queryKey: ["invoices", agencyId],
     queryFn: async () => {
+      if (!agencyId) return [];
+      
       const { data, error } = await supabase
         .from("invoices")
         .select(`
           *,
           creator:creators(name)
         `)
+        .eq("agency_id", agencyId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

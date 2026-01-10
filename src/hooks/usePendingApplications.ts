@@ -65,6 +65,8 @@ export function usePendingApplications() {
   const crud = useSupabaseCRUD<PendingApplication>({
     table: "pending_applications",
     queryKey: "pending_applications",
+    enabled: Boolean(agencyId),
+    filter: agencyId ? { column: "agency_id", value: agencyId } : undefined,
     orderBy: { column: "submitted_at", ascending: false },
     messages: {
       updateSuccess: "Application updated",
