@@ -204,8 +204,8 @@ export default function ShiftRoster() {
   const [formData, setFormData] = useState({
     chatter_id: "",
     creator_id: "",
-    shift_start: "",
-    shift_end: "",
+    shift_date: "",
+    shift_block: "",
     shift_type: "regular",
     notes: "",
   });
@@ -333,7 +333,7 @@ export default function ShiftRoster() {
 
   const handleAddShift = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.chatter_id || !formData.creator_id || !formData.shift_start || !formData.shift_end) {
+    if (!formData.chatter_id || !formData.creator_id || !formData.shift_date || !formData.shift_block) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
@@ -342,22 +342,38 @@ export default function ShiftRoster() {
       return;
     }
 
-    // Convert local datetime to ISO string
-    const shiftStartISO = new Date(formData.shift_start).toISOString();
-    const shiftEndISO = new Date(formData.shift_end).toISOString();
+    // Get block times from SHIFT_BLOCKS
+    const block = SHIFT_BLOCKS.find(b => b.id === formData.shift_block);
+    if (!block) {
+      toast({
+        title: "Invalid shift block",
+        description: "Please select a valid shift block.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create shift start and end times based on selected date and block
+    const shiftDate = new Date(formData.shift_date);
+    const shiftStart = new Date(shiftDate);
+    shiftStart.setHours(block.start, 0, 0, 0);
+    
+    const shiftEnd = new Date(shiftDate);
+    shiftEnd.setHours(block.end, 0, 0, 0);
 
     const input: CreateShiftInput = {
       chatter_id: formData.chatter_id,
       creator_id: formData.creator_id,
-      shift_start: shiftStartISO,
-      shift_end: shiftEndISO,
-      shift_type: formData.shift_type,
+      shift_start: shiftStart.toISOString(),
+      shift_end: shiftEnd.toISOString(),
+      shift_type: formData.shift_type || null,
       notes: formData.notes || null,
+      employee_id: null,
     };
 
     try {
       await createShift(input);
-      setFormData({ chatter_id: "", creator_id: "", shift_start: "", shift_end: "", shift_type: "regular", notes: "" });
+      setFormData({ chatter_id: "", creator_id: "", shift_date: "", shift_block: "", shift_type: "regular", notes: "" });
       setIsAddDialogOpen(false);
     } catch (error) {
       // Error is already handled by the mutation
@@ -473,30 +489,36 @@ export default function ShiftRoster() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Start *</Label>
+                      <Label>Shift Date *</Label>
                       <Input 
-                        type="datetime-local" 
-                        value={formData.shift_start} 
-                        onChange={(e) => setFormData({ ...formData, shift_start: e.target.value })} 
+                        type="date" 
+                        value={formData.shift_date || ""} 
+                        onChange={(e) => setFormData({ ...formData, shift_date: e.target.value })} 
                         required 
                         className="block w-full [color-scheme:dark]"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>End *</Label>
-                      <Input 
-                        type="datetime-local" 
-                        value={formData.shift_end} 
-                        onChange={(e) => setFormData({ ...formData, shift_end: e.target.value })} 
-                        required 
-                        className="block w-full [color-scheme:dark]"
-                      />
+                      <Label>Shift Block *</Label>
+                      <Select 
+                        value={formData.shift_block || ""} 
+                        onValueChange={(v) => setFormData({ ...formData, shift_block: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select shift block" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="night">🌙 Night (12 AM - 8 AM)</SelectItem>
+                          <SelectItem value="day">☀️ Day (8 AM - 4 PM)</SelectItem>
+                          <SelectItem value="evening">🌆 Evening (4 PM - 12 AM)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-primary"
-                    disabled={!formData.chatter_id || !formData.creator_id || !formData.shift_start || !formData.shift_end}
+                    disabled={!formData.chatter_id || !formData.creator_id || !formData.shift_date || !formData.shift_block}
                   >
                     Add Shift
                   </Button>
@@ -679,11 +701,17 @@ export default function ShiftRoster() {
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem
                                       onClick={() => {
+                                        // Determine shift block from shift start hour
+                                        const startHour = new Date(shift.shift_start).getHours();
+                                        let shiftBlock = "day";
+                                        if (startHour >= 0 && startHour < 8) shiftBlock = "night";
+                                        else if (startHour >= 16) shiftBlock = "evening";
+                                        
                                         setFormData({
                                           chatter_id: shift.chatter_id,
                                           creator_id: shift.creator_id,
-                                          shift_start: shift.shift_start.slice(0, 16),
-                                          shift_end: shift.shift_end.slice(0, 16),
+                                          shift_date: shift.shift_start.slice(0, 10),
+                                          shift_block: shiftBlock,
                                           shift_type: shift.shift_type || "regular",
                                           notes: shift.notes || "",
                                         });
