@@ -7,3 +7,4 @@ export { CreatorEarnings } from "./CreatorEarnings";
 export { CreatorSocialAccounts } from "./CreatorSocialAccounts";
 export { CreatorPlatformAccounts } from "./CreatorPlatformAccounts";
 export { CreatorCustomRequests } from "./CreatorCustomRequests";
+export { CreatorEmployeePermissions } from "./CreatorEmployeePermissions";
