@@ -11,6 +11,10 @@ export interface CreatorSocialAccount {
   profile_url: string | null;
   created_at: string;
   updated_at: string;
+  // OnlyFans API fields
+  of_account_id: string | null;
+  of_connected_at: string | null;
+  of_last_synced_at: string | null;
 }
 
 export interface CreateSocialAccountInput {
