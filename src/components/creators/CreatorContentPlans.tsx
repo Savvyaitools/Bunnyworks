@@ -18,11 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useContentPlanMedia, ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
 import { useAgency } from "@/hooks/useAgency";
+
 interface ContentPlan {
   id: string;
   title: string;
@@ -32,6 +34,7 @@ interface ContentPlan {
   platform: string | null;
   creator_id: string;
   reference_media: ContentReferenceMedia[] | null;
+  content_category: "platform" | "social" | null;
 }
 
 interface CreatorContentPlansProps {
@@ -45,12 +48,20 @@ const statusStyles: Record<string, string> = {
   cancelled: "bg-red-500/20 text-red-400",
 };
 
+const PLATFORM_PLATFORMS = ["OnlyFans", "Fansly"];
+const SOCIAL_PLATFORMS = ["Instagram", "TikTok", "Twitter", "YouTube", "Reddit"];
+
+const getContentCategory = (platform: string): "platform" | "social" => {
+  return PLATFORM_PLATFORMS.includes(platform) ? "platform" : "social";
+};
+
 export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const { agencyId } = useAgency();
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"platform" | "social">("platform");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const createFileInputRef = useRef<HTMLInputElement>(null);
   const { uploading, uploadMedia, deleteMedia, updatePlanMedia } = useContentPlanMedia();
@@ -92,6 +103,8 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const createPlan = async () => {
     if (!formData.title.trim() || !agencyId) return;
 
+    const contentCategory = formData.platform ? getContentCategory(formData.platform) : "platform";
+
     const { error } = await supabase
       .from("content_plans")
       .insert([{
@@ -103,6 +116,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         agency_id: agencyId,
         status: "planned",
         reference_media: JSON.parse(JSON.stringify(pendingMedia)),
+        content_category: contentCategory,
       }]);
 
     if (error) {
@@ -210,6 +224,99 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
+
+  // Filter plans by category
+  const platformPlans = plans.filter(p => 
+    p.content_category === "platform" || 
+    (!p.content_category && PLATFORM_PLATFORMS.includes(p.platform || ''))
+  );
+  const socialPlans = plans.filter(p => 
+    p.content_category === "social" || 
+    (!p.content_category && SOCIAL_PLATFORMS.includes(p.platform || ''))
+  );
+
+  const currentPlans = activeTab === "platform" ? platformPlans : socialPlans;
+
+  const renderPlansList = (plansList: ContentPlan[]) => (
+    <div className="space-y-3">
+      {plansList.map((plan) => (
+        <div
+          key={plan.id}
+          className="p-4 rounded-lg border border-border bg-card"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="font-semibold text-foreground">{plan.title}</h4>
+                <Badge className={cn("text-xs", statusStyles[plan.status])}>
+                  {plan.status.replace("_", " ")}
+                </Badge>
+              </div>
+              {plan.description && (
+                <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
+              )}
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                {plan.scheduled_date && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(plan.scheduled_date).toLocaleDateString()}
+                  </span>
+                )}
+                {plan.platform && (
+                  <span>{plan.platform}</span>
+                )}
+                {(plan.reference_media?.length || 0) > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Image className="h-3 w-3" />
+                    {plan.reference_media?.length} reference(s)
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => openMediaDialog(plan)}
+              >
+                <Upload className="h-3 w-3 mr-1" />
+                Media
+              </Button>
+              <Select
+                value={plan.status}
+                onValueChange={(value) => updateStatus(plan.id, value)}
+              >
+                <SelectTrigger className="w-[130px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planned">Planned</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => deletePlan(plan.id)}
+              >
+                <X className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ))}
+      {plansList.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>No {activeTab === "platform" ? "platform" : "social media"} content plans yet.</p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -433,85 +540,25 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         </DialogContent>
       </Dialog>
 
-      <div className="space-y-3">
-        {plans.map((plan) => (
-          <div
-            key={plan.id}
-            className="p-4 rounded-lg border border-border bg-card"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h4 className="font-semibold text-foreground">{plan.title}</h4>
-                  <Badge className={cn("text-xs", statusStyles[plan.status])}>
-                    {plan.status.replace("_", " ")}
-                  </Badge>
-                </div>
-                {plan.description && (
-                  <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
-                )}
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  {plan.scheduled_date && (
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {new Date(plan.scheduled_date).toLocaleDateString()}
-                    </span>
-                  )}
-                  {plan.platform && (
-                    <span>{plan.platform}</span>
-                  )}
-                  {(plan.reference_media?.length || 0) > 0 && (
-                    <span className="flex items-center gap-1">
-                      <Image className="h-3 w-3" />
-                      {plan.reference_media?.length} reference(s)
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => openMediaDialog(plan)}
-                >
-                  <Upload className="h-3 w-3 mr-1" />
-                  Media
-                </Button>
-                <Select
-                  value={plan.status}
-                  onValueChange={(value) => updateStatus(plan.id, value)}
-                >
-                  <SelectTrigger className="w-[130px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="planned">Planned</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => deletePlan(plan.id)}
-                >
-                  <X className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {plans.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No content plans yet. Create your first plan.</p>
-        </div>
-      )}
+      {/* Tabbed Content */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "platform" | "social")}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="platform" className="gap-2">
+            <Heart className="h-4 w-4" />
+            Platform Content ({platformPlans.length})
+          </TabsTrigger>
+          <TabsTrigger value="social" className="gap-2">
+            <Instagram className="h-4 w-4" />
+            Social Media ({socialPlans.length})
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="platform">
+          {renderPlansList(platformPlans)}
+        </TabsContent>
+        <TabsContent value="social">
+          {renderPlansList(socialPlans)}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
