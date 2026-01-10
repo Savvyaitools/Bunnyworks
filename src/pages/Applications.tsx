@@ -49,7 +49,19 @@ export default function Applications() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
-  const baseUrl = window.location.origin;
+  // Use the published/production URL for shareable links
+  const getBaseUrl = () => {
+    const origin = window.location.origin;
+    // If we're on a preview/staging environment, use the production URL
+    // You can configure this via environment variable or use the current origin for production
+    if (origin.includes('lovable.app') || origin.includes('localhost')) {
+      // Check for custom production URL in env, otherwise use current origin
+      return import.meta.env.VITE_PRODUCTION_URL || origin;
+    }
+    return origin;
+  };
+  
+  const baseUrl = getBaseUrl();
   const creatorLink = `${baseUrl}/apply/creator/${agencyId}`;
   const employeeLink = `${baseUrl}/apply/employee/${agencyId}`;
 
