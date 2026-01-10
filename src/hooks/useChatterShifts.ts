@@ -7,9 +7,10 @@ export interface ChatterShift {
   id: string;
   chatter_id: string;
   creator_id: string;
+  employee_id: string | null;
   shift_start: string;
   shift_end: string;
-  shift_type: string;
+  shift_type: string | null;
   notes: string | null;
   created_at: string;
   chatter?: {
@@ -23,7 +24,7 @@ export interface ChatterShift {
   };
 }
 
-export type CreateShiftInput = Omit<ChatterShift, "id" | "created_at" | "chatter" | "creator">;
+export type CreateShiftInput = Omit<ChatterShift, "id" | "created_at" | "chatter" | "creator"> & { employee_id?: string | null };
 
 const SELECT_WITH_RELATIONS = `*, chatter:chatters(id, name, skill_grade), creator:creators(id, name)`;
 
