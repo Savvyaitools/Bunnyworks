@@ -786,6 +786,7 @@ export type Database = {
         Row: {
           agency_id: string | null
           alias: string | null
+          auth_user_id: string | null
           avatar_seed: string | null
           avatar_url: string | null
           commission_rate: number | null
@@ -811,6 +812,7 @@ export type Database = {
         Insert: {
           agency_id?: string | null
           alias?: string | null
+          auth_user_id?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
           commission_rate?: number | null
@@ -836,6 +838,7 @@ export type Database = {
         Update: {
           agency_id?: string | null
           alias?: string | null
+          auth_user_id?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
           commission_rate?: number | null

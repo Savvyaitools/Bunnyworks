@@ -1,11 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { MoreVertical, DollarSign, Trash2, Mail, User } from "lucide-react";
+import { MoreVertical, DollarSign, Trash2, Mail, KeyRound, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Creator } from "@/hooks/useCreators";
@@ -15,11 +17,13 @@ import { formatCurrency } from "@/lib/formatters";
 interface CreatorCardProps {
   creator: Creator;
   onDelete: (id: string) => void;
+  onCreateAccount?: (creator: Creator) => void;
   index?: number;
 }
 
-export function CreatorCard({ creator, onDelete, index = 0 }: CreatorCardProps) {
+export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: CreatorCardProps) {
   const navigate = useNavigate();
+  const hasAccount = Boolean(creator.auth_user_id);
 
   const handleCardClick = () => {
     navigate(`/creators/${creator.id}`);
@@ -52,6 +56,16 @@ export function CreatorCard({ creator, onDelete, index = 0 }: CreatorCardProps) 
             creator.online_status ? "bg-success" : "bg-muted-foreground"
           )}
         />
+        {/* Login badge */}
+        {hasAccount && (
+          <Badge 
+            variant="secondary" 
+            className="absolute top-2 left-2 bg-success/20 text-success border-success/30 text-xs"
+          >
+            <Check className="h-3 w-3 mr-1" />
+            Login Active
+          </Badge>
+        )}
         {/* Dropdown menu */}
         <div className="absolute top-2 right-2">
           <DropdownMenu>
@@ -61,6 +75,20 @@ export function CreatorCard({ creator, onDelete, index = 0 }: CreatorCardProps) 
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover border-border">
+              {!hasAccount && onCreateAccount && (
+                <>
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCreateAccount(creator);
+                    }}
+                  >
+                    <KeyRound className="h-4 w-4 mr-2" />
+                    Create Login
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem 
                 className="text-destructive"
                 onClick={(e) => {

@@ -138,14 +138,19 @@ export const employeeFormSchema = z.object({
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 
-export const employeeAccountSchema = z.object({
+// Reusable account schema for both employees and creators
+export const accountPasswordSchema = z.object({
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
     .max(72, "Password must be less than 72 characters"),
 });
 
-export type EmployeeAccountValues = z.infer<typeof employeeAccountSchema>;
+export type AccountPasswordValues = z.infer<typeof accountPasswordSchema>;
+
+// Legacy export for backward compatibility
+export const employeeAccountSchema = accountPasswordSchema;
+export type EmployeeAccountValues = AccountPasswordValues;
 
 // ============= Task Schemas =============
 export const taskFormSchema = z.object({
