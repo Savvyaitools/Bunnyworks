@@ -29,6 +29,11 @@ export function useTodayStats() {
       today.setHours(0, 0, 0, 0);
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
+      
+      // Current month start for period-based earnings
+      const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of previous month
 
       // Get creator IDs for this agency first (needed for earnings filter)
       const { data: creators } = await supabase
@@ -54,23 +59,23 @@ export function useTodayStats() {
         activeLogsResult,
         allTodayLogsResult,
       ] = await Promise.all([
-        // Today's revenue
+        // Current month's revenue (based on period_start, not created_at)
         creatorIds.length > 0
           ? supabase
               .from("creator_earnings")
               .select("amount")
               .in("creator_id", creatorIds)
-              .gte("created_at", today.toISOString())
+              .gte("period_start", currentMonthStart.toISOString().split('T')[0])
           : Promise.resolve({ data: [] as { amount: number }[] }),
         
-        // Yesterday's revenue for comparison
+        // Last month's revenue for comparison
         creatorIds.length > 0
           ? supabase
               .from("creator_earnings")
               .select("amount")
               .in("creator_id", creatorIds)
-              .gte("created_at", yesterday.toISOString())
-              .lt("created_at", today.toISOString())
+              .gte("period_start", lastMonthStart.toISOString().split('T')[0])
+              .lte("period_start", lastMonthEnd.toISOString().split('T')[0])
           : Promise.resolve({ data: [] as { amount: number }[] }),
         
         // Messages sent today
@@ -117,10 +122,14 @@ export function useTodayStats() {
         allTodayLogsResult.data?.map((l: { chatter_id: string }) => l.chatter_id) || []
       ).size;
 
-      // Revenue trend percentage
-      const revenueTrend = yesterdayRevenue > 0
-        ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100)
-        : 0;
+      // Revenue trend percentage (vs last month)
+      const lastMonthRevenue = yesterdayEarningsResult.data?.reduce(
+        (sum: number, e: { amount: number }) => sum + Number(e.amount), 0
+      ) || 0;
+      
+      const revenueTrend = lastMonthRevenue > 0
+        ? ((todayRevenue - lastMonthRevenue) / lastMonthRevenue * 100)
+        : (todayRevenue > 0 ? 100 : 0);
 
       return {
         todayRevenue,
