@@ -48,7 +48,7 @@ function StatCard({ title, value, subValue, icon: Icon, trend, trendValue, color
         <div className={`flex items-center gap-1 mt-3 text-sm ${trendColors[trend]}`}>
           <TrendingUp className={`h-4 w-4 ${trend === "down" ? "rotate-180" : ""}`} />
           <span>{trendValue}</span>
-          <span className="text-muted-foreground">vs yesterday</span>
+          <span className="text-muted-foreground">vs last month</span>
         </div>
       )}
     </div>
@@ -73,7 +73,7 @@ export function TodayStats() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <StatCard
-        title="Today's Revenue"
+        title="This Month's Revenue"
         value={formatCurrency(stats?.todayRevenue || 0)}
         icon={DollarSign}
         color="success"
