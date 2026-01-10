@@ -27,6 +27,14 @@ export function useDashboardStats() {
     enabled: Boolean(agencyId),
     staleTime: 1000 * 60, // 1 minute for dashboard (more frequent updates)
     queryFn: async (): Promise<DashboardStats> => {
+      // First get creator IDs for this agency (needed for earnings filter)
+      const { data: creators } = await supabase
+        .from("creators")
+        .select("id")
+        .eq("agency_id", agencyId);
+      
+      const creatorIds = creators?.map(c => c.id) || [];
+
       // Run all queries in parallel using Promise.all
       const [creatorsResult, employeesResult, tasksResult, earningsResult, extractedResult] = 
         await Promise.all([
@@ -50,17 +58,13 @@ export function useDashboardStats() {
             .select("status")
             .eq("agency_id", agencyId),
           
-          // Creator earnings (net)
-          supabase
-            .from("creator_earnings")
-            .select("amount, creator_id")
-            .in("creator_id", 
-              (await supabase
-                .from("creators")
-                .select("id")
-                .eq("agency_id", agencyId)
-              ).data?.map(c => c.id) || []
-            ),
+          // Creator earnings (net) - only if there are creators
+          creatorIds.length > 0
+            ? supabase
+                .from("creator_earnings")
+                .select("amount, creator_id")
+                .in("creator_id", creatorIds)
+            : Promise.resolve({ data: [] as { amount: number; creator_id: string }[] }),
           
           // Extracted data for gross earnings
           supabase

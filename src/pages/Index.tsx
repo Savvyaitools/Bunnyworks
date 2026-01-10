@@ -26,24 +26,32 @@ const Index = () => {
   const { agency } = useAgency();
   const commissionRate = agency?.commission_rate ?? 0.3;
 
-  // Fetch creators count
+  const agencyId = agency?.id;
+
+  // Fetch creators count - scoped by agency
   const { data: creatorsData } = useQuery({
-    queryKey: ["creators-count"],
+    queryKey: ["creators-count", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
       const { count, error } = await supabase
         .from("creators")
         .select("*", { count: "exact", head: true })
+        .eq("agency_id", agencyId)
         .eq("status", "Active");
       if (error) throw error;
       return count || 0;
     },
   });
 
-  // Fetch tasks data
+  // Fetch tasks data - scoped by agency
   const { data: tasksData } = useQuery({
-    queryKey: ["tasks-stats"],
+    queryKey: ["tasks-stats", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
-      const { data, error } = await supabase.from("tasks").select("status");
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("status")
+        .eq("agency_id", agencyId);
       if (error) throw error;
       const completed = data?.filter((t) => t.status === "Completed").length || 0;
       const pending = data?.filter((t) => t.status === "Pending" || t.status === "In Progress").length || 0;
@@ -52,19 +60,33 @@ const Index = () => {
     },
   });
 
-  // Fetch total revenue
+  // Fetch total revenue - scoped by agency's creators
   const { data: revenueData } = useQuery({
-    queryKey: ["total-revenue"],
+    queryKey: ["total-revenue", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
-      const { data: netData, error: netError } = await supabase
-        .from("creator_earnings")
-        .select("amount");
-      if (netError) throw netError;
-      const netTotal = netData?.reduce((sum, earning) => sum + Number(earning.amount), 0) || 0;
+      // Get creator IDs for this agency
+      const { data: creators } = await supabase
+        .from("creators")
+        .select("id")
+        .eq("agency_id", agencyId);
+      const creatorIds = creators?.map(c => c.id) || [];
 
+      // Fetch earnings for agency's creators
+      let netTotal = 0;
+      if (creatorIds.length > 0) {
+        const { data: netData, error: netError } = await supabase
+          .from("creator_earnings")
+          .select("amount")
+          .in("creator_id", creatorIds);
+        if (netError) throw netError;
+        netTotal = netData?.reduce((sum, earning) => sum + Number(earning.amount), 0) || 0;
+      }
+
+      // Fetch extracted data for agency's imports
       const { data: extractedData, error: extractedError } = await supabase
         .from("extracted_data")
-        .select("value, raw_text")
+        .select("value, raw_text, import_id")
         .eq("data_type", "earnings");
       if (extractedError) throw extractedError;
 
@@ -82,13 +104,15 @@ const Index = () => {
     },
   });
 
-  // Fetch employees count
+  // Fetch employees count - scoped by agency
   const { data: employeesCount } = useQuery({
-    queryKey: ["employees-count"],
+    queryKey: ["employees-count", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
       const { count, error } = await supabase
         .from("employees")
         .select("*", { count: "exact", head: true })
+        .eq("agency_id", agencyId)
         .eq("status", "Active");
       if (error) throw error;
       return count || 0;
