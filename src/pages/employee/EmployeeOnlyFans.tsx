@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAllMyOFPermissions } from "@/hooks/useEmployeeOFPermissions";
-import { useOnlyFansAPI } from "@/hooks/useOnlyFansAPI";
+import { useOnlyFansCache } from "@/hooks/useOnlyFansCache";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageCircle, Users, FileText, DollarSign, AlertCircle, User } from "lucide-react";
+import { MessageCircle, Users, DollarSign, AlertCircle, User, RefreshCw } from "lucide-react";
 import { AccountSelector } from "@/components/employee-of/AccountSelector";
 import { ChatList } from "@/components/employee-of/ChatList";
 import { ChatWindow } from "@/components/employee-of/ChatWindow";
 import { FanList } from "@/components/employee-of/FanList";
 import { EarningsOverview } from "@/components/employee-of/EarningsOverview";
 import { PermissionGate } from "@/components/employee-of/PermissionGate";
+import { toast } from "sonner";
 
 interface SocialAccountWithOF {
   id: string;
@@ -32,11 +32,30 @@ interface SocialAccountWithOF {
 
 export default function EmployeeOnlyFans() {
   const { data: permissions, isLoading: permissionsLoading } = useAllMyOFPermissions();
+  const { forceRefresh } = useOnlyFansCache();
   const [selectedAccount, setSelectedAccount] = useState<SocialAccountWithOF | null>(null);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountWithOF[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("chats");
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncNow = async () => {
+    if (!selectedAccount?.of_account_id) return;
+    
+    setIsSyncing(true);
+    toast.info("Syncing messages and subscribers...");
+    
+    try {
+      await forceRefresh(selectedAccount.of_account_id);
+      toast.success("Sync complete!");
+    } catch (err) {
+      console.error("Sync failed:", err);
+      toast.error("Sync failed. Please try again.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Fetch social accounts for creators the employee has permissions for
   useEffect(() => {
@@ -159,14 +178,25 @@ export default function EmployeeOnlyFans() {
           </div>
         </div>
 
-        {/* Permission Badges */}
+        {/* Permission Badges and Sync Button */}
         {currentPermissions && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {currentPermissions.can_view_chats && <Badge variant="secondary">Messages</Badge>}
             {currentPermissions.can_send_messages && <Badge variant="secondary">Reply to DMs</Badge>}
             {currentPermissions.can_view_fans && <Badge variant="secondary">Subscribers</Badge>}
             {currentPermissions.can_view_earnings && <Badge variant="secondary">Earnings</Badge>}
             {currentPermissions.can_view_posts && <Badge variant="secondary">Posts</Badge>}
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncNow}
+              disabled={isSyncing}
+              className="ml-auto"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+              {isSyncing ? "Syncing..." : "Sync Now"}
+            </Button>
           </div>
         )}
 

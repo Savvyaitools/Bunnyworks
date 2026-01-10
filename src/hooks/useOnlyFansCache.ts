@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOnlyFansAPI } from "./useOnlyFansAPI";
+import { useAuth } from "./useAuth";
 
 // Cache TTL in milliseconds
 const CACHE_TTL = {
@@ -76,9 +77,33 @@ async function getCacheEntry(accountId: string, cacheKey: string): Promise<Cache
   return data as CacheEntry | null;
 }
 
+// Helper to get agency_id from profile or creator social account
+async function getAgencyIdForAccount(accountId: string): Promise<string | null> {
+  // First try to get from current user's profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("agency_id")
+    .single();
+  
+  if (profile?.agency_id) {
+    return profile.agency_id;
+  }
+  
+  // Fallback: get from the creator's social account
+  const { data: socialAccount } = await supabase
+    .from("creator_social_accounts")
+    .select("creator:creators(agency_id)")
+    .eq("of_account_id", accountId)
+    .single();
+  
+  // @ts-ignore - nested select type
+  return socialAccount?.creator?.agency_id || null;
+}
+
 export function useOnlyFansCache() {
   const api = useOnlyFansAPI();
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
 
   // Cached earnings hook with database-first approach
   const useCachedEarnings = (accountId: string | null, enabled = true) => {
@@ -130,14 +155,45 @@ export function useOnlyFansCache() {
           return [];
         }
         
-        // If no cached data, trigger a sync via API
+        // If no cached data, trigger a sync via API and persist to DB
         if (!data || data.length === 0) {
           console.log(`[Cache MISS] No fans cached for ${accountId}, triggering API call`);
           const apiResult = activeOnly 
             ? await api.listActiveFans(accountId, 100, 0)
             : await api.listFans(accountId, 100, 0);
           
-          if (apiResult?.data) {
+          if (apiResult?.data && apiResult.data.length > 0) {
+            // Get agency_id for persistence
+            const agencyId = await getAgencyIdForAccount(accountId);
+            
+            if (agencyId) {
+              // Persist fans to database
+              const fansToInsert = apiResult.data.map(fan => ({
+                of_account_id: accountId,
+                of_fan_id: fan.id,
+                agency_id: agencyId,
+                name: fan.name || null,
+                username: fan.username || null,
+                avatar_url: fan.avatar || null,
+                subscribed_at: fan.subscribed_at || null,
+                expires_at: fan.expires_at || null,
+                total_spent: fan.total_spent || 0,
+                is_active: fan.is_active ?? true,
+                renew_on: false,
+                synced_at: new Date().toISOString(),
+              }));
+
+              const { error: insertError } = await supabase
+                .from("of_fans")
+                .upsert(fansToInsert, { onConflict: "of_account_id,of_fan_id" });
+
+              if (insertError) {
+                console.error("Error caching fans:", insertError);
+              } else {
+                console.log(`[Cache STORED] ${fansToInsert.length} fans for ${accountId}`);
+              }
+            }
+            
             // Transform API data to match CachedFan interface
             return apiResult.data.map(fan => ({
               id: fan.id,
@@ -166,7 +222,7 @@ export function useOnlyFansCache() {
     });
   };
 
-  // Cached chats from database
+  // Cached chats from database - PERSISTS API RESULTS TO DB
   const useCachedChats = (accountId: string | null, enabled = true) => {
     return useQuery({
       queryKey: ["of-chats", accountId],
@@ -186,12 +242,44 @@ export function useOnlyFansCache() {
           return [];
         }
         
-        // If no cached data or very stale, trigger API call
+        // If no cached data, trigger API call and PERSIST results
         if (!data || data.length === 0) {
           console.log(`[Cache MISS] No chats cached for ${accountId}, triggering API call`);
           const apiResult = await api.listChats(accountId, 100, 0);
           
-          if (apiResult?.data) {
+          if (apiResult?.data && apiResult.data.length > 0) {
+            // Get agency_id for persistence
+            const agencyId = await getAgencyIdForAccount(accountId);
+            
+            if (agencyId) {
+              // Persist chats to database
+              const chatsToInsert = apiResult.data.map(chat => ({
+                of_account_id: accountId,
+                of_chat_id: chat.id,
+                agency_id: agencyId,
+                of_fan_id: chat.with_user?.id || null,
+                fan_name: chat.with_user?.name || null,
+                fan_username: chat.with_user?.username || null,
+                fan_avatar: chat.with_user?.avatar || null,
+                last_message_text: chat.last_message?.text || null,
+                last_message_at: chat.last_message?.created_at || null,
+                last_message_is_from_me: chat.last_message?.is_from_me || null,
+                unread_count: chat.unread_count || 0,
+                is_pinned: false,
+                synced_at: new Date().toISOString(),
+              }));
+
+              const { error: insertError } = await supabase
+                .from("of_chats")
+                .upsert(chatsToInsert, { onConflict: "of_account_id,of_chat_id" });
+
+              if (insertError) {
+                console.error("Error caching chats:", insertError);
+              } else {
+                console.log(`[Cache STORED] ${chatsToInsert.length} chats for ${accountId}`);
+              }
+            }
+            
             // Transform API data to match CachedChat interface
             return apiResult.data.map(chat => ({
               id: chat.id,
@@ -212,16 +300,44 @@ export function useOnlyFansCache() {
           return [];
         }
         
-        // Check if cache is stale (> 5 minutes old)
+        // Check if cache is stale (> 5 minutes old) - refresh in background
         const oldestSync = data.reduce((oldest, chat) => {
-          const syncTime = new Date(chat.synced_at).getTime();
+          const syncTime = new Date(chat.synced_at || 0).getTime();
           return syncTime < oldest ? syncTime : oldest;
         }, Date.now());
         
         if (Date.now() - oldestSync > CACHE_TTL.chats) {
           console.log(`[Cache STALE] Chats for ${accountId}, refreshing in background`);
           // Trigger background refresh without blocking
-          api.listChats(accountId, 100, 0).catch(console.error);
+          (async () => {
+            try {
+              const apiResult = await api.listChats(accountId, 100, 0);
+              if (apiResult?.data && apiResult.data.length > 0) {
+                const agencyId = await getAgencyIdForAccount(accountId);
+                if (agencyId) {
+                  const chatsToUpdate = apiResult.data.map(chat => ({
+                    of_account_id: accountId,
+                    of_chat_id: chat.id,
+                    agency_id: agencyId,
+                    of_fan_id: chat.with_user?.id || null,
+                    fan_name: chat.with_user?.name || null,
+                    fan_username: chat.with_user?.username || null,
+                    fan_avatar: chat.with_user?.avatar || null,
+                    last_message_text: chat.last_message?.text || null,
+                    last_message_at: chat.last_message?.created_at || null,
+                    last_message_is_from_me: chat.last_message?.is_from_me || null,
+                    unread_count: chat.unread_count || 0,
+                    is_pinned: false,
+                    synced_at: new Date().toISOString(),
+                  }));
+                  await supabase.from("of_chats").upsert(chatsToUpdate, { onConflict: "of_account_id,of_chat_id" });
+                  queryClient.invalidateQueries({ queryKey: ["of-chats", accountId] });
+                }
+              }
+            } catch (err) {
+              console.error("Background chat refresh failed:", err);
+            }
+          })();
         }
         
         console.log(`[Cache HIT] ${data.length} chats for ${accountId}`);
@@ -252,14 +368,78 @@ export function useOnlyFansCache() {
     }
   };
 
-  // Force refresh all data for an account
+  // Force refresh all data for an account - fetches from API and persists
   const forceRefresh = async (accountId: string) => {
+    console.log(`[Force Refresh] Starting for account ${accountId}`);
+    
+    // Clear existing cache
     await invalidateCache(accountId);
+    
+    // Get agency_id for persistence
+    const agencyId = await getAgencyIdForAccount(accountId);
+    
+    if (!agencyId) {
+      console.error("Cannot force refresh: agency_id not found");
+      return;
+    }
+    
+    // Fetch and persist chats
+    try {
+      const chatsResult = await api.listChats(accountId, 100, 0);
+      if (chatsResult?.data && chatsResult.data.length > 0) {
+        const chatsToInsert = chatsResult.data.map(chat => ({
+          of_account_id: accountId,
+          of_chat_id: chat.id,
+          agency_id: agencyId,
+          of_fan_id: chat.with_user?.id || null,
+          fan_name: chat.with_user?.name || null,
+          fan_username: chat.with_user?.username || null,
+          fan_avatar: chat.with_user?.avatar || null,
+          last_message_text: chat.last_message?.text || null,
+          last_message_at: chat.last_message?.created_at || null,
+          last_message_is_from_me: chat.last_message?.is_from_me || null,
+          unread_count: chat.unread_count || 0,
+          is_pinned: false,
+          synced_at: new Date().toISOString(),
+        }));
+        await supabase.from("of_chats").upsert(chatsToInsert, { onConflict: "of_account_id,of_chat_id" });
+        console.log(`[Force Refresh] Stored ${chatsToInsert.length} chats`);
+      }
+    } catch (err) {
+      console.error("Failed to refresh chats:", err);
+    }
+    
+    // Fetch and persist fans
+    try {
+      const fansResult = await api.listActiveFans(accountId, 100, 0);
+      if (fansResult?.data && fansResult.data.length > 0) {
+        const fansToInsert = fansResult.data.map(fan => ({
+          of_account_id: accountId,
+          of_fan_id: fan.id,
+          agency_id: agencyId,
+          name: fan.name || null,
+          username: fan.username || null,
+          avatar_url: fan.avatar || null,
+          subscribed_at: fan.subscribed_at || null,
+          expires_at: fan.expires_at || null,
+          total_spent: fan.total_spent || 0,
+          is_active: fan.is_active ?? true,
+          renew_on: false,
+          synced_at: new Date().toISOString(),
+        }));
+        await supabase.from("of_fans").upsert(fansToInsert, { onConflict: "of_account_id,of_fan_id" });
+        console.log(`[Force Refresh] Stored ${fansToInsert.length} fans`);
+      }
+    } catch (err) {
+      console.error("Failed to refresh fans:", err);
+    }
     
     // Refetch all queries
     await queryClient.refetchQueries({ queryKey: ["of-earnings", accountId] });
     await queryClient.refetchQueries({ queryKey: ["of-fans", accountId] });
     await queryClient.refetchQueries({ queryKey: ["of-chats", accountId] });
+    
+    console.log(`[Force Refresh] Complete for account ${accountId}`);
   };
 
   return {
