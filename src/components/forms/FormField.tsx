@@ -87,7 +87,10 @@ export function FormField(props: FormFieldProps) {
           type={props.type}
           {...props.register(name, props.valueAsNumber ? { valueAsNumber: true } : undefined)}
           placeholder={props.placeholder}
-          className={cn(hasError && "border-destructive")}
+          className={cn(
+            hasError && "border-destructive",
+            props.type === "date" && "[color-scheme:dark]"
+          )}
         />
       )}
       

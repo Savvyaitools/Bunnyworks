@@ -126,6 +126,7 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
                     type="date"
                     value={formData.due_date}
                     onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    className="[color-scheme:dark]"
                   />
                 </div>
               </div>

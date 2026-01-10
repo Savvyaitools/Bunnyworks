@@ -187,6 +187,7 @@ export default function EmployeePerformance() {
                         type="date"
                         value={periodStart}
                         onChange={(e) => setPeriodStart(e.target.value)}
+                        className="[color-scheme:dark]"
                       />
                     </div>
                     <div className="space-y-2">
@@ -195,6 +196,7 @@ export default function EmployeePerformance() {
                         type="date"
                         value={periodEnd}
                         onChange={(e) => setPeriodEnd(e.target.value)}
+                        className="[color-scheme:dark]"
                       />
                     </div>
                   </div>
@@ -243,6 +245,7 @@ export default function EmployeePerformance() {
                         type="date"
                         value={periodStart}
                         onChange={(e) => setPeriodStart(e.target.value)}
+                        className="[color-scheme:dark]"
                       />
                     </div>
                     <div className="space-y-2">
@@ -251,6 +254,7 @@ export default function EmployeePerformance() {
                         type="date"
                         value={periodEnd}
                         onChange={(e) => setPeriodEnd(e.target.value)}
+                        className="[color-scheme:dark]"
                       />
                     </div>
                   </div>

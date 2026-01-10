@@ -348,6 +348,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                   type="date"
                   value={formData.scheduled_date}
                   onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                  className="[color-scheme:dark]"
                 />
                 <Select
                   value={formData.platform}
