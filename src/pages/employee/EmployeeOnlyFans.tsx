@@ -76,7 +76,7 @@ export default function EmployeeOnlyFans() {
           username,
           creator:creators(id, name, alias, avatar_url)
         `)
-        .eq("platform", "OnlyFans")
+        .ilike("platform", "onlyfans")
         .in("creator_id", creatorIds)
         .not("of_account_id", "is", null);
 
