@@ -506,6 +506,7 @@ export type Database = {
       content_plans: {
         Row: {
           agency_id: string | null
+          content_category: string | null
           created_at: string
           creator_id: string
           description: string | null
@@ -514,11 +515,15 @@ export type Database = {
           reference_media: Json | null
           scheduled_date: string | null
           status: string
+          submission_status: string | null
+          submitted_at: string | null
+          submitted_media: Json | null
           title: string
           updated_at: string
         }
         Insert: {
           agency_id?: string | null
+          content_category?: string | null
           created_at?: string
           creator_id: string
           description?: string | null
@@ -527,11 +532,15 @@ export type Database = {
           reference_media?: Json | null
           scheduled_date?: string | null
           status?: string
+          submission_status?: string | null
+          submitted_at?: string | null
+          submitted_media?: Json | null
           title: string
           updated_at?: string
         }
         Update: {
           agency_id?: string | null
+          content_category?: string | null
           created_at?: string
           creator_id?: string
           description?: string | null
@@ -540,6 +549,9 @@ export type Database = {
           reference_media?: Json | null
           scheduled_date?: string | null
           status?: string
+          submission_status?: string | null
+          submitted_at?: string | null
+          submitted_media?: Json | null
           title?: string
           updated_at?: string
         }
@@ -789,6 +801,7 @@ export type Database = {
           auth_user_id: string | null
           avatar_seed: string | null
           avatar_url: string | null
+          branding: Json | null
           commission_rate: number | null
           created_at: string
           email: string
@@ -800,6 +813,7 @@ export type Database = {
           notes: string | null
           online_status: boolean | null
           onlyfans_url: string | null
+          persona: string | null
           phone: string | null
           platform: string | null
           revenue: number
@@ -815,6 +829,7 @@ export type Database = {
           auth_user_id?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
+          branding?: Json | null
           commission_rate?: number | null
           created_at?: string
           email: string
@@ -826,6 +841,7 @@ export type Database = {
           notes?: string | null
           online_status?: boolean | null
           onlyfans_url?: string | null
+          persona?: string | null
           phone?: string | null
           platform?: string | null
           revenue?: number
@@ -841,6 +857,7 @@ export type Database = {
           auth_user_id?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
+          branding?: Json | null
           commission_rate?: number | null
           created_at?: string
           email?: string
@@ -852,6 +869,7 @@ export type Database = {
           notes?: string | null
           online_status?: boolean | null
           onlyfans_url?: string | null
+          persona?: string | null
           phone?: string | null
           platform?: string | null
           revenue?: number
@@ -874,6 +892,63 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_requests: {
+        Row: {
+          agency_id: string
+          created_at: string
+          creator_id: string
+          description: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          price: number | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          price?: number | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          price?: number | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_requests_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_requests_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
             referencedColumns: ["id"]
           },
         ]
@@ -934,6 +1009,113 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_bonus_awards: {
+        Row: {
+          bonus_amount: number
+          bonus_structure_id: string
+          created_at: string
+          employee_id: string
+          grade_earned: string
+          id: string
+          metrics_snapshot: Json | null
+          performance_score: number
+        }
+        Insert: {
+          bonus_amount: number
+          bonus_structure_id: string
+          created_at?: string
+          employee_id: string
+          grade_earned: string
+          id?: string
+          metrics_snapshot?: Json | null
+          performance_score: number
+        }
+        Update: {
+          bonus_amount?: number
+          bonus_structure_id?: string
+          created_at?: string
+          employee_id?: string
+          grade_earned?: string
+          id?: string
+          metrics_snapshot?: Json | null
+          performance_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_bonus_awards_bonus_structure_id_fkey"
+            columns: ["bonus_structure_id"]
+            isOneToOne: false
+            referencedRelation: "employee_bonus_structures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_bonus_awards_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_bonus_structures: {
+        Row: {
+          agency_id: string
+          created_at: string
+          department: string
+          grade_a_bonus: number
+          grade_a_threshold: number
+          grade_b_bonus: number
+          grade_b_threshold: number
+          grade_c_bonus: number
+          grade_c_threshold: number
+          id: string
+          name: string
+          period_month: number
+          period_year: number
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          department: string
+          grade_a_bonus?: number
+          grade_a_threshold?: number
+          grade_b_bonus?: number
+          grade_b_threshold?: number
+          grade_c_bonus?: number
+          grade_c_threshold?: number
+          id?: string
+          name: string
+          period_month: number
+          period_year: number
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          department?: string
+          grade_a_bonus?: number
+          grade_a_threshold?: number
+          grade_b_bonus?: number
+          grade_b_threshold?: number
+          grade_c_bonus?: number
+          grade_c_threshold?: number
+          id?: string
+          name?: string
+          period_month?: number
+          period_year?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_bonus_structures_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
         ]

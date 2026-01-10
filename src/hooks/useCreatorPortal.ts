@@ -116,6 +116,13 @@ export function useCreatorPortal() {
   });
 
   const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
+    // Get task details first for notification
+    const { data: taskData } = await supabase
+      .from("tasks")
+      .select("title, agency_id")
+      .eq("id", taskId)
+      .single();
+
     const { error } = await supabase
       .from("tasks")
       .update({ status })
@@ -125,10 +132,31 @@ export function useCreatorPortal() {
       console.error("Error updating task:", error);
       return false;
     }
+
+    // Create notification for agency when task is completed
+    if (status === "Completed" && creatorData && taskData) {
+      // Get agency owner profile ID
+      const { data: agencyProfiles } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("agency_id", taskData.agency_id)
+        .eq("user_type", "agency")
+        .limit(1);
+
+      if (agencyProfiles && agencyProfiles.length > 0) {
+        await supabase.from("notifications").insert({
+          user_id: agencyProfiles[0].id,
+          title: "Task Completed",
+          message: `${creatorData.name} completed task: ${taskData.title}`,
+          type: "task_completed",
+          link: `/tasks?id=${taskId}`,
+        });
+      }
+    }
     
     queryClient.invalidateQueries({ queryKey: ["creator-portal-tasks"] });
     return true;
-  }, [queryClient]);
+  }, [queryClient, creatorData]);
 
   const loading = creatorLoading || tasksLoading || invoicesLoading || earningsLoading;
 
