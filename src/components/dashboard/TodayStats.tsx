@@ -1,6 +1,5 @@
 import { DollarSign, MessageSquare, Users, Clock, TrendingUp } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useTodayStats } from "@/hooks/useTodayStats";
 import { formatCurrency } from "@/lib/formatters";
 
 interface StatCardProps {
@@ -57,73 +56,7 @@ function StatCard({ title, value, subValue, icon: Icon, trend, trendValue, color
 }
 
 export function TodayStats() {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ["today-ofm-stats"],
-    queryFn: async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      // Today's revenue
-      const { data: todayEarnings } = await supabase
-        .from("creator_earnings")
-        .select("amount")
-        .gte("created_at", today.toISOString());
-      
-      const todayRevenue = todayEarnings?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-
-      // Yesterday's revenue for comparison
-      const { data: yesterdayEarnings } = await supabase
-        .from("creator_earnings")
-        .select("amount")
-        .gte("created_at", yesterday.toISOString())
-        .lt("created_at", today.toISOString());
-      
-      const yesterdayRevenue = yesterdayEarnings?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-
-      // Messages sent today
-      const { count: messageCount } = await supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", today.toISOString());
-
-      // Active chatters (clocked in today)
-      const { data: activeLogs } = await supabase
-        .from("chatter_time_logs")
-        .select("chatter_id")
-        .gte("clock_in", today.toISOString())
-        .is("clock_out", null);
-
-      const uniqueActiveChatters = new Set(activeLogs?.map(l => l.chatter_id) || []).size;
-
-      // Total chatters who worked today
-      const { data: allTodayLogs } = await supabase
-        .from("chatter_time_logs")
-        .select("chatter_id")
-        .gte("clock_in", today.toISOString());
-
-      const totalChattersToday = new Set(allTodayLogs?.map(l => l.chatter_id) || []).size;
-
-      // Calculate avg response time (mock for now - would need real OF API data)
-      const avgResponseTime = 3.5; // minutes
-
-      // Revenue trend
-      const revenueTrend = yesterdayRevenue > 0 
-        ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100).toFixed(1)
-        : "0";
-
-      return {
-        todayRevenue,
-        revenueTrend: Number(revenueTrend),
-        messagesSent: messageCount || 0,
-        activeChatters: uniqueActiveChatters,
-        totalChattersToday,
-        avgResponseTime,
-      };
-    },
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
+  const { data: stats, isLoading } = useTodayStats();
 
   if (isLoading) {
     return (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,6 +8,7 @@ import { useOnlyFansAPI } from "@/hooks/useOnlyFansAPI";
 import { Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Chat {
   id: string;
@@ -32,27 +33,48 @@ interface ChatListProps {
 }
 
 export function ChatList({ accountId, selectedChatId, onSelectChat }: ChatListProps) {
-  const { listChats, loading } = useOnlyFansAPI();
+  const { listChats } = useOnlyFansAPI();
   const [chats, setChats] = useState<Chat[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchChats = async () => {
-      setIsLoading(true);
-      const result = await listChats(accountId, 100, 0);
-      if (result?.data) {
-        setChats(result.data);
-      }
-      setIsLoading(false);
-    };
+  const fetchChats = useCallback(async () => {
+    const result = await listChats(accountId, 100, 0);
+    if (result?.data) {
+      setChats(result.data);
+    }
+    setIsLoading(false);
+  }, [accountId, listChats]);
 
+  useEffect(() => {
+    setIsLoading(true);
     fetchChats();
-    
-    // Poll for new messages every 30 seconds
-    const interval = setInterval(fetchChats, 30000);
-    return () => clearInterval(interval);
-  }, [accountId]);
+
+    // Subscribe to real-time updates for OnlyFans events
+    const channel = supabase
+      .channel(`of-events-${accountId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "onlyfans_events",
+          filter: `of_account_id=eq.${accountId}`,
+        },
+        (payload) => {
+          // Refetch chats when new events come in
+          const newData = payload.new as { event_type?: string };
+          if (newData && ["message", "chat"].includes(newData.event_type || "")) {
+            fetchChats();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [accountId, fetchChats]);
 
   const filteredChats = chats.filter(chat => 
     chat.with_user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
