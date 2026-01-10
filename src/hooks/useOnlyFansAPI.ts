@@ -80,6 +80,26 @@ interface VaultMedia {
   created_at: string;
 }
 
+export interface DiscoveredCreator {
+  id: number;
+  username: string;
+  name: string;
+  avatar_url: string;
+  header_url?: string;
+  subscribe_price: number;
+  location: string;
+  about: string;
+  posts_count: number;
+  photos_count: number;
+  videos_count: number;
+  favorites_count: number;
+  is_verified: boolean;
+  instagram?: string | null;
+  twitter?: string | null;
+  tiktok?: string | null;
+  website?: string | null;
+}
+
 export function useOnlyFansAPI() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -293,6 +313,29 @@ export function useOnlyFansAPI() {
     });
   };
 
+  // ========== CREATOR DISCOVERY/SEARCH ==========
+  const searchCreators = async (
+    query: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      minPrice?: number;
+      maxPrice?: number;
+      location?: string;
+      verified?: boolean;
+    }
+  ) => {
+    return callAPI<{ data: DiscoveredCreator[]; total: number }>("search-creators", {
+      query,
+      limit: options?.limit || 50,
+      offset: options?.offset || 0,
+      ...(options?.minPrice !== undefined && { minPrice: options.minPrice }),
+      ...(options?.maxPrice !== undefined && { maxPrice: options.maxPrice }),
+      ...(options?.location && { location: options.location }),
+      ...(options?.verified && { verified: true }),
+    });
+  };
+
   return {
     loading,
     error,
@@ -320,5 +363,7 @@ export function useOnlyFansAPI() {
     listQueue,
     // Notifications
     getNotifications,
+    // Creator Discovery
+    searchCreators,
   };
 }

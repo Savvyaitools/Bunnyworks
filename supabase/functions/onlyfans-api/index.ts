@@ -512,6 +512,20 @@ Deno.serve(async (req) => {
         break;
       }
 
+      // ========== CREATOR SEARCH/DISCOVERY ==========
+      case "search-creators": {
+        const searchParams = new URLSearchParams();
+        if (params.query) searchParams.set("query", params.query as string);
+        if (params.limit) searchParams.set("limit", (params.limit as number).toString());
+        if (params.offset) searchParams.set("offset", (params.offset as number).toString());
+        if (params.minPrice) searchParams.set("min_subscribe_price", (params.minPrice as number).toString());
+        if (params.maxPrice) searchParams.set("max_subscribe_price", (params.maxPrice as number).toString());
+        if (params.location) searchParams.set("location", params.location as string);
+        if (params.verified) searchParams.set("verified", "true");
+        endpoint = `/search${searchParams.toString() ? "?" + searchParams.toString() : ""}`;
+        break;
+      }
+
       // ========== NOTIFICATIONS ==========
       case "get-notifications": {
         if (!accountId) {
