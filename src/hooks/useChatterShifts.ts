@@ -53,8 +53,10 @@ export function useChatterShifts() {
       queryClient.invalidateQueries({ queryKey: ["chatter-shifts"] });
       toast.success("Shift created successfully");
     },
-    onError: (error) => {
-      toast.error("Failed to create shift: " + error.message);
+    onError: (error: any) => {
+      const details = error?.details || error?.hint || error?.code || "";
+      toast.error(`Failed to create shift: ${error.message}${details ? ` (${details})` : ""}`);
+      console.error("Shift creation error:", error);
     },
   });
 
