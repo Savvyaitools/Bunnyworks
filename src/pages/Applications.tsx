@@ -49,16 +49,19 @@ export default function Applications() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
-  // Use the published/production URL for shareable links
+  // Use the agency's configured website for shareable links, fallback to current origin
+  const { agency } = useAgency();
+  
   const getBaseUrl = () => {
-    const origin = window.location.origin;
-    // If we're on a preview/staging environment, use the production URL
-    // You can configure this via environment variable or use the current origin for production
-    if (origin.includes('lovable.app') || origin.includes('localhost')) {
-      // Check for custom production URL in env, otherwise use current origin
-      return import.meta.env.VITE_PRODUCTION_URL || origin;
+    // If agency has a website configured, use it (ensuring https://)
+    if (agency?.website) {
+      const website = agency.website.trim();
+      if (website.startsWith('http://') || website.startsWith('https://')) {
+        return website.replace(/\/$/, ''); // Remove trailing slash
+      }
+      return `https://${website}`.replace(/\/$/, '');
     }
-    return origin;
+    return window.location.origin;
   };
   
   const baseUrl = getBaseUrl();
