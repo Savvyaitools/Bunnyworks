@@ -49,7 +49,8 @@ export default function Applications() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
-  // Use the agency's configured website for shareable links, fallback to current origin
+  // Use the agency's configured website for shareable links
+  // Priority: agency.website > VITE_PRODUCTION_URL > window.location.origin
   const { agency } = useAgency();
   
   const getBaseUrl = () => {
@@ -60,6 +61,11 @@ export default function Applications() {
         return website.replace(/\/$/, ''); // Remove trailing slash
       }
       return `https://${website}`.replace(/\/$/, '');
+    }
+    // Use production URL if available (for deployed apps)
+    const productionUrl = import.meta.env.VITE_PRODUCTION_URL;
+    if (productionUrl) {
+      return productionUrl.replace(/\/$/, '');
     }
     return window.location.origin;
   };
