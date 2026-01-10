@@ -32,9 +32,19 @@ export function useContentPlanMedia() {
       return null;
     }
 
-    const { data: { publicUrl } } = supabase.storage
+    // Use signed URL since bucket is now private
+    const { data: signedData, error: signedError } = await supabase.storage
       .from("content-references")
-      .getPublicUrl(fileName);
+      .createSignedUrl(fileName, 3600); // 1 hour expiry
+
+    if (signedError || !signedData?.signedUrl) {
+      console.error("Error creating signed URL:", signedError);
+      toast.error("Failed to get file URL");
+      setUploading(false);
+      return null;
+    }
+
+    const publicUrl = signedData.signedUrl;
 
     const mediaItem: ContentReferenceMedia = {
       id: crypto.randomUUID(),
