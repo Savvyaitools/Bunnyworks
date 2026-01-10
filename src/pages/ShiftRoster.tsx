@@ -333,20 +333,35 @@ export default function ShiftRoster() {
 
   const handleAddShift = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.chatter_id || !formData.creator_id || !formData.shift_start || !formData.shift_end) return;
+    if (!formData.chatter_id || !formData.creator_id || !formData.shift_start || !formData.shift_end) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert local datetime to ISO string
+    const shiftStartISO = new Date(formData.shift_start).toISOString();
+    const shiftEndISO = new Date(formData.shift_end).toISOString();
 
     const input: CreateShiftInput = {
       chatter_id: formData.chatter_id,
       creator_id: formData.creator_id,
-      shift_start: formData.shift_start,
-      shift_end: formData.shift_end,
+      shift_start: shiftStartISO,
+      shift_end: shiftEndISO,
       shift_type: formData.shift_type,
       notes: formData.notes || null,
     };
 
-    await createShift(input);
-    setFormData({ chatter_id: "", creator_id: "", shift_start: "", shift_end: "", shift_type: "regular", notes: "" });
-    setIsAddDialogOpen(false);
+    try {
+      await createShift(input);
+      setFormData({ chatter_id: "", creator_id: "", shift_start: "", shift_end: "", shift_type: "regular", notes: "" });
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      // Error is already handled by the mutation
+    }
   };
 
   // Coverage warnings
@@ -464,6 +479,7 @@ export default function ShiftRoster() {
                         value={formData.shift_start} 
                         onChange={(e) => setFormData({ ...formData, shift_start: e.target.value })} 
                         required 
+                        className="block w-full [color-scheme:dark]"
                       />
                     </div>
                     <div className="space-y-2">
@@ -473,10 +489,17 @@ export default function ShiftRoster() {
                         value={formData.shift_end} 
                         onChange={(e) => setFormData({ ...formData, shift_end: e.target.value })} 
                         required 
+                        className="block w-full [color-scheme:dark]"
                       />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full bg-gradient-primary">Add Shift</Button>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-primary"
+                    disabled={!formData.chatter_id || !formData.creator_id || !formData.shift_start || !formData.shift_end}
+                  >
+                    Add Shift
+                  </Button>
                 </form>
               </DialogContent>
             </Dialog>
