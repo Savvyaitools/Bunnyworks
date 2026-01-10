@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Copy, RefreshCw, Eye, EyeOff, Check } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,9 @@ import { useNavigate } from "react-router-dom";
 import { EmployeeCard } from "@/components/employees";
 import { EmployeeForm } from "@/components/forms";
 import type { EmployeeFormValues } from "@/lib/validations";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { employeeAccountSchema, type EmployeeAccountValues } from "@/lib/validations";
+import { useAgency } from "@/hooks/useAgency";
+import { generatePassword, copyToClipboard } from "@/lib/passwordUtils";
+import { cn } from "@/lib/utils";
 
 const roleColors: Record<string, string> = {
   Manager: "bg-accent/20 text-accent border-accent/30",
@@ -45,17 +45,19 @@ export default function Employees() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isCreateAccountDialogOpen, setIsCreateAccountDialogOpen] = useState(false);
+  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [creatingAccount, setCreatingAccount] = useState(false);
   const [editDefaultValues, setEditDefaultValues] = useState<Partial<EmployeeFormValues>>({});
+  
+  // Account creation state
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   const { employees, loading, stats, createEmployee, updateEmployee, deleteEmployee, refetch } = useEmployees();
-
-  const accountForm = useForm<EmployeeAccountValues>({
-    resolver: zodResolver(employeeAccountSchema),
-    defaultValues: { password: "" },
-  });
+  const { agencyId } = useAgency();
 
   const filteredEmployees = employees.filter((employee) =>
     employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -87,7 +89,6 @@ export default function Employees() {
       emergency_contact: data.emergency_contact || null,
       address: data.address || null,
       auth_user_id: null,
-      // Chatter-specific fields
       skill_grade: (data.skill_grade || "B") as "A" | "B" | "C",
       is_chatter: isChatter,
       daily_target_messages: data.daily_target_messages || 100,
@@ -103,7 +104,6 @@ export default function Employees() {
 
     const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
     const certs = data.certifications?.split(",").map(s => s.trim()).filter(Boolean) || [];
-
     const isChatter = data.role === "Chatter";
 
     await updateEmployee(selectedEmployee.id, {
@@ -121,7 +121,6 @@ export default function Employees() {
       certifications: certs.length > 0 ? certs : null,
       emergency_contact: data.emergency_contact || null,
       address: data.address || null,
-      // Chatter-specific fields
       skill_grade: data.skill_grade || "B",
       is_chatter: isChatter,
       daily_target_messages: data.daily_target_messages || 100,
@@ -154,7 +153,6 @@ export default function Employees() {
       certifications: employee.certifications?.join(", ") || "",
       emergency_contact: employee.emergency_contact || "",
       address: employee.address || "",
-      // Chatter-specific fields
       skill_grade: employee.skill_grade || "B",
       timezone: employee.timezone || "",
       daily_target_messages: employee.daily_target_messages || 100,
@@ -163,65 +161,105 @@ export default function Employees() {
     setIsEditDialogOpen(true);
   };
 
-  const handleCreateAccount = async (data: EmployeeAccountValues) => {
+  const handleOpenAccountDialog = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setPassword(generatePassword());
+    setShowPassword(true);
+    setAccountCreated(false);
+    setPasswordError("");
+    setIsAccountDialogOpen(true);
+  };
+
+  const handleGeneratePassword = () => {
+    setPassword(generatePassword());
+    setPasswordError("");
+  };
+
+  const handleCopyPassword = async () => {
+    const success = await copyToClipboard(password);
+    if (success) {
+      toast.success("Password copied to clipboard");
+    } else {
+      toast.error("Failed to copy password");
+    }
+  };
+
+  const handleCopyCredentials = async () => {
+    if (!selectedEmployee) return;
+    const credentials = `Email: ${selectedEmployee.email}\nPassword: ${password}`;
+    const success = await copyToClipboard(credentials);
+    if (success) {
+      toast.success("Credentials copied to clipboard");
+    } else {
+      toast.error("Failed to copy credentials");
+    }
+  };
+
+  const handleCreateAccount = async () => {
     if (!selectedEmployee) return;
     
-    setCreatingAccount(true);
+    if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters");
+      return;
+    }
+
+    setIsCreatingAccount(true);
     try {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      // Create auth account with agency_id so profile gets linked
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: selectedEmployee.email,
-        password: data.password,
+        password: password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: selectedEmployee.name,
             user_type: "employee",
+            agency_id: agencyId,
           },
         },
       });
 
-      if (signUpError) {
-        toast.error("Failed to create account: " + signUpError.message);
-        setCreatingAccount(false);
-        return;
-      }
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Failed to create user account");
 
-      if (signUpData.user) {
-        await supabase
-          .from("employees")
-          .update({ auth_user_id: signUpData.user.id })
-          .eq("id", selectedEmployee.id);
+      // Link auth account to employee
+      await updateEmployee(selectedEmployee.id, { auth_user_id: authData.user.id });
+      
+      // Also link to chatters table if they're a chatter
+      if (selectedEmployee.role === "Chatter") {
+        const { data: chatter } = await supabase
+          .from("chatters")
+          .select("id")
+          .ilike("email", selectedEmployee.email)
+          .maybeSingle();
         
-        if (selectedEmployee.role === "Chatter") {
-          const { data: chatter } = await supabase
+        if (chatter) {
+          await supabase
             .from("chatters")
-            .select("id")
-            .ilike("email", selectedEmployee.email)
-            .maybeSingle();
-          
-          if (chatter) {
-            await supabase
-              .from("chatters")
-              .update({ auth_user_id: signUpData.user.id })
-              .eq("id", chatter.id);
-          }
+            .update({ auth_user_id: authData.user.id })
+            .eq("id", chatter.id);
         }
       }
 
-      toast.success(`Account created for ${selectedEmployee.name}`);
-      setIsCreateAccountDialogOpen(false);
-      accountForm.reset();
-      setSelectedEmployee(null);
+      setAccountCreated(true);
+      toast.success("Login account created successfully!");
       refetch();
-    } catch (error) {
-      toast.error("Failed to create account");
+    } catch (error: any) {
+      if (error.message?.includes("already registered")) {
+        toast.error("This email is already registered");
+      } else {
+        toast.error(error.message || "Failed to create account");
+      }
+    } finally {
+      setIsCreatingAccount(false);
     }
-    setCreatingAccount(false);
   };
 
-  const openCreateAccountDialog = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    accountForm.reset();
-    setIsCreateAccountDialogOpen(true);
+  const handleCloseAccountDialog = () => {
+    setIsAccountDialogOpen(false);
+    setSelectedEmployee(null);
+    setPassword("");
+    setAccountCreated(false);
   };
 
   const startMessageWithEmployee = (employee: Employee) => {
@@ -298,7 +336,7 @@ export default function Employees() {
                   employee={employee}
                   onStatusChange={handleStatusChange}
                   onDelete={deleteEmployee}
-                  onCreateAccount={openCreateAccountDialog}
+                  onCreateAccount={handleOpenAccountDialog}
                   onSendMessage={startMessageWithEmployee}
                   onEdit={openEditDialog}
                   roleColors={roleColors}
@@ -326,41 +364,119 @@ export default function Employees() {
           </DialogContent>
         </Dialog>
 
-        {/* Create Account Dialog */}
-        <Dialog open={isCreateAccountDialogOpen} onOpenChange={setIsCreateAccountDialogOpen}>
+        {/* Create Account Dialog - Improved with auto-generate */}
+        <Dialog open={isAccountDialogOpen} onOpenChange={handleCloseAccountDialog}>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Create Login Account</DialogTitle>
+              <DialogTitle>
+                {accountCreated ? "Account Created!" : "Create Login Account"}
+              </DialogTitle>
               <DialogDescription>
-                Create a login account for {selectedEmployee?.name}. They will be able to access the Employee Portal.
+                {accountCreated 
+                  ? "Share these credentials with the employee so they can log in."
+                  : `Create login credentials for ${selectedEmployee?.name}`
+                }
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={accountForm.handleSubmit(handleCreateAccount)} className="space-y-4">
+
+            <div className="space-y-4 pt-2">
+              {/* Email (read-only) */}
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input value={selectedEmployee?.email || ""} disabled />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
                 <Input
-                  id="password"
-                  type="password"
-                  {...accountForm.register("password")}
-                  placeholder="Set a password (min 8 characters)"
-                  className={accountForm.formState.errors.password ? "border-destructive" : ""}
+                  value={selectedEmployee?.email || ""}
+                  disabled
+                  className="bg-muted/50"
                 />
-                {accountForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">{accountForm.formState.errors.password.message}</p>
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <Label>Password</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setPasswordError("");
+                      }}
+                      disabled={accountCreated}
+                      className={cn(
+                        "pr-10",
+                        passwordError && "border-destructive"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {!accountCreated && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleGeneratePassword}
+                      title="Generate new password"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopyPassword}
+                    title="Copy password"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                {passwordError && (
+                  <p className="text-xs text-destructive">{passwordError}</p>
                 )}
               </div>
-              <Button
-                type="submit"
-                disabled={creatingAccount}
-                className="w-full bg-gradient-primary"
-              >
-                {creatingAccount ? "Creating..." : "Create Account"}
-              </Button>
-            </form>
+
+              {/* Actions */}
+              {accountCreated ? (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={handleCopyCredentials}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy All Credentials
+                  </Button>
+                  <Button
+                    onClick={handleCloseAccountDialog}
+                    className="w-full bg-gradient-primary hover:opacity-90"
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Done
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleCreateAccount}
+                  disabled={isCreatingAccount}
+                  className="w-full bg-gradient-primary hover:opacity-90"
+                >
+                  {isCreatingAccount ? "Creating..." : "Create Account"}
+                </Button>
+              )}
+
+              {!accountCreated && (
+                <p className="text-xs text-muted-foreground text-center">
+                  The employee will use these credentials to log in at the Staff Portal.
+                </p>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

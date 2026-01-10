@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useCreators, Creator } from "@/hooks/useCreators";
+import { useAgency } from "@/hooks/useAgency";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreatorCard } from "@/components/creators/CreatorCard";
 import { CreatorForm } from "@/components/forms";
@@ -35,6 +36,7 @@ export default function Creators() {
   const [passwordError, setPasswordError] = useState("");
 
   const { creators, loading, stats, createCreator, updateCreator, deleteCreator } = useCreators();
+  const { agencyId } = useAgency();
 
   const filteredCreators = creators.filter((creator) => {
     const matchesSearch = 
@@ -114,7 +116,7 @@ export default function Creators() {
 
     setIsCreatingAccount(true);
     try {
-      // Create auth account
+      // Create auth account with agency_id so profile gets linked
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: selectedCreator.email,
         password: password,
@@ -123,6 +125,7 @@ export default function Creators() {
           data: {
             full_name: selectedCreator.name,
             user_type: "creator",
+            agency_id: agencyId,
           },
         },
       });
