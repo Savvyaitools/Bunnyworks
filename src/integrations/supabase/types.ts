@@ -1603,6 +1603,54 @@ export type Database = {
         }
         Relationships: []
       }
+      onlyfans_events: {
+        Row: {
+          agency_id: string
+          created_at: string
+          creator_id: string | null
+          event_type: string
+          id: string
+          of_account_id: string
+          payload: Json | null
+          processed: boolean | null
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          creator_id?: string | null
+          event_type: string
+          id?: string
+          of_account_id: string
+          payload?: Json | null
+          processed?: boolean | null
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          creator_id?: string | null
+          event_type?: string
+          id?: string
+          of_account_id?: string
+          payload?: Json | null
+          processed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onlyfans_events_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onlyfans_events_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_applications: {
         Row: {
           agency_id: string
@@ -2057,6 +2105,75 @@ export type Database = {
           },
           {
             foreignKeyName: "tasks_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracking_links: {
+        Row: {
+          agency_id: string
+          campaign: string | null
+          clicks: number | null
+          code: string
+          conversions: number | null
+          created_at: string
+          creator_id: string
+          id: string
+          is_active: boolean | null
+          name: string
+          of_account_id: string | null
+          revenue: number | null
+          source: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          agency_id: string
+          campaign?: string | null
+          clicks?: number | null
+          code: string
+          conversions?: number | null
+          created_at?: string
+          creator_id: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          of_account_id?: string | null
+          revenue?: number | null
+          source?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          agency_id?: string
+          campaign?: string | null
+          clicks?: number | null
+          code?: string
+          conversions?: number | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          of_account_id?: string | null
+          revenue?: number | null
+          source?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_links_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_links_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { formatCurrency } from "@/lib/formatters";
+import { useEffect, useState } from "react";
 
 interface LiveActivity {
   id: string;
@@ -18,6 +19,8 @@ interface LiveActivity {
 }
 
 export function LiveActivityFeed() {
+  const [realtimeActivities, setRealtimeActivities] = useState<LiveActivity[]>([]);
+
   const { data: activities, isLoading } = useQuery({
     queryKey: ["live-activity-feed"],
     queryFn: async () => {
@@ -25,7 +28,89 @@ export function LiveActivityFeed() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Fetch recent earnings as tips/purchases
+      // Fetch OnlyFans webhook events first
+      const { data: ofEvents } = await supabase
+        .from("onlyfans_events")
+        .select("id, event_type, payload, created_at, creator_id")
+        .gte("created_at", today.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      // Get creator names for OF events
+      const eventCreatorIds = [...new Set(ofEvents?.map(e => e.creator_id).filter(Boolean) || [])];
+      const { data: eventCreators } = await supabase
+        .from("creators")
+        .select("id, name, alias")
+        .in("id", eventCreatorIds.length > 0 ? eventCreatorIds : ["none"]);
+      
+      const eventCreatorMap = new Map(eventCreators?.map(c => [c.id, c.alias || c.name]) || []);
+
+      // Convert OF events to activities
+      ofEvents?.forEach((event) => {
+        let type: LiveActivity["type"] = "tip";
+        let icon = DollarSign;
+        let title = event.event_type;
+        let iconBg = "bg-success/20";
+        let iconColor = "text-success";
+        let amount: number | undefined;
+
+        switch (event.event_type) {
+          case "tip_received":
+            type = "tip";
+            icon = Heart;
+            title = "Tip received";
+            iconBg = "bg-pink-500/20";
+            iconColor = "text-pink-500";
+            amount = (event.payload as { amount?: number })?.amount;
+            break;
+          case "new_subscription":
+            type = "subscription";
+            icon = UserPlus;
+            title = "New subscription";
+            iconBg = "bg-accent/20";
+            iconColor = "text-accent";
+            amount = (event.payload as { price?: number })?.price;
+            break;
+          case "purchase":
+            type = "ppv";
+            icon = Gift;
+            title = "PPV purchased";
+            iconBg = "bg-primary/20";
+            iconColor = "text-primary";
+            amount = (event.payload as { amount?: number })?.amount;
+            break;
+          case "subscription_expired":
+            type = "renewal";
+            icon = MessageSquare;
+            title = "Sub expired";
+            iconBg = "bg-muted";
+            iconColor = "text-muted-foreground";
+            break;
+          case "new_message":
+            type = "message";
+            icon = MessageSquare;
+            title = "New message";
+            iconBg = "bg-primary/20";
+            iconColor = "text-primary";
+            break;
+          default:
+            return; // Skip unknown event types
+        }
+
+        liveActivities.push({
+          id: event.id,
+          type,
+          icon,
+          title,
+          amount,
+          creatorName: event.creator_id ? eventCreatorMap.get(event.creator_id) || "Unknown" : "Unknown",
+          time: formatDistanceToNow(new Date(event.created_at), { addSuffix: true }),
+          iconBg,
+          iconColor,
+        });
+      });
+
+      // Also fetch recent earnings as fallback
       const { data: earnings } = await supabase
         .from("creator_earnings")
         .select("id, amount, created_at, creator_id, notes, platform")
@@ -43,6 +128,9 @@ export function LiveActivityFeed() {
       const creatorMap = new Map(creators?.map(c => [c.id, c.alias || c.name]) || []);
 
       earnings?.forEach((earning) => {
+        // Skip if we already have this from OF events
+        if (liveActivities.some(a => a.amount === Number(earning.amount))) return;
+
         const isPPV = earning.notes?.toLowerCase().includes("ppv");
         const isTip = earning.notes?.toLowerCase().includes("tip");
         const isSub = earning.notes?.toLowerCase().includes("sub");
@@ -86,7 +174,7 @@ export function LiveActivityFeed() {
         });
       });
 
-      // Add some mock live activities if no real data
+      // Return mock data if empty
       if (liveActivities.length === 0) {
         return [
           {
@@ -119,7 +207,89 @@ export function LiveActivityFeed() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const totalRevenue = activities?.reduce((sum, a) => sum + (a.amount || 0), 0) || 0;
+  // Subscribe to realtime OnlyFans events
+  useEffect(() => {
+    const channel = supabase
+      .channel("live-activity-events")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "onlyfans_events",
+        },
+        (payload) => {
+          const event = payload.new as {
+            id: string;
+            event_type: string;
+            payload: Record<string, unknown>;
+            created_at: string;
+          };
+
+          let type: LiveActivity["type"] = "tip";
+          let icon = DollarSign;
+          let title = event.event_type;
+          let iconBg = "bg-success/20";
+          let iconColor = "text-success";
+          let amount: number | undefined;
+
+          switch (event.event_type) {
+            case "tip_received":
+              type = "tip";
+              icon = Heart;
+              title = "Tip received";
+              iconBg = "bg-pink-500/20";
+              iconColor = "text-pink-500";
+              amount = (event.payload as { amount?: number })?.amount;
+              break;
+            case "new_subscription":
+              type = "subscription";
+              icon = UserPlus;
+              title = "New subscription";
+              iconBg = "bg-accent/20";
+              iconColor = "text-accent";
+              break;
+            case "purchase":
+              type = "ppv";
+              icon = Gift;
+              title = "PPV purchased";
+              iconBg = "bg-primary/20";
+              iconColor = "text-primary";
+              amount = (event.payload as { amount?: number })?.amount;
+              break;
+            default:
+              return;
+          }
+
+          const newActivity: LiveActivity = {
+            id: event.id,
+            type,
+            icon,
+            title,
+            amount,
+            creatorName: "Creator",
+            time: "just now",
+            iconBg,
+            iconColor,
+          };
+
+          setRealtimeActivities((prev) => [newActivity, ...prev].slice(0, 3));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Merge realtime and fetched activities
+  const allActivities = [...realtimeActivities, ...(activities || [])];
+  const uniqueActivities = Array.from(
+    new Map(allActivities.map((a) => [a.id, a])).values()
+  ).slice(0, 8);
+
+  const totalRevenue = uniqueActivities?.reduce((sum, a) => sum + (a.amount || 0), 0) || 0;
 
   return (
     <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "250ms" }}>
@@ -138,7 +308,7 @@ export function LiveActivityFeed() {
         <div className="text-center text-muted-foreground py-8">
           Loading activity...
         </div>
-      ) : !activities || activities.length === 0 ? (
+      ) : !uniqueActivities || uniqueActivities.length === 0 ? (
         <div className="text-center py-8">
           <Zap className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
           <p className="text-muted-foreground">No activity yet today</p>
@@ -148,7 +318,7 @@ export function LiveActivityFeed() {
         </div>
       ) : (
         <div className="space-y-1 max-h-[280px] overflow-y-auto">
-          {activities.map((activity, index) => (
+          {uniqueActivities.map((activity, index) => (
             <div
               key={activity.id}
               className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors animate-fade-in"
@@ -176,7 +346,7 @@ export function LiveActivityFeed() {
         </div>
       )}
 
-      {activities && activities.length > 0 && (
+      {uniqueActivities && uniqueActivities.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Today's Total</span>

@@ -41,6 +41,7 @@ import CreatorDiscovery from "./pages/tools/CreatorDiscovery";
 import { AIChatting, AIVoiceCloner, AIContentGenerator } from "./pages/tools";
 import BrowserSync from "./pages/BrowserSync";
 import OnlyFansDashboard from "./pages/OnlyFansDashboard";
+import MarketingAnalytics from "./pages/MarketingAnalytics";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -206,6 +207,11 @@ const AppRoutes = () => {
       <Route path="/subscriber-dms" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <OnlyFansDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/marketing" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <MarketingAnalytics />
         </ProtectedRoute>
       } />
       {/* Legacy route */}
