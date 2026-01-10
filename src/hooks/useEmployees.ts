@@ -46,6 +46,8 @@ export function useEmployees() {
   const crud = useSupabaseCRUD<Employee>({
     table: "employees",
     queryKey: "employees",
+    enabled: Boolean(agencyId),
+    filter: agencyId ? { column: "agency_id", value: agencyId } : undefined,
     orderBy: { column: "created_at", ascending: false },
     messages: {
       createSuccess: "Employee added successfully",

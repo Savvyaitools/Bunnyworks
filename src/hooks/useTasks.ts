@@ -27,6 +27,8 @@ export function useTasks() {
   const crud = useSupabaseCRUD<Task>({
     table: "tasks",
     queryKey: "tasks",
+    enabled: Boolean(agencyId),
+    filter: agencyId ? { column: "agency_id", value: agencyId } : undefined,
     orderBy: { column: "created_at", ascending: false },
     messages: {
       createSuccess: "Task created successfully",

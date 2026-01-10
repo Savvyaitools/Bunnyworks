@@ -24,9 +24,12 @@ export function useCalendarEvents() {
   const { data: events = [], isLoading: loading } = useQuery({
     queryKey: ["calendar-events", agencyId],
     queryFn: async () => {
+      if (!agencyId) return [];
+      
       const { data, error } = await supabase
         .from("calendar_events")
         .select("*")
+        .eq("agency_id", agencyId)
         .order("start_date", { ascending: true });
 
       if (error) throw error;

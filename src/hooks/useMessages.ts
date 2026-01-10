@@ -106,8 +106,6 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
   useEffect(() => {
     if (!conversationId) return;
 
-    console.log("[useMessages] Setting up realtime subscription for:", conversationId);
-
     const channel = supabase
       .channel(`messages-${conversationId}-${Date.now()}`)
       .on(
@@ -119,7 +117,6 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          console.log("[useMessages] Realtime event received:", payload.eventType, payload);
           // Refetch messages directly for immediate update
           refetch();
 
@@ -133,12 +130,9 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
           }
         },
       )
-      .subscribe((status) => {
-        console.log("[useMessages] Subscription status:", status);
-      });
+      .subscribe();
 
     return () => {
-      console.log("[useMessages] Cleaning up subscription for:", conversationId);
       supabase.removeChannel(channel);
     };
   }, [conversationId, senderType, refetch]);

@@ -54,12 +54,15 @@ export function useDataImports() {
   const { data: imports = [], isLoading: loading, refetch } = useQuery({
     queryKey: ["data-imports", agencyId],
     queryFn: async () => {
+      if (!agencyId) return [];
+      
       const { data, error } = await supabase
         .from("data_imports")
         .select(`
           *,
           creator:creators(id, name)
         `)
+        .eq("agency_id", agencyId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

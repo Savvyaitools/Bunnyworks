@@ -33,8 +33,9 @@ export function useRecruitingCreators() {
   const crud = useSupabaseCRUD<RecruitingCreator>({
     table: "recruiting_creators",
     queryKey: "recruiting-creators",
+    enabled: Boolean(agencyId),
+    filter: agencyId ? { column: "agency_id", value: agencyId } : undefined,
     orderBy: { column: "created_at", ascending: false },
-    filter: { column: "onboarded", value: false },
     messages: {
       createSuccess: "Prospect added successfully",
       updateSuccess: "Prospect updated successfully",

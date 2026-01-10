@@ -23,9 +23,12 @@ export function useSOPDocuments() {
   const { data: documents = [], isLoading: loading } = useQuery({
     queryKey: ["sop-documents", agencyId],
     queryFn: async () => {
+      if (!agencyId) return [];
+      
       const { data, error } = await supabase
         .from("sop_documents")
         .select("*")
+        .eq("agency_id", agencyId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

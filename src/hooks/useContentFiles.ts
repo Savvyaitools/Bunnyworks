@@ -31,9 +31,12 @@ export function useContentFiles() {
   const { data: files = [], isLoading: loading, refetch } = useQuery({
     queryKey: ["content-files", agencyId],
     queryFn: async () => {
+      if (!agencyId) return [];
+      
       const { data, error } = await supabase
         .from("content_files")
         .select("*")
+        .eq("agency_id", agencyId)
         .order("uploaded_at", { ascending: false });
 
       if (error) throw error;
