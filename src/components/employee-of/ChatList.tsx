@@ -1,30 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useOnlyFansAPI } from "@/hooks/useOnlyFansAPI";
+import { useOnlyFansCache } from "@/hooks/useOnlyFansCache";
 import { Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-
-interface Chat {
-  id: string;
-  with_user: {
-    id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  last_message?: {
-    text: string;
-    created_at: string;
-    is_from_me: boolean;
-  };
-  unread_count: number;
-}
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ChatListProps {
   accountId: string;
@@ -33,40 +18,26 @@ interface ChatListProps {
 }
 
 export function ChatList({ accountId, selectedChatId, onSelectChat }: ChatListProps) {
-  const { listChats } = useOnlyFansAPI();
-  const [chats, setChats] = useState<Chat[]>([]);
+  const { useCachedChats } = useOnlyFansCache();
+  const { data: cachedChats, isLoading } = useCachedChats(accountId);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchChats = useCallback(async () => {
-    const result = await listChats(accountId, 100, 0);
-    if (result?.data) {
-      setChats(result.data);
-    }
-    setIsLoading(false);
-  }, [accountId, listChats]);
-
+  // Subscribe to real-time updates for new chats from cache
   useEffect(() => {
-    setIsLoading(true);
-    fetchChats();
-
-    // Subscribe to real-time updates for OnlyFans events
     const channel = supabase
-      .channel(`of-events-${accountId}`)
+      .channel(`of-chats-${accountId}`)
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
-          table: "onlyfans_events",
+          table: "of_chats",
           filter: `of_account_id=eq.${accountId}`,
         },
-        (payload) => {
-          // Refetch chats when new events come in
-          const newData = payload.new as { event_type?: string };
-          if (newData && ["message", "chat"].includes(newData.event_type || "")) {
-            fetchChats();
-          }
+        () => {
+          // Invalidate cache when chats are updated
+          queryClient.invalidateQueries({ queryKey: ["of-chats", accountId] });
         }
       )
       .subscribe();
@@ -74,7 +45,27 @@ export function ChatList({ accountId, selectedChatId, onSelectChat }: ChatListPr
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [accountId, fetchChats]);
+  }, [accountId, queryClient]);
+
+  // Transform cached chats to the expected format
+  const chats = useMemo(() => {
+    if (!cachedChats) return [];
+    return cachedChats.map(chat => ({
+      id: chat.of_chat_id,
+      with_user: {
+        id: chat.of_fan_id || "",
+        name: chat.fan_name || "Unknown",
+        username: chat.fan_username || "unknown",
+        avatar: chat.fan_avatar || undefined,
+      },
+      last_message: chat.last_message_text ? {
+        text: chat.last_message_text,
+        created_at: chat.last_message_at || new Date().toISOString(),
+        is_from_me: chat.last_message_is_from_me || false,
+      } : undefined,
+      unread_count: chat.unread_count || 0,
+    }));
+  }, [cachedChats]);
 
   const filteredChats = chats.filter(chat => 
     chat.with_user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

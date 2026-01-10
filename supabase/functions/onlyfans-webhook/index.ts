@@ -86,27 +86,111 @@ Deno.serve(async (req) => {
       console.error("Failed to insert event:", insertError);
     }
 
-    // Process specific event types
+    // Process specific event types and update cache tables
     switch (event_type) {
       case "new_subscription":
         console.log("New subscription event:", data);
-        // Could update creator stats, send notification, etc.
+        // Update of_fans cache with new subscriber
+        if (data?.fan) {
+          await supabase.from("of_fans").upsert({
+            agency_id: agencyId,
+            of_account_id: ofAccountId,
+            of_fan_id: data.fan.id?.toString(),
+            name: data.fan.name || data.fan.username,
+            username: data.fan.username,
+            avatar_url: data.fan.avatar,
+            subscribed_at: data.subscribed_at || new Date().toISOString(),
+            expires_at: data.expires_at,
+            is_active: true,
+            synced_at: new Date().toISOString(),
+          }, { onConflict: "of_account_id,of_fan_id" });
+        }
+        // Invalidate earnings cache as revenue changed
+        await supabase.from("of_cache")
+          .delete()
+          .eq("of_account_id", ofAccountId)
+          .eq("cache_key", "earnings");
         break;
 
       case "subscription_expired":
         console.log("Subscription expired event:", data);
+        // Update fan status to inactive
+        if (data?.fan?.id) {
+          await supabase.from("of_fans")
+            .update({ is_active: false, synced_at: new Date().toISOString() })
+            .eq("of_account_id", ofAccountId)
+            .eq("of_fan_id", data.fan.id.toString());
+        }
         break;
 
       case "tip_received":
         console.log("Tip received event:", data);
+        // Update fan total_spent and invalidate earnings cache
+        if (data?.fan?.id && data?.amount) {
+          const { data: existingFan } = await supabase.from("of_fans")
+            .select("total_spent")
+            .eq("of_account_id", ofAccountId)
+            .eq("of_fan_id", data.fan.id.toString())
+            .single();
+          
+          if (existingFan) {
+            await supabase.from("of_fans")
+              .update({ 
+                total_spent: (existingFan.total_spent || 0) + data.amount,
+                synced_at: new Date().toISOString()
+              })
+              .eq("of_account_id", ofAccountId)
+              .eq("of_fan_id", data.fan.id.toString());
+          }
+        }
+        // Invalidate earnings cache
+        await supabase.from("of_cache")
+          .delete()
+          .eq("of_account_id", ofAccountId)
+          .eq("cache_key", "earnings");
         break;
 
       case "new_message":
         console.log("New message event:", data);
+        // Update of_chats cache directly - no API call needed!
+        if (data?.chat_id) {
+          await supabase.from("of_chats").upsert({
+            agency_id: agencyId,
+            of_account_id: ofAccountId,
+            of_chat_id: data.chat_id.toString(),
+            of_fan_id: data.from_user?.id?.toString(),
+            fan_name: data.from_user?.name || data.from_user?.username,
+            fan_username: data.from_user?.username,
+            fan_avatar: data.from_user?.avatar,
+            last_message_text: data.text,
+            last_message_at: data.created_at || new Date().toISOString(),
+            last_message_is_from_me: data.is_from_me || false,
+            unread_count: data.is_from_me ? 0 : 1,
+            synced_at: new Date().toISOString(),
+          }, { onConflict: "of_account_id,of_chat_id" });
+        }
         break;
 
       case "purchase":
         console.log("Purchase event:", data);
+        // Update fan total_spent
+        if (data?.fan?.id && data?.amount) {
+          const { data: existingFan } = await supabase.from("of_fans")
+            .select("total_spent")
+            .eq("of_account_id", ofAccountId)
+            .eq("of_fan_id", data.fan.id.toString())
+            .single();
+          
+          if (existingFan) {
+            await supabase.from("of_fans")
+              .update({ 
+                total_spent: (existingFan.total_spent || 0) + data.amount,
+                synced_at: new Date().toISOString()
+              })
+              .eq("of_account_id", ofAccountId)
+              .eq("of_fan_id", data.fan.id.toString());
+          }
+        }
         // Update tracking link revenue if applicable
         if (data?.tracking_code) {
           await supabase
@@ -118,6 +202,11 @@ Deno.serve(async (req) => {
             .eq("code", data.tracking_code)
             .eq("agency_id", agencyId);
         }
+        // Invalidate earnings cache
+        await supabase.from("of_cache")
+          .delete()
+          .eq("of_account_id", ofAccountId)
+          .eq("cache_key", "earnings");
         break;
 
       default:

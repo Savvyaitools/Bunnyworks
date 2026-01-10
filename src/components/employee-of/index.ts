@@ -1,7 +1,8 @@
 export { AccountSelector } from "./AccountSelector";
+export { EarningsOverview } from "./EarningsOverview";
 export { ChatList } from "./ChatList";
 export { ChatWindow } from "./ChatWindow";
 export { FanList } from "./FanList";
 export { FanCard } from "./FanCard";
-export { EarningsOverview } from "./EarningsOverview";
+export { FanCRM } from "./FanCRM";
 export { PermissionGate } from "./PermissionGate";
