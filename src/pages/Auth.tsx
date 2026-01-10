@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Building2, Sparkles, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.png";
 import { z } from "zod";
 
-type UserType = "agency" | "creator";
 type AuthMode = "signin" | "signup";
 
 // Validation schemas
@@ -22,7 +21,6 @@ export default function Auth() {
   const navigate = useNavigate();
   const { signIn, signUp, user, profile, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
-  const [userType, setUserType] = useState<UserType>("agency");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -96,7 +94,8 @@ export default function Auth() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await signUp(formData.email.trim(), formData.password, formData.fullName.trim(), userType);
+        // Only agency signup is allowed - creators/employees get accounts from their agency
+        const { error } = await signUp(formData.email.trim(), formData.password, formData.fullName.trim(), "agency");
         if (error) {
           if (error.message.includes("already registered")) {
             toast.error("This email is already registered. Please sign in.");
@@ -155,57 +154,19 @@ export default function Auth() {
           <img src={logo} alt="Creator OS" className="h-20 w-auto mx-auto mb-4" />
           <h1 className="text-3xl font-bold gradient-text">CREATOR OS</h1>
           <p className="text-muted-foreground mt-2">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
+            {mode === "signin" ? "Welcome back" : "Create your agency account"}
           </p>
         </div>
-
-        {/* User Type Selector (only for signup) */}
-        {mode === "signup" && (
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-              type="button" 
-              onClick={() => setUserType("agency")} 
-              className={cn(
-                "glass-card p-4 text-center transition-all duration-200", 
-                userType === "agency" ? "border-primary bg-primary/10" : "hover:border-muted-foreground/50"
-              )}
-            >
-              <Building2 className={cn("h-8 w-8 mx-auto mb-2", userType === "agency" ? "text-primary" : "text-muted-foreground")} />
-              <p className={cn("font-medium", userType === "agency" ? "text-foreground" : "text-muted-foreground")}>
-                Agency Staff
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Manage creators & team
-              </p>
-            </button>
-            <button 
-              type="button" 
-              onClick={() => setUserType("creator")} 
-              className={cn(
-                "glass-card p-4 text-center transition-all duration-200", 
-                userType === "creator" ? "border-accent bg-accent/10" : "hover:border-muted-foreground/50"
-              )}
-            >
-              <Sparkles className={cn("h-8 w-8 mx-auto mb-2", userType === "creator" ? "text-accent" : "text-muted-foreground")} />
-              <p className={cn("font-medium", userType === "creator" ? "text-foreground" : "text-muted-foreground")}>
-                Creator
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Access your portal
-              </p>
-            </button>
-          </div>
-        )}
 
         {/* Auth Form */}
         <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
           {mode === "signup" && (
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName">Agency Name</Label>
               <Input 
                 id="fullName" 
                 type="text" 
-                placeholder="John Doe" 
+                placeholder="My Agency" 
                 value={formData.fullName} 
                 onChange={e => handleInputChange("fullName", e.target.value)}
                 className={cn(
@@ -271,16 +232,16 @@ export default function Auth() {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {mode === "signin" ? "Signing in..." : "Creating account..."}
+                {mode === "signin" ? "Signing in..." : "Creating agency..."}
               </>
-            ) : mode === "signin" ? "Sign In" : "Create Account"}
+            ) : mode === "signin" ? "Sign In" : "Create Agency"}
           </Button>
         </form>
 
         {/* Toggle Mode */}
-        <div className="text-center">
+        <div className="text-center space-y-3">
           <p className="text-muted-foreground">
-            {mode === "signin" ? "Don't have an account?" : "Already have an account?"}
+            {mode === "signin" ? "Don't have an agency?" : "Already have an account?"}
             <button 
               type="button" 
               onClick={() => {
@@ -292,6 +253,14 @@ export default function Auth() {
               {mode === "signin" ? "Sign Up" : "Sign In"}
             </button>
           </p>
+          
+          {/* Staff login link */}
+          <Link 
+            to="/employee-login" 
+            className="block text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Employee or Creator? <span className="text-accent hover:underline">Sign in here</span>
+          </Link>
         </div>
 
         {/* Terms & Privacy */}

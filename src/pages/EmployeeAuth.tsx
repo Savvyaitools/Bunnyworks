@@ -25,17 +25,17 @@ export default function EmployeeAuth() {
     password: ""
   });
 
-  // Redirect authenticated employees to dashboard
+  // Redirect authenticated users to appropriate dashboard
   useEffect(() => {
     if (user && !authLoading) {
       if (profile) {
         if (profile.user_type === "employee") {
           navigate("/employee", { replace: true });
+        } else if (profile.user_type === "creator") {
+          navigate("/portal", { replace: true });
         } else {
-          // Redirect non-employees to appropriate dashboard
-          let destination = "/dashboard";
-          if (profile.user_type === "creator") destination = "/portal";
-          navigate(destination, { replace: true });
+          // Agency users go to main dashboard
+          navigate("/dashboard", { replace: true });
         }
       }
     }
@@ -131,9 +131,9 @@ export default function EmployeeAuth() {
               <Headset className="h-10 w-10 text-accent" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Employee Portal</h1>
+          <h1 className="text-3xl font-bold text-foreground">Staff Portal</h1>
           <p className="text-muted-foreground mt-2">
-            Sign in to access your dashboard
+            Sign in to access your dashboard (Employees & Creators)
           </p>
         </div>
 
@@ -197,10 +197,10 @@ export default function EmployeeAuth() {
         {/* Help Text */}
         <div className="text-center space-y-2">
           <p className="text-sm text-muted-foreground">
-            Don't have an account? Contact your agency administrator.
+            Login credentials are provided by your agency.
           </p>
           <Link to="/auth" className="text-sm text-primary hover:underline">
-            Agency or Creator? Sign in here
+            Agency Owner? Sign in here
           </Link>
         </div>
       </div>
