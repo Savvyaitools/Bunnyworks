@@ -1,39 +1,16 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useOnlyFansAPI } from "@/hooks/useOnlyFansAPI";
+import { useOnlyFansCache } from "@/hooks/useOnlyFansCache";
 import { DollarSign, Gift, CreditCard, MessageSquare, FileText, Users } from "lucide-react";
-
-interface EarningStatistics {
-  total: number;
-  tips: number;
-  subscriptions: number;
-  messages: number;
-  posts: number;
-  referrals: number;
-}
 
 interface EarningsOverviewProps {
   accountId: string;
 }
 
 export function EarningsOverview({ accountId }: EarningsOverviewProps) {
-  const { getEarnings, loading } = useOnlyFansAPI();
-  const [earnings, setEarnings] = useState<EarningStatistics | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchEarnings = async () => {
-      setIsLoading(true);
-      const result = await getEarnings(accountId);
-      if (result) {
-        setEarnings(result);
-      }
-      setIsLoading(false);
-    };
-
-    fetchEarnings();
-  }, [accountId]);
+  // Use cached earnings - checks database first, only calls API if stale
+  const { useCachedEarnings } = useOnlyFansCache();
+  const { data: earnings, isLoading } = useCachedEarnings(accountId);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

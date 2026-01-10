@@ -1788,6 +1788,160 @@ export type Database = {
         }
         Relationships: []
       }
+      of_cache: {
+        Row: {
+          cache_key: string
+          cached_at: string | null
+          created_at: string | null
+          data: Json
+          expires_at: string
+          id: string
+          of_account_id: string
+        }
+        Insert: {
+          cache_key: string
+          cached_at?: string | null
+          created_at?: string | null
+          data: Json
+          expires_at: string
+          id?: string
+          of_account_id: string
+        }
+        Update: {
+          cache_key?: string
+          cached_at?: string | null
+          created_at?: string | null
+          data?: Json
+          expires_at?: string
+          id?: string
+          of_account_id?: string
+        }
+        Relationships: []
+      }
+      of_chats: {
+        Row: {
+          agency_id: string | null
+          created_at: string | null
+          fan_avatar: string | null
+          fan_name: string | null
+          fan_username: string | null
+          id: string
+          is_pinned: boolean | null
+          last_message_at: string | null
+          last_message_is_from_me: boolean | null
+          last_message_text: string | null
+          of_account_id: string
+          of_chat_id: string
+          of_fan_id: string | null
+          synced_at: string | null
+          unread_count: number | null
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string | null
+          fan_avatar?: string | null
+          fan_name?: string | null
+          fan_username?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          last_message_at?: string | null
+          last_message_is_from_me?: boolean | null
+          last_message_text?: string | null
+          of_account_id: string
+          of_chat_id: string
+          of_fan_id?: string | null
+          synced_at?: string | null
+          unread_count?: number | null
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string | null
+          fan_avatar?: string | null
+          fan_name?: string | null
+          fan_username?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          last_message_at?: string | null
+          last_message_is_from_me?: boolean | null
+          last_message_text?: string | null
+          of_account_id?: string
+          of_chat_id?: string
+          of_fan_id?: string | null
+          synced_at?: string | null
+          unread_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "of_chats_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      of_fans: {
+        Row: {
+          agency_id: string | null
+          avatar_url: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          metadata: Json | null
+          name: string | null
+          of_account_id: string
+          of_fan_id: string
+          renew_on: boolean | null
+          subscribed_at: string | null
+          synced_at: string | null
+          total_spent: number | null
+          username: string | null
+        }
+        Insert: {
+          agency_id?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name?: string | null
+          of_account_id: string
+          of_fan_id: string
+          renew_on?: boolean | null
+          subscribed_at?: string | null
+          synced_at?: string | null
+          total_spent?: number | null
+          username?: string | null
+        }
+        Update: {
+          agency_id?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name?: string | null
+          of_account_id?: string
+          of_fan_id?: string
+          renew_on?: boolean | null
+          subscribed_at?: string | null
+          synced_at?: string | null
+          total_spent?: number | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "of_fans_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onlyfans_events: {
         Row: {
           agency_id: string
@@ -2394,6 +2548,7 @@ export type Database = {
     Functions: {
       check_agency_creator_limit: { Args: never; Returns: boolean }
       check_agency_employee_limit: { Args: never; Returns: boolean }
+      cleanup_expired_of_cache: { Args: never; Returns: undefined }
       get_agency_creator_count: {
         Args: { p_agency_id: string }
         Returns: number

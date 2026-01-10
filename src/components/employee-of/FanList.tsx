@@ -1,59 +1,57 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useOnlyFansAPI } from "@/hooks/useOnlyFansAPI";
+import { useOnlyFansCache } from "@/hooks/useOnlyFansCache";
 import { Search, Users, UserX } from "lucide-react";
 import { FanCard } from "./FanCard";
-
-interface Fan {
-  id: string;
-  name: string;
-  username: string;
-  avatar?: string;
-  subscribed_at?: string;
-  expires_at?: string;
-  total_spent?: number;
-  is_active?: boolean;
-}
 
 interface FanListProps {
   accountId: string;
 }
 
 export function FanList({ accountId }: FanListProps) {
-  const { listActiveFans, listExpiredFans, loading } = useOnlyFansAPI();
-  const [activeFans, setActiveFans] = useState<Fan[]>([]);
-  const [expiredFans, setExpiredFans] = useState<Fan[]>([]);
+  const { useCachedFans } = useOnlyFansCache();
+  
+  // Fetch both active and all fans from cache
+  const { data: allFans, isLoading } = useCachedFans(accountId, false);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("active");
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFans = async () => {
-      setIsLoading(true);
-      
-      const [activeResult, expiredResult] = await Promise.all([
-        listActiveFans(accountId, 100, 0, searchQuery || undefined),
-        listExpiredFans(accountId, 100, 0),
-      ]);
-
-      if (activeResult?.data) {
-        setActiveFans(activeResult.data);
-      }
-      if (expiredResult?.data) {
-        setExpiredFans(expiredResult.data);
-      }
-      
-      setIsLoading(false);
+  // Filter fans based on active status
+  const { activeFans, expiredFans } = useMemo(() => {
+    if (!allFans) return { activeFans: [], expiredFans: [] };
+    
+    return {
+      activeFans: allFans.filter(f => f.is_active),
+      expiredFans: allFans.filter(f => !f.is_active),
     };
+  }, [allFans]);
 
-    fetchFans();
-  }, [accountId, searchQuery]);
-
-  const currentFans = activeTab === "active" ? activeFans : expiredFans;
+  // Transform to expected format and filter by search
+  const currentFans = useMemo(() => {
+    const fans = activeTab === "active" ? activeFans : expiredFans;
+    
+    const transformed = fans.map(fan => ({
+      id: fan.of_fan_id,
+      name: fan.name || "Unknown",
+      username: fan.username || "unknown",
+      avatar: fan.avatar_url || undefined,
+      subscribed_at: fan.subscribed_at || undefined,
+      expires_at: fan.expires_at || undefined,
+      total_spent: fan.total_spent || 0,
+      is_active: fan.is_active,
+    }));
+    
+    if (!searchQuery) return transformed;
+    
+    return transformed.filter(fan =>
+      fan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      fan.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [activeFans, expiredFans, activeTab, searchQuery]);
 
   return (
     <Card>

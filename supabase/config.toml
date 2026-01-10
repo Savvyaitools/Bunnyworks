@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.onlyfans-webhook]
 verify_jwt = false
+
+[functions.sync-onlyfans-data]
+verify_jwt = false
+
+[functions.hyperbeam-session]
+verify_jwt = false
