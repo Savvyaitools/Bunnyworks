@@ -37,6 +37,7 @@ import Applications from "./pages/Applications";
 import CreatorApplication from "./pages/apply/CreatorApplication";
 import EmployeeApplication from "./pages/apply/EmployeeApplication";
 import WebScraper from "./pages/tools/WebScraper";
+import CreatorDiscovery from "./pages/tools/CreatorDiscovery";
 import { AIChatting, AIVoiceCloner, AIContentGenerator } from "./pages/tools";
 import BrowserSync from "./pages/BrowserSync";
 import OnlyFansDashboard from "./pages/OnlyFansDashboard";
@@ -189,6 +190,11 @@ const AppRoutes = () => {
       <Route path="/tools/scraper" element={
         <ProtectedRoute allowedUserTypes={["agency"]}>
           <WebScraper />
+        </ProtectedRoute>
+      } />
+      <Route path="/tools/creator-discovery" element={
+        <ProtectedRoute allowedUserTypes={["agency"]}>
+          <CreatorDiscovery />
         </ProtectedRoute>
       } />
       <Route path="/browser-sync" element={

@@ -19,7 +19,8 @@ import {
   Upload,
   ClipboardList,
   Globe,
-  Plug
+  Plug,
+  Search
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -64,7 +65,8 @@ const onlyfansNavItems = [
 // RECRUITING section
 const recruitingNavItems = [
   { title: "Recruiting", url: "/recruiting", icon: UserPlus },
-  { title: "Find Creators", url: "/tools/scraper", icon: Globe },
+  { title: "OF Discovery", url: "/tools/creator-discovery", icon: Search },
+  { title: "Web Scraper", url: "/tools/scraper", icon: Globe },
   { title: "Applications", url: "/applications", icon: ClipboardList },
 ];
 
