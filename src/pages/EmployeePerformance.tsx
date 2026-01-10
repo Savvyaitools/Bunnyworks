@@ -55,6 +55,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useEmployeePayroll } from "@/hooks/useEmployeePayroll";
 import { useEmployeeKPIs } from "@/hooks/useEmployeeKPIs";
+import { useEmployeeBonuses } from "@/hooks/useEmployeeBonuses";
+import { BonusStructureDialog, BonusLeaderboard } from "@/components/employee-performance";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +95,8 @@ export default function EmployeePerformance() {
     loading: kpiLoading,
     generateKPIsForEmployee,
   } = useEmployeeKPIs();
+  
+  const { getCurrentMonthStructure } = useEmployeeBonuses();
 
   const loading = employeesLoading || payrollLoading || kpiLoading;
 
@@ -405,6 +409,8 @@ export default function EmployeePerformance() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-fade-in" style={{ animationDelay: "150ms" }}>
           <TabsList className="bg-muted/50">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="chatting">Chatting Bonus</TabsTrigger>
+            <TabsTrigger value="marketing">Marketing Bonus</TabsTrigger>
             <TabsTrigger value="payroll">Payroll Records</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           </TabsList>
@@ -557,6 +563,40 @@ export default function EmployeePerformance() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Chatting Bonus Tab */}
+          <TabsContent value="chatting" className="mt-6 space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">Chatting Bonus Structure</h2>
+                <p className="text-sm text-muted-foreground">
+                  Based on earnings, unlock ratio, and response time
+                </p>
+              </div>
+              <BonusStructureDialog />
+            </div>
+            <BonusLeaderboard 
+              department="chatting" 
+              structure={getCurrentMonthStructure("chatting")} 
+            />
+          </TabsContent>
+
+          {/* Marketing Bonus Tab */}
+          <TabsContent value="marketing" className="mt-6 space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">Marketing Bonus Structure</h2>
+                <p className="text-sm text-muted-foreground">
+                  Based on accounts worked, tasks completed, and fans acquired
+                </p>
+              </div>
+              <BonusStructureDialog />
+            </div>
+            <BonusLeaderboard 
+              department="marketing" 
+              structure={getCurrentMonthStructure("marketing")} 
+            />
           </TabsContent>
 
           {/* Payroll Records Tab */}

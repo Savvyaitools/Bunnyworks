@@ -7,9 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreators, Creator } from "@/hooks/useCreators";
 import {
   CreatorOverview,
-  CreatorContentVault,
+  CreatorPlatformAccounts,
   CreatorContentPlans,
+  CreatorContentVault,
   CreatorMarketing,
+  CreatorCustomRequests,
   CreatorEarnings,
   CreatorSocialAccounts,
 } from "@/components/creators";
@@ -70,37 +72,47 @@ export default function CreatorDetail() {
         </Button>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-card border border-border">
+          <TabsList className="bg-card border border-border flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="vault">Content Vault</TabsTrigger>
+            <TabsTrigger value="platforms">Platform Accounts</TabsTrigger>
             <TabsTrigger value="plans">Content Plans</TabsTrigger>
-            <TabsTrigger value="social">Social Accounts</TabsTrigger>
+            <TabsTrigger value="vault">Content Vault</TabsTrigger>
             <TabsTrigger value="marketing">Marketing</TabsTrigger>
+            <TabsTrigger value="requests">Custom Requests</TabsTrigger>
             <TabsTrigger value="earnings">Earnings</TabsTrigger>
+            <TabsTrigger value="social">Social Accounts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="bg-card rounded-lg border border-border p-6">
             <CreatorOverview creator={creator} onUpdate={handleUpdate} />
           </TabsContent>
 
-          <TabsContent value="vault" className="bg-card rounded-lg border border-border p-6">
-            <CreatorContentVault creatorId={creator.id} />
+          <TabsContent value="platforms" className="bg-card rounded-lg border border-border p-6">
+            <CreatorPlatformAccounts creatorId={creator.id} />
           </TabsContent>
 
           <TabsContent value="plans" className="bg-card rounded-lg border border-border p-6">
             <CreatorContentPlans creatorId={creator.id} />
           </TabsContent>
 
-          <TabsContent value="social" className="bg-card rounded-lg border border-border p-6">
-            <CreatorSocialAccounts creatorId={creator.id} />
+          <TabsContent value="vault" className="bg-card rounded-lg border border-border p-6">
+            <CreatorContentVault creatorId={creator.id} />
           </TabsContent>
 
           <TabsContent value="marketing" className="bg-card rounded-lg border border-border p-6">
             <CreatorMarketing creatorId={creator.id} />
           </TabsContent>
 
+          <TabsContent value="requests" className="bg-card rounded-lg border border-border p-6">
+            <CreatorCustomRequests creatorId={creator.id} />
+          </TabsContent>
+
           <TabsContent value="earnings" className="bg-card rounded-lg border border-border p-6">
             <CreatorEarnings creatorId={creator.id} creatorCommissionRate={creator.commission_rate} />
+          </TabsContent>
+
+          <TabsContent value="social" className="bg-card rounded-lg border border-border p-6">
+            <CreatorSocialAccounts creatorId={creator.id} />
           </TabsContent>
         </Tabs>
       </div>
