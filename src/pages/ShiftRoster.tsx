@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useChatterShifts, CreateShiftInput } from "@/hooks/useChatterShifts";
-import { useChatters } from "@/hooks/useChatters";
+import { useChatterProfiles } from "@/hooks/useChatterProfiles";
 import { useCreators } from "@/hooks/useCreators";
 import { useChatterTimeLogs } from "@/hooks/useChatterTimeLogs";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -211,7 +211,7 @@ export default function ShiftRoster() {
   });
 
   const { shifts, loading, createShift, updateShift, deleteShift } = useChatterShifts();
-  const { chatters } = useChatters();
+  const { chatters } = useChatterProfiles();
   const { creators } = useCreators();
   const { timeLogs } = useChatterTimeLogs();
   const { employees } = useEmployees();
@@ -458,7 +458,7 @@ export default function ShiftRoster() {
                         <SelectValue placeholder="Select chatter" />
                       </SelectTrigger>
                       <SelectContent>
-                        {chatters.filter((c) => c.is_active).map((chatter) => (
+                        {chatters.filter((c) => c.is_active !== false).map((chatter) => (
                           <SelectItem key={chatter.id} value={chatter.id}>
                             <span className="flex items-center gap-2">
                               <span className={cn(
