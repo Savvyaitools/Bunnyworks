@@ -412,6 +412,7 @@ export default function Calendar() {
                       value={formData.date}
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                       required
+                      className="[color-scheme:dark]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -421,6 +422,7 @@ export default function Calendar() {
                       type="time"
                       value={formData.time}
                       onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                      className="[color-scheme:dark]"
                     />
                   </div>
                 </div>
@@ -703,6 +705,7 @@ export default function Calendar() {
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   required
+                  className="[color-scheme:dark]"
                 />
               </div>
               <div className="space-y-2">
@@ -712,6 +715,7 @@ export default function Calendar() {
                   type="time"
                   value={formData.time}
                   onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  className="[color-scheme:dark]"
                 />
               </div>
             </div>
