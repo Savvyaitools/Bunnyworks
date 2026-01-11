@@ -50,6 +50,7 @@ const PortalTasks = lazy(() => import("./pages/portal/PortalTasks"));
 // Employee pages
 const EmployeeDashboard = lazy(() => import("./pages/employee/EmployeeDashboard"));
 const EmployeeMessages = lazy(() => import("./pages/employee/EmployeeMessages"));
+const EmployeeTeamChat = lazy(() => import("./pages/employee/EmployeeTeamChat"));
 const EmployeeShifts = lazy(() => import("./pages/employee/EmployeeShifts"));
 const EmployeeTimeLogs = lazy(() => import("./pages/employee/EmployeeTimeLogs"));
 const EmployeeCreatorMessages = lazy(() => import("./pages/employee/EmployeeCreatorMessages"));
@@ -311,6 +312,11 @@ const AppRoutes = () => {
         <Route path="/employee/messages" element={
           <ProtectedRoute allowedUserTypes={["employee"]}>
             <EmployeeMessages />
+          </ProtectedRoute>
+        } />
+        <Route path="/employee/team-chat" element={
+          <ProtectedRoute allowedUserTypes={["employee"]}>
+            <EmployeeTeamChat />
           </ProtectedRoute>
         } />
         <Route path="/employee/shifts" element={
