@@ -20,7 +20,8 @@ import {
   ClipboardList,
   Globe,
   Plug,
-  Search
+  Search,
+  HeartPulse
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -76,6 +77,7 @@ const resourcesNavItems = [
   { title: "SOP Library", url: "/sop", icon: BookOpen },
   { title: "Data Import", url: "/data-import", icon: Upload },
   { title: "Browser Sync", url: "/browser-sync", icon: Plug },
+  { title: "OF Health", url: "/of-health", icon: HeartPulse },
 ];
 
 const bottomNavItems = [

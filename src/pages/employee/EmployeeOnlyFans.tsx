@@ -15,6 +15,8 @@ import { ChatWindow } from "@/components/employee-of/ChatWindow";
 import { FanList } from "@/components/employee-of/FanList";
 import { EarningsOverview } from "@/components/employee-of/EarningsOverview";
 import { PermissionGate } from "@/components/employee-of/PermissionGate";
+import { OFConnectionStatusBanner } from "@/components/employee-of/OFConnectionStatusBanner";
+import { OFReconnectDialog } from "@/components/employee-of/OFReconnectDialog";
 import { toast } from "sonner";
 
 interface SocialAccountWithOF {
@@ -22,6 +24,7 @@ interface SocialAccountWithOF {
   creator_id: string;
   of_account_id: string | null;
   username: string;
+  of_connection_status?: string | null;
   creator: {
     id: string;
     name: string;
@@ -39,6 +42,7 @@ export default function EmployeeOnlyFans() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("chats");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
 
   const handleSyncNow = async () => {
     if (!selectedAccount?.of_account_id) return;
@@ -74,6 +78,7 @@ export default function EmployeeOnlyFans() {
           creator_id,
           of_account_id,
           username,
+          of_connection_status,
           creator:creators(id, name, alias, avatar_url)
         `)
         .ilike("platform", "onlyfans")
@@ -89,6 +94,7 @@ export default function EmployeeOnlyFans() {
           creator_id: item.creator_id,
           of_account_id: item.of_account_id,
           username: item.username,
+          of_connection_status: item.of_connection_status,
           creator: item.creator as { id: string; name: string; alias: string | null; avatar_url: string | null },
         }));
         setSocialAccounts(accounts);
@@ -200,6 +206,14 @@ export default function EmployeeOnlyFans() {
           </div>
         )}
 
+        {/* Connection Status Banner */}
+        {selectedAccount?.of_account_id && (
+          <OFConnectionStatusBanner
+            accountId={selectedAccount.of_account_id}
+            onReconnect={() => setReconnectDialogOpen(true)}
+          />
+        )}
+
         {/* Main Content */}
         {selectedAccount && selectedAccount.of_account_id && currentPermissions && (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -237,6 +251,7 @@ export default function EmployeeOnlyFans() {
                         accountId={selectedAccount.of_account_id}
                         selectedChatId={selectedChatId}
                         onSelectChat={setSelectedChatId}
+                        onReconnect={() => setReconnectDialogOpen(true)}
                       />
                     </CardContent>
                   </Card>
@@ -267,6 +282,17 @@ export default function EmployeeOnlyFans() {
           </Tabs>
         )}
       </div>
+
+      {/* Reconnect Dialog */}
+      {selectedAccount && (
+        <OFReconnectDialog
+          open={reconnectDialogOpen}
+          onOpenChange={setReconnectDialogOpen}
+          accountId={selectedAccount.of_account_id || ""}
+          username={selectedAccount.username}
+          socialAccountId={selectedAccount.id}
+        />
+      )}
     </EmployeeLayout>
   );
 }

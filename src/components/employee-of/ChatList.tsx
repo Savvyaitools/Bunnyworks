@@ -4,8 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { useOnlyFansCache } from "@/hooks/useOnlyFansCache";
-import { Search } from "lucide-react";
+import { useOnlyFansConnectionHealth, useRetrySync } from "@/hooks/useOnlyFansConnectionHealth";
+import { Search, AlertCircle, WifiOff, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,13 +18,18 @@ interface ChatListProps {
   accountId: string;
   selectedChatId: string | null;
   onSelectChat: (chatId: string) => void;
+  onReconnect?: () => void;
 }
 
-export function ChatList({ accountId, selectedChatId, onSelectChat }: ChatListProps) {
+export function ChatList({ accountId, selectedChatId, onSelectChat, onReconnect }: ChatListProps) {
   const { useCachedChats } = useOnlyFansCache();
-  const { data: cachedChats, isLoading } = useCachedChats(accountId);
+  const { data: cachedChats, isLoading, error } = useCachedChats(accountId);
+  const { data: health } = useOnlyFansConnectionHealth(accountId);
+  const { mutate: retrySync, isPending: isRetrying } = useRetrySync();
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
+  
+  const connectionStatus = health?.of_connection_status || "unknown";
 
   // Subscribe to real-time updates for new chats from cache
   useEffect(() => {
@@ -105,8 +113,42 @@ export function ChatList({ accountId, selectedChatId, onSelectChat }: ChatListPr
       
       <ScrollArea className="flex-1 h-[calc(100%-80px)]">
         {filteredChats.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
-            {searchQuery ? "No messages found" : "No messages yet"}
+          <div className="p-4">
+            {connectionStatus === "expired" ? (
+              <Alert className="border-warning/50 bg-warning/10">
+                <WifiOff className="h-4 w-4 text-warning" />
+                <AlertDescription className="text-warning">
+                  <p className="font-medium mb-2">Session Expired</p>
+                  <p className="text-sm mb-3">The OnlyFans session has expired. Please reconnect to view messages.</p>
+                  {onReconnect && (
+                    <Button variant="outline" size="sm" onClick={onReconnect}>
+                      Reconnect Account
+                    </Button>
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : connectionStatus === "error" ? (
+              <Alert className="border-destructive/50 bg-destructive/10">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <AlertDescription className="text-destructive">
+                  <p className="font-medium mb-2">Connection Error</p>
+                  <p className="text-sm mb-3">{health?.of_last_error || "Failed to load messages. Please try again."}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => retrySync(accountId)}
+                    disabled={isRetrying}
+                  >
+                    <RefreshCw className={cn("h-4 w-4 mr-2", isRetrying && "animate-spin")} />
+                    {isRetrying ? "Retrying..." : "Retry Now"}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="text-center text-muted-foreground">
+                {searchQuery ? "No messages found" : "No messages yet"}
+              </div>
+            )}
           </div>
         ) : (
           <div className="divide-y">
