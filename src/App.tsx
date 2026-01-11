@@ -37,6 +37,7 @@ const BrowserSync = lazy(() => import("./pages/BrowserSync"));
 const OnlyFansDashboard = lazy(() => import("./pages/OnlyFansDashboard"));
 const MarketingAnalytics = lazy(() => import("./pages/MarketingAnalytics"));
 const EmployeePerformance = lazy(() => import("./pages/EmployeePerformance"));
+const UserGuide = lazy(() => import("./pages/UserGuide"));
 
 // Portal pages
 const PortalDashboard = lazy(() => import("./pages/portal/PortalDashboard"));
@@ -261,6 +262,11 @@ const AppRoutes = () => {
         <Route path="/of-dashboard" element={
           <ProtectedRoute allowedUserTypes={["agency"]}>
             <OnlyFansDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/guide" element={
+          <ProtectedRoute allowedUserTypes={["agency"]}>
+            <UserGuide />
           </ProtectedRoute>
         } />
         

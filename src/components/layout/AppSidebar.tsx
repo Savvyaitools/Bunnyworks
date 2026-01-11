@@ -21,7 +21,8 @@ import {
   Globe,
   Plug,
   Search,
-  HeartPulse
+  HeartPulse,
+  HelpCircle
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -78,6 +79,7 @@ const resourcesNavItems = [
   { title: "Data Import", url: "/data-import", icon: Upload },
   { title: "Browser Sync", url: "/browser-sync", icon: Plug },
   { title: "OF Health", url: "/of-health", icon: HeartPulse },
+  { title: "User Guide", url: "/guide", icon: HelpCircle },
 ];
 
 const bottomNavItems = [
