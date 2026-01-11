@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Users, DollarSign, CheckSquare, TrendingUp } from "lucide-react";
+import { RefreshCw, Users, DollarSign, CheckSquare, TrendingUp, BarChart3, Eye, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { RevenueChart } from "@/components/dashboard";
 import { TasksCompletionChart } from "@/components/dashboard/TasksCompletionChart";
@@ -13,12 +13,36 @@ import { CircularMetricCard } from "@/components/dashboard/CircularMetricCard";
 import { ChatterLeaderboard } from "@/components/dashboard/ChatterLeaderboard";
 import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { TodayStats } from "@/components/dashboard/TodayStats";
+import { FeatureGuide } from "@/components/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { useAgency } from "@/hooks/useAgency";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+const dashboardGuideSteps = [
+  {
+    icon: <Eye className="h-4 w-4" />,
+    title: "View Today's Stats",
+    description: "Check revenue, messages sent, and active chatters at a glance",
+  },
+  {
+    icon: <BarChart3 className="h-4 w-4" />,
+    title: "Switch Dashboard Tabs",
+    description: "Use Overview, Business, or Performance tabs for different insights",
+  },
+  {
+    icon: <RefreshCw className="h-4 w-4" />,
+    title: "Sync OnlyFans Data",
+    description: "Click 'Sync' to refresh earnings and stats from connected accounts",
+  },
+  {
+    icon: <Clock className="h-4 w-4" />,
+    title: "Review Activity Feed",
+    description: "See recent actions and events across your agency",
+  },
+];
 const Index = () => {
   const [syncing, setSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -185,6 +209,19 @@ const Index = () => {
 
   const renderOverviewTab = () => (
     <>
+      {/* Feature Guide */}
+      <FeatureGuide
+        title="How to Use the Dashboard"
+        description="Your command center for tracking agency performance and daily operations."
+        steps={dashboardGuideSteps}
+        tips={[
+          "Check the dashboard first thing each day to spot trends",
+          "Use date range picker to compare different time periods",
+          "Set up goals to track progress toward monthly targets",
+        ]}
+        storageKey="dashboard"
+      />
+
       {/* OFM Today Stats */}
       <TodayStats />
 

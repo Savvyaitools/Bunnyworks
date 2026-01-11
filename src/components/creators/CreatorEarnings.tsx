@@ -1,12 +1,38 @@
 import { useQuery } from "@tanstack/react-query";
-import { DollarSign, Users, TrendingUp, Percent, MessageSquare, CreditCard, Gift, RefreshCw, Calendar } from "lucide-react";
+import { 
+  DollarSign, 
+  Users, 
+  TrendingUp, 
+  Percent, 
+  MessageSquare, 
+  CreditCard, 
+  Gift, 
+  RefreshCw, 
+  Calendar, 
+  Info,
+  HelpCircle,
+  ArrowUpRight,
+  ArrowDownRight
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAgency } from "@/hooks/useAgency";
-import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface CreatorEarningsProps {
   creatorId: string;
@@ -65,9 +91,12 @@ function generateSparklineData(value: number) {
   return data;
 }
 
+const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--warning))"];
+
 export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEarningsProps) {
   const { agency } = useAgency();
   const [syncing, setSyncing] = useState(false);
+  const [showExplainer, setShowExplainer] = useState(false);
   
   const agencyRate = creatorCommissionRate ?? agency?.commission_rate ?? 0.3;
 
@@ -133,12 +162,19 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
   }
 
   const currentMonthEarning = earnings?.[0];
+  const lastMonthEarning = earnings?.[1];
   const parsedBreakdown = parseNotesForBreakdown(currentMonthEarning?.notes || null);
+  const lastMonthBreakdown = parseNotesForBreakdown(lastMonthEarning?.notes || null);
   const currentMonthNet = currentMonthEarning?.amount || 0;
+  const lastMonthNet = lastMonthEarning?.amount || 0;
   const allTimeTotal = parsedBreakdown.allTime || currentMonthNet;
   
   const agencyEarnings = currentMonthNet * agencyRate;
   const creatorNet = currentMonthNet - agencyEarnings;
+
+  // Calculate month-over-month change
+  const monthChange = lastMonthNet > 0 ? ((currentMonthNet - lastMonthNet) / lastMonthNet) * 100 : 0;
+  const isPositiveChange = monthChange >= 0;
   
   const isEmpty = !currentMonthEarning && (!earnings || earnings.length === 0);
 
@@ -150,6 +186,15 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
       month: format(new Date(e.period_start), "MMM"),
       amount: e.amount,
     }));
+
+  // Prepare pie chart data for earnings breakdown
+  const breakdownData = [
+    { name: "Subscriptions", value: parsedBreakdown.subs, color: PIE_COLORS[0] },
+    { name: "Tips", value: parsedBreakdown.tips, color: PIE_COLORS[1] },
+    { name: "Messages", value: parsedBreakdown.messages, color: PIE_COLORS[2] },
+  ].filter(d => d.value > 0);
+
+  const totalBreakdown = parsedBreakdown.subs + parsedBreakdown.tips + parsedBreakdown.messages;
 
   if (isEmpty && !ofAccount?.of_account_id) {
     return (
@@ -164,6 +209,17 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
       </div>
     );
   }
+
+  const StatTooltip = ({ children, content }: { children: React.ReactNode; content: string }) => (
+    <TooltipProvider>
+      <UITooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          <p className="text-sm">{content}</p>
+        </TooltipContent>
+      </UITooltip>
+    </TooltipProvider>
+  );
 
   return (
     <div className="space-y-6">
@@ -183,103 +239,232 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
         </Button>
       </div>
 
+      {/* How Earnings Work - Explainer */}
+      <Collapsible open={showExplainer} onOpenChange={setShowExplainer}>
+        <Card className="border-primary/20 bg-primary/5">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-primary/10 transition-colors py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">How Earnings Work</CardTitle>
+                </div>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0 pb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                <div className="p-3 rounded-lg bg-background/50">
+                  <p className="font-medium text-foreground mb-1">💰 Net Earnings</p>
+                  <p className="text-muted-foreground">Total after OnlyFans takes their 20% platform fee</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background/50">
+                  <p className="font-medium text-foreground mb-1">💳 Subscriptions</p>
+                  <p className="text-muted-foreground">Monthly/yearly recurring subscriber revenue</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background/50">
+                  <p className="font-medium text-foreground mb-1">🎁 Tips</p>
+                  <p className="text-muted-foreground">One-time tips from fans on posts or DMs</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background/50">
+                  <p className="font-medium text-foreground mb-1">✉️ Messages</p>
+                  <p className="text-muted-foreground">PPV message purchases and DM tips</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background/50">
+                  <p className="font-medium text-foreground mb-1">🏢 Agency Cut</p>
+                  <p className="text-muted-foreground">Your agreed commission rate ({(agencyRate * 100).toFixed(0)}%)</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background/50">
+                  <p className="font-medium text-foreground mb-1">👤 Creator Net</p>
+                  <p className="text-muted-foreground">What the creator receives after your commission</p>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Summary Cards */}
         <div className="lg:col-span-2 space-y-4">
           {/* Current Month Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <DollarSign className="h-4 w-4 text-emerald-400" />
+            <StatTooltip content="Total net earnings this month after OnlyFans platform fee (20%)">
+              <div className="p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors cursor-help">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 text-emerald-400" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">This Month</span>
                 </div>
-                <span className="text-xs text-muted-foreground">This Month</span>
+                <p className="text-xl font-bold text-foreground">{formatCurrency(currentMonthNet)}</p>
+                {lastMonthNet > 0 && (
+                  <div className={`flex items-center gap-1 text-xs mt-1 ${isPositiveChange ? 'text-success' : 'text-destructive'}`}>
+                    {isPositiveChange ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                    {Math.abs(monthChange).toFixed(1)}% vs last month
+                  </div>
+                )}
               </div>
-              <p className="text-xl font-bold text-foreground">{formatCurrency(currentMonthNet)}</p>
-            </div>
+            </StatTooltip>
 
-            <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <CreditCard className="h-4 w-4 text-blue-400" />
+            <StatTooltip content="Revenue from monthly and yearly subscription renewals">
+              <div className="p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors cursor-help">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <CreditCard className="h-4 w-4 text-blue-400" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Subscriptions</span>
                 </div>
-                <span className="text-xs text-muted-foreground">Subscriptions</span>
+                <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.subs)}</p>
+                {totalBreakdown > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {((parsedBreakdown.subs / totalBreakdown) * 100).toFixed(0)}% of total
+                  </p>
+                )}
               </div>
-              <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.subs)}</p>
-            </div>
+            </StatTooltip>
 
-            <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <Gift className="h-4 w-4 text-purple-400" />
+            <StatTooltip content="One-time tips from fans on posts, profile, or in DMs">
+              <div className="p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors cursor-help">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Gift className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Tips</span>
                 </div>
-                <span className="text-xs text-muted-foreground">Tips</span>
+                <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.tips)}</p>
+                {totalBreakdown > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {((parsedBreakdown.tips / totalBreakdown) * 100).toFixed(0)}% of total
+                  </p>
+                )}
               </div>
-              <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.tips)}</p>
-            </div>
+            </StatTooltip>
 
-            <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                  <MessageSquare className="h-4 w-4 text-orange-400" />
+            <StatTooltip content="PPV (pay-per-view) message purchases and message tips">
+              <div className="p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors cursor-help">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                    <MessageSquare className="h-4 w-4 text-orange-400" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Messages</span>
                 </div>
-                <span className="text-xs text-muted-foreground">Messages</span>
+                <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.messages)}</p>
+                {totalBreakdown > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {((parsedBreakdown.messages / totalBreakdown) * 100).toFixed(0)}% of total
+                  </p>
+                )}
               </div>
-              <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.messages)}</p>
-            </div>
+            </StatTooltip>
           </div>
 
-          {/* Monthly Earnings Chart */}
-          {chartData.length > 0 && (
-            <div className="p-5 rounded-xl border border-border bg-card">
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h3 className="text-base font-semibold text-foreground">Monthly Earnings</h3>
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Monthly Earnings Bar Chart */}
+            {chartData.length > 0 && (
+              <div className="p-5 rounded-xl border border-border bg-card">
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <h3 className="text-base font-semibold text-foreground">Monthly Trend</h3>
+                </div>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v}`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                        }}
+                        formatter={(value: number) => [formatCurrency(value), "Net Earnings"]}
+                      />
+                      <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v}`} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => [formatCurrency(value), "Net Earnings"]}
-                    />
-                    <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+            )}
+
+            {/* Earnings Breakdown Pie Chart */}
+            {breakdownData.length > 0 && (
+              <div className="p-5 rounded-xl border border-border bg-card">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="h-5 w-5 text-accent" />
+                  <h3 className="text-base font-semibold text-foreground">Earnings Breakdown</h3>
+                </div>
+                <div className="h-48 flex items-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={breakdownData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={70}
+                        paddingAngle={2}
+                      >
+                        {breakdownData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                        }}
+                        formatter={(value: number) => formatCurrency(value)}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-2 ml-2">
+                    {breakdownData.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2 text-xs">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-muted-foreground">{item.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Commission Breakdown */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-5 rounded-xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-emerald-400" />
+            <StatTooltip content="Amount the creator receives after your agency commission is deducted">
+              <div className="p-5 rounded-xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 cursor-help">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">Creator Net</span>
                 </div>
-                <span className="text-sm font-medium text-muted-foreground">Creator Net</span>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(creatorNet)}</p>
+                <p className="text-xs text-muted-foreground mt-1">After {(agencyRate * 100).toFixed(0)}% commission</p>
               </div>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(creatorNet)}</p>
-              <p className="text-xs text-muted-foreground mt-1">After {(agencyRate * 100).toFixed(0)}% commission</p>
-            </div>
+            </StatTooltip>
 
-            <div className="p-5 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Percent className="h-5 w-5 text-primary" />
+            <StatTooltip content="Your agency's share based on the agreed commission rate">
+              <div className="p-5 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 cursor-help">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                    <Percent className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">Agency Cut</span>
                 </div>
-                <span className="text-sm font-medium text-muted-foreground">Agency Cut</span>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(agencyEarnings)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{(agencyRate * 100).toFixed(0)}% of this month</p>
               </div>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(agencyEarnings)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{(agencyRate * 100).toFixed(0)}% of this month</p>
-            </div>
+            </StatTooltip>
           </div>
         </div>
 
@@ -331,14 +516,25 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
             <div className="p-5 rounded-xl border border-border bg-card">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Recent History</h3>
               <div className="space-y-3">
-                {earnings.slice(0, 5).map((e) => (
-                  <div key={e.id} className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {format(new Date(e.period_start), "MMM yyyy")}
-                    </span>
-                    <span className="text-sm font-medium text-foreground">{formatCurrency(e.amount)}</span>
-                  </div>
-                ))}
+                {earnings.slice(0, 5).map((e, index) => {
+                  const prevEarning = earnings[index + 1];
+                  const change = prevEarning ? ((e.amount - prevEarning.amount) / prevEarning.amount) * 100 : 0;
+                  return (
+                    <div key={e.id} className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        {format(new Date(e.period_start), "MMM yyyy")}
+                      </span>
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-foreground">{formatCurrency(e.amount)}</span>
+                        {prevEarning && (
+                          <span className={`text-xs ml-2 ${change >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {change >= 0 ? '+' : ''}{change.toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
