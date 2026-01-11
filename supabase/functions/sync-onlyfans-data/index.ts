@@ -116,9 +116,9 @@ async function syncFans(
   
   console.log(`[${accountId}] Syncing fans...`);
   
-  // Fetch active fans
-  const activeFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/active?limit=100`);
-  const expiredFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/expired?limit=100`);
+  // OnlyFans API has a max limit of 50 per request
+  const activeFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/active?limit=50`);
+  const expiredFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/expired?limit=50`);
   
   // Upsert fans to of_fans table
   // deno-lint-ignore no-explicit-any
@@ -175,7 +175,7 @@ async function syncChats(
   }
   
   console.log(`[${accountId}] Syncing chats...`);
-  const chats = await callOnlyFansAPI(apiKey, `/${accountId}/chats?limit=100`);
+  const chats = await callOnlyFansAPI(apiKey, `/${accountId}/chats?limit=50`);
   
   // Upsert chats to of_chats table
   // deno-lint-ignore no-explicit-any
