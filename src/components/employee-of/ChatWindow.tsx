@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useOnlyFansAPI } from "@/hooks/useOnlyFansAPI";
-import { Send, MessageCircle, Image } from "lucide-react";
+import { Send, MessageCircle, Image, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -25,32 +26,37 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ accountId, chatId, canSendMessages }: ChatWindowProps) {
-  const { getChatMessages, sendMessage, loading } = useOnlyFansAPI();
+  const { getChatMessages, sendMessage, error: apiError } = useOnlyFansAPI();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
       if (!chatId) return;
-      
+
       setIsLoading(true);
-      const result = await getChatMessages(accountId, chatId, 100, 0);
+      const result = await getChatMessages(accountId, chatId, 20, 0);
       if (result?.data) {
         // Reverse to show oldest first
-        setMessages(result.data.reverse());
+        setMessages(result.data.slice().reverse());
+        setLoadError(null);
+      } else {
+        setMessages([]);
+        setLoadError(apiError || "Failed to load messages. Please try again.");
       }
       setIsLoading(false);
     };
 
     fetchMessages();
-    
+
     // Poll for new messages every 10 seconds when chat is open
     const interval = setInterval(fetchMessages, 10000);
     return () => clearInterval(interval);
-  }, [accountId, chatId]);
+  }, [accountId, chatId, apiError, getChatMessages]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -67,10 +73,13 @@ export function ChatWindow({ accountId, chatId, canSendMessages }: ChatWindowPro
     if (result) {
       setNewMessage("");
       // Refresh messages
-      const updated = await getChatMessages(accountId, chatId, 100, 0);
+      const updated = await getChatMessages(accountId, chatId, 20, 0);
       if (updated?.data) {
-        setMessages(updated.data.reverse());
+        setMessages(updated.data.slice().reverse());
+        setLoadError(null);
       }
+    } else {
+      setLoadError(apiError || "Failed to send message. Please try again.");
     }
     setIsSending(false);
   };
@@ -119,6 +128,12 @@ export function ChatWindow({ accountId, chatId, canSendMessages }: ChatWindowPro
       
       <ScrollArea ref={scrollRef} className="flex-1 p-4">
         <div className="space-y-4">
+          {loadError && (
+            <Alert className="border-destructive/50 bg-destructive/10">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              <AlertDescription className="text-destructive">{loadError}</AlertDescription>
+            </Alert>
+          )}
           {messages.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               No messages yet. Start the conversation!
@@ -145,7 +160,7 @@ export function ChatWindow({ accountId, chatId, canSendMessages }: ChatWindowPro
                       {message.media.map((m) => (
                         <div key={m.id} className="rounded overflow-hidden">
                           {m.type === "photo" ? (
-                            <img src={m.url} alt="" className="max-w-full h-auto" />
+                            <img src={m.url} alt="Message photo" loading="lazy" className="max-w-full h-auto" />
                           ) : (
                             <div className="flex items-center gap-2 p-2 bg-background/10 rounded">
                               <Image className="h-4 w-4" />

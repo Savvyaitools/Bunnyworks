@@ -77,33 +77,42 @@ async function getCacheEntry(accountId: string, cacheKey: string): Promise<Cache
   return data as CacheEntry | null;
 }
 
-// Helper to get agency_id from profile or creator social account
-async function getAgencyIdForAccount(accountId: string): Promise<string | null> {
-  // First try to get from current user's profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("agency_id")
-    .single();
-  
-  if (profile?.agency_id) {
-    return profile.agency_id;
-  }
-  
-  // Fallback: get from the creator's social account
-  const { data: socialAccount } = await supabase
-    .from("creator_social_accounts")
-    .select("creator:creators(agency_id)")
-    .eq("of_account_id", accountId)
-    .single();
-  
-  // @ts-ignore - nested select type
-  return socialAccount?.creator?.agency_id || null;
-}
+// Helper moved inside the hook so we can scope profile lookup to the logged-in user
+
 
 export function useOnlyFansCache() {
   const api = useOnlyFansAPI();
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+
+  const getAgencyIdForAccount = async (accountId: string): Promise<string | null> => {
+    // Prefer already-loaded profile (fast + avoids extra queries)
+    if (profile?.agency_id) return profile.agency_id;
+
+    // Fallback to fetching ONLY the current user's profile row
+    if (user?.id) {
+      const { data: scopedProfile, error } = await supabase
+        .from("profiles")
+        .select("agency_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!error && scopedProfile?.agency_id) {
+        return scopedProfile.agency_id;
+      }
+    }
+
+    // Final fallback: get from the creator's social account
+    const { data: socialAccount } = await supabase
+      .from("creator_social_accounts")
+      .select("creator:creators(agency_id)")
+      .eq("of_account_id", accountId)
+      .maybeSingle();
+
+    // @ts-ignore - nested select type
+    return socialAccount?.creator?.agency_id || null;
+  };
+
 
   // Cached earnings hook with database-first approach
   const useCachedEarnings = (accountId: string | null, enabled = true) => {
@@ -152,7 +161,7 @@ export function useOnlyFansCache() {
         
         if (error) {
           console.error("Error fetching cached fans:", error);
-          return [];
+          throw error;
         }
         
         // If no cached data, trigger a sync via API and persist to DB
@@ -162,6 +171,10 @@ export function useOnlyFansCache() {
           const apiResult = activeOnly 
             ? await api.listActiveFans(accountId, 20, 0)
             : await api.listFans(accountId, 20, 0);
+
+          if (!apiResult) {
+            throw new Error(api.error ?? "Failed to fetch fans from OnlyFans");
+          }
           
           if (apiResult?.data && apiResult.data.length > 0) {
             // Get agency_id for persistence
@@ -240,13 +253,17 @@ export function useOnlyFansCache() {
         
         if (error) {
           console.error("Error fetching cached chats:", error);
-          return [];
+          throw error;
         }
         
         // If no cached data, trigger API call and PERSIST results
         if (!data || data.length === 0) {
           console.log(`[Cache MISS] No chats cached for ${accountId}, triggering API call`);
           const apiResult = await api.listChats(accountId, 20, 0); // OnlyFans API max limit
+
+          if (!apiResult) {
+            throw new Error(api.error ?? "Failed to fetch chats from OnlyFans");
+          }
           
           if (apiResult?.data && apiResult.data.length > 0) {
             // Get agency_id for persistence

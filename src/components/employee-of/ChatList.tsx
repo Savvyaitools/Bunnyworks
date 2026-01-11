@@ -30,6 +30,8 @@ export function ChatList({ accountId, selectedChatId, onSelectChat, onReconnect 
   const queryClient = useQueryClient();
   
   const connectionStatus = health?.of_connection_status || "unknown";
+  const errorMessage = error instanceof Error ? error.message : "Failed to load subscriber messages.";
+
 
   // Subscribe to real-time updates for new chats from cache
   useEffect(() => {
@@ -114,7 +116,24 @@ export function ChatList({ accountId, selectedChatId, onSelectChat, onReconnect 
       <ScrollArea className="flex-1 h-[calc(100%-80px)]">
         {filteredChats.length === 0 ? (
           <div className="p-4">
-            {connectionStatus === "expired" ? (
+            {error ? (
+              <Alert className="border-destructive/50 bg-destructive/10">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <AlertDescription className="text-destructive">
+                  <p className="font-medium mb-2">Couldn’t load messages</p>
+                  <p className="text-sm mb-3">{errorMessage}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => retrySync(accountId)}
+                    disabled={isRetrying}
+                  >
+                    <RefreshCw className={cn("h-4 w-4 mr-2", isRetrying && "animate-spin")} />
+                    {isRetrying ? "Retrying..." : "Retry Now"}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : connectionStatus === "expired" ? (
               <Alert className="border-warning/50 bg-warning/10">
                 <WifiOff className="h-4 w-4 text-warning" />
                 <AlertDescription className="text-warning">

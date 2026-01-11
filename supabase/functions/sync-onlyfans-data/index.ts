@@ -28,6 +28,30 @@ interface SyncResult {
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
 
+// The OnlyFans API proxy is not consistent across endpoints/versions.
+// Normalize common shapes into a plain array.
+// deno-lint-ignore no-explicit-any
+function normalizeDataArray(payload: any): any[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+
+  const data = payload?.data;
+  if (Array.isArray(data)) return data;
+
+  if (data && typeof data === "object") {
+    const candidates = [data.data, data.list, data.items, data.results];
+    for (const c of candidates) {
+      if (Array.isArray(c)) return c;
+    }
+  }
+
+  console.warn(
+    "normalizeDataArray: unexpected payload shape:",
+    JSON.stringify(payload).slice(0, 500)
+  );
+  return [];
+}
+
 async function callOnlyFansAPI(apiKey: string, endpoint: string) {
   const url = `${ONLYFANS_API_BASE}${endpoint}`;
   console.log(`Calling OnlyFans API: GET ${url}`);
@@ -119,14 +143,15 @@ async function syncFans(
   // OnlyFans API has a max limit of 20 for fans endpoints
   const activeFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/active?limit=20`);
   const expiredFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/expired?limit=20`);
-  
+
+  const activeList = normalizeDataArray(activeFans);
+  const expiredList = normalizeDataArray(expiredFans);
+
   // Upsert fans to of_fans table
   // deno-lint-ignore no-explicit-any
   const allFans: any[] = [
-    // deno-lint-ignore no-explicit-any
-    ...(activeFans.data || []).map((f: any) => ({ ...f, is_active: true })),
-    // deno-lint-ignore no-explicit-any
-    ...(expiredFans.data || []).map((f: any) => ({ ...f, is_active: false })),
+    ...activeList.map((f: any) => ({ ...f, is_active: true })),
+    ...expiredList.map((f: any) => ({ ...f, is_active: false })),
   ];
   
   for (const fan of allFans) {
@@ -175,11 +200,12 @@ async function syncChats(
   }
   
   console.log(`[${accountId}] Syncing chats...`);
-  const chats = await callOnlyFansAPI(apiKey, `/${accountId}/chats?limit=20`);
-  
+  const chatsResponse = await callOnlyFansAPI(apiKey, `/${accountId}/chats?limit=20`);
+  const chatsList = normalizeDataArray(chatsResponse);
+
   // Upsert chats to of_chats table
   // deno-lint-ignore no-explicit-any
-  for (const chat of (chats.data || []) as any[]) {
+  for (const chat of chatsList as any[]) {
     await supabase.from("of_chats").upsert({
       agency_id: agencyId,
       of_account_id: accountId,
@@ -196,17 +222,17 @@ async function syncChats(
       synced_at: new Date().toISOString(),
     }, { onConflict: "of_account_id,of_chat_id" });
   }
-  
+
   // Update cache
   await supabase.from("of_cache").upsert({
     of_account_id: accountId,
     cache_key: cacheKey,
-    data: chats,
+    data: chatsResponse,
     cached_at: new Date().toISOString(),
     expires_at: new Date(Date.now() + CACHE_TTL.chats).toISOString(),
   }, { onConflict: "of_account_id,cache_key" });
-  
-  console.log(`[${accountId}] Synced ${chats.data?.length || 0} chats`);
+
+  console.log(`[${accountId}] Synced ${chatsList.length} chats`);
   return true;
 }
 
