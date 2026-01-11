@@ -1,4 +1,5 @@
-import { DollarSign, MessageSquare, Users, Clock, TrendingUp } from "lucide-react";
+import { DollarSign, MessageSquare, Users, Clock, TrendingUp, TrendingDown } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTodayStats } from "@/hooks/useTodayStats";
 import { formatCurrency } from "@/lib/formatters";
 
@@ -10,15 +11,51 @@ interface StatCardProps {
   trend?: "up" | "down" | "neutral";
   trendValue?: string;
   color: "primary" | "success" | "accent" | "warning";
-  delay: number;
+  index: number;
 }
 
-function StatCard({ title, value, subValue, icon: Icon, trend, trendValue, color, delay }: StatCardProps) {
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { 
+    opacity: 0, 
+    y: 20,
+    scale: 0.95,
+  },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring" as const,
+      stiffness: 100,
+      damping: 15,
+    },
+  },
+};
+
+function StatCard({ title, value, subValue, icon: Icon, trend, trendValue, color, index }: StatCardProps) {
   const colorClasses = {
-    primary: "bg-primary/20 text-primary",
-    success: "bg-success/20 text-success",
-    accent: "bg-accent/20 text-accent",
-    warning: "bg-warning/20 text-warning",
+    primary: "bg-primary/20 text-primary group-hover:bg-primary/30",
+    success: "bg-success/20 text-success group-hover:bg-success/30",
+    accent: "bg-accent/20 text-accent group-hover:bg-accent/30",
+    warning: "bg-warning/20 text-warning group-hover:bg-warning/30",
+  };
+
+  const glowClasses = {
+    primary: "group-hover:shadow-[0_0_30px_hsl(var(--primary)/0.2)]",
+    success: "group-hover:shadow-[0_0_30px_hsl(var(--success)/0.2)]",
+    accent: "group-hover:shadow-[0_0_30px_hsl(var(--accent)/0.2)]",
+    warning: "group-hover:shadow-[0_0_30px_hsl(var(--warning)/0.2)]",
   };
 
   const trendColors = {
@@ -28,30 +65,61 @@ function StatCard({ title, value, subValue, icon: Icon, trend, trendValue, color
   };
 
   return (
-    <div 
-      className="glass-card p-5 animate-fade-in hover:border-primary/20 transition-all duration-300"
-      style={{ animationDelay: `${delay}ms` }}
+    <motion.div 
+      variants={cardVariants}
+      whileHover={{ 
+        scale: 1.02,
+        transition: { type: "spring", stiffness: 400, damping: 25 }
+      }}
+      className={`glass-card p-5 group cursor-default transition-all duration-300 ${glowClasses[color]}`}
     >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-muted-foreground mb-1">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
+          <motion.p 
+            className="text-2xl font-bold text-foreground"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 + index * 0.1, type: "spring", stiffness: 100 }}
+          >
+            {value}
+          </motion.p>
           {subValue && (
-            <p className="text-xs text-muted-foreground mt-1">{subValue}</p>
+            <motion.p 
+              className="text-xs text-muted-foreground mt-1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 + index * 0.1 }}
+            >
+              {subValue}
+            </motion.p>
           )}
         </div>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClasses[color]}`}>
+        <motion.div 
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${colorClasses[color]}`}
+          whileHover={{ rotate: [0, -10, 10, 0] }}
+          transition={{ duration: 0.5 }}
+        >
           <Icon className="h-5 w-5" />
-        </div>
+        </motion.div>
       </div>
       {trend && trendValue && (
-        <div className={`flex items-center gap-1 mt-3 text-sm ${trendColors[trend]}`}>
-          <TrendingUp className={`h-4 w-4 ${trend === "down" ? "rotate-180" : ""}`} />
-          <span>{trendValue}</span>
+        <motion.div 
+          className={`flex items-center gap-1 mt-3 text-sm ${trendColors[trend]}`}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4 + index * 0.1 }}
+        >
+          {trend === "up" ? (
+            <TrendingUp className="h-4 w-4" />
+          ) : trend === "down" ? (
+            <TrendingDown className="h-4 w-4" />
+          ) : null}
+          <span className="font-medium">{trendValue}</span>
           <span className="text-muted-foreground">vs last month</span>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -62,7 +130,16 @@ export function TodayStats() {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="glass-card p-5 h-28 animate-pulse bg-muted/10" />
+          <motion.div 
+            key={i} 
+            className="glass-card p-5 h-28"
+            initial={{ opacity: 0.5 }}
+            animate={{ opacity: [0.5, 0.8, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+          >
+            <div className="h-4 w-24 bg-muted/30 rounded mb-2" />
+            <div className="h-8 w-16 bg-muted/30 rounded" />
+          </motion.div>
         ))}
       </div>
     );
@@ -71,7 +148,12 @@ export function TodayStats() {
   const revenueTrend = stats?.revenueTrend || 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <motion.div 
+      className="grid grid-cols-2 md:grid-cols-4 gap-4"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       <StatCard
         title="This Month's Revenue"
         value={formatCurrency(stats?.todayRevenue || 0)}
@@ -79,7 +161,7 @@ export function TodayStats() {
         color="success"
         trend={revenueTrend >= 0 ? "up" : "down"}
         trendValue={`${revenueTrend >= 0 ? "+" : ""}${revenueTrend}%`}
-        delay={100}
+        index={0}
       />
       <StatCard
         title="Messages Sent"
@@ -87,7 +169,7 @@ export function TodayStats() {
         subValue="Total today"
         icon={MessageSquare}
         color="primary"
-        delay={150}
+        index={1}
       />
       <StatCard
         title="Active Chatters"
@@ -95,7 +177,7 @@ export function TodayStats() {
         subValue={`${stats?.totalChattersToday || 0} worked today`}
         icon={Users}
         color="accent"
-        delay={200}
+        index={2}
       />
       <StatCard
         title="Avg Response"
@@ -103,8 +185,8 @@ export function TodayStats() {
         subValue="Response time"
         icon={Clock}
         color="warning"
-        delay={250}
+        index={3}
       />
-    </div>
+    </motion.div>
   );
 }

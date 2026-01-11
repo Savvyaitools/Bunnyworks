@@ -9,3 +9,4 @@ export { DateRangePicker } from "./DateRangePicker";
 export { ChatterLeaderboard } from "./ChatterLeaderboard";
 export { LiveActivityFeed } from "./LiveActivityFeed";
 export { TodayStats } from "./TodayStats";
+export { AnimatedCounter, AnimatedNumber } from "./AnimatedCounter";

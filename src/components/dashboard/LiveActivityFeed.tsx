@@ -1,4 +1,5 @@
 import { DollarSign, MessageSquare, UserPlus, Heart, Zap, Gift } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -292,12 +293,26 @@ export function LiveActivityFeed() {
   const totalRevenue = uniqueActivities?.reduce((sum, a) => sum + (a.amount || 0), 0) || 0;
 
   return (
-    <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "250ms" }}>
+    <motion.div 
+      className="glass-card p-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.25, type: "spring" as const, stiffness: 100, damping: 15 }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Zap className="h-5 w-5 text-warning" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-success rounded-full animate-pulse" />
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Zap className="h-5 w-5 text-warning" />
+            </motion.div>
+            <motion.span 
+              className="absolute -top-1 -right-1 w-2 h-2 bg-success rounded-full"
+              animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
           </div>
           <h3 className="text-lg font-semibold text-foreground">Live Activity</h3>
         </div>
@@ -309,51 +324,82 @@ export function LiveActivityFeed() {
           Loading activity...
         </div>
       ) : !uniqueActivities || uniqueActivities.length === 0 ? (
-        <div className="text-center py-8">
+        <motion.div 
+          className="text-center py-8"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
           <Zap className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
           <p className="text-muted-foreground">No activity yet today</p>
           <p className="text-sm text-muted-foreground/70">
             Tips, subs, and purchases will appear here
           </p>
-        </div>
+        </motion.div>
       ) : (
         <div className="space-y-1 max-h-[280px] overflow-y-auto">
-          {uniqueActivities.map((activity, index) => (
-            <div
-              key={activity.id}
-              className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors animate-fade-in"
-              style={{ animationDelay: `${350 + index * 50}ms` }}
-            >
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", activity.iconBg)}>
-                <activity.icon className={cn("h-4 w-4", activity.iconColor)} />
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{activity.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{activity.creatorName}</p>
-              </div>
+          <AnimatePresence mode="popLayout">
+            {uniqueActivities.map((activity, index) => (
+              <motion.div
+                key={activity.id}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors"
+                initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                transition={{ delay: index * 0.05 }}
+                layout
+                whileHover={{ scale: 1.02, x: 3 }}
+              >
+                <motion.div 
+                  className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", activity.iconBg)}
+                  whileHover={{ rotate: [0, -10, 10, 0] }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <activity.icon className={cn("h-4 w-4", activity.iconColor)} />
+                </motion.div>
+                
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{activity.title}</p>
+                  <p className="text-xs text-muted-foreground truncate">{activity.creatorName}</p>
+                </div>
 
-              <div className="text-right shrink-0">
-                {activity.amount && (
-                  <p className="text-sm font-semibold text-success">
-                    +{formatCurrency(activity.amount)}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">{activity.time}</p>
-              </div>
-            </div>
-          ))}
+                <div className="text-right shrink-0">
+                  {activity.amount && (
+                    <motion.p 
+                      className="text-sm font-semibold text-success"
+                      initial={{ scale: 1.2 }}
+                      animate={{ scale: 1 }}
+                    >
+                      +{formatCurrency(activity.amount)}
+                    </motion.p>
+                  )}
+                  <p className="text-xs text-muted-foreground">{activity.time}</p>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 
       {uniqueActivities && uniqueActivities.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-border">
+        <motion.div 
+          className="mt-4 pt-4 border-t border-border"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Today's Total</span>
-            <span className="text-lg font-bold text-success">{formatCurrency(totalRevenue)}</span>
+            <motion.span 
+              className="text-lg font-bold text-success"
+              key={totalRevenue}
+              initial={{ scale: 1.1 }}
+              animate={{ scale: 1 }}
+            >
+              {formatCurrency(totalRevenue)}
+            </motion.span>
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
