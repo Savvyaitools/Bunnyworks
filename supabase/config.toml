@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.hyperbeam-session]
 verify_jwt = false
+
+[functions.retry-of-syncs]
+verify_jwt = false

@@ -752,7 +752,12 @@ export type Database = {
           id: string
           of_account_id: string | null
           of_connected_at: string | null
+          of_connection_status: string | null
+          of_last_error: string | null
+          of_last_error_at: string | null
           of_last_synced_at: string | null
+          of_next_retry_at: string | null
+          of_sync_retry_count: number | null
           platform: string
           profile_url: string | null
           updated_at: string
@@ -765,7 +770,12 @@ export type Database = {
           id?: string
           of_account_id?: string | null
           of_connected_at?: string | null
+          of_connection_status?: string | null
+          of_last_error?: string | null
+          of_last_error_at?: string | null
           of_last_synced_at?: string | null
+          of_next_retry_at?: string | null
+          of_sync_retry_count?: number | null
           platform: string
           profile_url?: string | null
           updated_at?: string
@@ -778,7 +788,12 @@ export type Database = {
           id?: string
           of_account_id?: string | null
           of_connected_at?: string | null
+          of_connection_status?: string | null
+          of_last_error?: string | null
+          of_last_error_at?: string | null
           of_last_synced_at?: string | null
+          of_next_retry_at?: string | null
+          of_sync_retry_count?: number | null
           platform?: string
           profile_url?: string | null
           updated_at?: string
@@ -1938,6 +1953,60 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      of_sync_logs: {
+        Row: {
+          agency_id: string | null
+          created_at: string | null
+          duration_ms: number | null
+          error_code: string | null
+          error_message: string | null
+          id: string
+          items_synced: number | null
+          social_account_id: string | null
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          items_synced?: number | null
+          social_account_id?: string | null
+          status: string
+          sync_type: string
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          items_synced?: number | null
+          social_account_id?: string | null
+          status?: string
+          sync_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "of_sync_logs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "of_sync_logs_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_social_accounts"
             referencedColumns: ["id"]
           },
         ]

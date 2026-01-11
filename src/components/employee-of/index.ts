@@ -6,3 +6,5 @@ export { FanList } from "./FanList";
 export { FanCard } from "./FanCard";
 export { FanCRM } from "./FanCRM";
 export { PermissionGate } from "./PermissionGate";
+export { OFConnectionStatusBanner } from "./OFConnectionStatusBanner";
+export { OFReconnectDialog } from "./OFReconnectDialog";
