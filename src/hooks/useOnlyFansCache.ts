@@ -271,21 +271,27 @@ export function useOnlyFansCache() {
             
             if (agencyId) {
               // Persist chats to database
-              const chatsToInsert = apiResult.data.map(chat => ({
-                of_account_id: accountId,
-                of_chat_id: chat.id,
-                agency_id: agencyId,
-                of_fan_id: chat.with_user?.id || null,
-                fan_name: chat.with_user?.name || null,
-                fan_username: chat.with_user?.username || null,
-                fan_avatar: chat.with_user?.avatar || null,
-                last_message_text: chat.last_message?.text || null,
-                last_message_at: chat.last_message?.created_at || null,
-                last_message_is_from_me: chat.last_message?.is_from_me || null,
-                unread_count: chat.unread_count || 0,
-                is_pinned: false,
-                synced_at: new Date().toISOString(),
-              }));
+              const chatsToInsert = apiResult.data.map((chat: any) => {
+                const fan = chat?.with_user ?? chat?.fan ?? null;
+                const last = chat?.last_message ?? chat?.lastMessage ?? null;
+                const ofChatId = (chat?.id ?? fan?.id)?.toString?.() ?? chat?.id ?? fan?.id;
+
+                return {
+                  of_account_id: accountId,
+                  of_chat_id: String(ofChatId),
+                  agency_id: agencyId,
+                  of_fan_id: fan?.id ? String(fan.id) : null,
+                  fan_name: fan?.name ?? fan?.displayName ?? fan?.username ?? null,
+                  fan_username: fan?.username ?? null,
+                  fan_avatar: fan?.avatar ?? fan?.avatar_url ?? null,
+                  last_message_text: last?.text ?? null,
+                  last_message_at: last?.created_at ?? last?.createdAt ?? null,
+                  last_message_is_from_me: last?.is_from_me ?? last?.isFromMe ?? null,
+                  unread_count: chat?.unread_count ?? chat?.unreadMessagesCount ?? 0,
+                  is_pinned: false,
+                  synced_at: new Date().toISOString(),
+                };
+              });
 
               const { error: insertError } = await supabase
                 .from("of_chats")
@@ -299,21 +305,27 @@ export function useOnlyFansCache() {
             }
             
             // Transform API data to match CachedChat interface
-            return apiResult.data.map(chat => ({
-              id: chat.id,
-              of_account_id: accountId,
-              of_chat_id: chat.id,
-              of_fan_id: chat.with_user?.id || null,
-              fan_name: chat.with_user?.name || null,
-              fan_username: chat.with_user?.username || null,
-              fan_avatar: chat.with_user?.avatar || null,
-              last_message_text: chat.last_message?.text || null,
-              last_message_at: chat.last_message?.created_at || null,
-              last_message_is_from_me: chat.last_message?.is_from_me || null,
-              unread_count: chat.unread_count || 0,
-              is_pinned: false,
-              synced_at: new Date().toISOString(),
-            }));
+            return apiResult.data.map((chat: any) => {
+              const fan = chat?.with_user ?? chat?.fan ?? null;
+              const last = chat?.last_message ?? chat?.lastMessage ?? null;
+              const ofChatId = (chat?.id ?? fan?.id)?.toString?.() ?? chat?.id ?? fan?.id;
+
+              return {
+                id: String(ofChatId),
+                of_account_id: accountId,
+                of_chat_id: String(ofChatId),
+                of_fan_id: fan?.id ? String(fan.id) : null,
+                fan_name: fan?.name ?? fan?.displayName ?? fan?.username ?? null,
+                fan_username: fan?.username ?? null,
+                fan_avatar: fan?.avatar ?? fan?.avatar_url ?? null,
+                last_message_text: last?.text ?? null,
+                last_message_at: last?.created_at ?? last?.createdAt ?? null,
+                last_message_is_from_me: last?.is_from_me ?? last?.isFromMe ?? null,
+                unread_count: chat?.unread_count ?? chat?.unreadMessagesCount ?? 0,
+                is_pinned: false,
+                synced_at: new Date().toISOString(),
+              };
+            });
           }
           return [];
         }
@@ -329,25 +341,31 @@ export function useOnlyFansCache() {
           // Trigger background refresh without blocking
           (async () => {
           try {
-            const apiResult = await api.listChats(accountId, 20, 0); // OnlyFans API max limit
+              const apiResult = await api.listChats(accountId, 20, 0); // OnlyFans API max limit
               if (apiResult?.data && apiResult.data.length > 0) {
                 const agencyId = await getAgencyIdForAccount(accountId);
                 if (agencyId) {
-                  const chatsToUpdate = apiResult.data.map(chat => ({
-                    of_account_id: accountId,
-                    of_chat_id: chat.id,
-                    agency_id: agencyId,
-                    of_fan_id: chat.with_user?.id || null,
-                    fan_name: chat.with_user?.name || null,
-                    fan_username: chat.with_user?.username || null,
-                    fan_avatar: chat.with_user?.avatar || null,
-                    last_message_text: chat.last_message?.text || null,
-                    last_message_at: chat.last_message?.created_at || null,
-                    last_message_is_from_me: chat.last_message?.is_from_me || null,
-                    unread_count: chat.unread_count || 0,
-                    is_pinned: false,
-                    synced_at: new Date().toISOString(),
-                  }));
+                  const chatsToUpdate = apiResult.data.map((chat: any) => {
+                    const fan = chat?.with_user ?? chat?.fan ?? null;
+                    const last = chat?.last_message ?? chat?.lastMessage ?? null;
+                    const ofChatId = (chat?.id ?? fan?.id)?.toString?.() ?? chat?.id ?? fan?.id;
+
+                    return {
+                      of_account_id: accountId,
+                      of_chat_id: String(ofChatId),
+                      agency_id: agencyId,
+                      of_fan_id: fan?.id ? String(fan.id) : null,
+                      fan_name: fan?.name ?? fan?.displayName ?? fan?.username ?? null,
+                      fan_username: fan?.username ?? null,
+                      fan_avatar: fan?.avatar ?? fan?.avatar_url ?? null,
+                      last_message_text: last?.text ?? null,
+                      last_message_at: last?.created_at ?? last?.createdAt ?? null,
+                      last_message_is_from_me: last?.is_from_me ?? last?.isFromMe ?? null,
+                      unread_count: chat?.unread_count ?? chat?.unreadMessagesCount ?? 0,
+                      is_pinned: false,
+                      synced_at: new Date().toISOString(),
+                    };
+                  });
                   await supabase.from("of_chats").upsert(chatsToUpdate, { onConflict: "of_account_id,of_chat_id" });
                   queryClient.invalidateQueries({ queryKey: ["of-chats", accountId] });
                 }
@@ -405,21 +423,27 @@ export function useOnlyFansCache() {
     try {
       const chatsResult = await api.listChats(accountId, 20, 0);
       if (chatsResult?.data && chatsResult.data.length > 0) {
-        const chatsToInsert = chatsResult.data.map(chat => ({
-          of_account_id: accountId,
-          of_chat_id: chat.id,
-          agency_id: agencyId,
-          of_fan_id: chat.with_user?.id || null,
-          fan_name: chat.with_user?.name || null,
-          fan_username: chat.with_user?.username || null,
-          fan_avatar: chat.with_user?.avatar || null,
-          last_message_text: chat.last_message?.text || null,
-          last_message_at: chat.last_message?.created_at || null,
-          last_message_is_from_me: chat.last_message?.is_from_me || null,
-          unread_count: chat.unread_count || 0,
-          is_pinned: false,
-          synced_at: new Date().toISOString(),
-        }));
+        const chatsToInsert = chatsResult.data.map((chat: any) => {
+          const fan = chat?.with_user ?? chat?.fan ?? null;
+          const last = chat?.last_message ?? chat?.lastMessage ?? null;
+          const ofChatId = (chat?.id ?? fan?.id)?.toString?.() ?? chat?.id ?? fan?.id;
+
+          return {
+            of_account_id: accountId,
+            of_chat_id: String(ofChatId),
+            agency_id: agencyId,
+            of_fan_id: fan?.id ? String(fan.id) : null,
+            fan_name: fan?.name ?? fan?.displayName ?? fan?.username ?? null,
+            fan_username: fan?.username ?? null,
+            fan_avatar: fan?.avatar ?? fan?.avatar_url ?? null,
+            last_message_text: last?.text ?? null,
+            last_message_at: last?.created_at ?? last?.createdAt ?? null,
+            last_message_is_from_me: last?.is_from_me ?? last?.isFromMe ?? null,
+            unread_count: chat?.unread_count ?? chat?.unreadMessagesCount ?? 0,
+            is_pinned: false,
+            synced_at: new Date().toISOString(),
+          };
+        });
         await supabase.from("of_chats").upsert(chatsToInsert, { onConflict: "of_account_id,of_chat_id" });
         console.log(`[Force Refresh] Stored ${chatsToInsert.length} chats`);
       }

@@ -155,7 +155,7 @@ async function syncFans(
   ];
   
   for (const fan of allFans) {
-    await supabase.from("of_fans").upsert({
+    const { error } = await supabase.from("of_fans").upsert({
       agency_id: agencyId,
       of_account_id: accountId,
       of_fan_id: fan.id?.toString() || fan.username,
@@ -170,6 +170,11 @@ async function syncFans(
       metadata: { raw: fan },
       synced_at: new Date().toISOString(),
     }, { onConflict: "of_account_id,of_fan_id" });
+
+    if (error) {
+      console.error(`[${accountId}] Fan upsert failed:`, error);
+      throw error;
+    }
   }
   
   // Update cache
@@ -206,21 +211,36 @@ async function syncChats(
   // Upsert chats to of_chats table
   // deno-lint-ignore no-explicit-any
   for (const chat of chatsList as any[]) {
-    await supabase.from("of_chats").upsert({
+    const fan = chat?.with_user ?? chat?.fan ?? null;
+    const last = chat?.last_message ?? chat?.lastMessage ?? null;
+
+    const ofChatId = (chat?.id ?? fan?.id)?.toString?.() ?? null;
+    if (!ofChatId) {
+      console.warn(`[${accountId}] Skipping chat without id`, JSON.stringify(chat).slice(0, 400));
+      continue;
+    }
+
+    const { error } = await supabase.from("of_chats").upsert({
       agency_id: agencyId,
       of_account_id: accountId,
-      of_chat_id: chat.id?.toString(),
-      of_fan_id: chat.with_user?.id?.toString(),
-      fan_name: chat.with_user?.name || chat.with_user?.username,
-      fan_username: chat.with_user?.username,
-      fan_avatar: chat.with_user?.avatar,
-      last_message_text: chat.last_message?.text,
-      last_message_at: chat.last_message?.created_at,
-      last_message_is_from_me: chat.last_message?.is_from_me,
-      unread_count: chat.unread_count || 0,
-      is_pinned: chat.is_pinned || false,
+      of_chat_id: ofChatId,
+      of_fan_id: fan?.id?.toString?.() ?? null,
+      fan_name: fan?.name ?? fan?.displayName ?? fan?.username ?? null,
+      fan_username: fan?.username ?? null,
+      fan_avatar: fan?.avatar ?? fan?.avatar_url ?? null,
+      last_message_text: last?.text ?? null,
+      last_message_at: last?.created_at ?? last?.createdAt ?? null,
+      // Some endpoints don't return direction; keep null so UI doesn't lie
+      last_message_is_from_me: last?.is_from_me ?? last?.isFromMe ?? null,
+      unread_count: chat?.unread_count ?? chat?.unreadMessagesCount ?? 0,
+      is_pinned: chat?.is_pinned ?? chat?.isPinned ?? false,
       synced_at: new Date().toISOString(),
     }, { onConflict: "of_account_id,of_chat_id" });
+
+    if (error) {
+      console.error(`[${accountId}] Chat upsert failed:`, error);
+      throw error;
+    }
   }
 
   // Update cache
