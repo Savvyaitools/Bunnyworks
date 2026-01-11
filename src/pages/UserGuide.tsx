@@ -18,8 +18,15 @@ import {
   Search,
   Globe,
   ClipboardList,
-  Lightbulb,
-  Rocket
+  Rocket,
+  MousePointer,
+  Plus,
+  Eye,
+  RefreshCw,
+  Link2,
+  Clock,
+  Settings,
+  Shield
 } from "lucide-react";
 
 const guideData = [
@@ -28,79 +35,148 @@ const guideData = [
     icon: Rocket,
     items: [
       {
-        title: "Welcome to Creator OS",
-        description: "Creator OS is an all-in-one agency management platform designed for OnlyFans management agencies. It helps you manage creators, employees, content, messaging, and revenue tracking in one place."
+        title: "Set Up Your Agency",
+        steps: [
+          "Go to Settings → Agency to update your agency name and logo",
+          "Set your default commission rate (typically 30-50%)",
+          "Configure your subscription tier if needed"
+        ]
       },
       {
-        title: "First Steps",
-        description: "1. Add your creators in the Creators section\n2. Invite your team members via the Team page\n3. Set up shifts and assign chatters to creators\n4. Connect OnlyFans accounts via Browser Sync\n5. Start tracking tasks and revenue!"
+        title: "Add Your First Creator",
+        steps: [
+          "Navigate to Creators page",
+          "Click 'Add Creator' button",
+          "Enter their name, email, and platform details",
+          "After adding, go to their profile → Social Accounts to connect OnlyFans"
+        ]
+      },
+      {
+        title: "Build Your Team",
+        steps: [
+          "Go to Team page → Add Employee",
+          "Fill in employee details and select their role (Chatter, Manager, etc.)",
+          "Click 'Create Login' on their card to generate credentials",
+          "Share credentials so they can access the Employee Portal"
+        ]
+      },
+      {
+        title: "Connect OnlyFans Accounts",
+        steps: [
+          "Navigate to Browser Sync",
+          "Install the Chrome extension or use manual session import",
+          "Log into the creator's OnlyFans account",
+          "Once connected, earnings and messages will sync automatically"
+        ]
       }
     ]
   },
   {
-    category: "Main Features",
+    category: "Daily Operations",
     icon: LayoutDashboard,
     items: [
       {
-        title: "Dashboard",
-        icon: LayoutDashboard,
-        description: "Your command center showing key metrics, revenue stats, task progress, and team activity. Switch between Overview, Business, and Performance tabs for different insights."
+        title: "Check Your Dashboard",
+        steps: [
+          "View today's revenue, messages sent, and active chatters",
+          "Switch between Overview, Business, and Performance tabs",
+          "Click 'Sync' to refresh OnlyFans data",
+          "Review the activity feed for recent updates"
+        ]
       },
       {
-        title: "Creators",
-        icon: Users,
-        description: "Manage all your creators here. Add new creators, view their profiles, track revenue, and manage their platform accounts. Click on a creator to see detailed stats, content plans, and earnings."
+        title: "Manage Tasks",
+        steps: [
+          "Create tasks with 'Create Task' button",
+          "Assign to employees and link to specific creators",
+          "Drag tasks between columns: To Do → In Progress → Review → Completed",
+          "Filter by status or request type"
+        ]
       },
       {
-        title: "Creator Messages",
-        icon: MessageSquare,
-        description: "Internal messaging between your agency and creators. Use this for content requests, updates, and coordination—not for fan messaging."
+        title: "Use Subscriber DMs",
+        steps: [
+          "Navigate to Subscriber DMs",
+          "Select a creator account from the dropdown",
+          "View and respond to fan messages",
+          "Use the Fan CRM tab to see high-value subscribers"
+        ]
       },
       {
-        title: "Team",
-        icon: UserCog,
-        description: "Manage your employees (chatters, managers, QC staff). Assign roles, set permissions, track performance, and manage payroll. Use sub-tabs for Chatters and Performance views."
-      },
-      {
-        title: "Tasks",
-        icon: CheckSquare,
-        description: "Kanban-style task board to track work across your agency. Create tasks, assign to team members, link to creators, and move through statuses: To Do → In Progress → Review → Completed."
-      },
-      {
-        title: "Calendar",
-        icon: Calendar,
-        description: "Visual calendar for scheduling content, shifts, deadlines, and events. Great for planning content drops and coordinating team schedules."
-      },
-      {
-        title: "Invoices",
-        icon: FileText,
-        description: "Track and manage creator invoices. Create invoices, mark as paid, and keep financial records organized."
+        title: "Schedule Shifts",
+        steps: [
+          "Go to Shift Roster",
+          "Click on a time block to assign a chatter",
+          "Select the chatter and creator for that shift",
+          "Ensure 24/7 coverage across timezones"
+        ]
       }
     ]
   },
   {
-    category: "OnlyFans Management",
+    category: "Creator Management",
+    icon: Users,
+    items: [
+      {
+        title: "View Creator Earnings",
+        steps: [
+          "Click on a creator card → Earnings tab",
+          "See monthly breakdown: Subscriptions, Tips, Messages",
+          "Click 'How Earnings Work' for explanations",
+          "Review commission split between creator and agency"
+        ]
+      },
+      {
+        title: "Create Marketing Links",
+        steps: [
+          "Go to creator profile → Marketing tab",
+          "Click 'Create Link'",
+          "Add a unique tracking code (e.g., 'ig-bio')",
+          "Select traffic source and campaign",
+          "Share the link and track clicks/conversions"
+        ]
+      },
+      {
+        title: "Manage Content Plans",
+        steps: [
+          "Navigate to creator → Content Plans tab",
+          "Create a new content plan with description",
+          "Add reference media for the creator to follow",
+          "Track submission status and approve content"
+        ]
+      },
+      {
+        title: "Handle Custom Requests",
+        steps: [
+          "Go to creator → Custom Requests tab",
+          "Create requests for special content orders",
+          "Set price and due date",
+          "Track progress from Pending → In Progress → Completed"
+        ]
+      }
+    ]
+  },
+  {
+    category: "Team Communication",
     icon: MessageSquare,
     items: [
       {
-        title: "Subscriber DMs",
-        icon: MessageSquare,
-        description: "View and manage fan conversations synced from OnlyFans. Chatters use this to respond to subscribers. Requires OnlyFans account connection via Browser Sync."
+        title: "Message Your Team",
+        steps: [
+          "Go to Team Chat (OnlyFans section)",
+          "Select an employee from the list",
+          "Type your message and press Enter",
+          "Messages sync in real-time"
+        ]
       },
       {
-        title: "Shift Roster",
-        icon: CalendarClock,
-        description: "Schedule chatter shifts across your creators. Assign time blocks, track who's covering which account, and ensure 24/7 coverage."
-      },
-      {
-        title: "Team Chat",
-        icon: MessageSquare,
-        description: "Internal real-time chat for your team. Communicate with employees, share updates, and coordinate without leaving the platform."
-      },
-      {
-        title: "Marketing",
-        icon: TrendingUp,
-        description: "Create tracking links for each traffic source (Reddit, TikTok, Instagram, etc.). Monitor clicks, conversions, and revenue attribution to see which campaigns perform best."
+        title: "Message Creators",
+        steps: [
+          "Navigate to Creator Messages",
+          "Select a creator to chat with",
+          "Use for content requests and updates",
+          "Keep communication organized"
+        ]
       }
     ]
   },
@@ -109,67 +185,55 @@ const guideData = [
     icon: UserPlus,
     items: [
       {
-        title: "Recruiting Pipeline",
-        icon: UserPlus,
-        description: "Track potential creators through your recruiting funnel. Add leads, update their status (Lead → Contacted → Negotiating → Signed), and convert them to active creators."
+        title: "Track Recruiting Pipeline",
+        steps: [
+          "Go to Recruiting page",
+          "Add new leads with 'Add Lead' button",
+          "Move through stages: Lead → Contacted → Negotiating → Signed",
+          "Convert signed leads to active creators"
+        ]
       },
       {
-        title: "OF Discovery",
-        icon: Search,
-        description: "Search and discover new creators on OnlyFans. Filter by criteria and add promising creators to your recruiting pipeline."
+        title: "Use OF Discovery",
+        steps: [
+          "Navigate to OF Discovery",
+          "Search for creators by username or criteria",
+          "Add promising creators to your pipeline",
+          "Track outreach progress"
+        ]
       },
       {
-        title: "Web Scraper",
-        icon: Globe,
-        description: "Scrape public data from social media profiles and websites. Useful for researching potential creators and gathering contact info."
-      },
-      {
-        title: "Applications",
-        icon: ClipboardList,
-        description: "Review incoming applications from creators and employees. Share your application links publicly and process submissions here."
+        title: "Review Applications",
+        steps: [
+          "Check Applications page for new submissions",
+          "Review creator and employee applications",
+          "Approve or reject with notes",
+          "Share your application link for inbound leads"
+        ]
       }
     ]
   },
   {
-    category: "Resources & Tools",
-    icon: BookOpen,
+    category: "Data & Analytics",
+    icon: TrendingUp,
     items: [
       {
-        title: "SOP Library",
-        icon: BookOpen,
-        description: "Store and organize your Standard Operating Procedures. Create training docs, guides, and reference materials for your team."
+        title: "Import Earnings Data",
+        steps: [
+          "Go to Data Import",
+          "Upload screenshots or files of earnings",
+          "System extracts revenue figures automatically",
+          "Review and approve imported data"
+        ]
       },
       {
-        title: "Data Import",
-        icon: Upload,
-        description: "Import earnings data from screenshots or files. The system extracts revenue figures and attributes them to creators automatically."
-      },
-      {
-        title: "Browser Sync",
-        icon: Plug,
-        description: "Connect OnlyFans accounts securely. This enables fan data sync, messaging, and real-time stats. Use the Chrome extension or manual session import."
-      }
-    ]
-  },
-  {
-    category: "Tips & Best Practices",
-    icon: Lightbulb,
-    items: [
-      {
-        title: "Maximize Team Efficiency",
-        description: "• Assign chatters to specific creators based on timezone coverage\n• Use the shift roster to ensure no gaps in DM response time\n• Track performance metrics to reward top chatters"
-      },
-      {
-        title: "Content Planning",
-        description: "• Create content plans in advance for each creator\n• Use the calendar to schedule posts and content drops\n• Reference media helps creators understand what's needed"
-      },
-      {
-        title: "Revenue Tracking",
-        description: "• Import earnings screenshots regularly for accurate data\n• Use marketing tracking links to measure campaign ROI\n• Review the dashboard daily to spot trends"
-      },
-      {
-        title: "Security",
-        description: "• Browser Sync sessions expire regularly for security\n• Use role-based permissions to limit access\n• Employee OF permissions control what each chatter can see"
+        title: "Track Marketing ROI",
+        steps: [
+          "Create tracking links per traffic source",
+          "Monitor clicks and conversions over time",
+          "Compare revenue by source and campaign",
+          "Double down on top-performing channels"
+        ]
       }
     ]
   }
@@ -181,9 +245,9 @@ export default function UserGuide() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">User Guide</h1>
+          <h1 className="text-3xl font-bold text-foreground">How to Use Creator OS</h1>
           <p className="text-muted-foreground mt-1">
-            Learn how to use Creator OS to manage your agency effectively
+            Step-by-step guides to help you manage your agency effectively
           </p>
         </div>
 
@@ -192,20 +256,43 @@ export default function UserGuide() {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Rocket className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Quick Start</CardTitle>
+              <CardTitle className="text-lg">Quick Start Checklist</CardTitle>
             </div>
             <CardDescription>
-              New to Creator OS? Here's how to get up and running in 5 minutes.
+              Complete these steps to get your agency running
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-              <li><strong className="text-foreground">Add Creators:</strong> Go to Creators → Add Creator to set up your talent roster</li>
-              <li><strong className="text-foreground">Build Your Team:</strong> Navigate to Team → Add employees with appropriate roles</li>
-              <li><strong className="text-foreground">Connect OnlyFans:</strong> Use Browser Sync to link creator accounts</li>
-              <li><strong className="text-foreground">Set Up Shifts:</strong> Schedule chatters in Shift Roster for coverage</li>
-              <li><strong className="text-foreground">Track Everything:</strong> Use Dashboard to monitor performance daily</li>
-            </ol>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">1</div>
+                <div>
+                  <p className="font-medium text-foreground">Add Creators</p>
+                  <p className="text-sm text-muted-foreground">Creators → Add Creator</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">2</div>
+                <div>
+                  <p className="font-medium text-foreground">Build Your Team</p>
+                  <p className="text-sm text-muted-foreground">Team → Add Employee</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">3</div>
+                <div>
+                  <p className="font-medium text-foreground">Connect OnlyFans</p>
+                  <p className="text-sm text-muted-foreground">Browser Sync → Connect Account</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">4</div>
+                <div>
+                  <p className="font-medium text-foreground">Set Up Shifts</p>
+                  <p className="text-sm text-muted-foreground">Shift Roster → Assign Chatters</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -223,16 +310,23 @@ export default function UserGuide() {
                 <Accordion type="multiple" className="w-full">
                   {section.items.map((item, index) => (
                     <AccordionItem key={index} value={`${section.category}-${index}`}>
-                      <AccordionTrigger className="text-left">
+                      <AccordionTrigger className="text-left hover:no-underline">
                         <div className="flex items-center gap-2">
-                          {item.icon && <item.icon className="h-4 w-4 text-muted-foreground" />}
-                          <span>{item.title}</span>
+                          <MousePointer className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{item.title}</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
-                        <p className="text-muted-foreground whitespace-pre-line pl-6">
-                          {item.description}
-                        </p>
+                        <ol className="space-y-2 pl-6">
+                          {item.steps.map((step, stepIndex) => (
+                            <li key={stepIndex} className="flex items-start gap-3">
+                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-semibold flex items-center justify-center">
+                                {stepIndex + 1}
+                              </span>
+                              <span className="text-muted-foreground pt-0.5">{step}</span>
+                            </li>
+                          ))}
+                        </ol>
                       </AccordionContent>
                     </AccordionItem>
                   ))}
@@ -242,11 +336,49 @@ export default function UserGuide() {
           ))}
         </div>
 
+        {/* FAQ Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Frequently Asked Questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="multiple" className="w-full">
+              <AccordionItem value="faq-1">
+                <AccordionTrigger>How does OnlyFans data sync work?</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  Browser Sync captures a secure session from the creator's OnlyFans account. This session is used to fetch earnings, messages, and subscriber data. Sessions expire periodically for security and need to be refreshed.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="faq-2">
+                <AccordionTrigger>What permissions do employees have?</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  Employee permissions are set per creator. Go to a creator's profile → Team Access to configure what each employee can see (chats, earnings, vault, etc.). Chatters typically get messaging access, while managers get broader visibility.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="faq-3">
+                <AccordionTrigger>How do tracking links attribute revenue?</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  When a fan subscribes through a tracking link, the system detects the campaign code and attributes subsequent purchases to that link. Check each creator's Marketing tab to see performance by source.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="faq-4">
+                <AccordionTrigger>Can I customize commission rates per creator?</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  Yes! Each creator can have a custom commission rate. Edit the creator's profile → Overview tab to set their specific rate. This overrides the default agency rate for that creator.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
+
         {/* Help Footer */}
         <Card className="bg-muted/30">
           <CardContent className="py-4">
             <p className="text-sm text-muted-foreground text-center">
-              Need more help? Contact your agency administrator or reach out to support.
+              Need more help? Check the in-app guides on each page (look for the 💡 icon) or contact support.
             </p>
           </CardContent>
         </Card>

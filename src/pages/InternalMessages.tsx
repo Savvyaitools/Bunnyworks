@@ -194,7 +194,7 @@ export default function InternalMessages() {
                 value={messageInput}
                 onChange={setMessageInput}
                 onSend={handleSend}
-                helperText="⚠️ Internal messages only. Chatters cannot communicate with creators."
+                helperText="💬 Internal team messaging — for staff coordination only. Use Creator Messages for creators."
               />
             </>
           ) : (

@@ -62,7 +62,6 @@ const onlyfansNavItems = [
   { title: "Subscriber DMs", url: "/subscriber-dms", icon: MessageCircle },
   { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
   { title: "Team Chat", url: "/team-chat", icon: MessageSquare },
-  { title: "Marketing", url: "/marketing", icon: TrendingUp },
 ];
 
 // RECRUITING section

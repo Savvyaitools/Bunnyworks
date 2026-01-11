@@ -1,214 +1,412 @@
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Link, Users, RefreshCw, X } from "lucide-react";
+import { useState } from "react";
+import { Plus, Link2, MousePointerClick, DollarSign, Target, Copy, ExternalLink, Trash2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTrackingLinks, CreateTrackingLinkInput } from "@/hooks/useTrackingLinks";
+import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-
-interface MarketingAccount {
-  id: string;
-  platform: string;
-  username: string;
-  followers_count: number | null;
-  is_connected: boolean | null;
-  last_synced_at: string | null;
-  creator_id: string;
-}
+import { FeatureGuide } from "@/components/shared/FeatureGuide";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface CreatorMarketingProps {
   creatorId: string;
 }
 
-const platformColors: Record<string, string> = {
-  instagram: "bg-pink-500/20 text-pink-400",
-  tiktok: "bg-cyan-500/20 text-cyan-400",
-  twitter: "bg-blue-500/20 text-blue-400",
-  youtube: "bg-red-500/20 text-red-400",
-  fansly: "bg-blue-400/20 text-blue-300",
-};
-
 export function CreatorMarketing({ creatorId }: CreatorMarketingProps) {
-  const [accounts, setAccounts] = useState<MarketingAccount[]>([]);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    platform: "",
-    username: "",
-    followers_count: "",
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { trackingLinks, loading, stats, createTrackingLink, deleteTrackingLink } =
+    useTrackingLinks(creatorId);
+
+  const [newLink, setNewLink] = useState({
+    name: "",
+    code: "",
+    url: "",
+    campaign: "",
+    source: "",
+    of_account_id: null as string | null,
+    is_active: true,
   });
 
-  const fetchAccounts = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("marketing_accounts")
-      .select("*")
-      .eq("creator_id", creatorId)
-      .order("created_at", { ascending: false });
+  const handleCreateLink = async () => {
+    if (!newLink.name || !newLink.code) {
+      toast.error("Please fill in required fields");
+      return;
+    }
 
-    if (data) setAccounts(data as MarketingAccount[]);
-  }, [creatorId]);
-
-  useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
-
-  const addAccount = async () => {
-    if (!formData.platform.trim() || !formData.username.trim()) return;
-
-    const { error } = await supabase
-      .from("marketing_accounts")
-      .insert({
-        platform: formData.platform.toLowerCase(),
-        username: formData.username,
-        followers_count: formData.followers_count ? parseInt(formData.followers_count) : null,
+    setIsSubmitting(true);
+    try {
+      await createTrackingLink({
+        ...newLink,
         creator_id: creatorId,
-        is_connected: true,
-        last_synced_at: new Date().toISOString(),
+      } as CreateTrackingLinkInput);
+      setDialogOpen(false);
+      setNewLink({
+        name: "",
+        code: "",
+        url: "",
+        campaign: "",
+        source: "",
+        of_account_id: null,
+        is_active: true,
       });
-
-    if (error) {
-      toast.error("Failed to add account");
-    } else {
-      toast.success("Account added");
-      setFormData({ platform: "", username: "", followers_count: "" });
-      setIsAddOpen(false);
-      fetchAccounts();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const deleteAccount = async (id: string) => {
-    const { error } = await supabase
-      .from("marketing_accounts")
-      .delete()
-      .eq("id", id);
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
 
-    if (error) {
-      toast.error("Failed to delete account");
+  // Chart data - revenue by source for this creator
+  const revenueBySource = trackingLinks.reduce((acc, link) => {
+    const source = link.source || "Direct";
+    const existing = acc.find((a) => a.source === source);
+    if (existing) {
+      existing.revenue += Number(link.revenue);
+      existing.clicks += link.clicks;
     } else {
-      toast.success("Account removed");
-      fetchAccounts();
+      acc.push({ source, revenue: Number(link.revenue), clicks: link.clicks });
     }
-  };
+    return acc;
+  }, [] as { source: string; revenue: number; clicks: number }[]);
 
-  const formatFollowers = (count: number | null) => {
-    if (!count) return "N/A";
-    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
-    return count.toString();
-  };
+  const guideSteps = [
+    {
+      icon: <Plus className="h-4 w-4" />,
+      title: "Create a Tracking Link",
+      description: "Click 'Create Link' and add a unique code for each traffic source",
+    },
+    {
+      icon: <Link2 className="h-4 w-4" />,
+      title: "Select Traffic Source",
+      description: "Choose where fans will come from (Instagram, TikTok, Reddit, etc.)",
+    },
+    {
+      icon: <Copy className="h-4 w-4" />,
+      title: "Share the Link",
+      description: "Copy the tracking link and use it in your bio, posts, or marketing",
+    },
+    {
+      icon: <TrendingUp className="h-4 w-4" />,
+      title: "Track Performance",
+      description: "Monitor clicks, conversions, and revenue attributed to each link",
+    },
+  ];
 
   return (
-    <div className="space-y-4 relative">
-      {/* Coming Soon Overlay */}
-      <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <Link className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-xl font-semibold text-foreground mb-2">Coming Soon</h3>
-        <p className="text-muted-foreground text-center max-w-xs">
-          Marketing account integrations are under development.
-        </p>
-      </div>
+    <div className="space-y-6">
+      {/* Feature Guide */}
+      <FeatureGuide
+        title="How to Use Tracking Links"
+        description="Create unique tracking links to measure which traffic sources bring the most fans and revenue."
+        steps={guideSteps}
+        tips={[
+          "Use different codes for each platform (e.g., 'ig-bio', 'tt-link', 'reddit-post')",
+          "Revenue is automatically attributed when fans subscribe through your link",
+          "Check this page weekly to see which marketing efforts are paying off",
+        ]}
+        storageKey="creator-marketing"
+      />
 
-      <div className="flex justify-end">
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">Tracking Links</h3>
+          <p className="text-sm text-muted-foreground">
+            {stats.total} links • {stats.totalClicks.toLocaleString()} clicks • {formatCurrency(stats.totalRevenue)} revenue
+          </p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="bg-gradient-primary" disabled>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Account
+            <Button size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Link
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Marketing Account</DialogTitle>
+              <DialogTitle>Create Tracking Link</DialogTitle>
+              <DialogDescription>
+                Create a new tracking link to measure campaign performance
+              </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <Input
-                placeholder="Platform (e.g., Instagram, TikTok)"
-                value={formData.platform}
-                onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-              />
-              <Input
-                placeholder="Username"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              />
-              <Input
-                type="number"
-                placeholder="Followers count"
-                value={formData.followers_count}
-                onChange={(e) => setFormData({ ...formData, followers_count: e.target.value })}
-              />
-              <Button onClick={addAccount} className="w-full">Add Account</Button>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g., Instagram Bio Link"
+                  value={newLink.name}
+                  onChange={(e) => setNewLink({ ...newLink, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code">Tracking Code *</Label>
+                  <Input
+                    id="code"
+                    placeholder="e.g., ig-bio-jan"
+                    value={newLink.code}
+                    onChange={(e) => setNewLink({ ...newLink, code: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="source">Source</Label>
+                  <Select
+                    value={newLink.source}
+                    onValueChange={(v) => setNewLink({ ...newLink, source: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="instagram">Instagram</SelectItem>
+                      <SelectItem value="twitter">Twitter/X</SelectItem>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="reddit">Reddit</SelectItem>
+                      <SelectItem value="direct">Direct</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="campaign">Campaign</Label>
+                <Input
+                  id="campaign"
+                  placeholder="e.g., January Promo"
+                  value={newLink.campaign}
+                  onChange={(e) => setNewLink({ ...newLink, campaign: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="url">Full URL (optional)</Label>
+                <Input
+                  id="url"
+                  placeholder="https://onlyfans.com/..."
+                  value={newLink.url}
+                  onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
+                />
+              </div>
+              <Button onClick={handleCreateLink} className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Link"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {accounts.map((account) => (
-          <div
-            key={account.id}
-            className="p-4 rounded-lg border border-border bg-card"
-          >
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center",
-                  platformColors[account.platform] || "bg-muted"
-                )}>
-                  <Link className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-foreground capitalize">{account.platform}</h4>
-                    <Badge
-                      variant="outline"
-                      className={account.is_connected ? "border-success text-success" : "border-destructive text-destructive"}
-                    >
-                      {account.is_connected ? "Connected" : "Disconnected"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">@{account.username}</p>
-                </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Links</p>
+                <p className="text-xl font-bold">{stats.total}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => deleteAccount(account.id)}
-              >
-                <X className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-            <div className="mt-4 flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{formatFollowers(account.followers_count)} followers</span>
+              <div className="p-2 rounded-lg bg-primary/20">
+                <Link2 className="h-4 w-4 text-primary" />
               </div>
-              {account.last_synced_at && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <RefreshCw className="h-3 w-3" />
-                  {new Date(account.last_synced_at).toLocaleDateString()}
-                </div>
-              )}
             </div>
-          </div>
-        ))}
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Clicks</p>
+                <p className="text-xl font-bold">{stats.totalClicks.toLocaleString()}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-accent/20">
+                <MousePointerClick className="h-4 w-4 text-accent" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Conversions</p>
+                <p className="text-xl font-bold">{stats.totalConversions}</p>
+                <p className="text-xs text-muted-foreground">{stats.conversionRate.toFixed(1)}%</p>
+              </div>
+              <div className="p-2 rounded-lg bg-success/20">
+                <Target className="h-4 w-4 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Revenue</p>
+                <p className="text-xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-warning/20">
+                <DollarSign className="h-4 w-4 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {accounts.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Link className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No marketing accounts connected yet.</p>
+      {/* Revenue by Source Chart */}
+      {revenueBySource.length > 0 && (
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Revenue by Source
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={revenueBySource}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="source" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                  }}
+                  formatter={(value: number) => formatCurrency(value)}
+                />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tracking Links Table */}
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
         </div>
+      ) : trackingLinks.length === 0 ? (
+        <div className="text-center py-12 border border-dashed border-border rounded-xl">
+          <Link2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+          <h3 className="text-lg font-semibold">No tracking links yet</h3>
+          <p className="text-muted-foreground text-sm mt-1">
+            Create your first tracking link to start measuring campaign performance
+          </p>
+        </div>
+      ) : (
+        <Card className="border-border/50">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead className="text-right">Clicks</TableHead>
+                <TableHead className="text-right">Conv.</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {trackingLinks.map((link) => (
+                <TableRow key={link.id}>
+                  <TableCell className="font-medium">{link.name}</TableCell>
+                  <TableCell>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">{link.code}</code>
+                  </TableCell>
+                  <TableCell className="capitalize">{link.source || "-"}</TableCell>
+                  <TableCell className="text-right">{link.clicks.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{link.conversions}</TableCell>
+                  <TableCell className="text-right font-medium text-success">
+                    {formatCurrency(Number(link.revenue))}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={link.is_active ? "default" : "secondary"}>
+                      {link.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {link.url && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => copyToClipboard(link.url)}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(link.url, "_blank")}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => deleteTrackingLink(link.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   );
