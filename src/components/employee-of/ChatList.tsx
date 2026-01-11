@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useOnlyFansCache } from "@/hooks/useOnlyFansCache";
 import { useOnlyFansConnectionHealth, useRetrySync } from "@/hooks/useOnlyFansConnectionHealth";
-import { Search, AlertCircle, WifiOff, RefreshCw } from "lucide-react";
+import { Search, AlertCircle, WifiOff, RefreshCw, MessageCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -144,9 +144,19 @@ export function ChatList({ accountId, selectedChatId, onSelectChat, onReconnect 
                   </Button>
                 </AlertDescription>
               </Alert>
+            ) : searchQuery ? (
+              <div className="text-center text-muted-foreground py-8">
+                <p>No messages matching "{searchQuery}"</p>
+              </div>
             ) : (
-              <div className="text-center text-muted-foreground">
-                {searchQuery ? "No messages found" : "No messages yet"}
+              <div className="text-center py-8 space-y-3">
+                <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                <div>
+                  <p className="font-medium text-foreground">No subscriber messages synced</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Click the "Sync Now" button above to fetch messages from OnlyFans
+                  </p>
+                </div>
               </div>
             )}
           </div>
