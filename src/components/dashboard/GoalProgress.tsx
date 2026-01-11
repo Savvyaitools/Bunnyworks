@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Target, Plus, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -102,10 +103,20 @@ export function GoalProgress() {
   }
 
   return (
-    <div className="glass-card p-6">
+    <motion.div 
+      className="glass-card p-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3, type: "spring" as const, stiffness: 100, damping: 15 }}
+    >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <Target className="h-5 w-5 text-primary" />
+          <motion.div
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Target className="h-5 w-5 text-primary" />
+          </motion.div>
           Goals
         </h3>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -137,45 +148,67 @@ export function GoalProgress() {
       </div>
 
       <div className="space-y-4">
-        {goals.map((goal) => {
-          const percentage = Math.min((goal.current_value / goal.target_value) * 100, 100);
-          return (
-            <div key={goal.id} className="group">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-foreground">{goal.title}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {goal.current_value}/{goal.target_value}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => deleteGoal(goal.id)}
-                  >
-                    <Trash2 className="h-3 w-3 text-destructive" />
-                  </Button>
+        <AnimatePresence mode="popLayout">
+          {goals.map((goal, index) => {
+            const percentage = Math.min((goal.current_value / goal.target_value) * 100, 100);
+            return (
+              <motion.div 
+                key={goal.id} 
+                className="group"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                transition={{ delay: index * 0.1 }}
+                layout
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-foreground">{goal.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {goal.current_value}/{goal.target_value}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => deleteGoal(goal.id)}
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Progress value={percentage} className="flex-1 h-2" />
-                <Input
-                  type="number"
-                  className="w-16 h-7 text-xs"
-                  value={goal.current_value}
-                  onChange={(e) => updateGoalProgress(goal.id, parseInt(e.target.value) || 0)}
-                />
-              </div>
-            </div>
-          );
-        })}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <Progress value={percentage} className="h-2" />
+                    <motion.div
+                      className="absolute top-0 left-0 h-full bg-primary/50 rounded-full blur-sm"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percentage}%` }}
+                      transition={{ duration: 1, delay: 0.5 + index * 0.1 }}
+                    />
+                  </div>
+                  <Input
+                    type="number"
+                    className="w-16 h-7 text-xs"
+                    value={goal.current_value}
+                    onChange={(e) => updateGoalProgress(goal.id, parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
 
         {goals.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">
+          <motion.p 
+            className="text-sm text-muted-foreground text-center py-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
             No goals set. Create one to track progress.
-          </p>
+          </motion.p>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

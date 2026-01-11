@@ -1,4 +1,5 @@
 import { Trophy, MessageSquare, DollarSign, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
@@ -82,10 +83,20 @@ export function ChatterLeaderboard() {
   };
 
   return (
-    <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "200ms" }}>
+    <motion.div 
+      className="glass-card p-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2, type: "spring" as const, stiffness: 100, damping: 15 }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-yellow-400" />
+          <motion.div
+            animate={{ rotate: [0, -10, 10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+          >
+            <Trophy className="h-5 w-5 text-yellow-400" />
+          </motion.div>
           <h3 className="text-lg font-semibold text-foreground">Chatter Leaderboard</h3>
         </div>
         <span className="text-xs text-muted-foreground">Today</span>
@@ -106,52 +117,80 @@ export function ChatterLeaderboard() {
           ))}
         </div>
       ) : !chatters || chatters.length === 0 ? (
-        <div className="text-center py-8">
+        <motion.div 
+          className="text-center py-8"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
           <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
           <p className="text-muted-foreground">No chatters active today</p>
           <p className="text-sm text-muted-foreground/70">
             Chatter stats will appear here
           </p>
-        </div>
+        </motion.div>
       ) : (
         <div className="space-y-2">
-          {chatters.map((chatter, index) => (
-            <div
-              key={chatter.id}
-              className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors animate-fade-in"
-              style={{ animationDelay: `${300 + index * 50}ms` }}
-            >
-              <div className="w-6 flex justify-center">
-                {getRankIcon(index)}
-              </div>
-              
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-white/10">
-                <span className="text-sm font-medium text-foreground">
-                  {chatter.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
+          <AnimatePresence>
+            {chatters.map((chatter, index) => (
+              <motion.div
+                key={chatter.id}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ delay: 0.3 + index * 0.1 }}
+                whileHover={{ scale: 1.02, x: 5 }}
+              >
+                <motion.div 
+                  className="w-6 flex justify-center"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.4 + index * 0.1, type: "spring" as const }}
+                >
+                  {getRankIcon(index)}
+                </motion.div>
+                
+                <motion.div 
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-white/10"
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                >
+                  <span className="text-sm font-medium text-foreground">
+                    {chatter.name.charAt(0).toUpperCase()}
+                  </span>
+                </motion.div>
 
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{chatter.name}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <MessageSquare className="h-3 w-3" />
-                  <span>{chatter.messagesSent} msgs</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{chatter.name}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <MessageSquare className="h-3 w-3" />
+                    <span>{chatter.messagesSent} msgs</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="text-right">
-                <p className="text-sm font-semibold text-success flex items-center gap-1">
-                  <DollarSign className="h-3 w-3" />
-                  {formatCurrency(chatter.revenue)}
-                </p>
-              </div>
-            </div>
-          ))}
+                <motion.div 
+                  className="text-right"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
+                >
+                  <p className="text-sm font-semibold text-success flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    {formatCurrency(chatter.revenue)}
+                  </p>
+                </motion.div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 
       {chatters && chatters.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-border">
+        <motion.div 
+          className="mt-4 pt-4 border-t border-border"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+        >
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Total Team Revenue</span>
             <span className="font-semibold text-success flex items-center gap-1">
@@ -159,8 +198,8 @@ export function ChatterLeaderboard() {
               {formatCurrency(chatters.reduce((sum, c) => sum + c.revenue, 0))}
             </span>
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
