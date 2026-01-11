@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAllMyOFPermissions } from "@/hooks/useEmployeeOFPermissions";
-import { useOnlyFansCache } from "@/hooks/useOnlyFansCache";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, Users, DollarSign, AlertCircle, User, RefreshCw } from "lucide-react";
 import { AccountSelector } from "@/components/employee-of/AccountSelector";
 import { ChatList } from "@/components/employee-of/ChatList";
@@ -35,7 +35,7 @@ interface SocialAccountWithOF {
 
 export default function EmployeeOnlyFans() {
   const { data: permissions, isLoading: permissionsLoading } = useAllMyOFPermissions();
-  const { forceRefresh } = useOnlyFansCache();
+  const queryClient = useQueryClient();
   const [selectedAccount, setSelectedAccount] = useState<SocialAccountWithOF | null>(null);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccountWithOF[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
@@ -45,14 +45,23 @@ export default function EmployeeOnlyFans() {
   const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
 
   const handleSyncNow = async () => {
-    if (!selectedAccount?.of_account_id) return;
-    
+    const ofAccountId = selectedAccount?.of_account_id;
+    if (!ofAccountId) return;
+
     setIsSyncing(true);
     toast.info("Syncing messages and subscribers...");
-    
+
     try {
-      await forceRefresh(selectedAccount.of_account_id);
-      toast.success("Sync complete!");
+      const { error } = await supabase.functions.invoke("sync-onlyfans-data");
+      if (error) throw error;
+
+      // Give the backend a moment to write rows, then refresh queries
+      await new Promise((r) => setTimeout(r, 1200));
+      queryClient.invalidateQueries({ queryKey: ["of-connection-health", ofAccountId] });
+      queryClient.invalidateQueries({ queryKey: ["of-chats", ofAccountId] });
+      queryClient.invalidateQueries({ queryKey: ["of-fans", ofAccountId] });
+
+      toast.success("Sync started — chats should appear shortly.");
     } catch (err) {
       console.error("Sync failed:", err);
       toast.error("Sync failed. Please try again.");
