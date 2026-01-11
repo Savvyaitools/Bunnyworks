@@ -116,9 +116,9 @@ async function syncFans(
   
   console.log(`[${accountId}] Syncing fans...`);
   
-  // OnlyFans API has a max limit of 50 per request
-  const activeFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/active?limit=50`);
-  const expiredFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/expired?limit=50`);
+  // OnlyFans API has a max limit of 20 for fans endpoints
+  const activeFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/active?limit=20`);
+  const expiredFans = await callOnlyFansAPI(apiKey, `/${accountId}/fans/expired?limit=20`);
   
   // Upsert fans to of_fans table
   // deno-lint-ignore no-explicit-any
@@ -175,7 +175,7 @@ async function syncChats(
   }
   
   console.log(`[${accountId}] Syncing chats...`);
-  const chats = await callOnlyFansAPI(apiKey, `/${accountId}/chats?limit=50`);
+  const chats = await callOnlyFansAPI(apiKey, `/${accountId}/chats?limit=20`);
   
   // Upsert chats to of_chats table
   // deno-lint-ignore no-explicit-any
@@ -223,13 +223,24 @@ async function syncAccountData(
     chats: false,
   };
   
+  // Sync each type independently - don't let one failure stop the others
   try {
     result.earnings = await syncEarnings(supabase, apiKey, accountId, agencyId);
+  } catch (err) {
+    console.error(`[${accountId}] Earnings sync error:`, err);
+  }
+  
+  try {
     result.fans = await syncFans(supabase, apiKey, accountId, agencyId);
+  } catch (err) {
+    console.error(`[${accountId}] Fans sync error:`, err);
+  }
+  
+  try {
     result.chats = await syncChats(supabase, apiKey, accountId, agencyId);
   } catch (err) {
+    console.error(`[${accountId}] Chats sync error:`, err);
     result.error = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[${accountId}] Sync error:`, err);
   }
   
   return result;

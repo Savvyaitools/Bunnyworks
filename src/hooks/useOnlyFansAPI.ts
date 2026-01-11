@@ -176,7 +176,7 @@ export function useOnlyFansAPI() {
     return callAPI<EarningStatistics>("get-earnings", { accountId });
   };
 
-  const listTransactions = async (accountId: string, limit = 50, offset = 0) => {
+  const listTransactions = async (accountId: string, limit = 20, offset = 0) => {
     return callAPI<{ data: Transaction[]; total: number }>("list-transactions", {
       accountId,
       limit,
@@ -184,7 +184,7 @@ export function useOnlyFansAPI() {
     });
   };
 
-  const listFans = async (accountId: string, limit = 50, offset = 0) => {
+  const listFans = async (accountId: string, limit = 20, offset = 0) => {
     return callAPI<{ data: Fan[]; total: number }>("list-fans", {
       accountId,
       limit,
@@ -193,7 +193,7 @@ export function useOnlyFansAPI() {
   };
 
   // ========== CHAT METHODS ==========
-  const listChats = async (accountId: string, limit = 50, offset = 0) => {
+  const listChats = async (accountId: string, limit = 20, offset = 0) => {
     return callAPI<{ data: Chat[]; total: number }>("list-chats", {
       accountId,
       limit,
@@ -201,7 +201,7 @@ export function useOnlyFansAPI() {
     });
   };
 
-  const getChatMessages = async (accountId: string, chatId: string, limit = 50, offset = 0) => {
+  const getChatMessages = async (accountId: string, chatId: string, limit = 20, offset = 0) => {
     return callAPI<{ data: Message[]; total: number }>("get-chat-messages", {
       accountId,
       chatId,
@@ -245,7 +245,7 @@ export function useOnlyFansAPI() {
   };
 
   // ========== FAN METHODS ==========
-  const listActiveFans = async (accountId: string, limit = 50, offset = 0, search?: string) => {
+  const listActiveFans = async (accountId: string, limit = 20, offset = 0, search?: string) => {
     return callAPI<{ data: Fan[]; total: number }>("list-active-fans", {
       accountId,
       limit,
@@ -254,7 +254,7 @@ export function useOnlyFansAPI() {
     });
   };
 
-  const listExpiredFans = async (accountId: string, limit = 50, offset = 0) => {
+  const listExpiredFans = async (accountId: string, limit = 20, offset = 0) => {
     return callAPI<{ data: Fan[]; total: number }>("list-expired-fans", {
       accountId,
       limit,
@@ -270,7 +270,7 @@ export function useOnlyFansAPI() {
   };
 
   // ========== POST/CONTENT METHODS ==========
-  const listPosts = async (accountId: string, limit = 50, offset = 0) => {
+  const listPosts = async (accountId: string, limit = 20, offset = 0) => {
     return callAPI<{ data: Post[]; total: number }>("list-posts", {
       accountId,
       limit,
@@ -292,7 +292,7 @@ export function useOnlyFansAPI() {
     return result;
   };
 
-  const listVaultMedia = async (accountId: string, limit = 50, offset = 0, type?: "photo" | "video") => {
+  const listVaultMedia = async (accountId: string, limit = 20, offset = 0, type?: "photo" | "video") => {
     return callAPI<{ data: VaultMedia[]; total: number }>("list-vault-media", {
       accountId,
       limit,
@@ -306,7 +306,7 @@ export function useOnlyFansAPI() {
   };
 
   // ========== NOTIFICATIONS ==========
-  const getNotifications = async (accountId: string, limit = 50) => {
+  const getNotifications = async (accountId: string, limit = 20) => {
     return callAPI<{ data: unknown[] }>("get-notifications", {
       accountId,
       limit,
@@ -327,7 +327,7 @@ export function useOnlyFansAPI() {
   ) => {
     return callAPI<{ data: DiscoveredCreator[]; total: number }>("search-creators", {
       query,
-      limit: options?.limit || 50,
+      limit: options?.limit || 20,
       offset: options?.offset || 0,
       ...(options?.minPrice !== undefined && { minPrice: options.minPrice }),
       ...(options?.maxPrice !== undefined && { maxPrice: options.maxPrice }),

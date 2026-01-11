@@ -148,7 +148,7 @@ export function useOnlyFansCache() {
           query = query.eq("is_active", true);
         }
         
-        const { data, error } = await query.limit(50); // OnlyFans API max limit
+        const { data, error } = await query.limit(20); // OnlyFans API max limit for fans
         
         if (error) {
           console.error("Error fetching cached fans:", error);
@@ -158,10 +158,10 @@ export function useOnlyFansCache() {
         // If no cached data, trigger a sync via API and persist to DB
         if (!data || data.length === 0) {
           console.log(`[Cache MISS] No fans cached for ${accountId}, triggering API call`);
-          // OnlyFans API has a max limit of 50
+          // OnlyFans API has a max limit of 20 for fans
           const apiResult = activeOnly 
-            ? await api.listActiveFans(accountId, 50, 0)
-            : await api.listFans(accountId, 50, 0);
+            ? await api.listActiveFans(accountId, 20, 0)
+            : await api.listFans(accountId, 20, 0);
           
           if (apiResult?.data && apiResult.data.length > 0) {
             // Get agency_id for persistence
@@ -236,7 +236,7 @@ export function useOnlyFansCache() {
           .select("*")
           .eq("of_account_id", accountId)
           .order("last_message_at", { ascending: false, nullsFirst: false })
-          .limit(50); // OnlyFans API max limit
+          .limit(20); // OnlyFans API max limit
         
         if (error) {
           console.error("Error fetching cached chats:", error);
@@ -246,7 +246,7 @@ export function useOnlyFansCache() {
         // If no cached data, trigger API call and PERSIST results
         if (!data || data.length === 0) {
           console.log(`[Cache MISS] No chats cached for ${accountId}, triggering API call`);
-          const apiResult = await api.listChats(accountId, 50, 0); // OnlyFans API max limit
+          const apiResult = await api.listChats(accountId, 20, 0); // OnlyFans API max limit
           
           if (apiResult?.data && apiResult.data.length > 0) {
             // Get agency_id for persistence
@@ -312,7 +312,7 @@ export function useOnlyFansCache() {
           // Trigger background refresh without blocking
           (async () => {
           try {
-            const apiResult = await api.listChats(accountId, 50, 0); // OnlyFans API max limit
+            const apiResult = await api.listChats(accountId, 20, 0); // OnlyFans API max limit
               if (apiResult?.data && apiResult.data.length > 0) {
                 const agencyId = await getAgencyIdForAccount(accountId);
                 if (agencyId) {
@@ -384,9 +384,9 @@ export function useOnlyFansCache() {
       return;
     }
     
-    // Fetch and persist chats (OnlyFans API max limit is 50)
+    // Fetch and persist chats (OnlyFans API max limit is 20)
     try {
-      const chatsResult = await api.listChats(accountId, 50, 0);
+      const chatsResult = await api.listChats(accountId, 20, 0);
       if (chatsResult?.data && chatsResult.data.length > 0) {
         const chatsToInsert = chatsResult.data.map(chat => ({
           of_account_id: accountId,
@@ -410,9 +410,9 @@ export function useOnlyFansCache() {
       console.error("Failed to refresh chats:", err);
     }
     
-    // Fetch and persist fans (OnlyFans API max limit is 50)
+    // Fetch and persist fans (OnlyFans API max limit is 20)
     try {
-      const fansResult = await api.listActiveFans(accountId, 50, 0);
+      const fansResult = await api.listActiveFans(accountId, 20, 0);
       if (fansResult?.data && fansResult.data.length > 0) {
         const fansToInsert = fansResult.data.map(fan => ({
           of_account_id: accountId,
