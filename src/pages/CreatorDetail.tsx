@@ -13,7 +13,6 @@ import {
   CreatorMarketing,
   CreatorCustomRequests,
   CreatorEarnings,
-  CreatorSocialAccounts,
   CreatorEmployeePermissions,
 } from "@/components/creators";
 
@@ -81,7 +80,6 @@ export default function CreatorDetail() {
             <TabsTrigger value="marketing">Marketing</TabsTrigger>
             <TabsTrigger value="requests">Custom Requests</TabsTrigger>
             <TabsTrigger value="earnings">Earnings</TabsTrigger>
-            <TabsTrigger value="social">Social Accounts</TabsTrigger>
             <TabsTrigger value="team-access">Team Access</TabsTrigger>
           </TabsList>
 
@@ -111,10 +109,6 @@ export default function CreatorDetail() {
 
           <TabsContent value="earnings" className="bg-card rounded-lg border border-border p-6">
             <CreatorEarnings creatorId={creator.id} creatorCommissionRate={creator.commission_rate} />
-          </TabsContent>
-
-          <TabsContent value="social" className="bg-card rounded-lg border border-border p-6">
-            <CreatorSocialAccounts creatorId={creator.id} />
           </TabsContent>
 
           <TabsContent value="team-access" className="bg-card rounded-lg border border-border p-6">

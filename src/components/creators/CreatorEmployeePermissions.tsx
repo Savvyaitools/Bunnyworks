@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, Shield, ShieldCheck, ShieldX, RefreshCw, MessageSquare, DollarSign, Eye } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useOFPermissionsManagement, PERMISSION_PRESETS } from "@/hooks/useEmployeeOFPermissions";
-import { useCreatorSocialAccounts } from "@/hooks/useCreatorSocialAccounts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -17,18 +16,40 @@ interface CreatorEmployeePermissionsProps {
   creatorId: string;
 }
 
+interface OFAccount {
+  id: string;
+  platform: string;
+  username: string;
+  of_account_id: string | null;
+  of_last_synced_at: string | null;
+}
+
 type PresetKey = "chatter" | "manager" | "none";
 
 export function CreatorEmployeePermissions({ creatorId }: CreatorEmployeePermissionsProps) {
   const { employees, loading: employeesLoading } = useEmployees();
   const { permissions, isLoading: permissionsLoading, applyPreset, revokePermission } = useOFPermissionsManagement(creatorId);
-  const { accounts, loading: accountsLoading } = useCreatorSocialAccounts(creatorId);
+  const [ofAccount, setOfAccount] = useState<OFAccount | null>(null);
+  const [accountsLoading, setAccountsLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
-  // Find connected OnlyFans account
-  const ofAccount = accounts.find(
-    (a) => a.platform.toLowerCase() === "onlyfans" && a.of_account_id
-  );
+  // Fetch connected OnlyFans account directly
+  useEffect(() => {
+    const fetchOFAccount = async () => {
+      const { data } = await supabase
+        .from("creator_social_accounts")
+        .select("id, platform, username, of_account_id, of_last_synced_at")
+        .eq("creator_id", creatorId)
+        .ilike("platform", "onlyfans")
+        .not("of_account_id", "is", null)
+        .limit(1)
+        .single();
+      
+      setOfAccount(data);
+      setAccountsLoading(false);
+    };
+    fetchOFAccount();
+  }, [creatorId]);
 
   // Get current permission level for an employee
   const getEmployeePermissionLevel = (employeeId: string): PresetKey => {
