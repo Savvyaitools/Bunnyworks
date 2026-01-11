@@ -41,6 +41,8 @@ import {
   ExternalLink,
   BarChart3,
   Loader2,
+  FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
 import { useTrackingLinks, CreateTrackingLinkInput } from "@/hooks/useTrackingLinks";
 import { useCreators } from "@/hooks/useCreators";
@@ -65,6 +67,58 @@ export default function MarketingAnalytics() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCreator, setSelectedCreator] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbyNArx4w_f4mD1k9DPz0qgsKJFGDXw0gIJ8nvEuPHX_Wp6axJRs-P7T9pI2Y8LBeaJo5w/exec";
+
+  const syncToGoogleSheet = async () => {
+    if (trackingLinks.length === 0) {
+      toast.error("No tracking links to sync");
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const dataToSync = trackingLinks.map(link => ({
+        name: link.name,
+        code: link.code,
+        source: link.source || "Direct",
+        campaign: link.campaign || "No Campaign",
+        clicks: link.clicks,
+        conversions: link.conversions,
+        revenue: Number(link.revenue),
+        status: link.is_active ? "Active" : "Inactive",
+        created_at: new Date(link.created_at).toLocaleDateString(),
+      }));
+
+      await fetch(GOOGLE_SHEET_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "sync",
+          data: dataToSync,
+          stats: {
+            totalLinks: stats.total,
+            totalClicks: stats.totalClicks,
+            totalConversions: stats.totalConversions,
+            totalRevenue: stats.totalRevenue,
+            conversionRate: stats.conversionRate.toFixed(2),
+            syncedAt: new Date().toISOString(),
+          },
+        }),
+      });
+
+      toast.success("Data synced to Google Sheet");
+    } catch (error) {
+      console.error("Error syncing to Google Sheet:", error);
+      toast.error("Failed to sync. Please check your Google Sheet setup.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const { trackingLinks, loading, stats, createTrackingLink, updateTrackingLink, deleteTrackingLink } =
     useTrackingLinks();
@@ -146,14 +200,28 @@ export default function MarketingAnalytics() {
               Track trial links, campaigns, and revenue attribution
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create Tracking Link
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={syncToGoogleSheet}
+              disabled={isSyncing || trackingLinks.length === 0}
+            >
+              {isSyncing ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4" />
+              )}
+              Sync to Google Sheet
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Tracking Link
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Tracking Link</DialogTitle>
                 <DialogDescription>
@@ -241,7 +309,8 @@ export default function MarketingAnalytics() {
                 </Button>
               </div>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats Cards */}
