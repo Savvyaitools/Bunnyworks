@@ -128,7 +128,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
 
   const socialLinks = [
-    { key: "onlyfans_url", label: "OnlyFans", url: creator.onlyfans_url, icon: ExternalLink, color: "text-blue-400" },
     { key: "instagram_url", label: "Instagram", url: creator.instagram_url, icon: Instagram, color: "text-pink-400" },
     { key: "twitter_url", label: "Twitter/X", url: creator.twitter_url, icon: Twitter, color: "text-sky-400" },
     { key: "tiktok_url", label: "TikTok", url: creator.tiktok_url, icon: Globe, color: "text-cyan-400" },
