@@ -151,8 +151,8 @@ export default function Auth() {
       <div className="w-full max-w-md space-y-8 animate-fade-in relative z-10">
         {/* Logo */}
         <div className="text-center">
-          <img src={logo} alt="Creator OS" className="h-20 w-auto mx-auto mb-4" />
-          <h1 className="text-3xl font-bold gradient-text">CREATOR OS</h1>
+          <img src={logo} alt="Creator OS" className="h-20 w-auto mx-auto mb-4 animate-neon-glow" />
+          <h1 className="text-3xl font-bold gradient-text tracking-wider">CREATOR OS</h1>
           <p className="text-muted-foreground mt-2">
             {mode === "signin" ? "Welcome back" : "Create your agency account"}
           </p>
@@ -228,7 +228,7 @@ export default function Auth() {
             )}
           </div>
 
-          <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90 shadow-glow-sm" disabled={loading}>
+          <Button type="submit" className="w-full bg-primary hover:bg-primary/90 glow-sm" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
