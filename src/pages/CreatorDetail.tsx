@@ -74,7 +74,7 @@ export default function CreatorDetail() {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="bg-card border border-border flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="platforms">Platform Accounts</TabsTrigger>
+            <TabsTrigger value="platforms">Accounts</TabsTrigger>
             <TabsTrigger value="plans">Content Plans</TabsTrigger>
             <TabsTrigger value="vault">Content Vault</TabsTrigger>
             <TabsTrigger value="marketing">Marketing</TabsTrigger>

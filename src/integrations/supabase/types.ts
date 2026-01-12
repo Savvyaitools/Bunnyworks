@@ -816,86 +816,170 @@ export type Database = {
         Row: {
           agency_id: string | null
           alias: string | null
+          allows_custom_requests: boolean | null
+          allows_masturbation: boolean | null
+          allows_toy_bjs: boolean | null
+          allows_video_calls: boolean | null
+          allows_writing_name: boolean | null
+          attracted_to: string | null
           auth_user_id: string | null
           avatar_seed: string | null
           avatar_url: string | null
+          body_type: string | null
+          boundaries: string | null
+          bra_size: string | null
           branding: Json | null
+          character_traits: string[] | null
           commission_rate: number | null
+          content_types: string[] | null
           created_at: string
+          creator_references: string | null
           email: string
+          eye_color: string | null
+          favorite_food: string | null
+          favorite_music: string | null
+          favorite_position: string | null
+          fetish_content: string[] | null
           followers: string | null
+          hair_color: string | null
+          height: string | null
+          hobbies: string | null
           id: string
           instagram_url: string | null
+          location: string | null
           manager_id: string | null
           name: string
+          niche: string[] | null
           notes: string | null
+          occupation: string | null
+          of_livestreams: boolean | null
           online_status: boolean | null
           onlyfans_url: string | null
           persona: string | null
           phone: string | null
           platform: string | null
           revenue: number
+          saying_sub_name: boolean | null
           snapchat_url: string | null
           status: string
           tiktok_url: string | null
+          turn_ons: string | null
           twitter_url: string | null
           updated_at: string
+          uses_toys: boolean | null
+          weight: string | null
         }
         Insert: {
           agency_id?: string | null
           alias?: string | null
+          allows_custom_requests?: boolean | null
+          allows_masturbation?: boolean | null
+          allows_toy_bjs?: boolean | null
+          allows_video_calls?: boolean | null
+          allows_writing_name?: boolean | null
+          attracted_to?: string | null
           auth_user_id?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
+          body_type?: string | null
+          boundaries?: string | null
+          bra_size?: string | null
           branding?: Json | null
+          character_traits?: string[] | null
           commission_rate?: number | null
+          content_types?: string[] | null
           created_at?: string
+          creator_references?: string | null
           email: string
+          eye_color?: string | null
+          favorite_food?: string | null
+          favorite_music?: string | null
+          favorite_position?: string | null
+          fetish_content?: string[] | null
           followers?: string | null
+          hair_color?: string | null
+          height?: string | null
+          hobbies?: string | null
           id?: string
           instagram_url?: string | null
+          location?: string | null
           manager_id?: string | null
           name: string
+          niche?: string[] | null
           notes?: string | null
+          occupation?: string | null
+          of_livestreams?: boolean | null
           online_status?: boolean | null
           onlyfans_url?: string | null
           persona?: string | null
           phone?: string | null
           platform?: string | null
           revenue?: number
+          saying_sub_name?: boolean | null
           snapchat_url?: string | null
           status?: string
           tiktok_url?: string | null
+          turn_ons?: string | null
           twitter_url?: string | null
           updated_at?: string
+          uses_toys?: boolean | null
+          weight?: string | null
         }
         Update: {
           agency_id?: string | null
           alias?: string | null
+          allows_custom_requests?: boolean | null
+          allows_masturbation?: boolean | null
+          allows_toy_bjs?: boolean | null
+          allows_video_calls?: boolean | null
+          allows_writing_name?: boolean | null
+          attracted_to?: string | null
           auth_user_id?: string | null
           avatar_seed?: string | null
           avatar_url?: string | null
+          body_type?: string | null
+          boundaries?: string | null
+          bra_size?: string | null
           branding?: Json | null
+          character_traits?: string[] | null
           commission_rate?: number | null
+          content_types?: string[] | null
           created_at?: string
+          creator_references?: string | null
           email?: string
+          eye_color?: string | null
+          favorite_food?: string | null
+          favorite_music?: string | null
+          favorite_position?: string | null
+          fetish_content?: string[] | null
           followers?: string | null
+          hair_color?: string | null
+          height?: string | null
+          hobbies?: string | null
           id?: string
           instagram_url?: string | null
+          location?: string | null
           manager_id?: string | null
           name?: string
+          niche?: string[] | null
           notes?: string | null
+          occupation?: string | null
+          of_livestreams?: boolean | null
           online_status?: boolean | null
           onlyfans_url?: string | null
           persona?: string | null
           phone?: string | null
           platform?: string | null
           revenue?: number
+          saying_sub_name?: boolean | null
           snapchat_url?: string | null
           status?: string
           tiktok_url?: string | null
+          turn_ons?: string | null
           twitter_url?: string | null
           updated_at?: string
+          uses_toys?: boolean | null
+          weight?: string | null
         }
         Relationships: [
           {
