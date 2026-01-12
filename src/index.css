@@ -355,4 +355,18 @@
       transform: translateY(-5px);
     }
   }
+
+  /* Neon glow animation for logo */
+  .animate-neon-glow {
+    animation: neonGlow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes neonGlow {
+    0% {
+      filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.4)) drop-shadow(0 0 8px hsl(var(--primary) / 0.2));
+    }
+    100% {
+      filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.6)) drop-shadow(0 0 16px hsl(var(--primary) / 0.4));
+    }
+  }
 }
