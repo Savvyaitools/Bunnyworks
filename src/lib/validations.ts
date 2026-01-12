@@ -29,6 +29,81 @@ export const creatorFormSchema = z.object({
     .max(30, "Phone must be less than 30 characters")
     .optional()
     .or(z.literal("")),
+  location: z
+    .string()
+    .trim()
+    .max(100, "Location must be less than 100 characters")
+    .optional()
+    .or(z.literal("")),
+  occupation: z
+    .string()
+    .trim()
+    .max(100, "Occupation must be less than 100 characters")
+    .optional()
+    .or(z.literal("")),
+  // Physical Attributes
+  hair_color: z
+    .string()
+    .trim()
+    .max(50, "Hair color must be less than 50 characters")
+    .optional()
+    .or(z.literal("")),
+  eye_color: z
+    .string()
+    .trim()
+    .max(50, "Eye color must be less than 50 characters")
+    .optional()
+    .or(z.literal("")),
+  body_type: z
+    .string()
+    .trim()
+    .max(50, "Body type must be less than 50 characters")
+    .optional()
+    .or(z.literal("")),
+  height: z
+    .string()
+    .trim()
+    .max(20, "Height must be less than 20 characters")
+    .optional()
+    .or(z.literal("")),
+  weight: z
+    .string()
+    .trim()
+    .max(20, "Weight must be less than 20 characters")
+    .optional()
+    .or(z.literal("")),
+  bra_size: z
+    .string()
+    .trim()
+    .max(20, "Bra size must be less than 20 characters")
+    .optional()
+    .or(z.literal("")),
+  // Favorites
+  favorite_food: z
+    .string()
+    .trim()
+    .max(200, "Favorite food must be less than 200 characters")
+    .optional()
+    .or(z.literal("")),
+  favorite_music: z
+    .string()
+    .trim()
+    .max(200, "Favorite music must be less than 200 characters")
+    .optional()
+    .or(z.literal("")),
+  // Personality & Interests
+  character_traits: z
+    .string()
+    .trim()
+    .max(500, "Character traits must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  hobbies: z
+    .string()
+    .trim()
+    .max(1000, "Hobbies must be less than 1000 characters")
+    .optional()
+    .or(z.literal("")),
   // Platform Info
   platform: z
     .string()
@@ -42,23 +117,70 @@ export const creatorFormSchema = z.object({
     .max(20, "Followers must be less than 20 characters")
     .optional()
     .or(z.literal("")),
-  // Content & Persona
+  of_livestreams: z.boolean().optional(),
+  // Content & Niche
+  niche: z
+    .string()
+    .trim()
+    .max(500, "Niche must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  creator_references: z
+    .string()
+    .trim()
+    .max(1000, "References must be less than 1000 characters")
+    .optional()
+    .or(z.literal("")),
+  content_types: z
+    .string()
+    .trim()
+    .max(500, "Content types must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  fetish_content: z
+    .string()
+    .trim()
+    .max(500, "Fetish content must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  // Preferences & Boundaries
+  favorite_position: z
+    .string()
+    .trim()
+    .max(100, "Favorite position must be less than 100 characters")
+    .optional()
+    .or(z.literal("")),
+  turn_ons: z
+    .string()
+    .trim()
+    .max(500, "Turn ons must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  attracted_to: z
+    .string()
+    .trim()
+    .max(500, "Attracted to must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  boundaries: z
+    .string()
+    .trim()
+    .max(2000, "Boundaries must be less than 2000 characters")
+    .optional()
+    .or(z.literal("")),
+  // Service Toggles
+  saying_sub_name: z.boolean().optional(),
+  allows_masturbation: z.boolean().optional(),
+  allows_writing_name: z.boolean().optional(),
+  allows_custom_requests: z.boolean().optional(),
+  uses_toys: z.boolean().optional(),
+  allows_toy_bjs: z.boolean().optional(),
+  allows_video_calls: z.boolean().optional(),
+  // Content & Persona (existing)
   persona: z
     .string()
     .trim()
     .max(500, "Persona must be less than 500 characters")
-    .optional()
-    .or(z.literal("")),
-  niche: z
-    .string()
-    .trim()
-    .max(100, "Niche must be less than 100 characters")
-    .optional()
-    .or(z.literal("")),
-  content_style: z
-    .string()
-    .trim()
-    .max(200, "Content style must be less than 200 characters")
     .optional()
     .or(z.literal("")),
   // Social Links
