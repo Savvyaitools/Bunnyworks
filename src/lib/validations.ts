@@ -5,17 +5,31 @@ import { z } from "zod";
 
 // ============= Creator Schemas =============
 export const creatorFormSchema = z.object({
+  // Basic Info
   name: z
     .string()
     .trim()
     .min(1, "Name is required")
     .max(100, "Name must be less than 100 characters"),
+  alias: z
+    .string()
+    .trim()
+    .max(50, "Alias must be less than 50 characters")
+    .optional()
+    .or(z.literal("")),
   email: z
     .string()
     .trim()
     .min(1, "Email is required")
     .email("Please enter a valid email address")
     .max(255, "Email must be less than 255 characters"),
+  phone: z
+    .string()
+    .trim()
+    .max(30, "Phone must be less than 30 characters")
+    .optional()
+    .or(z.literal("")),
+  // Platform Info
   platform: z
     .string()
     .trim()
@@ -26,6 +40,57 @@ export const creatorFormSchema = z.object({
     .string()
     .trim()
     .max(20, "Followers must be less than 20 characters")
+    .optional()
+    .or(z.literal("")),
+  // Content & Persona
+  persona: z
+    .string()
+    .trim()
+    .max(500, "Persona must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  niche: z
+    .string()
+    .trim()
+    .max(100, "Niche must be less than 100 characters")
+    .optional()
+    .or(z.literal("")),
+  content_style: z
+    .string()
+    .trim()
+    .max(200, "Content style must be less than 200 characters")
+    .optional()
+    .or(z.literal("")),
+  // Social Links
+  onlyfans_url: z
+    .string()
+    .trim()
+    .max(255, "URL must be less than 255 characters")
+    .optional()
+    .or(z.literal("")),
+  instagram_url: z
+    .string()
+    .trim()
+    .max(255, "URL must be less than 255 characters")
+    .optional()
+    .or(z.literal("")),
+  twitter_url: z
+    .string()
+    .trim()
+    .max(255, "URL must be less than 255 characters")
+    .optional()
+    .or(z.literal("")),
+  tiktok_url: z
+    .string()
+    .trim()
+    .max(255, "URL must be less than 255 characters")
+    .optional()
+    .or(z.literal("")),
+  // Notes
+  notes: z
+    .string()
+    .trim()
+    .max(2000, "Notes must be less than 2000 characters")
     .optional()
     .or(z.literal("")),
 });
