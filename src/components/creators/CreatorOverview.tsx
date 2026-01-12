@@ -446,11 +446,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
               {isEditing ? (
                 <div className="space-y-3">
                   <Input
-                    value={formData.onlyfans_url}
-                    onChange={(e) => setFormData({ ...formData, onlyfans_url: e.target.value })}
-                    placeholder="OnlyFans URL"
-                  />
-                  <Input
                     value={formData.instagram_url}
                     onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
                     placeholder="Instagram URL"
