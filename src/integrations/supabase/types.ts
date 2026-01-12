@@ -92,6 +92,7 @@ export type Database = {
           max_employees: number
           name: string
           onboarding_completed: boolean | null
+          onboarding_step: number | null
           subscription_tier: string
           updated_at: string
           website: string | null
@@ -106,6 +107,7 @@ export type Database = {
           max_employees?: number
           name: string
           onboarding_completed?: boolean | null
+          onboarding_step?: number | null
           subscription_tier?: string
           updated_at?: string
           website?: string | null
@@ -120,6 +122,7 @@ export type Database = {
           max_employees?: number
           name?: string
           onboarding_completed?: boolean | null
+          onboarding_step?: number | null
           subscription_tier?: string
           updated_at?: string
           website?: string | null
