@@ -21,7 +21,7 @@ interface BaseFieldProps {
 }
 
 interface TextFieldProps extends BaseFieldProps {
-  type: "text" | "email" | "number" | "date" | "password";
+  type: "text" | "email" | "number" | "date" | "password" | "tel" | "url";
   placeholder?: string;
   register: UseFormRegister<any>;
   valueAsNumber?: boolean;

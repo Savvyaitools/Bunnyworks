@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
-import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, Palette, FileText, User } from "lucide-react";
+import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, FileText, User, Tag, Palette } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Creator, UpdateCreatorInput } from "@/hooks/useCreators";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -239,16 +240,80 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         </div>
       </div>
 
+      {/* Quick Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="glass-card">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <Globe className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Platform</p>
+                <p className="font-semibold text-foreground">{creator.platform || "Not set"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/20">
+                <Users className="h-4 w-4 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Followers</p>
+                <p className="font-semibold text-foreground">{creator.followers || "N/A"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/20">
+                <Percent className="h-4 w-4 text-success" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Commission</p>
+                <p className="font-semibold text-foreground">
+                  {creator.commission_rate !== null 
+                    ? `${(creator.commission_rate * 100).toFixed(0)}%` 
+                    : `${((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}%`}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-pink-500/20">
+                <ExternalLink className="h-4 w-4 text-pink-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Social Links</p>
+                <p className="font-semibold text-foreground">
+                  {socialLinks.filter(l => l.url).length} connected
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-6">
         {/* Left Column */}
         <div className="space-y-6">
-          {/* Contact Info */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Contact Information
-            </h3>
-            <div className="space-y-3">
+          {/* Contact Info Card */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Mail className="h-4 w-4 text-primary" />
+                Contact Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                   <Mail className="h-4 w-4 text-primary" />
@@ -259,6 +324,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Email address"
+                    className="flex-1"
                   />
                 ) : (
                   <span className="text-foreground">{creator.email}</span>
@@ -274,182 +340,209 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="Phone number"
+                    className="flex-1"
                   />
                 ) : (
                   <span className="text-foreground">{creator.phone || "No phone"}</span>
                 )}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Platform & Followers */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              Platform Details
-            </h3>
-            <div className="space-y-3">
+          {/* Platform & Audience Card */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Globe className="h-4 w-4 text-primary" />
+                Platform & Audience
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                   <Globe className="h-4 w-4 text-primary" />
                 </div>
-                {isEditing ? (
-                  <Input
-                    value={formData.platform}
-                    onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-                    placeholder="Primary platform (e.g., OnlyFans, Fansly)"
-                  />
-                ) : (
-                  <span className="text-foreground">{creator.platform || "Not specified"}</span>
-                )}
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Primary Platform</p>
+                  {isEditing ? (
+                    <Input
+                      value={formData.platform}
+                      onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
+                      placeholder="OnlyFans, Fansly, Fanvue"
+                      className="mt-1"
+                    />
+                  ) : (
+                    <p className="text-foreground">{creator.platform || "Not specified"}</p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                   <Users className="h-4 w-4 text-primary" />
                 </div>
-                {isEditing ? (
-                  <Input
-                    value={formData.followers}
-                    onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
-                    placeholder="Follower count (e.g., 50K, 1.2M)"
-                  />
-                ) : (
-                  <span className="text-foreground">{creator.followers || "Not specified"}</span>
-                )}
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Followers</p>
+                  {isEditing ? (
+                    <Input
+                      value={formData.followers}
+                      onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
+                      placeholder="50K, 1.2M"
+                      className="mt-1"
+                    />
+                  ) : (
+                    <p className="text-foreground">{creator.followers || "Not specified"}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Commission Rate */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <Percent className="h-4 w-4" />
-              Commission Rate
-            </h3>
-            {isEditing ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.commission_rate}
-                  onChange={(e) => setFormData({ ...formData, commission_rate: e.target.value })}
-                  placeholder={`Default: ${(agency?.commission_rate ?? 0.3) * 100}%`}
-                  className="w-32"
-                />
-                <span className="text-muted-foreground">%</span>
-                <span className="text-xs text-muted-foreground ml-2">
-                  Leave empty to use agency default ({((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}%)
-                </span>
-              </div>
-            ) : (
-              <p className="text-foreground">
-                {creator.commission_rate !== null 
-                  ? `${(creator.commission_rate * 100).toFixed(0)}% (Custom)` 
-                  : `${((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}% (Agency Default)`}
-              </p>
-            )}
-          </div>
+          {/* Commission Rate Card */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Percent className="h-4 w-4 text-primary" />
+                Commission Rate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.commission_rate}
+                    onChange={(e) => setFormData({ ...formData, commission_rate: e.target.value })}
+                    placeholder={`Default: ${(agency?.commission_rate ?? 0.3) * 100}%`}
+                    className="w-32"
+                  />
+                  <span className="text-muted-foreground">%</span>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    Leave empty for agency default ({((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}%)
+                  </span>
+                </div>
+              ) : (
+                <p className="text-foreground">
+                  {creator.commission_rate !== null 
+                    ? `${(creator.commission_rate * 100).toFixed(0)}% (Custom)` 
+                    : `${((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}% (Agency Default)`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Social Links */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Social Links
-            </h3>
-            {isEditing ? (
-              <div className="space-y-3">
-                <Input
-                  value={formData.onlyfans_url}
-                  onChange={(e) => setFormData({ ...formData, onlyfans_url: e.target.value })}
-                  placeholder="OnlyFans URL"
-                />
-                <Input
-                  value={formData.instagram_url}
-                  onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
-                  placeholder="Instagram URL"
-                />
-                <Input
-                  value={formData.twitter_url}
-                  onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
-                  placeholder="Twitter/X URL"
-                />
-                <Input
-                  value={formData.tiktok_url}
-                  onChange={(e) => setFormData({ ...formData, tiktok_url: e.target.value })}
-                  placeholder="TikTok URL"
-                />
-                <Input
-                  value={formData.snapchat_url}
-                  onChange={(e) => setFormData({ ...formData, snapchat_url: e.target.value })}
-                  placeholder="Snapchat URL"
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {socialLinks.filter(link => link.url).length > 0 ? (
-                  socialLinks.filter(link => link.url).map((link) => (
-                    <a
-                      key={link.key}
-                      href={link.url!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
-                    >
-                      <link.icon className={cn("h-4 w-4", link.color)} />
-                      <span>{link.label}</span>
-                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    </a>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-sm">No social links added</p>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Social Links Card */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ExternalLink className="h-4 w-4 text-primary" />
+                Social Links
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <div className="space-y-3">
+                  <Input
+                    value={formData.onlyfans_url}
+                    onChange={(e) => setFormData({ ...formData, onlyfans_url: e.target.value })}
+                    placeholder="OnlyFans URL"
+                  />
+                  <Input
+                    value={formData.instagram_url}
+                    onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
+                    placeholder="Instagram URL"
+                  />
+                  <Input
+                    value={formData.twitter_url}
+                    onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
+                    placeholder="Twitter/X URL"
+                  />
+                  <Input
+                    value={formData.tiktok_url}
+                    onChange={(e) => setFormData({ ...formData, tiktok_url: e.target.value })}
+                    placeholder="TikTok URL"
+                  />
+                  <Input
+                    value={formData.snapchat_url}
+                    onChange={(e) => setFormData({ ...formData, snapchat_url: e.target.value })}
+                    placeholder="Snapchat URL"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {socialLinks.filter(link => link.url).length > 0 ? (
+                    socialLinks.filter(link => link.url).map((link) => (
+                      <a
+                        key={link.key}
+                        href={link.url!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
+                      >
+                        <link.icon className={cn("h-4 w-4", link.color)} />
+                        <span>{link.label}</span>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </a>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No social links added</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Persona / Bio */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Creator Persona
-            </h3>
-            {isEditing ? (
-              <Textarea
-                value={formData.persona}
-                onChange={(e) => setFormData({ ...formData, persona: e.target.value })}
-                placeholder="Describe the creator's persona, style, and content focus..."
-                rows={3}
-              />
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                {(creator as any).persona || "No persona description added yet."}
-              </p>
-            )}
-          </div>
+          {/* Persona / Bio Card */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                Creator Persona
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <Textarea
+                  value={formData.persona}
+                  onChange={(e) => setFormData({ ...formData, persona: e.target.value })}
+                  placeholder="Describe the creator's persona, style, and content focus..."
+                  rows={4}
+                />
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {(creator as any).persona || "No persona description added yet."}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Notes */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Internal Notes
-            </h3>
-            {isEditing ? (
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Add internal notes about this creator..."
-                rows={3}
-              />
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                {creator.notes || "No notes added yet."}
-              </p>
-            )}
-          </div>
+          {/* Notes Card */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Internal Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Add internal notes about this creator..."
+                  rows={4}
+                />
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {creator.notes || "No notes added yet."}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
