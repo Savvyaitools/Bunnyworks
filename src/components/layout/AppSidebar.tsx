@@ -22,7 +22,8 @@ import {
   Plug,
   Search,
   HeartPulse,
-  HelpCircle
+  HelpCircle,
+  Bot
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -49,6 +50,7 @@ import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 // MAIN section - core agency management
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "FELIX", url: "/felix", icon: Bot },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Creator Messages", url: "/messages", icon: MessageSquare },
   { title: "Team", url: "/team", icon: UserCog },
