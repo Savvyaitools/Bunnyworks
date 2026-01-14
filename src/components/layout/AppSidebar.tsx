@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "sonner";
-import myCreatorSuiteLogo from "@/assets/logo-gold.png";
+import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 
 // MAIN section - core agency management
 const mainNavItems = [

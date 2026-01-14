@@ -2,7 +2,7 @@ import { ArrowRight, Mic, Zap, Clock, Users, Shield, Headphones, Sparkles, Check
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/landing/MobileNav";
-import myCreatorSuiteLogo from "@/assets/logo-gold.png";
+import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 
 const navLinks = [
   { label: "Home", href: "/" },
