@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.retry-of-syncs]
 verify_jwt = false
+
+[functions.ai-izzy-suggest]
+verify_jwt = false
+
+[functions.ai-felix-query]
+verify_jwt = false
