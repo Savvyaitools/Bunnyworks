@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Eye, EyeOff, Headset } from "lucide-react";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-gold.png";
 import { z } from "zod";
 
 // Validation schemas
