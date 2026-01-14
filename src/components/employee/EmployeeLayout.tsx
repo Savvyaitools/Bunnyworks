@@ -4,7 +4,7 @@ import { Home, MessageSquare, Calendar, Clock, LogOut, User, BarChart3, MessageC
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-gold.png";
 
 interface EmployeeLayoutProps {
   children: ReactNode;

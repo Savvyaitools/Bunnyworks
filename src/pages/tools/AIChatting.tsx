@@ -2,7 +2,7 @@ import { ArrowRight, MessageSquare, Zap, Clock, Users, Shield, Bot, BarChart3, S
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/landing/MobileNav";
-import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
+import myCreatorSuiteLogo from "@/assets/logo-gold.png";
 
 const navLinks = [
   { label: "Home", href: "/" },
