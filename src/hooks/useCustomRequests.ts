@@ -17,6 +17,13 @@ export interface CustomRequest {
   updated_at: string;
 }
 
+export interface CustomRequestAttachment {
+  name: string;
+  path: string;
+  type: string;
+  size: number;
+}
+
 export interface CreateCustomRequestInput {
   creator_id: string;
   title: string;
@@ -24,6 +31,7 @@ export interface CreateCustomRequestInput {
   price?: number;
   due_date?: string;
   notes?: string;
+  attachments?: CustomRequestAttachment[];
 }
 
 export function useCustomRequests(creatorId?: string) {
@@ -67,7 +75,8 @@ export function useCustomRequests(creatorId?: string) {
           due_date: input.due_date || null,
           notes: input.notes || null,
           status: "pending",
-        })
+          attachments: input.attachments || [],
+        } as any)
         .select()
         .single();
 
