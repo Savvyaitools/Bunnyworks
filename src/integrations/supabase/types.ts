@@ -1270,6 +1270,7 @@ export type Database = {
       custom_requests: {
         Row: {
           agency_id: string
+          attachments: Json | null
           created_at: string
           creator_id: string
           description: string | null
@@ -1283,6 +1284,7 @@ export type Database = {
         }
         Insert: {
           agency_id: string
+          attachments?: Json | null
           created_at?: string
           creator_id: string
           description?: string | null
@@ -1296,6 +1298,7 @@ export type Database = {
         }
         Update: {
           agency_id?: string
+          attachments?: Json | null
           created_at?: string
           creator_id?: string
           description?: string | null
