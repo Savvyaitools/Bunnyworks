@@ -215,6 +215,13 @@ export const creatorFormSchema = z.object({
     .max(2000, "Notes must be less than 2000 characters")
     .optional()
     .or(z.literal("")),
+  // Login password (optional - if provided, auth account is created)
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password must be less than 72 characters")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type CreatorFormValues = z.infer<typeof creatorFormSchema>;

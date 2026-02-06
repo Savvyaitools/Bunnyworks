@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { creatorFormSchema, type CreatorFormValues } from "@/lib/validations";
@@ -6,7 +7,11 @@ import { FormSubmitButton } from "./FormSubmitButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { User, Globe, FileText, Link2, Heart, Sparkles, Camera } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { User, Globe, FileText, Link2, Heart, Sparkles, Camera, Eye, EyeOff, RefreshCw, Copy } from "lucide-react";
+import { generatePassword, copyToClipboard } from "@/lib/passwordUtils";
+import { toast } from "sonner";
 
 interface CreatorFormProps {
   onSubmit: (data: CreatorFormValues) => Promise<void>;
@@ -15,11 +20,14 @@ interface CreatorFormProps {
 }
 
 export function CreatorForm({ onSubmit, isSubmitting, mode = "quick" }: CreatorFormProps) {
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
     reset,
     control,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<CreatorFormValues>({
     resolver: zodResolver(creatorFormSchema),
@@ -64,6 +72,7 @@ export function CreatorForm({ onSubmit, isSubmitting, mode = "quick" }: CreatorF
       twitter_url: "",
       tiktok_url: "",
       notes: "",
+      password: generatePassword(),
     },
   });
 
@@ -134,6 +143,55 @@ export function CreatorForm({ onSubmit, isSubmitting, mode = "quick" }: CreatorF
             error={errors.followers}
           />
         </FormRow>
+
+        {/* Login Password */}
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Label className="text-sm font-medium">Login Password</Label>
+          <p className="text-xs text-muted-foreground">This password will be used for the creator to log into their portal.</p>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                type={showPassword ? "text" : "password"}
+                {...register("password")}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setValue("password", generatePassword())}
+              title="Generate new password"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={async () => {
+                const pw = getValues("password");
+                if (pw) {
+                  const ok = await copyToClipboard(pw);
+                  toast[ok ? "success" : "error"](ok ? "Password copied" : "Failed to copy");
+                }
+              }}
+              title="Copy password"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          {errors.password && (
+            <p className="text-xs text-destructive">{errors.password.message}</p>
+          )}
+        </div>
 
         <FormSubmitButton
           isSubmitting={isSubmitting}

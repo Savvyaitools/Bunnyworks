@@ -46,7 +46,7 @@ export default function Creators() {
   });
 
   const handleSubmit = async (data: CreatorFormValues) => {
-    await createCreator({
+    const creatorResult = await createCreator({
       name: data.name,
       email: data.email,
       phone: null,
@@ -68,6 +68,34 @@ export default function Creators() {
       commission_rate: null,
       auth_user_id: null,
     });
+
+    // If password provided, create the auth account automatically
+    if (data.password && data.password.length >= 8 && creatorResult) {
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              full_name: data.name,
+              user_type: "creator",
+              agency_id: agencyId,
+            },
+          },
+        });
+
+        if (authError) throw authError;
+        if (authData.user) {
+          await updateCreator(creatorResult.id, { auth_user_id: authData.user.id });
+          toast.success("Creator added with login account!");
+        }
+      } catch (error: any) {
+        // Creator was added but account creation failed
+        toast.error(`Creator added, but login account failed: ${error.message}`);
+      }
+    }
+
     setIsAddDialogOpen(false);
   };
 
