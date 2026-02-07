@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Eye, EyeOff, Headset } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.png";
 import { z } from "zod";
@@ -115,7 +115,7 @@ export default function EmployeeAuth() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/20 blur-[150px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full pointer-events-none" />
       
       {/* Back to home */}
       <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -126,14 +126,10 @@ export default function EmployeeAuth() {
       <div className="w-full max-w-md space-y-8 animate-fade-in relative z-10">
         {/* Logo and Header */}
         <div className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            <div className="h-20 w-20 rounded-2xl bg-accent/20 flex items-center justify-center">
-              <Headset className="h-10 w-10 text-accent" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">Staff Portal</h1>
+          <img src={logo} alt="Creator OS" className="h-20 w-auto mx-auto mb-4 animate-neon-glow" />
+          <h1 className="text-3xl font-bold gradient-text tracking-wider">Welcome Back</h1>
           <p className="text-muted-foreground mt-2">
-            Sign in to access your dashboard (Employees & Creators)
+            Sign in to your Creator or Team dashboard
           </p>
         </div>
 
@@ -184,7 +180,7 @@ export default function EmployeeAuth() {
             )}
           </div>
 
-          <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading}>
+          <Button type="submit" className="w-full bg-primary hover:bg-primary/90 glow-sm" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -197,10 +193,10 @@ export default function EmployeeAuth() {
         {/* Help Text */}
         <div className="text-center space-y-2">
           <p className="text-sm text-muted-foreground">
-            Login credentials are provided by your agency.
+            Your login credentials are provided by your agency manager.
           </p>
-          <Link to="/auth" className="text-sm text-primary hover:underline">
-            Agency Owner? Sign in here
+          <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Agency Owner? <span className="text-primary hover:underline">Sign in here</span>
           </Link>
         </div>
       </div>
