@@ -46,20 +46,20 @@ export function useCreatorPortal() {
   const isCreator = profile?.user_type === "creator";
 
   const { data: creatorData, isLoading: creatorLoading } = useQuery({
-    queryKey: ["creator-portal-profile", user?.email],
+    queryKey: ["creator-portal-profile", user?.id],
     queryFn: async () => {
-      if (!user?.email) return null;
+      if (!user?.id) return null;
 
       const { data, error } = await supabase
         .from("creators")
         .select("id, name, email, status")
-        .ilike("email", user.email)
+        .eq("auth_user_id", user.id)
         .maybeSingle();
 
       if (error) throw error;
       return data as CreatorProfile | null;
     },
-    enabled: !!user?.email && isCreator,
+    enabled: !!user?.id && isCreator,
   });
 
   const creatorId = creatorData?.id;
