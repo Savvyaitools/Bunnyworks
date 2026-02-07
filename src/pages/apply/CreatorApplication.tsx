@@ -56,7 +56,7 @@ export default function CreatorApplication() {
       }
 
       const { data, error: fetchError } = await supabase
-        .from("agencies")
+        .from("agencies_public" as any)
         .select("name, logo_url")
         .eq("id", agencyId)
         .single();

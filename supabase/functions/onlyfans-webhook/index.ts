@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,12 +12,45 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get the webhook signature for verification
-    const signature = req.headers.get("x-webhook-signature");
-    console.log("Received webhook with signature:", signature ? "present" : "missing");
+    // ========== SIGNATURE VERIFICATION ==========
+    const WEBHOOK_SECRET = Deno.env.get("ONLYFANS_WEBHOOK_SECRET");
+    if (!WEBHOOK_SECRET) {
+      console.error("ONLYFANS_WEBHOOK_SECRET not configured");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    const payload = await req.json();
-    console.log("Webhook payload:", JSON.stringify(payload));
+    const signature = req.headers.get("x-webhook-signature");
+    if (!signature) {
+      console.error("Missing webhook signature");
+      return new Response(
+        JSON.stringify({ error: "Missing signature" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Read raw body for signature verification
+    const rawBody = await req.text();
+    const expectedSignature = createHmac("sha256", WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest("hex");
+
+    // Constant-time comparison to prevent timing attacks
+    const sigBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+    if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
+      console.error("Invalid webhook signature");
+      return new Response(
+        JSON.stringify({ error: "Invalid signature" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Parse the verified payload
+    const payload = JSON.parse(rawBody);
+    console.log("Webhook payload verified:", JSON.stringify(payload));
 
     // Extract event data
     const { 
@@ -90,7 +124,6 @@ Deno.serve(async (req) => {
     switch (event_type) {
       case "new_subscription":
         console.log("New subscription event:", data);
-        // Update of_fans cache with new subscriber
         if (data?.fan) {
           await supabase.from("of_fans").upsert({
             agency_id: agencyId,
@@ -105,7 +138,6 @@ Deno.serve(async (req) => {
             synced_at: new Date().toISOString(),
           }, { onConflict: "of_account_id,of_fan_id" });
         }
-        // Invalidate earnings cache as revenue changed
         await supabase.from("of_cache")
           .delete()
           .eq("of_account_id", ofAccountId)
@@ -114,7 +146,6 @@ Deno.serve(async (req) => {
 
       case "subscription_expired":
         console.log("Subscription expired event:", data);
-        // Update fan status to inactive
         if (data?.fan?.id) {
           await supabase.from("of_fans")
             .update({ is_active: false, synced_at: new Date().toISOString() })
@@ -125,7 +156,6 @@ Deno.serve(async (req) => {
 
       case "tip_received":
         console.log("Tip received event:", data);
-        // Update fan total_spent and invalidate earnings cache
         if (data?.fan?.id && data?.amount) {
           const { data: existingFan } = await supabase.from("of_fans")
             .select("total_spent")
@@ -143,7 +173,6 @@ Deno.serve(async (req) => {
               .eq("of_fan_id", data.fan.id.toString());
           }
         }
-        // Invalidate earnings cache
         await supabase.from("of_cache")
           .delete()
           .eq("of_account_id", ofAccountId)
@@ -152,7 +181,6 @@ Deno.serve(async (req) => {
 
       case "new_message":
         console.log("New message event:", data);
-        // Update of_chats cache directly - no API call needed!
         if (data?.chat_id) {
           await supabase.from("of_chats").upsert({
             agency_id: agencyId,
@@ -173,7 +201,6 @@ Deno.serve(async (req) => {
 
       case "purchase":
         console.log("Purchase event:", data);
-        // Update fan total_spent
         if (data?.fan?.id && data?.amount) {
           const { data: existingFan } = await supabase.from("of_fans")
             .select("total_spent")
@@ -191,7 +218,6 @@ Deno.serve(async (req) => {
               .eq("of_fan_id", data.fan.id.toString());
           }
         }
-        // Update tracking link revenue if applicable
         if (data?.tracking_code) {
           await supabase
             .from("tracking_links")
@@ -202,7 +228,6 @@ Deno.serve(async (req) => {
             .eq("code", data.tracking_code)
             .eq("agency_id", agencyId);
         }
-        // Invalidate earnings cache
         await supabase.from("of_cache")
           .delete()
           .eq("of_account_id", ofAccountId)
