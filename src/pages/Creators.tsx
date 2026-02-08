@@ -67,6 +67,7 @@ export default function Creators() {
       snapchat_url: null,
       commission_rate: null,
       auth_user_id: null,
+      persona: data.persona || null,
     });
 
     // If password provided, create the auth account automatically
