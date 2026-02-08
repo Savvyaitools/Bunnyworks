@@ -612,11 +612,12 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                   />
                 ) : file.file_type.startsWith('video/') && file.signedUrl ? (
                   <video
-                    src={file.signedUrl}
+                    src={`${file.signedUrl}#t=0.5`}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     muted
                     preload="metadata"
                     playsInline
+                    crossOrigin="anonymous"
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-3 p-6">
@@ -730,7 +731,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                 {file.file_type.startsWith('image/') && file.signedUrl ? (
                   <img src={file.signedUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : file.file_type.startsWith('video/') && file.signedUrl ? (
-                  <Video className="h-5 w-5 text-primary" />
+                  <video src={`${file.signedUrl}#t=0.5`} className="w-full h-full object-cover" muted preload="metadata" playsInline crossOrigin="anonymous" />
                 ) : (
                   getFileIcon(file.file_type)
                 )}
