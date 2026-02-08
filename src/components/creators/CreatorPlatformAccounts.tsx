@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { OnlyFansAccountConnect } from "@/components/browser/OnlyFansAccountConnect";
 
 interface PlatformAccount {
   id: string;
@@ -279,10 +280,13 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
                 </h4>
                 <p className="text-xs text-muted-foreground">OnlyFans, Fansly, Fanvue</p>
               </div>
-              <Button size="sm" variant="outline" onClick={() => openAddDialog("platform")}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Platform
-              </Button>
+              <div className="flex items-center gap-2">
+                <OnlyFansAccountConnect creatorId={creatorId} onSuccess={fetchAccounts} />
+                <Button size="sm" variant="outline" onClick={() => openAddDialog("platform")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Platform
+                </Button>
+              </div>
             </div>
             {platformAccounts.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-4">
