@@ -5,12 +5,32 @@ import {
   CheckSquare,
   MessageSquare,
   Menu,
+  Bot,
+  UserCog,
+  Calendar,
+  FileText,
+  MessageCircle,
+  CalendarClock,
+  UserPlus,
+  Search,
+  Globe,
+  ClipboardList,
+  BookOpen,
+  Upload,
+  Plug,
+  HeartPulse,
+  HelpCircle,
+  Bell,
+  Settings,
+  LogOut,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { AppSidebar } from "./AppSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const mobileNavItems = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
@@ -20,10 +40,66 @@ const mobileNavItems = [
   { icon: Menu, label: "More", path: "__menu__" },
 ];
 
+const menuSections = [
+  {
+    title: "Main",
+    items: [
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+      { title: "FELIX", url: "/felix", icon: Bot },
+      { title: "Creators", url: "/creators", icon: Users },
+      { title: "Creator Messages", url: "/messages", icon: MessageSquare },
+      { title: "Team", url: "/team", icon: UserCog },
+      { title: "Tasks", url: "/tasks", icon: CheckSquare },
+      { title: "Calendar", url: "/calendar", icon: Calendar },
+      { title: "Invoices", url: "/invoices", icon: FileText },
+    ],
+  },
+  {
+    title: "OnlyFans",
+    items: [
+      { title: "Subscriber DMs", url: "/subscriber-dms", icon: MessageCircle },
+      { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
+      { title: "Team Chat", url: "/team-chat", icon: MessageSquare },
+    ],
+  },
+  {
+    title: "Recruiting",
+    items: [
+      { title: "Recruiting", url: "/recruiting", icon: UserPlus },
+      { title: "OF Discovery", url: "/tools/creator-discovery", icon: Search },
+      { title: "Web Scraper", url: "/tools/scraper", icon: Globe },
+      { title: "Applications", url: "/applications", icon: ClipboardList },
+    ],
+  },
+  {
+    title: "Resources",
+    items: [
+      { title: "SOP Library", url: "/sop", icon: BookOpen },
+      { title: "Data Import", url: "/data-import", icon: Upload },
+      { title: "Browser Sync", url: "/browser-sync", icon: Plug },
+      { title: "OF Health", url: "/of-health", icon: HeartPulse },
+      { title: "User Guide", url: "/guide", icon: HelpCircle },
+    ],
+  },
+];
+
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { profile, signOut } = useAuth();
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    setMenuOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
+    await signOut();
+    toast.success("Signed out successfully");
+    navigate("/auth");
+  };
 
   return (
     <>
@@ -41,9 +117,64 @@ export function MobileBottomNav() {
                   </SheetTrigger>
                   <SheetContent side="left" className="p-0 w-72">
                     <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                    <SidebarProvider defaultOpen={true}>
-                      <AppSidebar />
-                    </SidebarProvider>
+                    <div className="flex flex-col h-full bg-card">
+                      {/* Header */}
+                      <div className="flex items-center justify-between p-4 border-b border-border">
+                        <h2 className="font-semibold text-foreground">Menu</h2>
+                        <button onClick={() => setMenuOpen(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {/* Nav sections */}
+                      <ScrollArea className="flex-1">
+                        <div className="p-3 space-y-4">
+                          {menuSections.map((section) => (
+                            <div key={section.title}>
+                              <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                {section.title}
+                              </p>
+                              <div className="space-y-0.5">
+                                {section.items.map((item) => {
+                                  const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
+                                  return (
+                                    <button
+                                      key={item.url}
+                                      onClick={() => handleNavigate(item.url)}
+                                      className={cn(
+                                        "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-colors",
+                                        isActive
+                                          ? "bg-primary/10 text-primary font-medium"
+                                          : "text-foreground hover:bg-muted/50"
+                                      )}
+                                    >
+                                      <item.icon className="h-4 w-4 shrink-0" />
+                                      <span>{item.title}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+
+                      {/* Footer */}
+                      <div className="p-3 border-t border-border space-y-1">
+                        <button onClick={() => handleNavigate("/notifications")} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-muted/50">
+                          <Bell className="h-4 w-4" />
+                          <span>Notifications</span>
+                        </button>
+                        <button onClick={() => handleNavigate("/settings")} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-muted/50">
+                          <Settings className="h-4 w-4" />
+                          <span>Settings</span>
+                        </button>
+                        <button onClick={handleSignOut} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10">
+                          <LogOut className="h-4 w-4" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
+                    </div>
                   </SheetContent>
                 </Sheet>
               );
