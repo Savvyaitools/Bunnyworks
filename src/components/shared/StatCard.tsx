@@ -36,9 +36,9 @@ export function StatCard({
         className
       )}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-          <Icon className="h-6 w-6 text-accent" />
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-accent/20 flex items-center justify-center">
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
         </div>
         {trend && (
           <Badge className={cn(
@@ -57,7 +57,7 @@ export function StatCard({
         </>
       ) : (
         <>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
+          <p className="text-xl sm:text-2xl font-bold text-foreground truncate">{value}</p>
           <p className="text-sm text-muted-foreground">{title}</p>
           {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         </>

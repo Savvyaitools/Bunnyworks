@@ -14,7 +14,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
   if (isMobile) {
     return (
       <div className="min-h-screen flex flex-col w-full bg-background">
-        <main className="flex-1 overflow-auto pb-16">
+        <main className="flex-1 overflow-auto overflow-x-hidden pb-16">
           <div className="p-4">
             {children}
           </div>

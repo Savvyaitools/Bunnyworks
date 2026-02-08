@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   MessageSquare,
-  FileText,
+  CheckSquare,
   FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils";
 const portalMobileItems = [
   { icon: LayoutDashboard, label: "Home", path: "/portal" },
   { icon: CalendarDays, label: "Plans", path: "/portal/plans" },
+  { icon: CheckSquare, label: "Tasks", path: "/portal/tasks" },
   { icon: MessageSquare, label: "Messages", path: "/portal/messages" },
-  { icon: FileText, label: "Invoices", path: "/portal/invoices" },
   { icon: FolderOpen, label: "Content", path: "/portal/content" },
 ];
 
