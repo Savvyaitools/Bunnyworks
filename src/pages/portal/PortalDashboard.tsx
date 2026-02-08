@@ -47,10 +47,10 @@ export default function PortalDashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
             Welcome back, <span className="gradient-text">{creatorProfile?.name || "Creator"}</span>
           </h1>
-          <p className="text-muted-foreground mt-1">Here's what's happening with your content</p>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Here's what's happening with your content</p>
         </div>
 
         {/* Stats Grid */}

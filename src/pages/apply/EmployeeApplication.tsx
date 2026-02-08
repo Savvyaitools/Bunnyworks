@@ -85,8 +85,9 @@ export default function EmployeeApplication() {
         return;
       }
 
-      setAgencyName(data.name);
-      setAgencyLogo(data.logo_url);
+      const agencyData = data as unknown as { name: string; logo_url: string | null };
+      setAgencyName(agencyData.name);
+      setAgencyLogo(agencyData.logo_url);
       setLoading(false);
     }
 
