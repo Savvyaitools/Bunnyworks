@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle, LayoutGrid, List, Play, Eye } from "lucide-react";
+import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle, LayoutGrid, List, Eye, FolderInput } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -81,6 +81,10 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [selectedContentType, setSelectedContentType] = useState<ContentCategory>("general");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [moveFile, setMoveFile] = useState<ContentFile | null>(null);
+  const [moveTargetFolder, setMoveTargetFolder] = useState<string>("__root__");
+  const [allFolders, setAllFolders] = useState<ContentFolder[]>([]);
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fetchContent = useCallback(async () => {
     // Fetch folders
@@ -131,6 +135,42 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   useEffect(() => {
     fetchContent();
   }, [fetchContent]);
+
+  // Fetch all folders for the move dialog
+  useEffect(() => {
+    const fetchAllFolders = async () => {
+      const { data } = await supabase
+        .from("content_folders")
+        .select("*")
+        .eq("creator_id", creatorId)
+        .order("name");
+      if (data) setAllFolders(data);
+    };
+    fetchAllFolders();
+  }, [creatorId, folders]);
+
+  const openMoveDialog = (file: ContentFile) => {
+    setMoveFile(file);
+    setMoveTargetFolder(file.folder_id || "__root__");
+    setIsMoveDialogOpen(true);
+  };
+
+  const moveFileToFolder = async () => {
+    if (!moveFile) return;
+    const targetId = moveTargetFolder === "__root__" ? null : moveTargetFolder;
+    const { error } = await supabase
+      .from("content_files")
+      .update({ folder_id: targetId })
+      .eq("id", moveFile.id);
+    if (error) {
+      toast.error("Failed to move file");
+    } else {
+      toast.success(`Moved "${moveFile.name}"`);
+      setIsMoveDialogOpen(false);
+      setMoveFile(null);
+      fetchContent();
+    }
+  };
 
   const createFolder = async () => {
     if (!newFolderName.trim() || !agencyId) return;
@@ -571,19 +611,13 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                     loading="lazy"
                   />
                 ) : file.file_type.startsWith('video/') && file.signedUrl ? (
-                  <div className="relative w-full h-full">
-                    <video
-                      src={file.signedUrl}
-                      className="w-full h-full object-cover"
-                      muted
-                      preload="metadata"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/30 transition-colors">
-                      <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        <Play className="h-7 w-7 text-primary ml-0.5" fill="currentColor" />
-                      </div>
-                    </div>
-                  </div>
+                  <video
+                    src={file.signedUrl}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    muted
+                    preload="metadata"
+                    playsInline
+                  />
                 ) : (
                   <div className="flex flex-col items-center gap-3 p-6">
                     <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center">
@@ -622,6 +656,18 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
               </div>
               {/* Action Buttons */}
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 z-10 transition-opacity">
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openMoveDialog(file);
+                  }}
+                  title="Move to folder"
+                >
+                  <FolderInput className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   variant="secondary"
                   size="icon"
@@ -703,6 +749,9 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                 </Badge>
               )}
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openMoveDialog(file); }} title="Move to folder">
+                  <FolderInput className="h-3.5 w-3.5" />
+                </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); downloadFile(file); }}>
                   <Download className="h-3.5 w-3.5" />
                 </Button>
@@ -756,6 +805,40 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Move File Dialog */}
+      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move "{moveFile?.name}"</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={moveTargetFolder} onValueChange={setMoveTargetFolder}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select destination folder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__root__">
+                  <span className="flex items-center gap-2">
+                    <Folder className="h-4 w-4" /> Root
+                  </span>
+                </SelectItem>
+                {allFolders.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    <span className="flex items-center gap-2">
+                      <Folder className="h-4 w-4" /> {f.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={moveFileToFolder} className="w-full">
+              <FolderInput className="h-4 w-4 mr-2" />
+              Move File
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
