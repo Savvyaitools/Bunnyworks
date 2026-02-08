@@ -54,7 +54,7 @@ export function MessageBubble({
         {showSenderName && senderName && !isOwn && (
           <p className="text-xs font-medium mb-1 opacity-70">{senderName}</p>
         )}
-        <p className="text-sm">{content}</p>
+        <p className="text-sm whitespace-pre-wrap">{content}</p>
         <div className={cn(
           "flex items-center gap-1 mt-1",
           isOwn ? "justify-end" : "justify-start"

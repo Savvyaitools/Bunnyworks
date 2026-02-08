@@ -335,7 +335,7 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
                         </Badge>
                       </div>
                       {request.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{request.description}</p>
+                        <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">{request.description}</p>
                       )}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         {request.price !== null && (
@@ -362,7 +362,7 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
                         )}
                       </div>
                       {request.notes && (
-                        <p className="text-xs text-muted-foreground mt-2 italic">
+                        <p className="text-xs text-muted-foreground mt-2 italic whitespace-pre-wrap">
                           Note: {request.notes}
                         </p>
                       )}

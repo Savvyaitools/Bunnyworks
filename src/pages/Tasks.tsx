@@ -250,7 +250,7 @@ export default function Tasks() {
                             {task.title}
                           </h3>
                           {task.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3 whitespace-pre-wrap">
                               {task.description}
                             </p>
                           )}
