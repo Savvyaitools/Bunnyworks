@@ -13,7 +13,7 @@ const tabs = [
 
 export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {
   return (
-    <div className="flex items-center gap-1 border-b border-border">
+    <div className="flex items-center gap-1 border-b border-border overflow-x-auto scrollbar-hide">
       {tabs.map((tab) => (
         <button
           key={tab.id}

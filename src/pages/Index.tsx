@@ -377,15 +377,15 @@ const Index = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
               {activeTab === "overview" && "Overview Dashboard"}
               {activeTab === "business" && "Business Analytics"}
               {activeTab === "performance" && "Performance Metrics"}
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <DateRangePicker />
             <Button
               onClick={handleSyncNow}
