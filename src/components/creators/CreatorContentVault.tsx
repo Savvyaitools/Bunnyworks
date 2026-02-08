@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle, LayoutGrid, List, Play, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -80,6 +80,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [selectedContentType, setSelectedContentType] = useState<ContentCategory>("general");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fetchContent = useCallback(async () => {
     // Fetch folders
@@ -501,103 +502,218 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
         </div>
       )}
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {folders.map((folder) => (
-          <div
-            key={folder.id}
-            className="group relative p-4 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
-            onClick={() => navigateToFolder(folder)}
+      {/* View Toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {folders.length} folder{folders.length !== 1 ? 's' : ''}, {files.length} file{files.length !== 1 ? 's' : ''}
+        </p>
+        <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
+          <Button
+            variant={viewMode === "grid" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setViewMode("grid")}
           >
-            <div className="flex flex-col items-center gap-2">
-              <Folder className="h-12 w-12 text-primary" />
-              <span className="text-sm text-foreground text-center truncate w-full">{folder.name}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteFolder(folder);
-              }}
+            <LayoutGrid className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setViewMode("list")}
+          >
+            <List className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Content - Grid View */}
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {folders.map((folder) => (
+            <div
+              key={folder.id}
+              className="group relative p-4 rounded-xl border border-border bg-card hover:border-primary/50 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5"
+              onClick={() => navigateToFolder(folder)}
             >
-              <Trash2 className="h-3 w-3 text-destructive" />
-            </Button>
-          </div>
-        ))}
-        {files.map((file) => (
-          <div
-            key={file.id}
-            className="group relative rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors overflow-hidden"
-            onClick={() => openPreview(file)}
-          >
-            {/* Thumbnail Preview */}
-            <div className="aspect-square relative bg-muted/50 flex items-center justify-center overflow-hidden">
-              {file.file_type.startsWith('image/') && file.signedUrl ? (
-                <img
-                  src={file.signedUrl}
-                  alt={file.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              ) : file.file_type.startsWith('video/') && file.signedUrl ? (
-                <div className="relative w-full h-full">
-                  <video
-                    src={file.signedUrl}
-                    className="w-full h-full object-cover"
-                    muted
-                    preload="metadata"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                    <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-primary ml-1" />
-                    </div>
-                  </div>
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Folder className="h-9 w-9 text-primary" />
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2 p-4">
-                  {getFileIcon(file.file_type)}
-                </div>
-              )}
-            </div>
-            {/* File Info */}
-            <div className="p-2 space-y-1">
-              <span className="text-xs font-medium text-foreground truncate block">{file.name}</span>
-              {file.content_type && file.content_type !== "general" && (
-                <Badge className={cn("text-[10px] h-4", contentTypeColors[file.content_type as ContentCategory] || contentTypeColors.general)}>
-                  {contentTypeLabels[file.content_type as ContentCategory] || file.content_type}
-                </Badge>
-              )}
-            </div>
-            {/* Action Buttons */}
-            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 z-10">
+                <span className="text-sm text-foreground text-center truncate w-full font-medium">{folder.name}</span>
+              </div>
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="icon"
-                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 h-6 w-6"
                 onClick={(e) => {
                   e.stopPropagation();
-                  downloadFile(file);
+                  deleteFolder(folder);
                 }}
               >
-                <Download className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3 text-destructive" />
               </Button>
+            </div>
+          ))}
+          {files.map((file) => (
+            <div
+              key={file.id}
+              className="group relative rounded-xl border border-border bg-card hover:border-primary/50 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 overflow-hidden"
+              onClick={() => openPreview(file)}
+            >
+              {/* Large Thumbnail */}
+              <div className="aspect-[4/5] relative bg-muted/30 flex items-center justify-center overflow-hidden">
+                {file.file_type.startsWith('image/') && file.signedUrl ? (
+                  <img
+                    src={file.signedUrl}
+                    alt={file.name}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                ) : file.file_type.startsWith('video/') && file.signedUrl ? (
+                  <div className="relative w-full h-full">
+                    <video
+                      src={file.signedUrl}
+                      className="w-full h-full object-cover"
+                      muted
+                      preload="metadata"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/30 transition-colors">
+                      <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <Play className="h-7 w-7 text-primary ml-0.5" fill="currentColor" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 p-6">
+                    <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center">
+                      {getFileIcon(file.file_type)}
+                    </div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                      {file.name.split('.').pop()}
+                    </span>
+                  </div>
+                )}
+                {/* Hover overlay with preview button */}
+                {(file.file_type.startsWith('image/') || file.file_type.startsWith('video/')) && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
+                    <div className="flex items-center gap-1 text-white text-xs font-medium">
+                      <Eye className="h-3.5 w-3.5" />
+                      Preview
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* File Info */}
+              <div className="p-2.5 space-y-1.5">
+                <span className="text-xs font-medium text-foreground truncate block leading-tight">{file.name}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground">
+                    {file.file_size < 1024 * 1024
+                      ? `${(file.file_size / 1024).toFixed(0)} KB`
+                      : `${(file.file_size / (1024 * 1024)).toFixed(1)} MB`}
+                  </span>
+                  {file.content_type && file.content_type !== "general" && (
+                    <Badge className={cn("text-[10px] h-4", contentTypeColors[file.content_type as ContentCategory] || contentTypeColors.general)}>
+                      {contentTypeLabels[file.content_type as ContentCategory] || file.content_type}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {/* Action Buttons */}
+              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 z-10 transition-opacity">
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadFile(file);
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteFile(file);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* List View */
+        <div className="space-y-1">
+          {folders.map((folder) => (
+            <div
+              key={folder.id}
+              className="group flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
+              onClick={() => navigateToFolder(folder)}
+            >
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Folder className="h-5 w-5 text-primary" />
+              </div>
+              <span className="text-sm font-medium text-foreground flex-1 truncate">{folder.name}</span>
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="icon"
-                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
-                  deleteFile(file);
+                  deleteFolder(folder);
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
               </Button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+          {files.map((file) => (
+            <div
+              key={file.id}
+              className="group flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
+              onClick={() => openPreview(file)}
+            >
+              <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+                {file.file_type.startsWith('image/') && file.signedUrl ? (
+                  <img src={file.signedUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
+                ) : file.file_type.startsWith('video/') && file.signedUrl ? (
+                  <Video className="h-5 w-5 text-primary" />
+                ) : (
+                  getFileIcon(file.file_type)
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium text-foreground truncate block">{file.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {file.file_size < 1024 * 1024
+                    ? `${(file.file_size / 1024).toFixed(0)} KB`
+                    : `${(file.file_size / (1024 * 1024)).toFixed(1)} MB`}
+                </span>
+              </div>
+              {file.content_type && file.content_type !== "general" && (
+                <Badge className={cn("text-[10px] h-4 shrink-0", contentTypeColors[file.content_type as ContentCategory] || contentTypeColors.general)}>
+                  {contentTypeLabels[file.content_type as ContentCategory] || file.content_type}
+                </Badge>
+              )}
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); downloadFile(file); }}>
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); deleteFile(file); }}>
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {folders.length === 0 && files.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
