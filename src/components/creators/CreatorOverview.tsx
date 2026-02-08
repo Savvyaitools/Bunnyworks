@@ -58,6 +58,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       twitter_url: formData.twitter_url || null,
       tiktok_url: formData.tiktok_url || null,
       snapchat_url: formData.snapchat_url || null,
+      persona: formData.persona || null,
     });
     setIsEditing(false);
   };

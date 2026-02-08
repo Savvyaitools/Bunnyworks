@@ -24,6 +24,7 @@ export interface Creator {
   tiktok_url: string | null;
   twitter_url: string | null;
   snapchat_url: string | null;
+  persona: string | null;
   agency_id: string | null;
   commission_rate: number | null;
   auth_user_id: string | null;
