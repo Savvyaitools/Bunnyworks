@@ -33,7 +33,7 @@ export default function EmployeeCreatorMessages() {
   const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch creators that this employee manages
+  // Fetch creators that this employee manages or has OF permissions for
   const { data: assignedCreators = [], isLoading: creatorsLoading } = useQuery({
     queryKey: ["employee-assigned-creators", user?.id],
     queryFn: async () => {
@@ -51,14 +51,33 @@ export default function EmployeeCreatorMessages() {
       // Chatters cannot access creator messages
       if (employee.role === "Chatter") return [];
 
-      // Get creators managed by this employee
-      const { data: creators, error } = await supabase
+      // Get creators managed by this employee (via manager_id)
+      const { data: managedCreators } = await supabase
         .from("creators")
         .select("id, name, alias, avatar_url, avatar_seed, online_status")
         .eq("manager_id", employee.id);
 
-      if (error) return [];
-      return creators as AssignedCreator[];
+      // Get creators this employee has OF permissions for
+      const { data: permissionRows } = await supabase
+        .from("employee_of_permissions")
+        .select("creator_id")
+        .eq("employee_id", employee.id);
+
+      const permCreatorIds = (permissionRows || [])
+        .map((p) => p.creator_id)
+        .filter((id) => !(managedCreators || []).some((c) => c.id === id));
+
+      let permCreators: AssignedCreator[] = [];
+      if (permCreatorIds.length > 0) {
+        const { data } = await supabase
+          .from("creators")
+          .select("id, name, alias, avatar_url, avatar_seed, online_status")
+          .in("id", permCreatorIds);
+        permCreators = (data || []) as AssignedCreator[];
+      }
+
+      // Merge and deduplicate
+      return [...(managedCreators || []), ...permCreators] as AssignedCreator[];
     },
     enabled: !!user?.id,
   });
