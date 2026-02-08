@@ -253,7 +253,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                 </Badge>
               </div>
               {plan.description && (
-                <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>
+                <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">{plan.description}</p>
               )}
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 {plan.scheduled_date && (
