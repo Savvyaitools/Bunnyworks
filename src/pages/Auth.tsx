@@ -257,9 +257,9 @@ export default function Auth() {
           {/* Staff login link */}
           <Link 
             to="/employee-login" 
-            className="block text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="block text-sm font-medium text-foreground bg-muted/50 border border-border rounded-lg px-4 py-3 hover:bg-muted hover:border-primary/50 transition-all"
           >
-            Employee or Creator? <span className="text-accent hover:underline">Sign in here</span>
+            🎭 Employee or Creator? <span className="text-primary font-semibold hover:underline">Sign in here →</span>
           </Link>
         </div>
 
