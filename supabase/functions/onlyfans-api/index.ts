@@ -298,15 +298,48 @@ Deno.serve(async (req) => {
         );
       }
 
-      case "get-earnings":
+      case "get-earnings": {
         if (!accountId) {
           return new Response(
             JSON.stringify({ error: "accountId required" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-        endpoint = `/${accountId}/payouts/earning-statistics`;
-        break;
+        const earningsUrl = `${ONLYFANS_API_BASE}/${accountId}/payouts/earning-statistics`;
+        console.log(`Calling OnlyFans API: GET ${earningsUrl}`);
+        const earningsResp = await fetch(earningsUrl, {
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+        });
+        const earningsRaw = await earningsResp.json();
+        console.log("Raw earnings response:", JSON.stringify(earningsRaw).slice(0, 500));
+
+        if (!earningsResp.ok) {
+          return new Response(
+            JSON.stringify({ error: earningsRaw.message || earningsRaw.error || "Failed to fetch earnings", details: earningsRaw }),
+            { status: earningsResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Map the nested API response to our flat EarningStatistics interface
+        const totalData = earningsRaw?.data?.list?.total || earningsRaw?.total || {};
+        const mapped = {
+          total: totalData?.all?.total_net ?? earningsRaw?.total ?? 0,
+          tips: totalData?.tips?.total_net ?? earningsRaw?.tips ?? 0,
+          subscriptions: totalData?.subscribes?.total_net ?? earningsRaw?.subscriptions ?? 0,
+          messages: totalData?.chat_messages?.total_net ?? earningsRaw?.messages ?? 0,
+          posts: totalData?.posts?.total_net ?? earningsRaw?.posts ?? 0,
+          referrals: totalData?.referrals?.total_net ?? earningsRaw?.referrals ?? 0,
+        };
+        console.log("Mapped earnings:", mapped);
+
+        return new Response(
+          JSON.stringify(mapped),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       case "list-transactions":
         if (!accountId) {
