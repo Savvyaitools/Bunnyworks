@@ -51,6 +51,26 @@ export function RevenueSourceBreakdown({ grossRevenue, delay = 0 }: RevenueSourc
     },
   ];
 
+  if (grossRevenue <= 0) {
+    return (
+      <motion.div
+        ref={ref}
+        className="glass-card p-6"
+        initial={{ opacity: 0, y: 30 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ delay: delay / 1000, type: "spring", stiffness: 100, damping: 15 }}
+      >
+        <h3 className="text-lg font-semibold text-foreground mb-1">Revenue</h3>
+        <p className="text-xs text-muted-foreground mb-6">Overview</p>
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <DollarSign className="h-10 w-10 text-muted-foreground/40 mb-3" />
+          <p className="text-sm text-muted-foreground">No revenue sources yet</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">Revenue breakdown will appear once earnings are synced</p>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       ref={ref}
