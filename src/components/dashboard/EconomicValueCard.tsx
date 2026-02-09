@@ -22,6 +22,7 @@ export function EconomicValueCard({
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
 
+  const hasData = grossRevenue > 0 || netRevenue > 0;
   const creatorNet = netRevenue;
   const total = grossRevenue || 1;
   const creatorPercent = total > 0 ? (creatorNet / total) * 100 : 70;
@@ -33,6 +34,26 @@ export function EconomicValueCard({
     { label: "Messages", value: grossRevenue * 0.15, fee: `${(commissionRate * 100).toFixed(0)}% fee` },
     { label: "Other", value: grossRevenue * 0.05, fee: `${(commissionRate * 100).toFixed(0)}% fee` },
   ];
+
+  if (!hasData) {
+    return (
+      <motion.div
+        ref={ref}
+        className="glass-card p-6 group"
+        initial={{ opacity: 0, y: 30 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ delay: delay / 1000, type: "spring", stiffness: 100, damping: 15 }}
+      >
+        <h3 className="text-lg font-semibold text-foreground mb-2">Economic Value</h3>
+        <p className="text-xs text-muted-foreground mb-6">Breakdown</p>
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <DollarSign className="h-10 w-10 text-muted-foreground/40 mb-3" />
+          <p className="text-sm text-muted-foreground">No revenue data yet</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">Add creators and sync earnings to see the breakdown</p>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

@@ -3,7 +3,7 @@ import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAgency } from "@/hooks/useAgency";
-import { TrendingUp, TrendingDown, Plus } from "lucide-react";
+import { TrendingUp, TrendingDown, Plus, Users } from "lucide-react";
 import { UserAvatar } from "@/components/shared";
 import { Link } from "react-router-dom";
 
@@ -61,6 +61,24 @@ export function CreatorPlatformCards() {
     const trends = [+10, -17, +5, +22, -3];
     return trends[index % trends.length];
   };
+
+  if (creators.length === 0) {
+    return (
+      <motion.div
+        ref={ref}
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+      >
+        <h3 className="text-lg font-semibold text-foreground mb-4">Creator Accounts</h3>
+        <div className="glass-card p-8 flex flex-col items-center text-center">
+          <Users className="h-10 w-10 text-muted-foreground/40 mb-3" />
+          <p className="text-sm text-muted-foreground">No creators added yet</p>
+          <p className="text-xs text-muted-foreground/70 mt-1 mb-4">Add your first creator to see platform cards here</p>
+          <Link to="/creators" className="text-xs text-primary hover:underline font-medium">+ Add Creator</Link>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
