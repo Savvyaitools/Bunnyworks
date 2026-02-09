@@ -114,6 +114,24 @@ export function useOnlyFansCache() {
   };
 
 
+  // Normalize raw API earnings data (nested or flat) into our flat interface
+  const normalizeEarnings = (raw: any): EarningStatistics => {
+    // Already flat format from edge function mapping
+    if (typeof raw?.total === "number" && typeof raw?.tips === "number") {
+      return raw as EarningStatistics;
+    }
+    // Nested format from of_cache (raw API response)
+    const totalData = raw?.data?.list?.total || raw?.total || {};
+    return {
+      total: totalData?.all?.total_net ?? raw?.total ?? 0,
+      tips: totalData?.tips?.total_net ?? raw?.tips ?? 0,
+      subscriptions: totalData?.subscribes?.total_net ?? raw?.subscriptions ?? 0,
+      messages: totalData?.chat_messages?.total_net ?? raw?.messages ?? 0,
+      posts: totalData?.posts?.total_net ?? raw?.posts ?? 0,
+      referrals: totalData?.referrals?.total_net ?? raw?.referrals ?? 0,
+    };
+  };
+
   // Cached earnings hook with database-first approach
   const useCachedEarnings = (accountId: string | null, enabled = true) => {
     return useQuery({
@@ -125,13 +143,13 @@ export function useOnlyFansCache() {
         const cached = await getCacheEntry(accountId, "earnings");
         if (cached && isCacheValid(cached.cached_at, CACHE_TTL.earnings)) {
           console.log(`[Cache HIT] Earnings for ${accountId}`);
-          return cached.data as EarningStatistics;
+          return normalizeEarnings(cached.data);
         }
         
         // 2. Cache miss or stale - call API
         console.log(`[Cache MISS] Fetching earnings for ${accountId}`);
         const data = await api.getEarnings(accountId);
-        return data;
+        return data ? normalizeEarnings(data) : null;
       },
       enabled: enabled && !!accountId,
       staleTime: 15 * 60 * 1000, // 15 minutes in-memory
