@@ -265,7 +265,7 @@ export default function Settings() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-foreground">
-                          Plan: <span className="capitalize">{agency.subscription_tier}</span>
+                          Plan: <span className="uppercase font-bold">{agency.subscription_tier}</span>
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           Creators: {limits?.currentCreators ?? 0}/{agency.max_creators} • 
