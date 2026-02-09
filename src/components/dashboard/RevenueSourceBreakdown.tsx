@@ -13,39 +13,52 @@ interface RevenueSource {
 
 interface RevenueSourceBreakdownProps {
   grossRevenue: number;
+  tips?: number;
+  subscriptions?: number;
+  messagesRevenue?: number;
+  referrals?: number;
   delay?: number;
 }
 
-export function RevenueSourceBreakdown({ grossRevenue, delay = 0 }: RevenueSourceBreakdownProps) {
+export function RevenueSourceBreakdown({ grossRevenue, tips = 0, subscriptions = 0, messagesRevenue = 0, referrals = 0, delay = 0 }: RevenueSourceBreakdownProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
+
+  const total = tips + subscriptions + messagesRevenue + referrals;
+  const hasBreakdown = total > 0;
+  
+  // Use real data if available, otherwise estimate from grossRevenue
+  const getPercentage = (value: number) => {
+    if (hasBreakdown && total > 0) return Math.round((value / total) * 100);
+    return 0;
+  };
 
   const sources: RevenueSource[] = [
     { 
       label: "Subscriptions", 
-      value: grossRevenue * 0.55, 
-      percentage: 55, 
+      value: hasBreakdown ? subscriptions : grossRevenue * 0.55, 
+      percentage: hasBreakdown ? getPercentage(subscriptions) : 55, 
       icon: CreditCard,
       color: "hsl(var(--primary))" 
     },
     { 
       label: "Tips", 
-      value: grossRevenue * 0.25, 
-      percentage: 25, 
+      value: hasBreakdown ? tips : grossRevenue * 0.25, 
+      percentage: hasBreakdown ? getPercentage(tips) : 25, 
       icon: Gift,
       color: "hsl(var(--accent))" 
     },
     { 
       label: "Messages", 
-      value: grossRevenue * 0.15, 
-      percentage: 15, 
+      value: hasBreakdown ? messagesRevenue : grossRevenue * 0.15, 
+      percentage: hasBreakdown ? getPercentage(messagesRevenue) : 15, 
       icon: MessageSquare,
       color: "hsl(var(--success))" 
     },
     { 
       label: "Referrals", 
-      value: grossRevenue * 0.05, 
-      percentage: 5, 
+      value: hasBreakdown ? referrals : grossRevenue * 0.05, 
+      percentage: hasBreakdown ? getPercentage(referrals) : 5, 
       icon: Share2,
       color: "hsl(var(--warning))" 
     },

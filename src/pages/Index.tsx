@@ -99,15 +99,25 @@ const Index = () => {
         .eq("agency_id", agencyId);
       const creatorIds = creators?.map(c => c.id) || [];
 
-      // Fetch earnings for agency's creators
+      // Fetch earnings for agency's creators (with breakdown)
       let netTotal = 0;
+      let tipsTotal = 0;
+      let subsTotal = 0;
+      let messagesTotal = 0;
+      let referralsTotal = 0;
       if (creatorIds.length > 0) {
-        const { data: netData, error: netError } = await supabase
+        const { data: earningsData, error: earningsError } = await supabase
           .from("creator_earnings")
-          .select("amount")
+          .select("amount, tips, subscriptions, messages_revenue, referrals")
           .in("creator_id", creatorIds);
-        if (netError) throw netError;
-        netTotal = netData?.reduce((sum, earning) => sum + Number(earning.amount), 0) || 0;
+        if (earningsError) throw earningsError;
+        earningsData?.forEach(e => {
+          netTotal += Number(e.amount) || 0;
+          tipsTotal += Number(e.tips) || 0;
+          subsTotal += Number(e.subscriptions) || 0;
+          messagesTotal += Number(e.messages_revenue) || 0;
+          referralsTotal += Number(e.referrals) || 0;
+        });
       }
 
       // Fetch extracted data for agency's imports
@@ -127,7 +137,7 @@ const Index = () => {
 
       const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : netTotal * commissionRate;
 
-      return { netTotal, grossTotal, agencyEarnings };
+      return { netTotal, grossTotal, agencyEarnings, tipsTotal, subsTotal, messagesTotal, referralsTotal };
     },
   });
 
@@ -234,7 +244,14 @@ const Index = () => {
           <RevenueChart />
         </div>
         <div>
-          <RevenueSourceBreakdown grossRevenue={grossRevenue} delay={200} />
+          <RevenueSourceBreakdown 
+            grossRevenue={grossRevenue} 
+            tips={revenueData?.tipsTotal || 0}
+            subscriptions={revenueData?.subsTotal || 0}
+            messagesRevenue={revenueData?.messagesTotal || 0}
+            referrals={revenueData?.referralsTotal || 0}
+            delay={200} 
+          />
         </div>
       </div>
 
@@ -246,6 +263,10 @@ const Index = () => {
             netRevenue={netRevenue}
             agencyEarnings={agencyEarnings}
             commissionRate={commissionRate}
+            tips={revenueData?.tipsTotal || 0}
+            subscriptions={revenueData?.subsTotal || 0}
+            messagesRevenue={revenueData?.messagesTotal || 0}
+            referrals={revenueData?.referralsTotal || 0}
             delay={100}
           />
         </div>
