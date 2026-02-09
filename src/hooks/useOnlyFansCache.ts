@@ -120,16 +120,31 @@ export function useOnlyFansCache() {
     if (typeof raw?.total === "number" && typeof raw?.tips === "number") {
       return raw as EarningStatistics;
     }
-    // Nested format from of_cache (raw API response)
-    const totalData = raw?.data?.list?.total || raw?.total || {};
-    return {
-      total: totalData?.all?.total_net ?? raw?.total ?? 0,
-      tips: totalData?.tips?.total_net ?? raw?.tips ?? 0,
-      subscriptions: totalData?.subscribes?.total_net ?? raw?.subscriptions ?? 0,
-      messages: totalData?.chat_messages?.total_net ?? raw?.messages ?? 0,
-      posts: totalData?.posts?.total_net ?? raw?.posts ?? 0,
-      referrals: totalData?.referrals?.total_net ?? raw?.referrals ?? 0,
-    };
+
+    // Real API format: data.list.months.{timestamp}.{category}[] with {gross, net} entries
+    const months = raw?.data?.list?.months || {};
+    let tips = 0, subscriptions = 0, messages = 0, posts = 0, referrals = 0, total = 0;
+
+    for (const monthKey of Object.keys(months)) {
+      const month = months[monthKey];
+      // Sum total_net per month if available
+      total += month?.total_net ?? 0;
+
+      // Sum net from daily arrays per category
+      const sumNet = (arr: any[]) => (arr || []).reduce((s: number, e: any) => s + (e?.net ?? 0), 0);
+      tips += sumNet(month?.tips);
+      subscriptions += sumNet(month?.subscribes);
+      messages += sumNet(month?.chat_messages);
+      posts += sumNet(month?.posts);
+      referrals += sumNet(month?.referrals);
+    }
+
+    // If total wasn't set per-month, calculate from categories
+    if (total === 0) {
+      total = tips + subscriptions + messages + posts + referrals;
+    }
+
+    return { total, tips, subscriptions, messages, posts, referrals };
   };
 
   // Cached earnings hook with database-first approach
