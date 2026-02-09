@@ -13,6 +13,9 @@ import { CircularMetricCard } from "@/components/dashboard/CircularMetricCard";
 import { ChatterLeaderboard } from "@/components/dashboard/ChatterLeaderboard";
 import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { TodayStats } from "@/components/dashboard/TodayStats";
+import { EconomicValueCard } from "@/components/dashboard/EconomicValueCard";
+import { RevenueSourceBreakdown } from "@/components/dashboard/RevenueSourceBreakdown";
+import { CreatorPlatformCards } from "@/components/dashboard/CreatorPlatformCards";
 import { FeatureGuide } from "@/components/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -231,11 +234,30 @@ const Index = () => {
           <RevenueChart />
         </div>
         <div>
+          <RevenueSourceBreakdown grossRevenue={grossRevenue} delay={200} />
+        </div>
+      </div>
+
+      {/* Economic Value & Leaderboard */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div>
+          <EconomicValueCard 
+            grossRevenue={grossRevenue}
+            netRevenue={netRevenue}
+            agencyEarnings={agencyEarnings}
+            commissionRate={commissionRate}
+            delay={100}
+          />
+        </div>
+        <div className="xl:col-span-2">
           <ChatterLeaderboard />
         </div>
       </div>
 
-      {/* Live Activity & Goals */}
+      {/* Creator Platform Cards */}
+      <CreatorPlatformCards />
+
+      {/* Live Activity & Tasks */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
           <CreatorTaskProgress />
