@@ -58,11 +58,6 @@ function StatCard({ title, value, subValue, icon: Icon, trend, trendValue, color
     warning: "group-hover:shadow-[0_0_30px_hsl(var(--warning)/0.2)]",
   };
 
-  const trendColors = {
-    up: "text-success",
-    down: "text-destructive",
-    neutral: "text-muted-foreground",
-  };
 
   return (
     <motion.div 
@@ -105,18 +100,25 @@ function StatCard({ title, value, subValue, icon: Icon, trend, trendValue, color
       </div>
       {trend && trendValue && (
         <motion.div 
-          className={`flex items-center gap-1 mt-3 text-sm ${trendColors[trend]}`}
+          className="mt-3"
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 + index * 0.1 }}
         >
-          {trend === "up" ? (
-            <TrendingUp className="h-4 w-4" />
-          ) : trend === "down" ? (
-            <TrendingDown className="h-4 w-4" />
-          ) : null}
-          <span className="font-medium">{trendValue}</span>
-          <span className="text-muted-foreground">vs last month</span>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+            trend === "up" 
+              ? "bg-success/20 text-success border border-success/30" 
+              : trend === "down"
+              ? "bg-destructive/20 text-destructive border border-destructive/30"
+              : "bg-muted text-muted-foreground border border-border"
+          }`}>
+            {trend === "up" ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : trend === "down" ? (
+              <TrendingDown className="h-3 w-3" />
+            ) : null}
+            {trendValue}
+          </span>
         </motion.div>
       )}
     </motion.div>
