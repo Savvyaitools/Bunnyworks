@@ -92,11 +92,11 @@ Deno.serve(async (req) => {
         for (const [timestamp, monthData] of Object.entries(monthsData)) {
           const monthDate = new Date(parseInt(timestamp) * 1000);
           if (monthDate.getMonth() === now.getMonth() && monthDate.getFullYear() === now.getFullYear()) {
-            const data = monthData as { total_net?: number; tips?: { total_net?: number }[]; subscribes?: { total_net?: number }[]; chat_messages?: { total_net?: number }[] };
+            const data = monthData as { total_net?: number; tips?: { net?: number }[]; subscribes?: { net?: number }[]; chat_messages?: { net?: number }[] };
             currentMonthNet = data.total_net || 0;
-            currentMonthTips = data.tips?.reduce((sum: number, t: { total_net?: number }) => sum + (t.total_net || 0), 0) || 0;
-            currentMonthSubs = data.subscribes?.reduce((sum: number, s: { total_net?: number }) => sum + (s.total_net || 0), 0) || 0;
-            currentMonthMessages = data.chat_messages?.reduce((sum: number, m: { total_net?: number }) => sum + (m.total_net || 0), 0) || 0;
+            currentMonthTips = data.tips?.reduce((sum: number, t: { net?: number }) => sum + (t.net || 0), 0) || 0;
+            currentMonthSubs = data.subscribes?.reduce((sum: number, s: { net?: number }) => sum + (s.net || 0), 0) || 0;
+            currentMonthMessages = data.chat_messages?.reduce((sum: number, m: { net?: number }) => sum + (m.net || 0), 0) || 0;
             break;
           }
         }
@@ -119,28 +119,31 @@ Deno.serve(async (req) => {
           .lte("period_end", periodEnd)
           .maybeSingle();
 
+        const earningPayload = {
+          amount: currentMonthNet,
+          tips: currentMonthTips,
+          subscriptions: currentMonthSubs,
+          messages_revenue: currentMonthMessages,
+          referrals: 0,
+          notes: `Auto-synced: Tips: $${currentMonthTips.toFixed(2)}, Subs: $${currentMonthSubs.toFixed(2)}, Messages: $${currentMonthMessages.toFixed(2)} | All-time: $${allTimeTotal.toFixed(2)}`,
+        };
+
         if (existingEarning) {
-          // Update existing record
           await supabase
             .from("creator_earnings")
-            .update({
-              amount: currentMonthNet,
-              notes: `Auto-synced: Tips: $${currentMonthTips.toFixed(2)}, Subs: $${currentMonthSubs.toFixed(2)}, Messages: $${currentMonthMessages.toFixed(2)} | All-time: $${allTimeTotal.toFixed(2)}`,
-            })
+            .update(earningPayload)
             .eq("id", existingEarning.id);
 
           console.log(`Updated earnings for ${account.of_account_id}: $${currentMonthNet}`);
         } else {
-          // Insert new record
           await supabase
             .from("creator_earnings")
             .insert({
               creator_id: account.creator_id,
               platform: "onlyfans",
-              amount: currentMonthNet,
               period_start: periodStart,
               period_end: periodEnd,
-              notes: `Auto-synced: Tips: $${currentMonthTips.toFixed(2)}, Subs: $${currentMonthSubs.toFixed(2)}, Messages: $${currentMonthMessages.toFixed(2)} | All-time: $${allTimeTotal.toFixed(2)}`,
+              ...earningPayload,
             });
 
           console.log(`Inserted new earnings for ${account.of_account_id}: $${currentMonthNet}`);

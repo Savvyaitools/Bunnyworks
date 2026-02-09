@@ -42,6 +42,10 @@ interface CreatorEarningsProps {
 interface MonthlyEarning {
   id: string;
   amount: number;
+  tips: number;
+  subscriptions: number;
+  messages_revenue: number;
+  referrals: number;
   period_start: string;
   period_end: string;
   platform: string | null;
@@ -169,6 +173,11 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
   const lastMonthNet = lastMonthEarning?.amount || 0;
   const allTimeTotal = parsedBreakdown.allTime || currentMonthNet;
   
+  // Use column data if available, fall back to notes parsing
+  const currentTips = Number(currentMonthEarning?.tips) || parsedBreakdown.tips;
+  const currentSubs = Number(currentMonthEarning?.subscriptions) || parsedBreakdown.subs;
+  const currentMessages = Number(currentMonthEarning?.messages_revenue) || parsedBreakdown.messages;
+
   const agencyEarnings = currentMonthNet * agencyRate;
   const creatorNet = currentMonthNet - agencyEarnings;
 
@@ -189,12 +198,12 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
 
   // Prepare pie chart data for earnings breakdown
   const breakdownData = [
-    { name: "Subscriptions", value: parsedBreakdown.subs, color: PIE_COLORS[0] },
-    { name: "Tips", value: parsedBreakdown.tips, color: PIE_COLORS[1] },
-    { name: "Messages", value: parsedBreakdown.messages, color: PIE_COLORS[2] },
+    { name: "Subscriptions", value: currentSubs, color: PIE_COLORS[0] },
+    { name: "Tips", value: currentTips, color: PIE_COLORS[1] },
+    { name: "Messages", value: currentMessages, color: PIE_COLORS[2] },
   ].filter(d => d.value > 0);
 
-  const totalBreakdown = parsedBreakdown.subs + parsedBreakdown.tips + parsedBreakdown.messages;
+  const totalBreakdown = currentSubs + currentTips + currentMessages;
 
   if (isEmpty && !ofAccount?.of_account_id) {
     return (

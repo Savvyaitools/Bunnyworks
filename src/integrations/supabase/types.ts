@@ -910,10 +910,14 @@ export type Database = {
           creator_id: string
           id: string
           import_id: string | null
+          messages_revenue: number | null
           notes: string | null
           period_end: string
           period_start: string
           platform: string | null
+          referrals: number | null
+          subscriptions: number | null
+          tips: number | null
         }
         Insert: {
           amount?: number
@@ -921,10 +925,14 @@ export type Database = {
           creator_id: string
           id?: string
           import_id?: string | null
+          messages_revenue?: number | null
           notes?: string | null
           period_end: string
           period_start: string
           platform?: string | null
+          referrals?: number | null
+          subscriptions?: number | null
+          tips?: number | null
         }
         Update: {
           amount?: number
@@ -932,10 +940,14 @@ export type Database = {
           creator_id?: string
           id?: string
           import_id?: string | null
+          messages_revenue?: number | null
           notes?: string | null
           period_end?: string
           period_start?: string
           platform?: string | null
+          referrals?: number | null
+          subscriptions?: number | null
+          tips?: number | null
         }
         Relationships: [
           {

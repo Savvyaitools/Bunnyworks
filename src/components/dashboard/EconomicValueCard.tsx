@@ -9,6 +9,10 @@ interface EconomicValueCardProps {
   netRevenue: number;
   agencyEarnings: number;
   commissionRate: number;
+  tips?: number;
+  subscriptions?: number;
+  messagesRevenue?: number;
+  referrals?: number;
   delay?: number;
 }
 
@@ -17,6 +21,10 @@ export function EconomicValueCard({
   netRevenue, 
   agencyEarnings, 
   commissionRate,
+  tips = 0,
+  subscriptions = 0,
+  messagesRevenue = 0,
+  referrals = 0,
   delay = 0 
 }: EconomicValueCardProps) {
   const ref = useRef(null);
@@ -28,11 +36,13 @@ export function EconomicValueCard({
   const creatorPercent = total > 0 ? (creatorNet / total) * 100 : 70;
   const agencyPercent = total > 0 ? (agencyEarnings / total) * 100 : 30;
 
+  const hasBreakdown = (tips + subscriptions + messagesRevenue + referrals) > 0;
+  const fee = `${(commissionRate * 100).toFixed(0)}% fee`;
   const breakdownRows = [
-    { label: "Subscriptions", value: grossRevenue * 0.55, fee: `${(commissionRate * 100).toFixed(0)}% fee` },
-    { label: "Tips", value: grossRevenue * 0.25, fee: `${(commissionRate * 100).toFixed(0)}% fee` },
-    { label: "Messages", value: grossRevenue * 0.15, fee: `${(commissionRate * 100).toFixed(0)}% fee` },
-    { label: "Other", value: grossRevenue * 0.05, fee: `${(commissionRate * 100).toFixed(0)}% fee` },
+    { label: "Subscriptions", value: hasBreakdown ? subscriptions : grossRevenue * 0.55, fee },
+    { label: "Tips", value: hasBreakdown ? tips : grossRevenue * 0.25, fee },
+    { label: "Messages", value: hasBreakdown ? messagesRevenue : grossRevenue * 0.15, fee },
+    { label: "Other", value: hasBreakdown ? referrals : grossRevenue * 0.05, fee },
   ];
 
   if (!hasData) {
