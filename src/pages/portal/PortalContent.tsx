@@ -105,17 +105,20 @@ export default function PortalContent() {
   const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
-  // Fetch creator ID based on logged-in user's email
+  // Fetch creator ID and agency_id based on logged-in user's email
+  const [agencyId, setAgencyId] = useState<string | null>(null);
+
   const fetchCreatorId = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.email) return null;
 
     const { data: creator } = await supabase
       .from("creators")
-      .select("id")
+      .select("id, agency_id")
       .eq("email", user.email.toLowerCase())
       .maybeSingle();
 
+    if (creator?.agency_id) setAgencyId(creator.agency_id);
     return creator?.id || null;
   }, []);
 
@@ -280,6 +283,7 @@ export default function PortalContent() {
         creator_id: creatorId,
         folder_id: currentFolderId,
         content_type: "general",
+        agency_id: agencyId,
       });
 
       if (insertError) throw insertError;
