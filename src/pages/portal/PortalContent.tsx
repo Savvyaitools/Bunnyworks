@@ -105,17 +105,17 @@ export default function PortalContent() {
   const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
-  // Fetch creator ID and agency_id based on logged-in user's email
+  // Fetch creator ID and agency_id based on logged-in user's auth_user_id
   const [agencyId, setAgencyId] = useState<string | null>(null);
 
   const fetchCreatorId = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.email) return null;
+    if (!user?.id) return null;
 
     const { data: creator } = await supabase
       .from("creators")
       .select("id, agency_id")
-      .eq("email", user.email.toLowerCase())
+      .eq("auth_user_id", user.id)
       .maybeSingle();
 
     if (creator?.agency_id) setAgencyId(creator.agency_id);
