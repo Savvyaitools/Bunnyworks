@@ -39,6 +39,7 @@ const MarketingAnalytics = lazy(() => import("./pages/MarketingAnalytics"));
 const EmployeePerformance = lazy(() => import("./pages/EmployeePerformance"));
 const UserGuide = lazy(() => import("./pages/UserGuide"));
 const Felix = lazy(() => import("./pages/Felix"));
+const AgentHub = lazy(() => import("./pages/AgentHub"));
 
 // Portal pages
 const PortalDashboard = lazy(() => import("./pages/portal/PortalDashboard"));
@@ -274,6 +275,11 @@ const AppRoutes = () => {
         <Route path="/guide" element={
           <ProtectedRoute allowedUserTypes={["agency"]}>
             <UserGuide />
+          </ProtectedRoute>
+        } />
+        <Route path="/agent-hub" element={
+          <ProtectedRoute allowedUserTypes={["agency"]}>
+            <AgentHub />
           </ProtectedRoute>
         } />
         
