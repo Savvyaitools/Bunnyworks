@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.ai-felix-query]
 verify_jwt = false
+
+[functions.ai-agent-orchestrator]
+verify_jwt = false

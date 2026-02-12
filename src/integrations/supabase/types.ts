@@ -136,6 +136,227 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_actions: {
+        Row: {
+          action_type: string
+          agency_id: string
+          created_at: string
+          id: string
+          outcome: string | null
+          outcome_details: string | null
+          parameters: Json | null
+          run_id: string
+          target_entity_id: string | null
+          target_entity_type: string | null
+          was_overridden: boolean | null
+        }
+        Insert: {
+          action_type: string
+          agency_id: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          outcome_details?: string | null
+          parameters?: Json | null
+          run_id: string
+          target_entity_id?: string | null
+          target_entity_type?: string | null
+          was_overridden?: boolean | null
+        }
+        Update: {
+          action_type?: string
+          agency_id?: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          outcome_details?: string | null
+          parameters?: Json | null
+          run_id?: string
+          target_entity_id?: string | null
+          target_entity_type?: string | null
+          was_overridden?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_actions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_feedback: {
+        Row: {
+          action_id: string
+          agency_id: string
+          comment: string | null
+          created_at: string
+          id: string
+          rating: number
+        }
+        Insert: {
+          action_id: string
+          agency_id: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+        }
+        Update: {
+          action_id?: string
+          agency_id?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_feedback_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "agent_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_feedback_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_feedback_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_goals: {
+        Row: {
+          agency_id: string
+          created_at: string
+          current_value: number
+          id: string
+          is_active: boolean
+          metric: string
+          priority: string
+          target_value: number
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          is_active?: boolean
+          metric: string
+          priority?: string
+          target_value: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          is_active?: boolean
+          metric?: string
+          priority?: string
+          target_value?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_goals_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_goals_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          actions_taken: number
+          agency_id: string
+          agent_type: string
+          completed_at: string | null
+          created_at: string
+          data_snapshot: Json | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          actions_taken?: number
+          agency_id: string
+          agent_type: string
+          completed_at?: string | null
+          created_at?: string
+          data_snapshot?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          status?: string
+        }
+        Update: {
+          actions_taken?: number
+          agency_id?: string
+          agent_type?: string
+          completed_at?: string | null
+          created_at?: string
+          data_snapshot?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_runs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_fan_context: {
         Row: {
           avg_ppv_price: number | null
