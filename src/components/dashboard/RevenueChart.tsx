@@ -1,18 +1,33 @@
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { useAgency } from "@/hooks/useAgency";
+import { format, subMonths } from "date-fns";
 
 export function RevenueChart() {
+  const { agency } = useAgency();
+  const agencyId = agency?.id;
+
   // Fetch earnings data grouped by month
   const { data: chartData, isLoading } = useQuery({
-    queryKey: ["revenue-chart"],
+    queryKey: ["revenue-chart", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
+      // Get creator IDs for this agency
+      const { data: creators } = await supabase
+        .from("creators")
+        .select("id")
+        .eq("agency_id", agencyId!);
+      const creatorIds = creators?.map(c => c.id) || [];
+
       // Get NET earnings from creator_earnings
-      const { data: netData, error: netError } = await supabase
-        .from("creator_earnings")
-        .select("amount, period_start, notes")
-        .order("period_start", { ascending: true });
+      const { data: netData, error: netError } = creatorIds.length > 0
+        ? await supabase
+            .from("creator_earnings")
+            .select("amount, period_start, notes")
+            .in("creator_id", creatorIds)
+            .order("period_start", { ascending: true })
+        : { data: [] as { amount: number; period_start: string; notes: string | null }[], error: null };
       
       if (netError) throw netError;
       
@@ -58,7 +73,6 @@ export function RevenueChart() {
         if (data.gross > 0) {
           data.agency = data.gross - data.net;
         } else if (data.net > 0) {
-          // Estimate: typical platform takes 20%, so net is ~80% of gross
           data.gross = data.net / 0.8;
           data.agency = data.gross - data.net;
         }

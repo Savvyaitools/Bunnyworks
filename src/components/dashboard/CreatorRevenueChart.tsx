@@ -1,33 +1,35 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAgency } from "@/hooks/useAgency";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function CreatorRevenueChart() {
+  const { agency } = useAgency();
+  const agencyId = agency?.id;
+
   const { data: chartData, isLoading } = useQuery({
-    queryKey: ["creator-revenue-chart"],
+    queryKey: ["creator-revenue-chart", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
-      // Fetch creators with their earnings
       const { data: creators, error: creatorsError } = await supabase
         .from("creators")
         .select("id, name, alias")
+        .eq("agency_id", agencyId!)
         .eq("status", "Active")
         .limit(8);
 
       if (creatorsError) throw creatorsError;
+      if (!creators || creators.length === 0) return [];
 
-      if (!creators || creators.length === 0) {
-        return [];
-      }
-
-      // Fetch earnings for each creator
+      const creatorIds = creators.map(c => c.id);
       const { data: earnings, error: earningsError } = await supabase
         .from("creator_earnings")
-        .select("creator_id, amount");
+        .select("creator_id, amount")
+        .in("creator_id", creatorIds);
 
       if (earningsError) throw earningsError;
 
-      // Aggregate earnings by creator
       const earningsByCreator: Record<string, number> = {};
       earnings?.forEach((e) => {
         earningsByCreator[e.creator_id] = (earningsByCreator[e.creator_id] || 0) + Number(e.amount);
@@ -36,7 +38,7 @@ export function CreatorRevenueChart() {
       return creators.map((creator) => ({
         name: creator.alias || creator.name.split(" ")[0],
         net: earningsByCreator[creator.id] || 0,
-        gross: (earningsByCreator[creator.id] || 0) * 1.25, // Estimate gross
+        gross: (earningsByCreator[creator.id] || 0) * 1.25,
       }));
     },
   });

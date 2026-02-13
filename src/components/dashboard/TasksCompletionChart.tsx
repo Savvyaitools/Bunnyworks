@@ -1,28 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAgency } from "@/hooks/useAgency";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, subDays, startOfDay, eachDayOfInterval } from "date-fns";
 
 export function TasksCompletionChart() {
+  const { agency } = useAgency();
+  const agencyId = agency?.id;
+
   const { data: chartData, isLoading } = useQuery({
-    queryKey: ["tasks-completion-chart"],
+    queryKey: ["tasks-completion-chart", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
       const endDate = new Date();
-      const startDate = subDays(endDate, 13); // Last 14 days
+      const startDate = subDays(endDate, 13);
 
       const { data: tasks, error } = await supabase
         .from("tasks")
         .select("updated_at, status")
+        .eq("agency_id", agencyId!)
         .eq("status", "Completed")
         .gte("updated_at", startOfDay(startDate).toISOString());
 
       if (error) throw error;
 
-      // Generate all days in range
       const days = eachDayOfInterval({ start: startDate, end: endDate });
-      
-      // Count tasks per day
       const countByDay: Record<string, number> = {};
       days.forEach(day => {
         countByDay[format(day, "yyyy-MM-dd")] = 0;

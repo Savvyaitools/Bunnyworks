@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAgency } from "@/hooks/useAgency";
 import { formatDistanceToNow } from "date-fns";
 import { formatCurrency } from "@/lib/formatters";
 import { useEffect, useState } from "react";
@@ -21,9 +22,12 @@ interface LiveActivity {
 
 export function LiveActivityFeed() {
   const [realtimeActivities, setRealtimeActivities] = useState<LiveActivity[]>([]);
+  const { agency } = useAgency();
+  const agencyId = agency?.id;
 
   const { data: activities, isLoading } = useQuery({
-    queryKey: ["live-activity-feed"],
+    queryKey: ["live-activity-feed", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
       const liveActivities: LiveActivity[] = [];
       const today = new Date();
@@ -33,6 +37,7 @@ export function LiveActivityFeed() {
       const { data: ofEvents } = await supabase
         .from("onlyfans_events")
         .select("id, event_type, payload, created_at, creator_id")
+        .eq("agency_id", agencyId!)
         .gte("created_at", today.toISOString())
         .order("created_at", { ascending: false })
         .limit(10);
@@ -111,13 +116,22 @@ export function LiveActivityFeed() {
         });
       });
 
-      // Also fetch recent earnings as fallback
-      const { data: earnings } = await supabase
-        .from("creator_earnings")
-        .select("id, amount, created_at, creator_id, notes, platform")
-        .gte("created_at", today.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(5);
+      // Also fetch recent earnings as fallback - scoped to agency creators
+      const { data: agencyCreators } = await supabase
+        .from("creators")
+        .select("id")
+        .eq("agency_id", agencyId!);
+      const agencyCreatorIds = agencyCreators?.map(c => c.id) || [];
+
+      const { data: earnings } = agencyCreatorIds.length > 0
+        ? await supabase
+            .from("creator_earnings")
+            .select("id, amount, created_at, creator_id, notes, platform")
+            .in("creator_id", agencyCreatorIds)
+            .gte("created_at", today.toISOString())
+            .order("created_at", { ascending: false })
+            .limit(5)
+        : { data: [] as any[] };
 
       // Get creator names
       const creatorIds = [...new Set(earnings?.map(e => e.creator_id) || [])];
