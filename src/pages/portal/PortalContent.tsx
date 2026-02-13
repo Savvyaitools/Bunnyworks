@@ -84,11 +84,11 @@ function formatDate(dateString: string): string {
 }
 
 function isImageFile(fileType: string): boolean {
-  return fileType === "Image";
+  return fileType === "Image" || fileType.startsWith("image/");
 }
 
 function isVideoFile(fileType: string): boolean {
-  return fileType === "Video";
+  return fileType === "Video" || fileType.startsWith("video/");
 }
 
 export default function PortalContent() {
@@ -538,11 +538,16 @@ export default function PortalContent() {
                         className="relative aspect-video rounded-lg overflow-hidden bg-muted cursor-pointer"
                         onClick={() => openPreview(item)}
                       >
-                        <img
+                      <img
                           src={item.signedUrl}
                           alt={item.name}
                           className="w-full h-full object-cover"
                           loading="lazy"
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            console.error("Image thumbnail error:", item.name);
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
                       </div>
@@ -551,11 +556,14 @@ export default function PortalContent() {
                         className="relative aspect-video rounded-lg overflow-hidden bg-muted cursor-pointer group"
                         onClick={() => openPreview(item)}
                       >
-                        <video
-                          src={item.signedUrl}
+                    <video
+                          src={`${item.signedUrl}#t=0.5`}
                           className="w-full h-full object-cover"
                           muted
+                          playsInline
                           preload="metadata"
+                          crossOrigin="anonymous"
+                          onError={(e) => console.error("Video thumbnail error:", item.name, e)}
                         />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/50 transition-colors">
                           <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
@@ -636,6 +644,7 @@ export default function PortalContent() {
             {filteredContent.map((item, index) => {
               const TypeIcon = typeIcons[item.file_type as ContentType] || FileText;
               const showThumbnail = isImageFile(item.file_type) && item.signedUrl;
+              const showVideoThumbnail = isVideoFile(item.file_type) && item.signedUrl;
 
               return (
                 <div
@@ -650,7 +659,22 @@ export default function PortalContent() {
                         alt={item.name}
                         className="w-full h-full object-cover"
                         loading="lazy"
+                        crossOrigin="anonymous"
                       />
+                    </div>
+                  ) : showVideoThumbnail ? (
+                    <div className="w-16 h-12 rounded-lg overflow-hidden bg-muted shrink-0 relative">
+                      <video
+                        src={`${item.signedUrl}#t=0.5`}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                        preload="metadata"
+                        crossOrigin="anonymous"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Play className="h-4 w-4 text-white fill-white" />
+                      </div>
                     </div>
                   ) : (
                     <div
