@@ -259,10 +259,10 @@ export function CreatorEmployeePermissions({ creatorId }: CreatorEmployeePermiss
                         )}
                         
                         <Select
-                          value={currentLevel}
-                          onValueChange={(value) => handlePermissionChange(employee.id, value as PresetKey)}
-                          disabled={!ofAccount || isPending}
-                        >
+                           value={currentLevel}
+                           onValueChange={(value) => handlePermissionChange(employee.id, value as PresetKey)}
+                           disabled={isPending}
+                         >
                           <SelectTrigger className="w-32">
                             <SelectValue />
                           </SelectTrigger>
