@@ -78,6 +78,9 @@ async function bbFetch(apiKey: string, path: string, options: RequestInit = {}) 
   if (!res.ok) {
     const text = await res.text();
     console.error(`Browserbase ${path} error:`, text);
+    if (res.status === 402) {
+      throw new Error("BILLING: Your Browserbase free plan minutes have been used up. Please upgrade your Browserbase account at https://browserbase.com/plans to continue launching browser sessions.");
+    }
     throw new Error(`Browserbase API error: ${text}`);
   }
   return res.json();

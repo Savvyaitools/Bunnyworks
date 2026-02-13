@@ -96,7 +96,12 @@ export function useBrowserSessions() {
       invalidate();
       return result as { embedUrl: string; sessionId: string; sessionLinkId: string; contextId: string };
     } catch (err: any) {
-      toast.error("Failed to create session: " + (err.message || "Unknown error"));
+      const msg = err.message || "Unknown error";
+      if (msg.includes("BILLING:")) {
+        toast.error(msg.replace("BILLING: ", ""), { duration: 8000 });
+      } else {
+        toast.error("Failed to create session: " + msg);
+      }
       return null;
     } finally {
       setLaunching(false);
