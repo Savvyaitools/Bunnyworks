@@ -156,7 +156,15 @@ export default function EmployeeOnlyFans() {
   if (!permissions || permissions.length === 0) {
     return (
       <EmployeeLayout>
-        <div className="p-6">
+        <div className="p-4 md:p-6 space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold">OnlyFans Dashboard</h1>
+            <p className="text-muted-foreground">Manage DMs, subscribers, and content</p>
+          </div>
+
+          {/* Still show browser sessions even without OF API permissions */}
+          {chatterId && <ChatterSessionLauncher chatterId={chatterId} />}
+
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <AlertCircle className="h-16 w-16 text-muted-foreground mb-4" />
@@ -174,14 +182,30 @@ export default function EmployeeOnlyFans() {
   if (socialAccounts.length === 0) {
     return (
       <EmployeeLayout>
-        <div className="p-6">
+        <div className="p-4 md:p-6 space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold">OnlyFans Dashboard</h1>
+            <p className="text-muted-foreground">Manage DMs, subscribers, and content</p>
+          </div>
+
+          {/* Show browser sessions even without OF API accounts */}
+          {chatterId && <ChatterSessionLauncher chatterId={chatterId} />}
+
+          {/* Show assigned creators */}
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <User className="h-16 w-16 text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold mb-2">No Connected Accounts</h2>
-              <p className="text-muted-foreground max-w-md">
-                The creators you have access to don't have any connected OnlyFans accounts. Please contact your manager.
-              </p>
+            <CardHeader>
+              <CardTitle className="text-lg">Assigned Creators</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {permissions.map((p) => (
+                <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                  <User className="h-8 w-8 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-sm">{p.creator?.name || "Creator"}</p>
+                    <p className="text-xs text-muted-foreground">No API account connected — use browser sessions</p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>

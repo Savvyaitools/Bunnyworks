@@ -261,19 +261,40 @@ async function launchChatterSession(supabase: any, apiKey: string, projectId: st
   const { sessionLinkId, chatterId } = params;
   if (!sessionLinkId) return json({ error: "sessionLinkId is required" }, 400);
 
-  // Verify assignment
-  const { data: assignment, error: assignErr } = await supabase
-    .from("session_link_assignments")
-    .select("*, session_link:creator_session_links(*)")
-    .eq("session_link_id", sessionLinkId)
-    .eq("chatter_id", chatterId)
-    .maybeSingle();
+  // Get the session link
+  const { data: link, error: linkErr } = await supabase
+    .from("creator_session_links")
+    .select("*")
+    .eq("id", sessionLinkId)
+    .single();
 
-  if (assignErr || !assignment) {
-    return json({ error: "Not authorized for this session" }, 403);
+  if (linkErr || !link) {
+    return json({ error: "Session link not found" }, 404);
   }
 
-  const link = assignment.session_link;
+  // Verify access via employee_of_permissions (employee must have permissions for this creator)
+  // First get the employee_id for this user
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("auth_user_id", userId)
+    .maybeSingle();
+
+  if (!employee) {
+    return json({ error: "Employee record not found" }, 403);
+  }
+
+  const { data: permission } = await supabase
+    .from("employee_of_permissions")
+    .select("id")
+    .eq("employee_id", employee.id)
+    .eq("creator_id", link.creator_id)
+    .maybeSingle();
+
+  if (!permission) {
+    return json({ error: "Not authorized for this creator's sessions" }, 403);
+  }
+
   if (!link.is_active) return json({ error: "Session has been revoked" }, 400);
   if (new Date(link.expires_at) < new Date()) return json({ error: "Session expired" }, 400);
   if (!link.browserbase_context_id) return json({ error: "Session not authenticated yet" }, 400);
@@ -309,15 +330,6 @@ async function launchChatterSession(supabase: any, apiKey: string, projectId: st
     embed_url: liveUrl,
     session_type: "chatter",
   });
-
-  // Update assignment access
-  await supabase
-    .from("session_link_assignments")
-    .update({
-      accessed_at: new Date().toISOString(),
-      access_count: (assignment.access_count || 0) + 1,
-    })
-    .eq("id", assignment.id);
 
   // Log access
   await supabase.from("session_access_logs").insert({
