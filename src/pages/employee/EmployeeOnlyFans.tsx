@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAllMyOFPermissions } from "@/hooks/useEmployeeOFPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { MessageCircle, Users, DollarSign, AlertCircle, User, RefreshCw } from "lucide-react";
+import { MessageCircle, Users, DollarSign, AlertCircle, User, RefreshCw, Globe } from "lucide-react";
 import { AccountSelector } from "@/components/employee-of/AccountSelector";
 import { ChatList } from "@/components/employee-of/ChatList";
 import { ChatWindow } from "@/components/employee-of/ChatWindow";
@@ -17,6 +17,7 @@ import { EarningsOverview } from "@/components/employee-of/EarningsOverview";
 import { PermissionGate } from "@/components/employee-of/PermissionGate";
 import { OFConnectionStatusBanner } from "@/components/employee-of/OFConnectionStatusBanner";
 import { OFReconnectDialog } from "@/components/employee-of/OFReconnectDialog";
+import { ChatterSessionLauncher } from "@/components/browser/ChatterSessionLauncher";
 import { toast } from "sonner";
 
 interface SocialAccountWithOF {
@@ -43,6 +44,22 @@ export default function EmployeeOnlyFans() {
   const [activeTab, setActiveTab] = useState("chats");
   const [isSyncing, setIsSyncing] = useState(false);
   const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
+  const [chatterId, setChatterId] = useState<string | null>(null);
+
+  // Fetch current user's chatter record for browser session assignments
+  useEffect(() => {
+    const fetchChatterId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("chatters")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      if (data) setChatterId(data.id);
+    };
+    fetchChatterId();
+  }, []);
 
   const handleSyncNow = async () => {
     const ofAccountId = selectedAccount?.of_account_id;
@@ -222,6 +239,9 @@ export default function EmployeeOnlyFans() {
             onReconnect={() => setReconnectDialogOpen(true)}
           />
         )}
+
+        {/* Live Browser Sessions */}
+        {chatterId && <ChatterSessionLauncher chatterId={chatterId} />}
 
         {/* Main Content */}
         {selectedAccount && selectedAccount.of_account_id && currentPermissions && (

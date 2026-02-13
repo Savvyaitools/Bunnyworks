@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plug, Copy, RefreshCw, Check, Loader2, ExternalLink, Download, DollarSign } from "lucide-react";
+import { Plug, Copy, RefreshCw, Check, Loader2, ExternalLink, Download, DollarSign, Monitor } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,8 @@ import { useAgency } from "@/hooks/useAgency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OnlyFansSync } from "@/components/browser/OnlyFansSync";
+import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
+import { BrowserSessionsDashboard } from "@/components/browser/BrowserSessionsDashboard";
 import { useCreators } from "@/hooks/useCreators";
 
 interface ConnectedAccount {
@@ -196,8 +198,12 @@ export default function BrowserSync() {
           <p className="text-muted-foreground mt-1">Sync data and manage OnlyFans accounts</p>
         </div>
 
-        <Tabs defaultValue="onlyfans" className="animate-fade-in" style={{ animationDelay: "100ms" }}>
+        <Tabs defaultValue="live-sessions" className="animate-fade-in" style={{ animationDelay: "100ms" }}>
           <TabsList>
+            <TabsTrigger value="live-sessions" className="gap-2">
+              <Monitor className="h-4 w-4" />
+              Live Sessions
+            </TabsTrigger>
             <TabsTrigger value="onlyfans" className="gap-2">
               <DollarSign className="h-4 w-4" />
               OnlyFans API
@@ -207,6 +213,11 @@ export default function BrowserSync() {
               Chrome Extension
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="live-sessions" className="space-y-4">
+            <AdminSessionLauncher />
+            <BrowserSessionsDashboard />
+          </TabsContent>
 
           <TabsContent value="onlyfans" className="space-y-4">
             <div className="glass-card p-6 space-y-4">
