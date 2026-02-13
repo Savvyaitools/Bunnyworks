@@ -23,8 +23,10 @@ export type Database = {
           created_at: string | null
           embed_url: string
           ended_at: string | null
+          has_recording: boolean | null
           id: string
           is_active: boolean | null
+          recording_url: string | null
           session_link_id: string | null
           session_type: string | null
           started_at: string | null
@@ -37,8 +39,10 @@ export type Database = {
           created_at?: string | null
           embed_url: string
           ended_at?: string | null
+          has_recording?: boolean | null
           id?: string
           is_active?: boolean | null
+          recording_url?: string | null
           session_link_id?: string | null
           session_type?: string | null
           started_at?: string | null
@@ -51,8 +55,10 @@ export type Database = {
           created_at?: string | null
           embed_url?: string
           ended_at?: string | null
+          has_recording?: boolean | null
           id?: string
           is_active?: boolean | null
+          recording_url?: string | null
           session_link_id?: string | null
           session_type?: string | null
           started_at?: string | null
@@ -583,6 +589,131 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      browser_extensions: {
+        Row: {
+          agency_id: string
+          auto_inject: boolean | null
+          browserbase_extension_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          auto_inject?: boolean | null
+          browserbase_extension_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          auto_inject?: boolean | null
+          browserbase_extension_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_extensions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "browser_extensions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      browser_session_events: {
+        Row: {
+          active_session_id: string | null
+          agency_id: string
+          browserbase_session_id: string
+          created_at: string | null
+          event_type: string
+          id: string
+          is_read: boolean | null
+          message: string | null
+          metadata: Json | null
+          session_link_id: string | null
+          severity: string | null
+          title: string
+        }
+        Insert: {
+          active_session_id?: string | null
+          agency_id: string
+          browserbase_session_id: string
+          created_at?: string | null
+          event_type: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          metadata?: Json | null
+          session_link_id?: string | null
+          severity?: string | null
+          title: string
+        }
+        Update: {
+          active_session_id?: string | null
+          agency_id?: string
+          browserbase_session_id?: string
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          metadata?: Json | null
+          session_link_id?: string | null
+          severity?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_session_events_active_session_id_fkey"
+            columns: ["active_session_id"]
+            isOneToOne: false
+            referencedRelation: "active_browser_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "browser_session_events_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "browser_session_events_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "browser_session_events_session_link_id_fkey"
+            columns: ["session_link_id"]
+            isOneToOne: false
+            referencedRelation: "creator_session_links"
             referencedColumns: ["id"]
           },
         ]
@@ -1430,6 +1561,8 @@ export type Database = {
           persona: string | null
           phone: string | null
           platform: string | null
+          proxy_country: string | null
+          proxy_state: string | null
           revenue: number
           saying_sub_name: boolean | null
           snapchat_url: string | null
@@ -1486,6 +1619,8 @@ export type Database = {
           persona?: string | null
           phone?: string | null
           platform?: string | null
+          proxy_country?: string | null
+          proxy_state?: string | null
           revenue?: number
           saying_sub_name?: boolean | null
           snapchat_url?: string | null
@@ -1542,6 +1677,8 @@ export type Database = {
           persona?: string | null
           phone?: string | null
           platform?: string | null
+          proxy_country?: string | null
+          proxy_state?: string | null
           revenue?: number
           saying_sub_name?: boolean | null
           snapchat_url?: string | null

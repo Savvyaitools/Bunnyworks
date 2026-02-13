@@ -32,7 +32,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
 
@@ -59,6 +58,18 @@ Deno.serve(async (req) => {
         return await terminateSession(serviceClient, BB_KEY, params);
       case "get_session_status":
         return await getSessionStatus(BB_KEY, params);
+      case "get_session_recording":
+        return await getSessionRecording(BB_KEY, params);
+      case "get_session_logs":
+        return await getSessionLogs(BB_KEY, params);
+      case "get_session_downloads":
+        return await getSessionDownloads(BB_KEY, params);
+      case "check_captcha_events":
+        return await checkCaptchaEvents(serviceClient, BB_KEY, params);
+      case "upload_extension":
+        return await uploadExtension(serviceClient, BB_KEY, BB_PROJECT, params);
+      case "list_extensions":
+        return await listExtensions(BB_KEY, BB_PROJECT);
       default:
         return json({ error: "Invalid action" }, 400);
     }
@@ -86,8 +97,20 @@ async function bbFetch(apiKey: string, path: string, options: RequestInit = {}) 
   return res.json();
 }
 
+async function bbFetchRaw(apiKey: string, path: string, options: RequestInit = {}) {
+  const res = await fetch(`${BB_API}${path}`, {
+    ...options,
+    headers: { ...bbHeaders(apiKey), ...(options.headers || {}) },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`Browserbase ${path} error:`, text);
+    throw new Error(`Browserbase API error: ${text}`);
+  }
+  return res;
+}
+
 async function getOrCreateContext(supabase: any, apiKey: string, projectId: string, creatorId: string, platform: string) {
-  // Check for existing context
   const { data: existing } = await supabase
     .from("creator_session_links")
     .select("browserbase_context_id")
@@ -101,7 +124,6 @@ async function getOrCreateContext(supabase: any, apiKey: string, projectId: stri
     return existing.browserbase_context_id;
   }
 
-  // Create new context
   const ctx = await bbFetch(apiKey, "/contexts", {
     method: "POST",
     body: JSON.stringify({ projectId }),
@@ -115,6 +137,18 @@ async function getLiveViewUrl(apiKey: string, sessionId: string) {
   return debug.debuggerFullscreenUrl;
 }
 
+// Build proxy config with optional geolocation
+function buildProxyConfig(creator: any) {
+  const proxy: any = { type: "browserbase" };
+  if (creator?.proxy_country) {
+    proxy.geolocation = { country: creator.proxy_country };
+    if (creator.proxy_state) {
+      proxy.geolocation.state = creator.proxy_state;
+    }
+  }
+  return [proxy];
+}
+
 // ── Actions ──────────────────────────────────────────────
 
 async function createAdminSession(supabase: any, apiKey: string, projectId: string, userId: string, params: any) {
@@ -123,11 +157,15 @@ async function createAdminSession(supabase: any, apiKey: string, projectId: stri
     return json({ error: "creatorId, platform, and agencyId are required" }, 400);
   }
 
+  // Fetch creator for proxy geolocation
+  const { data: creator } = await supabase
+    .from("creators")
+    .select("proxy_country, proxy_state, name")
+    .eq("id", creatorId)
+    .single();
+
   const contextId = await getOrCreateContext(supabase, apiKey, projectId, creatorId, platform);
 
-  const startUrl = platform === "onlyfans" ? "https://onlyfans.com" : "https://www.fanvue.com";
-
-  // Create session with context
   const session = await bbFetch(apiKey, "/sessions", {
     method: "POST",
     body: JSON.stringify({
@@ -139,9 +177,18 @@ async function createAdminSession(supabase: any, apiKey: string, projectId: stri
           operatingSystems: ["windows"],
         },
       },
-      proxies: true,
+      proxies: buildProxyConfig(creator),
       keepAlive: true,
       timeout: 3600,
+      // Session metadata for tracking
+      userMetadata: {
+        creatorId,
+        agencyId,
+        userId,
+        platform,
+        sessionType: "admin",
+        creatorName: creator?.name || "Unknown",
+      },
     }),
   });
 
@@ -225,7 +272,6 @@ async function saveAndClose(supabase: any, apiKey: string, params: any) {
 
   console.log("Saving and closing session:", browserbaseSessionId);
 
-  // Terminate session — context auto-persists because persist:true was set
   try {
     await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, {
       method: "POST",
@@ -236,7 +282,6 @@ async function saveAndClose(supabase: any, apiKey: string, params: any) {
     console.log("Session may already be terminated:", e);
   }
 
-  // Update session link
   await supabase
     .from("creator_session_links")
     .update({
@@ -248,7 +293,6 @@ async function saveAndClose(supabase: any, apiKey: string, params: any) {
     })
     .eq("id", sessionLinkId);
 
-  // Mark active session as ended
   await supabase
     .from("active_browser_sessions")
     .update({ is_active: false, ended_at: new Date().toISOString() })
@@ -261,7 +305,6 @@ async function launchChatterSession(supabase: any, apiKey: string, projectId: st
   const { sessionLinkId, chatterId } = params;
   if (!sessionLinkId) return json({ error: "sessionLinkId is required" }, 400);
 
-  // Get the session link
   const { data: link, error: linkErr } = await supabase
     .from("creator_session_links")
     .select("*")
@@ -272,8 +315,6 @@ async function launchChatterSession(supabase: any, apiKey: string, projectId: st
     return json({ error: "Session link not found" }, 404);
   }
 
-  // Verify access via employee_of_permissions (employee must have permissions for this creator)
-  // First get the employee_id for this user
   const { data: employee } = await supabase
     .from("employees")
     .select("id")
@@ -299,28 +340,58 @@ async function launchChatterSession(supabase: any, apiKey: string, projectId: st
   if (new Date(link.expires_at) < new Date()) return json({ error: "Session expired" }, 400);
   if (!link.browserbase_context_id) return json({ error: "Session not authenticated yet" }, 400);
 
-  const startUrl = link.platform === "onlyfans" ? "https://onlyfans.com/my/chats" : "https://www.fanvue.com";
+  // Fetch creator for proxy geolocation
+  const { data: creator } = await supabase
+    .from("creators")
+    .select("proxy_country, proxy_state, name")
+    .eq("id", link.creator_id)
+    .single();
+
+  // Fetch active extensions for auto-inject
+  const { data: extensions } = await supabase
+    .from("browser_extensions")
+    .select("browserbase_extension_id")
+    .eq("agency_id", link.agency_id)
+    .eq("is_active", true)
+    .eq("auto_inject", true);
+
+  const extensionIds = (extensions || [])
+    .map((e: any) => e.browserbase_extension_id)
+    .filter(Boolean);
+
+  const sessionConfig: any = {
+    projectId,
+    browserSettings: {
+      context: { id: link.browserbase_context_id, persist: true },
+      fingerprint: {
+        browsers: ["chrome"],
+        operatingSystems: ["windows"],
+      },
+    },
+    proxies: buildProxyConfig(creator),
+    keepAlive: true,
+    timeout: 28800,
+    userMetadata: {
+      creatorId: link.creator_id,
+      agencyId: link.agency_id,
+      chatterId: chatterId || userId,
+      platform: link.platform,
+      sessionType: "chatter",
+      creatorName: creator?.name || "Unknown",
+    },
+  };
+
+  if (extensionIds.length > 0) {
+    sessionConfig.extensionId = extensionIds[0]; // Browserbase supports one extension per session
+  }
 
   const session = await bbFetch(apiKey, "/sessions", {
     method: "POST",
-    body: JSON.stringify({
-      projectId,
-      browserSettings: {
-        context: { id: link.browserbase_context_id, persist: true },
-        fingerprint: {
-          browsers: ["chrome"],
-          operatingSystems: ["windows"],
-        },
-      },
-      proxies: true,
-      keepAlive: true,
-      timeout: 28800,
-    }),
+    body: JSON.stringify(sessionConfig),
   });
 
   const liveUrl = await getLiveViewUrl(apiKey, session.id);
 
-  // Track active session
   await supabase.from("active_browser_sessions").insert({
     session_link_id: sessionLinkId,
     chatter_id: chatterId,
@@ -331,7 +402,6 @@ async function launchChatterSession(supabase: any, apiKey: string, projectId: st
     session_type: "chatter",
   });
 
-  // Log access
   await supabase.from("session_access_logs").insert({
     session_link_id: sessionLinkId,
     chatter_id: chatterId,
@@ -377,5 +447,122 @@ async function getSessionStatus(apiKey: string, params: any) {
     return json({ active: data.status === "RUNNING", status: data.status, createdAt: data.createdAt });
   } catch {
     return json({ active: false, status: "UNKNOWN" });
+  }
+}
+
+// ── New Actions ──────────────────────────────────────────
+
+async function getSessionRecording(apiKey: string, params: any) {
+  const { browserbaseSessionId } = params;
+  if (!browserbaseSessionId) return json({ error: "browserbaseSessionId is required" }, 400);
+
+  try {
+    const recording = await bbFetch(apiKey, `/sessions/${browserbaseSessionId}/recording`);
+    return json({ success: true, recording });
+  } catch (err: any) {
+    return json({ error: "Recording not available: " + (err.message || "Unknown error") }, 404);
+  }
+}
+
+async function getSessionLogs(apiKey: string, params: any) {
+  const { browserbaseSessionId } = params;
+  if (!browserbaseSessionId) return json({ error: "browserbaseSessionId is required" }, 400);
+
+  try {
+    const logs = await bbFetch(apiKey, `/sessions/${browserbaseSessionId}/logs`);
+    return json({ success: true, logs });
+  } catch (err: any) {
+    return json({ error: "Logs not available: " + (err.message || "Unknown error") }, 404);
+  }
+}
+
+async function getSessionDownloads(apiKey: string, params: any) {
+  const { browserbaseSessionId } = params;
+  if (!browserbaseSessionId) return json({ error: "browserbaseSessionId is required" }, 400);
+
+  try {
+    const downloads = await bbFetch(apiKey, `/sessions/${browserbaseSessionId}/downloads`);
+    return json({ success: true, downloads });
+  } catch (err: any) {
+    return json({ error: "Downloads not available: " + (err.message || "Unknown error") }, 404);
+  }
+}
+
+async function checkCaptchaEvents(supabase: any, apiKey: string, params: any) {
+  const { browserbaseSessionId, agencyId, sessionLinkId } = params;
+  if (!browserbaseSessionId) return json({ error: "browserbaseSessionId is required" }, 400);
+
+  try {
+    const logs = await bbFetch(apiKey, `/sessions/${browserbaseSessionId}/logs`);
+    const captchaEvents: any[] = [];
+
+    // Parse logs for CAPTCHA-related events
+    if (Array.isArray(logs)) {
+      for (const log of logs) {
+        const msg = typeof log === "string" ? log : JSON.stringify(log);
+        const lowerMsg = msg.toLowerCase();
+        if (lowerMsg.includes("captcha") || lowerMsg.includes("challenge") || lowerMsg.includes("recaptcha") || lowerMsg.includes("hcaptcha")) {
+          captchaEvents.push({
+            timestamp: log.timestamp || new Date().toISOString(),
+            message: msg,
+            type: lowerMsg.includes("solved") || lowerMsg.includes("success") ? "captcha_solved" : "captcha_detected",
+          });
+        }
+      }
+    }
+
+    // Store events in database
+    if (captchaEvents.length > 0 && agencyId) {
+      const inserts = captchaEvents.map((evt) => ({
+        agency_id: agencyId,
+        session_link_id: sessionLinkId || null,
+        browserbase_session_id: browserbaseSessionId,
+        event_type: evt.type,
+        severity: evt.type === "captcha_detected" ? "warning" : "info",
+        title: evt.type === "captcha_detected" ? "CAPTCHA Detected" : "CAPTCHA Solved",
+        message: evt.message,
+        metadata: { timestamp: evt.timestamp },
+      }));
+
+      await supabase.from("browser_session_events").insert(inserts);
+    }
+
+    return json({ success: true, captchaEvents, count: captchaEvents.length });
+  } catch (err: any) {
+    return json({ error: "Failed to check CAPTCHA events: " + (err.message || "Unknown error") }, 500);
+  }
+}
+
+async function uploadExtension(supabase: any, apiKey: string, projectId: string, params: any) {
+  const { agencyId, name, description } = params;
+  if (!name) return json({ error: "Extension name is required" }, 400);
+
+  // Note: Actual extension upload requires multipart form data with the extension zip
+  // This creates a placeholder record. Real upload would go through Browserbase dashboard or API
+  const { data, error } = await supabase
+    .from("browser_extensions")
+    .insert({
+      agency_id: agencyId,
+      name,
+      description: description || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error("Failed to create extension record: " + error.message);
+
+  return json({
+    success: true,
+    extensionId: data.id,
+    message: "Extension record created. Upload the extension ZIP via the Browserbase dashboard to get the extension ID, then update this record.",
+  });
+}
+
+async function listExtensions(apiKey: string, projectId: string) {
+  try {
+    const extensions = await bbFetch(apiKey, `/extensions?projectId=${projectId}`);
+    return json({ success: true, extensions });
+  } catch (err: any) {
+    return json({ success: true, extensions: [] });
   }
 }

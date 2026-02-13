@@ -1,12 +1,17 @@
+import { useState } from "react";
 import { useBrowserSessions, SessionLink } from "@/hooks/useBrowserSessions";
+import { useCaptchaCheck } from "@/hooks/useBrowserFeatures";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Monitor, Trash2, RefreshCw } from "lucide-react";
+import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { SessionRecordingViewer } from "./SessionRecordingViewer";
+import { SessionLogsViewer } from "./SessionLogsViewer";
+import { SessionDownloadsViewer } from "./SessionDownloadsViewer";
 
 function statusBadge(status: string | null) {
   switch (status) {
@@ -21,8 +26,16 @@ function statusBadge(status: string | null) {
   }
 }
 
+type ViewerPanel = {
+  type: "recording" | "logs" | "downloads";
+  sessionId: string;
+  label: string;
+};
+
 export function BrowserSessionsDashboard() {
   const { sessionLinks, activeSessions, linksLoading, terminateSession, invalidate } = useBrowserSessions();
+  const captchaCheck = useCaptchaCheck();
+  const [viewerPanel, setViewerPanel] = useState<ViewerPanel | null>(null);
 
   if (linksLoading) {
     return (
@@ -35,6 +48,18 @@ export function BrowserSessionsDashboard() {
         </CardContent>
       </Card>
     );
+  }
+
+  if (viewerPanel) {
+    if (viewerPanel.type === "recording") {
+      return <SessionRecordingViewer browserbaseSessionId={viewerPanel.sessionId} sessionLabel={viewerPanel.label} onClose={() => setViewerPanel(null)} />;
+    }
+    if (viewerPanel.type === "logs") {
+      return <SessionLogsViewer browserbaseSessionId={viewerPanel.sessionId} sessionLabel={viewerPanel.label} onClose={() => setViewerPanel(null)} />;
+    }
+    if (viewerPanel.type === "downloads") {
+      return <SessionDownloadsViewer browserbaseSessionId={viewerPanel.sessionId} sessionLabel={viewerPanel.label} onClose={() => setViewerPanel(null)} />;
+    }
   }
 
   if (sessionLinks.length === 0) {
@@ -88,6 +113,7 @@ export function BrowserSessionsDashboard() {
               const linkActiveSessions = activeSessions.filter(
                 (s) => s.session_link_id === link.id
               );
+              const creatorLabel = link.creator?.name || "Unknown";
 
               return (
                 <TableRow key={link.id}>
@@ -127,18 +153,62 @@ export function BrowserSessionsDashboard() {
                       : "Never"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {linkActiveSessions.map((s) => (
-                      <Button
-                        key={s.id}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => terminateSession(s.browserbase_session_id)}
-                        className="text-destructive h-7 text-xs"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Kill
-                      </Button>
-                    ))}
+                    <div className="flex items-center justify-end gap-1 flex-wrap">
+                      {/* Session inspection buttons for completed sessions */}
+                      {link.browserbase_session_id && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewerPanel({ type: "recording", sessionId: link.browserbase_session_id!, label: creatorLabel })}
+                            className="h-7 text-xs"
+                            title="View Recording"
+                          >
+                            <Film className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewerPanel({ type: "logs", sessionId: link.browserbase_session_id!, label: creatorLabel })}
+                            className="h-7 text-xs"
+                            title="View Logs"
+                          >
+                            <Terminal className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewerPanel({ type: "downloads", sessionId: link.browserbase_session_id!, label: creatorLabel })}
+                            className="h-7 text-xs"
+                            title="View Downloads"
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => captchaCheck.mutate({ browserbaseSessionId: link.browserbase_session_id!, sessionLinkId: link.id })}
+                            className="h-7 text-xs"
+                            title="Check CAPTCHA Events"
+                            disabled={captchaCheck.isPending}
+                          >
+                            <ShieldAlert className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                      {linkActiveSessions.map((s) => (
+                        <Button
+                          key={s.id}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => terminateSession(s.browserbase_session_id)}
+                          className="text-destructive h-7 text-xs"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Kill
+                        </Button>
+                      ))}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
