@@ -134,7 +134,12 @@ async function createAdminSession(supabase: any, apiKey: string, projectId: stri
       projectId,
       browserSettings: {
         context: { id: contextId, persist: true },
+        fingerprint: {
+          browsers: ["chrome"],
+          operatingSystems: ["windows"],
+        },
       },
+      proxies: true,
       keepAlive: true,
       timeout: 3600,
     }),
@@ -281,7 +286,12 @@ async function launchChatterSession(supabase: any, apiKey: string, projectId: st
       projectId,
       browserSettings: {
         context: { id: link.browserbase_context_id, persist: true },
+        fingerprint: {
+          browsers: ["chrome"],
+          operatingSystems: ["windows"],
+        },
       },
+      proxies: true,
       keepAlive: true,
       timeout: 28800,
     }),
