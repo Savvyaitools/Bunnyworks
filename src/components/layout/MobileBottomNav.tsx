@@ -57,7 +57,6 @@ const menuSections = [
   {
     title: "OnlyFans",
     items: [
-      { title: "Subscriber DMs", url: "/subscriber-dms", icon: MessageCircle },
       { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
       { title: "Team Chat", url: "/team-chat", icon: MessageSquare },
     ],
@@ -67,7 +66,6 @@ const menuSections = [
     items: [
       { title: "Recruiting", url: "/recruiting", icon: UserPlus },
       { title: "OF Discovery", url: "/tools/creator-discovery", icon: Search },
-      { title: "Web Scraper", url: "/tools/scraper", icon: Globe },
       { title: "Applications", url: "/applications", icon: ClipboardList },
     ],
   },
@@ -76,8 +74,6 @@ const menuSections = [
     items: [
       { title: "SOP Library", url: "/sop", icon: BookOpen },
       { title: "Data Import", url: "/data-import", icon: Upload },
-      { title: "Browser Sync", url: "/browser-sync", icon: Plug },
-      { title: "OF Health", url: "/of-health", icon: HeartPulse },
       { title: "User Guide", url: "/guide", icon: HelpCircle },
     ],
   },
