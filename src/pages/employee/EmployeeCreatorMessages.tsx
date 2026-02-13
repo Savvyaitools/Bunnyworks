@@ -48,9 +48,6 @@ export default function EmployeeCreatorMessages() {
 
       if (empError || !employee) return [];
 
-      // Chatters cannot access creator messages
-      if (employee.role === "Chatter") return [];
-
       // Get creators managed by this employee (via manager_id)
       const { data: managedCreators } = await supabase
         .from("creators")
