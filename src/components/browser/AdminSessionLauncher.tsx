@@ -7,11 +7,15 @@ import { useBrowserSessions } from "@/hooks/useBrowserSessions";
 import { EmbeddedBrowserViewer } from "./EmbeddedBrowserViewer";
 import { Globe, Loader2 } from "lucide-react";
 
-export function AdminSessionLauncher() {
+interface AdminSessionLauncherProps {
+  preselectedCreatorId?: string;
+}
+
+export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLauncherProps) {
   const { creators } = useCreators();
   const { createAdminSession, saveAndClose, terminateSession, launching } = useBrowserSessions();
 
-  const [selectedCreator, setSelectedCreator] = useState<string>("");
+  const [selectedCreator, setSelectedCreator] = useState<string>(preselectedCreatorId || "");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("onlyfans");
   const [activeSession, setActiveSession] = useState<{
     embedUrl: string;

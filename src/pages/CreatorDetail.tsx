@@ -15,6 +15,7 @@ import {
   CreatorEarnings,
   CreatorEmployeePermissions,
 } from "@/components/creators";
+import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
 
 export default function CreatorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +82,7 @@ export default function CreatorDetail() {
             <TabsTrigger value="requests">Custom Requests</TabsTrigger>
             <TabsTrigger value="earnings">Earnings</TabsTrigger>
             <TabsTrigger value="team-access">Team Access</TabsTrigger>
+            <TabsTrigger value="browser">Browser</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="bg-card rounded-lg border border-border p-6">
@@ -113,6 +115,10 @@ export default function CreatorDetail() {
 
           <TabsContent value="team-access" className="bg-card rounded-lg border border-border p-6">
             <CreatorEmployeePermissions creatorId={creator.id} />
+          </TabsContent>
+
+          <TabsContent value="browser" className="bg-card rounded-lg border border-border p-6">
+            <AdminSessionLauncher preselectedCreatorId={creator.id} />
           </TabsContent>
         </Tabs>
       </div>
