@@ -162,10 +162,15 @@ const Index = () => {
   const netRevenue = revenueData?.netTotal || 0;
   const agencyEarnings = revenueData?.agencyEarnings || 0;
 
+  // Generate deterministic sparkline data based on base value (seeded, not random)
   const generateSparklineData = (base: number) => {
-    return Array.from({ length: 12 }, (_, i) => ({
-      value: base * (0.6 + Math.random() * 0.8) * (1 + i * 0.05),
-    }));
+    return Array.from({ length: 12 }, (_, i) => {
+      // Use a deterministic pattern instead of Math.random()
+      const seed = ((i * 7 + 3) % 10) / 10; // 0.3, 0.0, 0.7, 0.4, 0.1, 0.8, 0.5, 0.2, 0.9, 0.6, 0.3, 0.0
+      return {
+        value: base * (0.6 + seed * 0.8) * (1 + i * 0.05),
+      };
+    });
   };
 
   const handleSyncNow = async () => {
@@ -305,8 +310,8 @@ const Index = () => {
             <MiniSparklineCard
               title="Total Revenue"
               value={formatCompactCurrency(grossRevenue)}
-              change="+12.5%"
-              changeType="positive"
+              change={grossRevenue > 0 ? "Active" : "No data"}
+              changeType={grossRevenue > 0 ? "positive" : "negative"}
               data={generateSparklineData(grossRevenue || 10000)}
               color="hsl(var(--primary))"
               delay={150}
@@ -314,8 +319,8 @@ const Index = () => {
             <MiniSparklineCard
               title="Agency Earnings"
               value={formatCompactCurrency(agencyEarnings)}
-              change="+8.2%"
-              changeType="positive"
+              change={agencyEarnings > 0 ? "Active" : "No data"}
+              changeType={agencyEarnings > 0 ? "positive" : "negative"}
               data={generateSparklineData(agencyEarnings || 3000)}
               color="hsl(var(--success))"
               delay={200}
@@ -323,8 +328,8 @@ const Index = () => {
             <MiniSparklineCard
               title="Creator Net"
               value={formatCompactCurrency(netRevenue)}
-              change="+15.3%"
-              changeType="positive"
+              change={netRevenue > 0 ? "Active" : "No data"}
+              changeType={netRevenue > 0 ? "positive" : "negative"}
               data={generateSparklineData(netRevenue || 7000)}
               color="hsl(var(--accent))"
               delay={250}
@@ -356,7 +361,8 @@ const Index = () => {
         </div>
         <div className="glass-card p-5 animate-fade-in" style={{ animationDelay: "450ms" }}>
           <p className="text-sm text-muted-foreground mb-1">Growth</p>
-          <p className="text-2xl font-bold text-success">+12.5%</p>
+          <p className="text-2xl font-bold text-muted-foreground">—</p>
+          <p className="text-xs text-muted-foreground mt-1">Sync to track</p>
         </div>
       </div>
 

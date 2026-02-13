@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAgency } from "@/hooks/useAgency";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,26 +15,29 @@ interface CreatorTaskStats {
 }
 
 export function CreatorTaskProgress() {
+  const { agency } = useAgency();
+  const agencyId = agency?.id;
+
   const { data: creatorStats, isLoading } = useQuery({
-    queryKey: ["creator-task-progress"],
+    queryKey: ["creator-task-progress", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
-      // Get all creators
       const { data: creators, error: creatorsError } = await supabase
         .from("creators")
         .select("id, name, avatar_seed")
+        .eq("agency_id", agencyId!)
         .eq("status", "Active");
 
       if (creatorsError) throw creatorsError;
 
-      // Get tasks grouped by creator
       const { data: tasks, error: tasksError } = await supabase
         .from("tasks")
         .select("creator_id, status")
+        .eq("agency_id", agencyId!)
         .not("creator_id", "is", null);
 
       if (tasksError) throw tasksError;
 
-      // Calculate stats per creator
       const stats: CreatorTaskStats[] = creators?.map(creator => {
         const creatorTasks = tasks?.filter(t => t.creator_id === creator.id) || [];
         const completed = creatorTasks.filter(t => t.status === "Completed").length;
@@ -46,7 +50,7 @@ export function CreatorTaskProgress() {
         };
       }).filter(s => s.total > 0) || [];
 
-      return stats.slice(0, 5); // Top 5 creators with tasks
+      return stats.slice(0, 5);
     },
   });
 

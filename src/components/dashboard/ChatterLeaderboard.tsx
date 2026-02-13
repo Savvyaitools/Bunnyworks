@@ -2,6 +2,7 @@ import { Trophy, MessageSquare, DollarSign, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAgency } from "@/hooks/useAgency";
 import { formatCurrency } from "@/lib/formatters";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,41 +15,47 @@ interface ChatterStats {
 }
 
 export function ChatterLeaderboard() {
+  const { agency } = useAgency();
+  const agencyId = agency?.id;
+
   const { data: chatters, isLoading } = useQuery({
-    queryKey: ["chatter-leaderboard"],
+    queryKey: ["chatter-leaderboard", agencyId],
+    enabled: Boolean(agencyId),
     queryFn: async () => {
-      // Get chatters with their time logs for today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       const { data: employees, error } = await supabase
         .from("employees")
         .select("id, name, avatar_seed")
+        .eq("agency_id", agencyId!)
         .eq("status", "Active")
         .eq("role", "Chatter");
       
       if (error) throw error;
 
-      // Get today's time logs to see who's active
+      const employeeIds = employees?.map(e => e.id) || [];
+      if (employeeIds.length === 0) return [];
+
+      // Get today's time logs
       const { data: timeLogs } = await supabase
         .from("chatter_time_logs")
         .select("chatter_id, duration_minutes")
+        .in("chatter_id", employeeIds)
         .gte("clock_in", today.toISOString());
 
-      // Get message counts - using internal_messages as proxy
+      // Get message counts
       const { data: messages } = await supabase
         .from("messages")
         .select("sender_name, id")
+        .eq("agency_id", agencyId!)
         .eq("sender_type", "chatter")
         .gte("created_at", today.toISOString());
 
-      // Map employees to stats
       const chatterStats: ChatterStats[] = (employees || []).map((emp) => {
         const empTimeLogs = timeLogs?.filter(log => log.chatter_id === emp.id) || [];
         const totalMinutes = empTimeLogs.reduce((sum, log) => sum + (log.duration_minutes || 0), 0);
         const messageCount = messages?.filter(m => m.sender_name === emp.name).length || 0;
-        
-        // Estimate revenue based on activity (placeholder until real tracking)
         const estimatedRevenue = messageCount * 2.5 + totalMinutes * 0.5;
 
         return {
@@ -60,12 +67,11 @@ export function ChatterLeaderboard() {
         };
       });
 
-      // Sort by revenue and take top 5
       return chatterStats
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
     },
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
   });
 
   const getRankColor = (index: number) => {
