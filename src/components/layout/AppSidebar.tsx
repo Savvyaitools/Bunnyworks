@@ -24,7 +24,9 @@ import {
   HeartPulse,
   HelpCircle,
   Bot,
-  BrainCircuit
+  BrainCircuit,
+  Share2,
+  MessageSquare as MessageSquareBot
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -73,6 +75,12 @@ const recruitingNavItems = [
   { title: "Recruiting", url: "/recruiting", icon: UserPlus },
   { title: "OF Discovery", url: "/tools/creator-discovery", icon: Search },
   { title: "Applications", url: "/applications", icon: ClipboardList },
+];
+
+// COACH PBF section - AI tools
+const coachNavItems = [
+  { title: "Social Media Manager", url: "/coach/social-media", icon: Share2 },
+  { title: "AI Chatter", url: "/coach/ai-chatter", icon: MessageSquareBot },
 ];
 
 // RESOURCES section - utilities & tools
@@ -185,6 +193,28 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {recruitingNavItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={cn("nav-item w-full justify-start", isActive && "active")}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && <span className="flex-1">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Coach PBF Section */}
+        {!isCollapsed && <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Coach PBF</p>}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {coachNavItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>

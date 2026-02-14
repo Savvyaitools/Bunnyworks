@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.browserbase-session]
 verify_jwt = false
+
+[functions.ai-social-media-manager]
+verify_jwt = false
+
+[functions.ai-chatter]
+verify_jwt = false
