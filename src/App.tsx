@@ -66,6 +66,10 @@ const AIChatting = lazy(() => import("./pages/tools/AIChatting"));
 const AIVoiceCloner = lazy(() => import("./pages/tools/AIVoiceCloner"));
 const AIContentGenerator = lazy(() => import("./pages/tools/AIContentGenerator"));
 
+// Coach PBF pages
+const SocialMediaManager = lazy(() => import("./pages/coach/SocialMediaManager"));
+const AIChatterPage = lazy(() => import("./pages/coach/AIChatter"));
+
 // Application pages
 const CreatorApplication = lazy(() => import("./pages/apply/CreatorApplication"));
 const EmployeeApplication = lazy(() => import("./pages/apply/EmployeeApplication"));
@@ -280,6 +284,16 @@ const AppRoutes = () => {
         <Route path="/agent-hub" element={
           <ProtectedRoute allowedUserTypes={["agency"]}>
             <AgentHub />
+          </ProtectedRoute>
+        } />
+        <Route path="/coach/social-media" element={
+          <ProtectedRoute allowedUserTypes={["agency"]}>
+            <SocialMediaManager />
+          </ProtectedRoute>
+        } />
+        <Route path="/coach/ai-chatter" element={
+          <ProtectedRoute allowedUserTypes={["agency"]}>
+            <AIChatterPage />
           </ProtectedRoute>
         } />
         
