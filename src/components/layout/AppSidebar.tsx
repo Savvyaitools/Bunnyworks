@@ -53,7 +53,6 @@ import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 // MAIN section - core agency management
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "FELIX", url: "/felix", icon: Bot },
   { title: "Agent Hub", url: "/agent-hub", icon: BrainCircuit },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Creator Messages", url: "/messages", icon: MessageSquare },
@@ -79,8 +78,8 @@ const recruitingNavItems = [
 
 // COACH PBF section - AI tools
 const coachNavItems = [
-  { title: "Social Media Manager", url: "/coach/social-media", icon: Share2 },
-  { title: "AI Chatter", url: "/coach/ai-chatter", icon: MessageSquareBot },
+  { title: "Tatum", url: "/coach/social-media", icon: Share2 },
+  { title: "Izzy", url: "/coach/ai-chatter", icon: MessageSquareBot },
 ];
 
 // RESOURCES section - utilities & tools
