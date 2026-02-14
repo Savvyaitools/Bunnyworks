@@ -130,10 +130,10 @@ export default function SocialMediaManager() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Share2 className="h-6 w-6 text-primary" />
-              AI Social Media Manager
+              Tatum
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Generate content, schedule posts, and optimize your social strategy with AI
+              AI Social Media Manager — generate content, schedule posts, and optimize your strategy
             </p>
           </div>
         </div>
