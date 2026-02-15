@@ -7,8 +7,8 @@ interface DashboardTabsProps {
 
 const tabs = [
   { id: "overview", label: "Overview" },
-  { id: "business", label: "Business" },
-  { id: "performance", label: "Performance" },
+  { id: "business", label: "Revenue" },
+  { id: "performance", label: "Team" },
 ];
 
 export function DashboardTabs({ activeTab, onTabChange }: DashboardTabsProps) {

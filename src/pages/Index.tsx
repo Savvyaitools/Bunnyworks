@@ -430,8 +430,8 @@ const Index = () => {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
               {activeTab === "overview" && "Overview Dashboard"}
-              {activeTab === "business" && "Business Analytics"}
-              {activeTab === "performance" && "Performance Metrics"}
+              {activeTab === "business" && "Revenue Analytics"}
+              {activeTab === "performance" && "Team Performance"}
             </h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">

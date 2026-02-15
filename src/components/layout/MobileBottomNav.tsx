@@ -9,7 +9,6 @@ import {
   UserCog,
   Calendar,
   FileText,
-  MessageCircle,
   CalendarClock,
   UserPlus,
   Search,
@@ -17,13 +16,13 @@ import {
   ClipboardList,
   BookOpen,
   Upload,
-  Plug,
-  HeartPulse,
   HelpCircle,
   Bell,
   Settings,
   LogOut,
   X,
+  Share2,
+  MessagesSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -45,9 +44,9 @@ const menuSections = [
     title: "Main",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-      { title: "FELIX", url: "/felix", icon: Bot },
+      { title: "AI Assistant", url: "/coach-pbf", icon: Bot },
       { title: "Creators", url: "/creators", icon: Users },
-      { title: "Creator Messages", url: "/messages", icon: MessageSquare },
+      { title: "Messages", url: "/messages", icon: MessageSquare },
       { title: "Team", url: "/team", icon: UserCog },
       { title: "Tasks", url: "/tasks", icon: CheckSquare },
       { title: "Calendar", url: "/calendar", icon: Calendar },
@@ -55,7 +54,7 @@ const menuSections = [
     ],
   },
   {
-    title: "OnlyFans",
+    title: "Operations",
     items: [
       { title: "Live Sessions", url: "/browser-sync", icon: Globe },
       { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
@@ -63,10 +62,17 @@ const menuSections = [
     ],
   },
   {
-    title: "Recruiting",
+    title: "AI Tools",
+    items: [
+      { title: "Tatum · Social", url: "/coach/social-media", icon: Share2 },
+      { title: "Izzy · Chatter", url: "/coach/ai-chatter", icon: MessagesSquare },
+    ],
+  },
+  {
+    title: "Growth",
     items: [
       { title: "Recruiting", url: "/recruiting", icon: UserPlus },
-      { title: "OF Discovery", url: "/tools/creator-discovery", icon: Search },
+      { title: "Creator Discovery", url: "/tools/creator-discovery", icon: Search },
       { title: "Applications", url: "/applications", icon: ClipboardList },
     ],
   },
