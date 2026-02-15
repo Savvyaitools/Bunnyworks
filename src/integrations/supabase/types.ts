@@ -309,6 +309,60 @@ export type Database = {
           },
         ]
       }
+      agent_memories: {
+        Row: {
+          agency_id: string
+          agent_type: string
+          category: string
+          content: string
+          created_at: string
+          id: string
+          importance: number
+          last_accessed_at: string | null
+          metadata: Json | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          agent_type: string
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          importance?: number
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          agent_type?: string
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          importance?: number
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_memories_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_memories_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_runs: {
         Row: {
           actions_taken: number
