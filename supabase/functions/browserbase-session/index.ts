@@ -10,6 +10,33 @@ const BB_API = "https://api.browserbase.com/v1";
 const bbH = (k: string) => ({ "x-bb-api-key": k, "Content-Type": "application/json" });
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+const PLATFORM_URLS: Record<string, string> = {
+  onlyfans: "https://onlyfans.com",
+  fanvue: "https://fanvue.com",
+  fansly: "https://fansly.com",
+};
+
+async function navigateSession(connectUrl: string, url: string) {
+  try {
+    const ws = new WebSocket(connectUrl);
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => { ws.close(); reject(new Error("WS timeout")); }, 10000);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ id: 1, method: "Page.navigate", params: { url } }));
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(typeof ev.data === "string" ? ev.data : "");
+          if (msg.id === 1) { clearTimeout(timeout); ws.close(); resolve(); }
+        } catch {}
+      };
+      ws.onerror = () => { clearTimeout(timeout); ws.close(); reject(new Error("WS error")); };
+    });
+  } catch (e) {
+    console.warn("Auto-navigate failed (non-fatal):", e);
+  }
+}
+
 async function bb(k: string, p: string, o: RequestInit = {}) {
   const r = await fetch(`${BB_API}${p}`, { ...o, headers: { ...bbH(k), ...(o.headers || {}) } });
   if (!r.ok) {
@@ -56,6 +83,11 @@ Deno.serve(async (req) => {
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: false, timeout: 300, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.debuggerFullscreenUrl;
+      // Auto-navigate to platform URL
+      const startUrl = PLATFORM_URLS[platform.toLowerCase()];
+      if (startUrl && sess.connectUrl) {
+        await navigateSession(sess.connectUrl, startUrl);
+      }
       const { data: ex } = await svc.from("creator_session_links").select("id").eq("creator_id", creatorId).eq("platform", platform).maybeSingle();
       let slId: string;
       if (ex) {
@@ -112,6 +144,11 @@ Deno.serve(async (req) => {
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.debuggerFullscreenUrl;
+      // Auto-navigate to platform URL
+      const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
+      if (chatterStartUrl && sess.connectUrl) {
+        await navigateSession(sess.connectUrl, chatterStartUrl);
+      }
       await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter" });
       await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });
       return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags });
