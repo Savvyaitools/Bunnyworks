@@ -1213,6 +1213,8 @@ export type Database = {
       content_plans: {
         Row: {
           agency_id: string | null
+          board_column: string
+          board_position: number
           content_category: string | null
           created_at: string
           creator_id: string
@@ -1230,6 +1232,8 @@ export type Database = {
         }
         Insert: {
           agency_id?: string | null
+          board_column?: string
+          board_position?: number
           content_category?: string | null
           created_at?: string
           creator_id: string
@@ -1247,6 +1251,8 @@ export type Database = {
         }
         Update: {
           agency_id?: string | null
+          board_column?: string
+          board_position?: number
           content_category?: string | null
           created_at?: string
           creator_id?: string
