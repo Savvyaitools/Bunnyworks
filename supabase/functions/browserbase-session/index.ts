@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       if (!creatorId || !platform || !agencyId) return json({ error: "creatorId, platform, agencyId required" }, 400);
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", creatorId).single();
       const ctxId = await getCtx(svc, BK, BP, creatorId, platform);
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: false, timeout: 300, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin", creatorName: cr?.name || "Unknown" } }) });
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: false, timeout: 300, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.debuggerFullscreenUrl;
       const { data: ex } = await svc.from("creator_session_links").select("id").eq("creator_id", creatorId).eq("platform", platform).maybeSingle();
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
         can_view_notifications: perm.can_view_notifications ?? false,
       };
 
-      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: false, timeout: 300, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter", creatorName: cr?.name || "Unknown", permissions: permFlags } };
+      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: false, timeout: 300, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
