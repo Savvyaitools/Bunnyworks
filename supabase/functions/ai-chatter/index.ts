@@ -12,54 +12,98 @@ serve(async (req) => {
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { action, fanMessage, creatorName, creatorPersona, creatorBoundaries, confidenceThreshold, agencyId, creatorId } = await req.json();
-
     if (action !== "generate_reply") throw new Error("Invalid action");
 
-    // Load Izzy's memories for this agency/creator
+    // Load Izzy's memories + fan context + creator earnings data in parallel
     let memoryContext = "";
+    let dataContext = "";
+
     if (agencyId) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { data: memories } = await supabase
-        .from('agent_memories')
-        .select('category, content, importance')
-        .eq('agency_id', agencyId)
-        .eq('agent_type', 'izzy')
-        .order('importance', { ascending: false })
-        .limit(30);
-      
-      if (memories && memories.length > 0) {
-        memoryContext = `\n\nYOUR MEMORY (learned patterns and preferences for this agency's chatting style):\n${memories.map((m: { category: string; content: string }) => `- [${m.category}]: ${m.content}`).join('\n')}\nApply these learned patterns to craft better, more personalized responses.`;
+      const queries: Promise<any>[] = [
+        supabase.from('agent_memories').select('category, content, importance').eq('agency_id', agencyId).eq('agent_type', 'izzy').order('importance', { ascending: false }).limit(30),
+        supabase.from('ai_suggestions_log').select('suggestion_type, selected_index, was_edited, resulted_in_sale, sale_amount').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(20),
+      ];
+
+      if (creatorId) {
+        queries.push(
+          supabase.from('ai_fan_context').select('spending_tier, engagement_level, interests, preferred_content_types, total_spent, avg_ppv_price, purchase_frequency').eq('of_account_id', creatorId).limit(10),
+          supabase.from('creator_earnings').select('amount, subscriptions, tips, messages_revenue').eq('creator_id', creatorId).order('period_end', { ascending: false }).limit(5),
+          supabase.from('creators').select('name, platform, revenue, niche').eq('id', creatorId).single(),
+        );
+      }
+
+      const results = await Promise.all(queries);
+      const memoriesRes = results[0];
+      const suggestionsRes = results[1];
+      const fanContextRes = results[2];
+      const earningsRes = results[3];
+      const creatorRes = results[4];
+
+      if (memoriesRes.data?.length) {
+        memoryContext = `\n\nYOUR LEARNED PATTERNS:\n${memoriesRes.data.map((m: any) => `- [${m.category}]: ${m.content}`).join('\n')}\nApply these patterns to craft better responses.`;
+      }
+
+      // Build data context
+      const parts: string[] = [];
+
+      if (suggestionsRes.data?.length) {
+        const totalSuggestions = suggestionsRes.data.length;
+        const salesCount = suggestionsRes.data.filter((s: any) => s.resulted_in_sale).length;
+        const editRate = suggestionsRes.data.filter((s: any) => s.was_edited).length;
+        parts.push(`Past AI Performance: ${totalSuggestions} suggestions, ${salesCount} resulted in sales, ${editRate} were edited by chatters`);
+      }
+
+      if (fanContextRes?.data?.length) {
+        const topFans = fanContextRes.data.slice(0, 5).map((f: any) =>
+          `Tier=${f.spending_tier||'?'}, Engagement=${f.engagement_level||'?'}, Spent=$${f.total_spent||0}, Interests=${(f.interests||[]).join(',')}, PPV avg=$${f.avg_ppv_price||0}`
+        ).join(' | ');
+        parts.push(`Fan Profiles: ${topFans}`);
+      }
+
+      if (earningsRes?.data?.length) {
+        const recent = earningsRes.data[0];
+        parts.push(`Creator Revenue: $${recent.amount} (subs=$${recent.subscriptions||0}, tips=$${recent.tips||0}, msgs=$${recent.messages_revenue||0})`);
+      }
+
+      if (creatorRes?.data) {
+        parts.push(`Creator Profile: ${creatorRes.data.name}, niche=${creatorRes.data.niche||'general'}, total revenue=$${creatorRes.data.revenue||0}`);
+      }
+
+      if (parts.length) {
+        dataContext = `\n\nCONTEXTUAL DATA:\n${parts.join('\n')}\nUse this to optimize pricing suggestions, upsells, and conversation tactics.`;
       }
     }
 
-    const systemPrompt = `You are Izzy, an AI assistant that helps OnlyFans chatters respond to fan messages. You roleplay AS the creator. You are a PERSONAL assistant that learns and improves over time.
+    const systemPrompt = `You are Izzy, a personal AI chatting assistant for this OnlyFans agency. You roleplay AS the creator and craft responses that maximize engagement and revenue. You learn from past interactions and adapt your style.
 
 Creator: ${creatorName}
 Persona: ${creatorPersona || "Flirty, warm, and engaging"}
 Boundaries: ${creatorBoundaries || "No personal info sharing, no meeting in person, no underage content"}
-${memoryContext}
+${memoryContext}${dataContext}
 
 RULES:
 1. Stay in character as the creator at all times
 2. Never share personal info (real name, phone, address, social media handles)
 3. Be flirty and engaging but respect boundaries
-4. For simple greetings/compliments, respond warmly (high confidence)
-5. For purchase/tip thank-yous, respond enthusiastically (high confidence)
-6. For custom requests, suggest pricing discussion but flag for review (medium confidence)
-7. For boundary violations or inappropriate requests, deflect politely (low confidence, flag for review)
-8. For complex negotiations or emotional conversations, flag for human review (low confidence)
+4. For simple greetings/compliments → warm response (high confidence)
+5. For purchase/tip thank-yous → enthusiastic + suggest more content (high confidence)
+6. For custom requests → suggest pricing based on fan's spending tier if known (medium confidence)
+7. For boundary violations → deflect politely (low confidence, flag)
+8. For complex negotiations/emotional conversations → flag for human (low confidence)
+9. When fan data is available, personalize upsell based on their spending tier and interests
 
 Respond ONLY with valid JSON:
 {
   "autoReply": boolean (true if confidence >= ${confidenceThreshold || 80}),
-  "reply": "the suggested reply message",
+  "reply": "the reply message",
   "confidence": number (0-100),
-  "reason": "brief explanation of why this confidence level"
+  "reason": "brief explanation",
+  "suggestedUpsell": "optional PPV or content suggestion based on fan data"
 }`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
