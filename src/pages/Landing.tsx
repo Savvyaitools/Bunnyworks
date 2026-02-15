@@ -1,6 +1,7 @@
 import { LandingNav } from "@/components/landing/LandingNav";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
+import { ScreenshotShowcase } from "@/components/landing/ScreenshotShowcase";
 import { AIToolsSection } from "@/components/landing/AIToolsSection";
 import { PainPointsSection } from "@/components/landing/PainPointsSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
@@ -14,6 +15,7 @@ const Landing = () => {
       <LandingNav />
       <HeroSection />
       <PlatformLogos />
+      <ScreenshotShowcase />
       <PainPointsSection />
       <FeaturesSection />
       <AIToolsSection />
