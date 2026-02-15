@@ -1,5 +1,6 @@
 import { Users, DollarSign, TrendingUp, Monitor, Shield, Lock, Zap, Calendar, MessageSquare, FileText, Smartphone, Globe, BarChart3, Clock } from "lucide-react";
-import { ScrollReveal, StaggerContainer, StaggerItem } from "@/components/landing/ScrollReveal";
+import { ScrollReveal } from "@/components/landing/ScrollReveal";
+import { motion } from "framer-motion";
 
 const features = [
   { icon: Users, title: "Unified Team Management", description: "Creators, chatters, and employees in one system with role-based access and per-creator permissions." },
@@ -21,44 +22,90 @@ const moreFeatures = [
   { icon: Clock, title: "Automated Workflows", description: "Daily summaries, reminders, auto-sync." },
 ];
 
+const ease = [0.25, 0.4, 0.25, 1] as const;
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 30, filter: "blur(6px)" },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { delay: i * 0.08, duration: 0.5, ease },
+  }),
+};
+
+const miniCardVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: (i: number) => ({
+    opacity: 1,
+    scale: 1,
+    transition: { delay: i * 0.05, duration: 0.4, ease },
+  }),
+};
+
 export function FeaturesSection() {
   return (
-    <section id="features" className="py-16 sm:py-24 px-6 lg:px-8 border-t border-border">
+    <section id="features" className="py-12 sm:py-16 lg:py-24 px-4 sm:px-6 lg:px-8 border-t border-border">
       <div className="max-w-7xl mx-auto">
-        <ScrollReveal className="mb-14 sm:mb-20">
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-4">
+        <ScrollReveal className="mb-10 sm:mb-14 lg:mb-20">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-3 sm:mb-4">
             Everything you need
             <br />
             to <span className="gradient-text">scale.</span>
           </h2>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-xl">
+          <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-xl">
             40+ features built specifically for OnlyFans, Fansly & Fanvue agencies.
           </p>
         </ScrollReveal>
 
-        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-12">
-          {features.map((feature) => (
-            <StaggerItem key={feature.title}>
-              <div className="p-6 sm:p-8 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-300 group h-full">
-                <feature.icon className="h-6 w-6 text-primary mb-5 group-hover:scale-110 transition-transform" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-              </div>
-            </StaggerItem>
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 mb-8 sm:mb-12"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+        >
+          {features.map((feature, i) => (
+            <motion.div
+              key={feature.title}
+              custom={i}
+              variants={cardVariants}
+              whileHover={{ y: -4, borderColor: "hsl(330 100% 64% / 0.3)" }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border border-border bg-card group h-full cursor-default"
+            >
+              <motion.div
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 sm:mb-5"
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+              >
+                <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              </motion.div>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+            </motion.div>
           ))}
-        </StaggerContainer>
+        </motion.div>
 
-        <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" staggerDelay={0.06}>
-          {moreFeatures.map((feature) => (
-            <StaggerItem key={feature.title}>
-              <div className="p-4 rounded-xl border border-border bg-card/50 hover:border-primary/30 transition-colors h-full">
-                <feature.icon className="h-4 w-4 text-primary mb-2" />
-                <h4 className="font-medium text-foreground text-sm mb-1">{feature.title}</h4>
-                <p className="text-xs text-muted-foreground">{feature.description}</p>
-              </div>
-            </StaggerItem>
+        <motion.div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-30px" }}
+        >
+          {moreFeatures.map((feature, i) => (
+            <motion.div
+              key={feature.title}
+              custom={i}
+              variants={miniCardVariants}
+              whileHover={{ y: -2, scale: 1.02 }}
+              className="p-3 sm:p-4 rounded-lg sm:rounded-xl border border-border bg-card/50 hover:border-primary/30 transition-colors h-full cursor-default"
+            >
+              <feature.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary mb-1.5 sm:mb-2" />
+              <h4 className="font-medium text-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">{feature.title}</h4>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{feature.description}</p>
+            </motion.div>
           ))}
-        </StaggerContainer>
+        </motion.div>
       </div>
     </section>
   );

@@ -56,62 +56,77 @@ export function ScreenshotShowcase() {
   const item = showcaseItems[active];
 
   return (
-    <section className="py-16 sm:py-24 px-6 lg:px-8">
+    <section className="py-12 sm:py-16 lg:py-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <ScrollReveal className="mb-12 sm:mb-16">
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-4">
+        <ScrollReveal className="mb-8 sm:mb-12 lg:mb-16">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-3 sm:mb-4">
             See it in <span className="gradient-text">action.</span>
           </h2>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-xl">
+          <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-xl">
             Every screen designed to save time and drive revenue for your agency.
           </p>
         </ScrollReveal>
 
         {/* Pill tabs */}
-        <div className="flex flex-wrap gap-2 mb-10">
+        <motion.div
+          className="flex flex-wrap gap-1.5 sm:gap-2 mb-6 sm:mb-10"
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
           {showcaseItems.map((s, i) => (
-            <button
+            <motion.button
               key={s.id}
               onClick={() => setActive(i)}
-              className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 ${
                 active === i
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-glow-sm"
                   : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
               }`}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              layout
             >
-              <s.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{s.tab}</span>
-            </button>
+              <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline sm:inline">{s.tab}</span>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
 
         {/* Content */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <motion.div
+          className="rounded-xl sm:rounded-2xl border border-border bg-card overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
           <div className="grid lg:grid-cols-5">
-            <div className="lg:col-span-2 p-8 sm:p-10 lg:p-12 flex flex-col justify-center">
+            <div className="lg:col-span-2 p-5 sm:p-8 lg:p-12 flex flex-col justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={item.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
+                  initial={{ opacity: 0, y: 15, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -15, filter: "blur(4px)" }}
+                  transition={{ duration: 0.35 }}
                 >
-                  <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-3">{item.title}</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{item.description}</p>
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground mb-2 sm:mb-3">{item.title}</h3>
+                  <p className="text-xs sm:text-sm lg:text-base text-muted-foreground leading-relaxed">{item.description}</p>
                 </motion.div>
               </AnimatePresence>
             </div>
 
-            <div className="lg:col-span-3 relative bg-background/30 p-4">
+            <div className="lg:col-span-3 relative bg-background/30 p-3 sm:p-4">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={item.id}
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ duration: 0.3 }}
-                  className="rounded-xl overflow-hidden border border-border/50"
+                  initial={{ opacity: 0, scale: 0.95, rotateX: 2 }}
+                  animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, rotateX: -2 }}
+                  transition={{ duration: 0.4, ease: [0.25, 0.4, 0.25, 1] }}
+                  className="rounded-lg sm:rounded-xl overflow-hidden border border-border/50"
                 >
                   <img
                     src={item.image}
@@ -123,7 +138,7 @@ export function ScreenshotShowcase() {
               </AnimatePresence>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
