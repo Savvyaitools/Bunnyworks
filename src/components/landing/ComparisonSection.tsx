@@ -18,14 +18,20 @@ const competitorComparison = {
     { name: "Recruiting Pipeline" },
     { name: "Team Permission Management" },
     { name: "Marketing & Tracking Links" },
+    { name: "Cloud Browser Sessions" },
+    { name: "AI Agency Intelligence (Coach PBF)" },
+    { name: "AI Content Automation (Tatum)" },
+    { name: "AI Smart Replies with Learning (Izzy)" },
+    { name: "Mobile Access — No App Download" },
+    { name: "Row-Level Data Security" },
     { name: "Multi-Platform Support" },
   ],
   competitors: [
-    { name: "Creator OS", highlight: true, values: [true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
-    { name: "Supercreator", highlight: false, values: [true, true, "limited", true, false, "limited", true, false, false, false, false, true, true, false] },
-    { name: "Infloww", highlight: false, values: [true, true, "limited", true, false, true, "limited", false, false, false, false, true, true, true] },
-    { name: "CreatorHero", highlight: false, values: [true, true, false, "limited", false, true, true, false, false, false, false, true, "limited", true] },
-    { name: "OnlyMonster", highlight: false, values: ["limited", true, true, "limited", false, false, true, false, false, false, false, true, true, "limited"] },
+    { name: "Creator OS", highlight: true, values: [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
+    { name: "Supercreator", highlight: false, values: [true, true, "limited", true, false, "limited", true, false, false, false, false, "limited", true, false, false, false, "limited", "limited", false, false] },
+    { name: "Infloww", highlight: false, values: [true, true, "limited", true, false, true, "limited", false, false, false, false, "limited", true, false, false, false, false, true, false, true] },
+    { name: "CreatorHero", highlight: false, values: [true, true, false, "limited", false, true, true, false, false, false, false, "limited", "limited", false, false, false, false, true, false, true] },
+    { name: "OnlyMonster", highlight: false, values: ["limited", true, true, "limited", false, false, true, false, false, false, false, "limited", true, false, false, false, false, "limited", false, "limited"] },
   ],
 };
 
@@ -38,7 +44,7 @@ export function ComparisonSection() {
             See How We <span className="gradient-text">Compare</span>
           </h2>
           <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
-            Creator OS is the most comprehensive platform built specifically for OFM agencies.
+            Creator OS is the only platform with AI agents, cloud browser sessions, and enterprise security — all built in.
           </p>
         </ScrollReveal>
 
@@ -109,8 +115,8 @@ export function ComparisonSection() {
             <div className="p-4 sm:p-6 bg-gradient-to-r from-primary/10 to-accent/10 border-t border-border">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
-                  <p className="text-foreground font-semibold text-sm sm:text-base">Ready to switch to the industry leader?</p>
-                  <p className="text-muted-foreground text-xs sm:text-sm">Join 500+ agencies that made the move to Creator OS</p>
+                  <p className="text-foreground font-semibold text-sm sm:text-base">The only platform with AI agents, cloud browsers & enterprise security.</p>
+                  <p className="text-muted-foreground text-xs sm:text-sm">Join 500+ agencies that made the switch to Creator OS</p>
                 </div>
                 <Link to="/auth">
                   <Button className="bg-primary hover:bg-primary/90 glow-sm whitespace-nowrap">
