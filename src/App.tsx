@@ -14,6 +14,8 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import EmployeeAuth from "./pages/EmployeeAuth";
 import NotFound from "./pages/NotFound";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 // Lazy load all other pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -118,6 +120,10 @@ const AppRoutes = () => {
         <Route path="/tools/chatting" element={<AIChatting />} />
         <Route path="/tools/voice-cloner" element={<AIVoiceCloner />} />
         <Route path="/tools/content-generator" element={<AIContentGenerator />} />
+        
+        {/* Legal Pages */}
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         
         {/* Auth Routes */}
         <Route path="/auth" element={<Auth />} />
