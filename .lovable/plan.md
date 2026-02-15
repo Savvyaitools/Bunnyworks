@@ -151,13 +151,13 @@ The Employee Portal header shows "Employee Portal" text which could be confusing
 
 | Area                | Status                                               |
 | ------------------- | ---------------------------------------------------- |
-| Authentication      | Good (missing password reset)                        |
-| Authorization / RLS | Needs tightening (2 permissive, data exposure risks) |
+| Authentication      | ✅ Google OAuth added, email verification UX fixed    |
+| Authorization / RLS | ✅ Permissive policies tightened                      |
 | Multi-tenancy       | Solid (agency_id isolation pattern)                  |
 | Error Handling      | Good (ErrorBoundary, toast notifications)            |
 | Performance         | Good (lazy loading, query caching)                   |
-| SEO                 | Needs fixes (canonical mismatch, fake ratings)       |
-| Legal               | Missing (no ToS/Privacy pages)                       |
+| SEO                 | ✅ Fixed (canonical, fake ratings removed)            |
+| Legal               | ✅ ToS and Privacy Policy pages added                 |
 | Billing             | Not implemented                                      |
-| Accessibility       | Needs improvement                                    |
+| Accessibility       | Improved (aria-labels added)                         |
 | Mobile UX           | Good (responsive layouts, bottom nav)                |
