@@ -62,10 +62,10 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
           </div>
           <div>
             <h3 className="font-semibold flex items-center gap-1.5">
-              FELIX
+              Coach PBF
               <Sparkles className="h-4 w-4 text-primary" />
             </h3>
-            <p className="text-xs text-muted-foreground">AI Agency Manager</p>
+            <p className="text-xs text-muted-foreground">AI Agency Orchestrator</p>
           </div>
         </div>
         {messages.length > 0 && (
@@ -83,9 +83,9 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                 <Bot className="h-8 w-8 text-primary" />
               </div>
-              <h4 className="font-medium mb-1">Hey! I'm FELIX 👋</h4>
+              <h4 className="font-medium mb-1">Hey! I'm Coach PBF 👋</h4>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Your AI agency manager. Ask me about your team performance, revenue insights, or any questions about your agency.
+                Your AI agency orchestrator. Ask me about your team performance, revenue insights, or any questions about your agency.
               </p>
             </div>
             
@@ -171,7 +171,7 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder="Ask FELIX anything about your agency..."
+            placeholder="Ask Coach PBF anything about your agency..."
             disabled={isLoading}
             className="bg-muted/50"
           />

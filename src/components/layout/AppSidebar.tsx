@@ -53,6 +53,7 @@ import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 // MAIN section - core agency management
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Coach PBF", url: "/coach-pbf", icon: Bot },
   { title: "Agent Hub", url: "/agent-hub", icon: BrainCircuit },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Creator Messages", url: "/messages", icon: MessageSquare },

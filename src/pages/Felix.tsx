@@ -46,11 +46,11 @@ export default function Felix() {
           </div>
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              FELIX
+              Coach PBF
               <Brain className="h-5 w-5 text-primary" />
             </h1>
             <p className="text-muted-foreground">
-              Your AI-powered agency manager assistant
+              Your AI-powered agency orchestrator
             </p>
           </div>
         </div>
@@ -66,7 +66,7 @@ export default function Felix() {
             {/* Capabilities */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">What FELIX Can Do</CardTitle>
+                <CardTitle className="text-base">What Coach PBF Can Do</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {capabilities.map((cap) => (
