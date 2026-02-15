@@ -3,7 +3,6 @@ import { Calendar, Download, Image, Video, FileText, Heart, Instagram } from "lu
 import { PortalLayout } from "@/components/portal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -15,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 import { cn } from "@/lib/utils";
 import { ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
+import { KanbanBoard, type KanbanItem } from "@/components/kanban";
 
 interface ContentPlan {
   id: string;
@@ -26,14 +26,9 @@ interface ContentPlan {
   creator_id: string;
   reference_media: ContentReferenceMedia[] | null;
   content_category: "platform" | "social" | null;
+  board_column: string;
+  board_position: number;
 }
-
-const statusStyles: Record<string, string> = {
-  planned: "bg-blue-500/20 text-blue-400",
-  in_progress: "bg-yellow-500/20 text-yellow-400",
-  completed: "bg-green-500/20 text-green-400",
-  cancelled: "bg-red-500/20 text-red-400",
-};
 
 const PLATFORM_PLATFORMS = ["OnlyFans", "Fansly"];
 const SOCIAL_PLATFORMS = ["Instagram", "TikTok", "Twitter", "YouTube", "Reddit"];
@@ -48,12 +43,11 @@ export default function PortalContentPlans() {
 
   const fetchPlans = useCallback(async () => {
     if (!creatorId) return;
-
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("content_plans")
       .select("*")
       .eq("creator_id", creatorId)
-      .order("scheduled_date", { ascending: true });
+      .order("board_position", { ascending: true });
 
     if (data) {
       const parsed = data.map(plan => {
@@ -61,10 +55,7 @@ export default function PortalContentPlans() {
         if (Array.isArray(plan.reference_media)) {
           media = plan.reference_media as unknown as ContentReferenceMedia[];
         }
-        return {
-          ...plan,
-          reference_media: media,
-        };
+        return { ...plan, reference_media: media };
       });
       setPlans(parsed as ContentPlan[]);
     }
@@ -72,11 +63,8 @@ export default function PortalContentPlans() {
   }, [creatorId]);
 
   useEffect(() => {
-    if (creatorId) {
-      fetchPlans();
-    } else if (!creatorLoading) {
-      setLoading(false);
-    }
+    if (creatorId) fetchPlans();
+    else if (!creatorLoading) setLoading(false);
   }, [creatorId, creatorLoading, fetchPlans]);
 
   const openMediaDialog = (plan: ContentPlan) => {
@@ -107,13 +95,18 @@ export default function PortalContentPlans() {
     }
   };
 
-  // Filter plans by category
-  const platformPlans = plans.filter(p => 
-    p.content_category === "platform" || 
+  // Portal is read-only for drag (creators can view but not reorder)
+  // but we allow column-based viewing
+  const handleMoveCard = async () => {
+    // Read-only in portal
+  };
+
+  const platformPlans = plans.filter(p =>
+    p.content_category === "platform" ||
     (!p.content_category && PLATFORM_PLATFORMS.includes(p.platform || ''))
   );
-  const socialPlans = plans.filter(p => 
-    p.content_category === "social" || 
+  const socialPlans = plans.filter(p =>
+    p.content_category === "social" ||
     (!p.content_category && SOCIAL_PLATFORMS.includes(p.platform || ''))
   );
 
@@ -125,12 +118,8 @@ export default function PortalContentPlans() {
       <div className="space-y-6">
         {/* Header */}
         <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            Content Plans
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            View your scheduled content and download reference media
-          </p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Content Plans</h1>
+          <p className="text-muted-foreground mt-1">View your scheduled content and download reference media</p>
         </div>
 
         {/* Stats */}
@@ -173,33 +162,17 @@ export default function PortalContentPlans() {
               <DialogTitle>Reference Media - {selectedPlan?.title}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Download reference images and videos to replicate the content style.
-              </p>
-
-              {/* Media Grid */}
+              <p className="text-sm text-muted-foreground">Download reference images and videos to replicate the content style.</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {(selectedPlan?.reference_media || []).map((media) => (
-                  <div 
-                    key={media.id} 
-                    className="relative group rounded-lg overflow-hidden border border-border bg-muted/50"
-                  >
+                  <div key={media.id} className="relative group rounded-lg overflow-hidden border border-border bg-muted/50">
                     {media.type === "image" ? (
-                      <img 
-                        src={media.url} 
-                        alt={media.name}
-                        className="w-full h-32 object-cover"
-                      />
+                      <img src={media.url} alt={media.name} className="w-full h-32 object-cover" />
                     ) : (
-                      <div className="w-full h-32 flex items-center justify-center bg-muted">
-                        <Video className="h-8 w-8 text-muted-foreground" />
-                      </div>
+                      <div className="w-full h-32 flex items-center justify-center bg-muted"><Video className="h-8 w-8 text-muted-foreground" /></div>
                     )}
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button 
-                        onClick={() => downloadFile(media.url, media.name)}
-                        className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors"
-                      >
+                      <button onClick={() => downloadFile(media.url, media.name)} className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors">
                         <Download className="h-5 w-5 text-accent-foreground" />
                       </button>
                     </div>
@@ -210,27 +183,18 @@ export default function PortalContentPlans() {
                   </div>
                 ))}
               </div>
-
               {(selectedPlan?.reference_media?.length || 0) === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No reference media available for this plan.</p>
                 </div>
               )}
-
-              {/* Download All Button */}
               {(selectedPlan?.reference_media?.length || 0) > 0 && (
                 <div className="flex justify-end pt-4 border-t border-border">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      selectedPlan?.reference_media?.forEach(media => {
-                        downloadFile(media.url, media.name);
-                      });
-                    }}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download All
+                  <Button variant="outline" onClick={() => {
+                    selectedPlan?.reference_media?.forEach(media => downloadFile(media.url, media.name));
+                  }}>
+                    <Download className="h-4 w-4 mr-2" />Download All
                   </Button>
                 </div>
               )}
@@ -238,14 +202,12 @@ export default function PortalContentPlans() {
           </DialogContent>
         </Dialog>
 
-        {/* Content Plans List with Tabs */}
-        <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "150ms" }}>
-          <h2 className="text-lg font-semibold text-foreground mb-4">Your Content Plans</h2>
-          
+        {/* Kanban Board */}
+        <div className="animate-fade-in" style={{ animationDelay: "150ms" }}>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : plans.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="glass-card p-6 text-center py-12 text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No content plans assigned yet.</p>
               <p className="text-sm mt-1">Your agency will add content plans here.</p>
@@ -263,96 +225,25 @@ export default function PortalContentPlans() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="platform">
-                {platformPlans.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No platform content plans yet.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {platformPlans.map((plan) => (
-                      <PlanCard key={plan.id} plan={plan} openMediaDialog={openMediaDialog} statusStyles={statusStyles} />
-                    ))}
-                  </div>
-                )}
+                <KanbanBoard
+                  items={platformPlans as unknown as KanbanItem[]}
+                  onMoveCard={handleMoveCard}
+                  onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
+                  readOnly
+                />
               </TabsContent>
               <TabsContent value="social">
-                {socialPlans.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Instagram className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No social media content plans yet.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {socialPlans.map((plan) => (
-                      <PlanCard key={plan.id} plan={plan} openMediaDialog={openMediaDialog} statusStyles={statusStyles} />
-                    ))}
-                  </div>
-                )}
+                <KanbanBoard
+                  items={socialPlans as unknown as KanbanItem[]}
+                  onMoveCard={handleMoveCard}
+                  onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
+                  readOnly
+                />
               </TabsContent>
             </Tabs>
           )}
         </div>
       </div>
     </PortalLayout>
-  );
-}
-
-// Extracted PlanCard component for reuse
-function PlanCard({ 
-  plan, 
-  openMediaDialog, 
-  statusStyles 
-}: { 
-  plan: ContentPlan; 
-  openMediaDialog: (plan: ContentPlan) => void;
-  statusStyles: Record<string, string>;
-}) {
-  return (
-    <div className="p-4 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h4 className="font-semibold text-foreground">{plan.title}</h4>
-            <Badge className={cn("text-xs", statusStyles[plan.status] || "bg-muted text-muted-foreground")}>
-              {plan.status.replace("_", " ")}
-            </Badge>
-            {plan.platform && (
-              <Badge variant="outline" className="text-xs">
-                {plan.platform}
-              </Badge>
-            )}
-          </div>
-          {plan.description && (
-            <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">{plan.description}</p>
-          )}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            {plan.scheduled_date && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {new Date(plan.scheduled_date).toLocaleDateString()}
-              </span>
-            )}
-            {(plan.reference_media?.length || 0) > 0 && (
-              <span className="flex items-center gap-1">
-                <Image className="h-3 w-3" />
-                {plan.reference_media?.length} reference file(s)
-              </span>
-            )}
-          </div>
-        </div>
-        {(plan.reference_media?.length || 0) > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            onClick={() => openMediaDialog(plan)}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            View Media
-          </Button>
-        )}
-      </div>
-    </div>
   );
 }
