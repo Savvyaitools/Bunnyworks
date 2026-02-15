@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { FelixChat } from "@/components/ai/FelixChat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Brain, BarChart3, Lightbulb, Clock, TrendingUp, Zap, Activity } from "lucide-react";
+import { Bot, Brain, BarChart3, Lightbulb, Clock, TrendingUp, Zap, Share2, MessagesSquare } from "lucide-react";
 import { AgentStatusCard } from "@/components/agents/AgentStatusCard";
 import { AlertsFeed } from "@/components/agents/AlertsFeed";
 import { ActionLog } from "@/components/agents/ActionLog";
@@ -34,11 +35,14 @@ const exampleQueries = [
 ];
 
 const tabs = [
-  { id: "chat", label: "Chat" },
-  { id: "agents", label: "Agents" },
+  { id: "chat", label: "Chat", icon: Bot },
+  { id: "tatum", label: "Tatum · Social", icon: Share2 },
+  { id: "izzy", label: "Izzy · Chatter", icon: MessagesSquare },
+  { id: "agents", label: "Agents", icon: Zap },
 ];
 
 export default function Felix() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("chat");
   const { runs, actions, isLoading } = useAgentRuns();
   const { alerts, dismissAlert } = useAgentAlerts();
@@ -90,13 +94,13 @@ export default function Felix() {
               <Bot className="h-7 w-7 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                AI Assistant
-                <Brain className="h-5 w-5 text-primary" />
-              </h1>
-              <p className="text-muted-foreground">
-                Your AI-powered agency orchestrator
-              </p>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              Coach PBF
+              <Brain className="h-5 w-5 text-primary" />
+            </h1>
+            <p className="text-muted-foreground">
+              Your AI-powered agency orchestrator & tools
+            </p>
             </div>
           </div>
           {activeTab === "agents" && (
@@ -118,12 +122,17 @@ export default function Felix() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.id === "tatum") navigate("/coach/social-media");
+                else if (tab.id === "izzy") navigate("/coach/ai-chatter");
+                else setActiveTab(tab.id);
+              }}
               className={cn(
-                "px-4 py-2.5 text-sm font-medium transition-colors relative",
+                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors relative",
                 activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
+              <tab.icon className="h-4 w-4" />
               {tab.label}
               {activeTab === tab.id && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
