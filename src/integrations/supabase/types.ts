@@ -2726,6 +2726,96 @@ export type Database = {
           },
         ]
       }
+      izzy_conversations: {
+        Row: {
+          agency_id: string
+          created_at: string
+          creator_id: string | null
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          creator_id?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          creator_id?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "izzy_conversations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "izzy_conversations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "izzy_conversations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      izzy_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          data_accessed: Json | null
+          id: string
+          query_type: string | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          data_accessed?: Json | null
+          id?: string
+          query_type?: string | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          data_accessed?: Json | null
+          id?: string
+          query_type?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "izzy_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "izzy_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_accounts: {
         Row: {
           created_at: string
@@ -3634,6 +3724,86 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tatum_conversations: {
+        Row: {
+          agency_id: string
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tatum_conversations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tatum_conversations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tatum_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          data_accessed: Json | null
+          id: string
+          query_type: string | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          data_accessed?: Json | null
+          id?: string
+          query_type?: string | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          data_accessed?: Json | null
+          id?: string
+          query_type?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tatum_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "tatum_conversations"
             referencedColumns: ["id"]
           },
         ]
