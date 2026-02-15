@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PushNotificationPrompt } from "@/components/shared/PushNotificationPrompt";
 import { RefreshCw, Users, DollarSign, CheckSquare, TrendingUp, BarChart3, Eye, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { RevenueChart } from "@/components/dashboard";
@@ -227,6 +228,9 @@ const Index = () => {
 
   const renderOverviewTab = () => (
     <>
+      {/* Push Notification Prompt */}
+      <PushNotificationPrompt />
+
       {/* Feature Guide */}
       <FeatureGuide
         title="How to Use the Dashboard"
