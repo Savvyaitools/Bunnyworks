@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Calendar, LogOut, User, BarChart3, MessagesSquare, Globe } from "lucide-react";
+import { Home, Calendar, LogOut, User, BarChart3, MessagesSquare, Globe, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,10 +17,10 @@ export function EmployeeLayout({ children }: EmployeeLayoutProps) {
 
   const navItems = [
     { icon: Home, label: "Home", path: "/employee" },
-    { icon: MessagesSquare, label: "Team Chat", path: "/employee/team-chat" },
+    { icon: Users, label: "Creators", path: "/employee/creators" },
+    { icon: MessagesSquare, label: "Chat", path: "/employee/team-chat" },
     { icon: Globe, label: "Browser", path: "/employee/browser" },
     { icon: BarChart3, label: "Stats", path: "/employee/performance" },
-    { icon: Calendar, label: "Shifts", path: "/employee/shifts" },
   ];
 
   const handleSignOut = async () => {
