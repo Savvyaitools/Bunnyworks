@@ -104,9 +104,8 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     enabled: allCreatorIds.length > 0,
   });
 
-  const readySessions = sessionLinks?.filter(
-    (s) => s.browserbase_context_id
-  ) ?? [];
+  // Sessions are already filtered by is_active + session_status="authenticated" in the query
+  const readySessions = sessionLinks ?? [];
 
   const getPermissionsForCreator = (creatorId: string) => {
     return permissionsData?.find((p) => p.creator_id === creatorId);
