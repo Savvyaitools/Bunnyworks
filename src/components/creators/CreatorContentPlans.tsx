@@ -57,6 +57,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const [addToColumn, setAddToColumn] = useState<string>("to_do");
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<ContentPlan | null>(null);
   const [activeTab, setActiveTab] = useState<"platform" | "social">("platform");
@@ -253,6 +254,11 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const openMediaDialog = (plan: ContentPlan) => {
     setSelectedPlan(plan);
     setIsMediaDialogOpen(true);
+  };
+
+  const openDetailDialog = (plan: ContentPlan) => {
+    setSelectedPlan(plan);
+    setIsDetailOpen(true);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -457,7 +463,71 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Tabbed Kanban Boards */}
+      {/* Detail View Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedPlan?.title}</DialogTitle>
+          </DialogHeader>
+          {selectedPlan && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedPlan.platform && (
+                  <Badge variant="outline">{selectedPlan.platform}</Badge>
+                )}
+                {selectedPlan.scheduled_date && (
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {new Date(selectedPlan.scheduled_date).toLocaleDateString()}
+                  </span>
+                )}
+                <Badge variant="secondary" className="capitalize">
+                  {selectedPlan.board_column.replace("_", " ")}
+                </Badge>
+              </div>
+
+              {selectedPlan.description && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Description</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedPlan.description}</p>
+                </div>
+              )}
+
+              {(selectedPlan.reference_media?.length || 0) > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">
+                    Reference Media ({selectedPlan.reference_media?.length})
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedPlan.reference_media?.map((media) => (
+                      <div key={media.id} className="relative group rounded-lg overflow-hidden border border-border bg-muted/50">
+                        {media.type === "image" ? (
+                          <img src={media.url} alt={media.name} className="w-full h-24 object-cover" crossOrigin="anonymous" />
+                        ) : (
+                          <div className="w-full h-24 flex items-center justify-center bg-muted">
+                            <Video className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <a href={media.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/20 hover:bg-white/30">
+                            <Download className="h-4 w-4 text-white" />
+                          </a>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground truncate px-1.5 py-1">{media.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!selectedPlan.description && (selectedPlan.reference_media?.length || 0) === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No additional details for this card.</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "platform" | "social")}>
         <TabsList className="mb-4">
           <TabsTrigger value="platform" className="gap-2">
@@ -473,7 +543,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
           <KanbanBoard
             items={platformPlans as unknown as KanbanItem[]}
             onMoveCard={handleMoveCard}
-            onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
+            onCardClick={(item) => openDetailDialog(item as unknown as ContentPlan)}
             onEditCard={handleEditCard}
             onAddCard={handleAddCard}
             onDeleteCard={deletePlan}
@@ -483,7 +553,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
           <KanbanBoard
             items={socialPlans as unknown as KanbanItem[]}
             onMoveCard={handleMoveCard}
-            onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
+            onCardClick={(item) => openDetailDialog(item as unknown as ContentPlan)}
             onEditCard={handleEditCard}
             onAddCard={handleAddCard}
             onDeleteCard={deletePlan}
