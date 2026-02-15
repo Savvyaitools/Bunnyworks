@@ -56,6 +56,7 @@ const EmployeeShifts = lazy(() => import("./pages/employee/EmployeeShifts"));
 const EmployeeTimeLogs = lazy(() => import("./pages/employee/EmployeeTimeLogs"));
 const EmployeePerformancePage = lazy(() => import("./pages/employee/EmployeePerformance"));
 const EmployeeBrowserSessions = lazy(() => import("./pages/employee/EmployeeBrowserSessions"));
+const EmployeeCreatorHub = lazy(() => import("./pages/employee/EmployeeCreatorHub"));
 
 // Tool pages
 const CreatorDiscovery = lazy(() => import("./pages/tools/CreatorDiscovery"));
@@ -170,6 +171,7 @@ const AppRoutes = () => {
         <Route path="/employee/performance" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeePerformancePage /></ProtectedRoute>} />
         <Route path="/employee/shifts" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeShifts /></ProtectedRoute>} />
         <Route path="/employee/time-logs" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTimeLogs /></ProtectedRoute>} />
+        <Route path="/employee/creators" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeCreatorHub /></ProtectedRoute>} />
         {/* Legacy redirects */}
         <Route path="/employee/onlyfans" element={<Navigate to="/employee/browser" replace />} />
         <Route path="/employee/messages" element={<Navigate to="/employee/team-chat" replace />} />
