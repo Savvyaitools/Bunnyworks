@@ -5,24 +5,27 @@ import { ScrollReveal } from "@/components/landing/ScrollReveal";
 
 const competitorComparison = {
   features: [
-    { name: "Unified Team Management" },
-    { name: "Real-Time Revenue Tracking" },
+    { name: "Fan CRM & Management" },
+    { name: "Revenue & Earnings Dashboard" },
     { name: "Chatter Shift Scheduling" },
     { name: "Chatter Performance Analytics" },
     { name: "White-Label Creator Portal" },
     { name: "Content Vault & Planning" },
-    { name: "AI Chatting System" },
+    { name: "AI Chatting Assistant" },
     { name: "AI Voice Cloner" },
     { name: "AI Content Generator" },
     { name: "Invoice & Payroll Management" },
     { name: "Recruiting Pipeline" },
+    { name: "Team Permission Management" },
+    { name: "Marketing & Tracking Links" },
     { name: "Multi-Platform Support" },
   ],
   competitors: [
-    { name: "Creator OS", highlight: true, values: [true, true, true, true, true, true, true, true, true, true, true, true] },
-    { name: "Infloww", highlight: false, values: [true, true, false, "limited", false, true, false, false, false, true, false, true] },
-    { name: "Creator Hero", highlight: false, values: ["limited", true, false, false, false, true, false, false, false, "limited", false, true] },
-    { name: "Onlymonster", highlight: false, values: ["limited", true, false, "limited", false, true, false, false, false, false, false, "limited"] },
+    { name: "Creator OS", highlight: true, values: [true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
+    { name: "Supercreator", highlight: false, values: [true, true, "limited", true, false, "limited", true, false, false, false, false, true, true, false] },
+    { name: "Infloww", highlight: false, values: [true, true, "limited", true, false, true, "limited", false, false, false, false, true, true, true] },
+    { name: "CreatorHero", highlight: false, values: [true, true, false, "limited", false, true, true, false, false, false, false, true, "limited", true] },
+    { name: "OnlyMonster", highlight: false, values: ["limited", true, true, "limited", false, false, true, false, false, false, false, true, true, "limited"] },
   ],
 };
 
