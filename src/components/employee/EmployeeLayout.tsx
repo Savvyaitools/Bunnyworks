@@ -4,7 +4,7 @@ import { Home, Calendar, LogOut, User, BarChart3, MessagesSquare, Globe } from "
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/mycreatorsuite-logo.png";
+import logo from "@/assets/logo.png";
 
 interface EmployeeLayoutProps {
   children: ReactNode;

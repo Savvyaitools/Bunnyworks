@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/mycreatorsuite-logo.png";
+import logo from "@/assets/logo.png";
 import { z } from "zod";
 import { lovable } from "@/integrations/lovable/index";
 
