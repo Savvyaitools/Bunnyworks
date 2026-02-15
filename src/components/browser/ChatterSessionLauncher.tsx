@@ -1,17 +1,30 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrowserSessions } from "@/hooks/useBrowserSessions";
-import { EmbeddedBrowserViewer } from "./EmbeddedBrowserViewer";
+import { EmbeddedBrowserViewer, type BrowserPermissions } from "./EmbeddedBrowserViewer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Globe, Loader2 } from "lucide-react";
+import { Globe, Loader2, MessageSquare, Users, Eye, DollarSign, Image } from "lucide-react";
 
 interface ChatterSessionLauncherProps {
   chatterId?: string;
+}
+
+function getAccessLabel(perms: any): { label: string; variant: "default" | "secondary" | "outline" } {
+  const flags = [
+    perms?.can_view_chats, perms?.can_send_messages, perms?.can_view_fans,
+    perms?.can_view_posts, perms?.can_create_posts, perms?.can_view_vault,
+    perms?.can_view_earnings,
+  ];
+  const trueCount = flags.filter(Boolean).length;
+  if (trueCount >= 6) return { label: "Full Access", variant: "default" };
+  if (trueCount >= 3) return { label: "Limited Access", variant: "secondary" };
+  if (trueCount >= 1) return { label: "Chat Only", variant: "outline" };
+  return { label: "View Only", variant: "outline" };
 }
 
 export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProps) {
@@ -21,9 +34,10 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     sessionId: string;
     platform: string;
     creatorName: string;
+    permissions?: BrowserPermissions;
   } | null>(null);
 
-  // Get employee_id for current user to look up permissions
+  // Get employee_id for current user
   const { data: employeeId } = useQuery({
     queryKey: ["my-employee-id-for-sessions"],
     queryFn: async () => {
@@ -38,20 +52,22 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     },
   });
 
-  // Get creator IDs from employee_of_permissions
-  const { data: permittedCreatorIds } = useQuery({
-    queryKey: ["permitted-creator-ids", employeeId],
+  // Get creator IDs from employee_of_permissions (with full permission data)
+  const { data: permissionsData } = useQuery({
+    queryKey: ["permitted-creator-permissions", employeeId],
     queryFn: async () => {
       if (!employeeId) return [];
       const { data, error } = await supabase
         .from("employee_of_permissions")
-        .select("creator_id")
+        .select("*")
         .eq("employee_id", employeeId);
       if (error) return [];
-      return data.map((p) => p.creator_id);
+      return data;
     },
     enabled: !!employeeId,
   });
+
+  const permittedCreatorIds = permissionsData?.map((p) => p.creator_id) ?? [];
 
   // Get authenticated session links for permitted creators
   const { data: sessionLinks, isLoading } = useQuery({
@@ -67,17 +83,19 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
       if (error) return [];
       return data ?? [];
     },
-    enabled: !!permittedCreatorIds && permittedCreatorIds.length > 0,
+    enabled: permittedCreatorIds.length > 0,
   });
 
   const readySessions = sessionLinks?.filter(
     (s) => s.browserbase_context_id
   ) ?? [];
 
+  const getPermissionsForCreator = (creatorId: string) => {
+    return permissionsData?.find((p) => p.creator_id === creatorId);
+  };
+
   const handleLaunch = async (session: (typeof readySessions)[0]) => {
-    const effectiveChatterId = chatterId;
-    // If no chatterId provided, try to find it from chatters table
-    let resolvedChatterId = effectiveChatterId;
+    let resolvedChatterId = chatterId;
     if (!resolvedChatterId) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -93,12 +111,26 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
 
     const result = await launchChatterSession(session.id, resolvedChatterId);
     if (result) {
-      const creator = session.creator as { name?: string } | null;
+      const creator = session.creator as { id?: string; name?: string } | null;
+      const creatorId = creator?.id || "";
+      const perms = getPermissionsForCreator(creatorId);
+      
       setActiveSession({
         embedUrl: result.embedUrl,
         sessionId: result.sessionId,
         platform: result.platform,
         creatorName: creator?.name || "Creator",
+        permissions: perms ? {
+          can_view_chats: perms.can_view_chats ?? false,
+          can_send_messages: perms.can_send_messages ?? false,
+          can_send_mass_messages: perms.can_send_mass_messages ?? false,
+          can_view_fans: perms.can_view_fans ?? false,
+          can_view_posts: perms.can_view_posts ?? false,
+          can_create_posts: perms.can_create_posts ?? false,
+          can_view_vault: perms.can_view_vault ?? false,
+          can_view_earnings: perms.can_view_earnings ?? false,
+          can_view_notifications: perms.can_view_notifications ?? false,
+        } : undefined,
       });
     }
   };
@@ -117,6 +149,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         title={`${activeSession.creatorName} — ${activeSession.platform}`}
         platform={activeSession.platform}
         onClose={handleClose}
+        permissions={activeSession.permissions}
       />
     );
   }
@@ -126,7 +159,18 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
   }
 
   if (readySessions.length === 0) {
-    return null;
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <Globe className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Sessions Available</h3>
+          <p className="text-sm text-muted-foreground">
+            No pre-authenticated browser sessions are available for your assigned creators.
+            <br />Ask your manager to set up browser access.
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -139,7 +183,10 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
       </CardHeader>
       <CardContent className="space-y-2">
         {readySessions.map((session) => {
-          const creator = session.creator as { name?: string; alias?: string | null } | null;
+          const creator = session.creator as { id?: string; name?: string; alias?: string | null } | null;
+          const perms = getPermissionsForCreator(creator?.id || "");
+          const access = getAccessLabel(perms);
+          
           return (
             <div
               key={session.id}
@@ -151,14 +198,37 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
                   <span className="font-medium text-sm">
                     {creator?.name}
                   </span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <Badge variant="outline" className="text-xs capitalize">
                       {session.platform}
                     </Badge>
                     <Badge className="bg-green-600/20 text-green-400 border-green-600/30 text-xs">
                       Ready
                     </Badge>
+                    <Badge variant={access.variant} className="text-xs">
+                      {access.label}
+                    </Badge>
                   </div>
+                  {/* Permission icons */}
+                  {perms && (
+                    <div className="flex items-center gap-1 mt-1">
+                      {(perms.can_view_chats || perms.can_send_messages) && (
+                        <span className="text-muted-foreground" aria-label="Chats"><MessageSquare className="h-3 w-3" /></span>
+                      )}
+                      {perms.can_view_fans && (
+                        <span className="text-muted-foreground" aria-label="Fans"><Users className="h-3 w-3" /></span>
+                      )}
+                      {(perms.can_view_posts || perms.can_create_posts) && (
+                        <span className="text-muted-foreground" aria-label="Posts"><Image className="h-3 w-3" /></span>
+                      )}
+                      {perms.can_view_earnings && (
+                        <span className="text-muted-foreground" aria-label="Earnings"><DollarSign className="h-3 w-3" /></span>
+                      )}
+                      {perms.can_view_vault && (
+                        <span className="text-muted-foreground" aria-label="Vault"><Eye className="h-3 w-3" /></span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <Button size="sm" onClick={() => handleLaunch(session)} disabled={launching}>

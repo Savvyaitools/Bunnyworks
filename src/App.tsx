@@ -52,12 +52,9 @@ const PortalCredentials = lazy(() => import("./pages/portal/PortalCredentials"))
 
 // Employee pages
 const EmployeeDashboard = lazy(() => import("./pages/employee/EmployeeDashboard"));
-const EmployeeMessages = lazy(() => import("./pages/employee/EmployeeMessages"));
 const EmployeeTeamChat = lazy(() => import("./pages/employee/EmployeeTeamChat"));
 const EmployeeShifts = lazy(() => import("./pages/employee/EmployeeShifts"));
 const EmployeeTimeLogs = lazy(() => import("./pages/employee/EmployeeTimeLogs"));
-const EmployeeCreatorMessages = lazy(() => import("./pages/employee/EmployeeCreatorMessages"));
-const EmployeeOnlyFans = lazy(() => import("./pages/employee/EmployeeOnlyFans"));
 const EmployeePerformancePage = lazy(() => import("./pages/employee/EmployeePerformance"));
 const EmployeeBrowserSessions = lazy(() => import("./pages/employee/EmployeeBrowserSessions"));
 
@@ -175,14 +172,15 @@ const AppRoutes = () => {
         
         {/* Employee Portal Routes */}
         <Route path="/employee" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeDashboard /></ProtectedRoute>} />
-        <Route path="/employee/messages" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeMessages /></ProtectedRoute>} />
         <Route path="/employee/team-chat" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTeamChat /></ProtectedRoute>} />
+        <Route path="/employee/browser" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeBrowserSessions /></ProtectedRoute>} />
+        <Route path="/employee/performance" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeePerformancePage /></ProtectedRoute>} />
         <Route path="/employee/shifts" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeShifts /></ProtectedRoute>} />
         <Route path="/employee/time-logs" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTimeLogs /></ProtectedRoute>} />
-        <Route path="/employee/onlyfans" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeOnlyFans /></ProtectedRoute>} />
-        <Route path="/employee/performance" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeePerformancePage /></ProtectedRoute>} />
-        <Route path="/employee/creator-messages" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeCreatorMessages /></ProtectedRoute>} />
-        <Route path="/employee/browser" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeBrowserSessions /></ProtectedRoute>} />
+        {/* Legacy redirects */}
+        <Route path="/employee/onlyfans" element={<Navigate to="/employee/browser" replace />} />
+        <Route path="/employee/messages" element={<Navigate to="/employee/team-chat" replace />} />
+        <Route path="/employee/creator-messages" element={<Navigate to="/employee/browser" replace />} />
         
         <Route path="*" element={<NotFound />} />
       </Routes>

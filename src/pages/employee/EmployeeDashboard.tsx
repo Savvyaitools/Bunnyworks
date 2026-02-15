@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Calendar, MessageSquare, ClipboardList, User, MessageCircle, BarChart3, TrendingUp } from "lucide-react";
+import { Clock, Calendar, User, Globe, BarChart3, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -142,16 +142,16 @@ export default function EmployeeDashboard() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4 animate-fade-in" style={{ animationDelay: "50ms" }}>
           <button 
-            onClick={() => navigate("/employee/onlyfans")}
+            onClick={() => navigate("/employee/browser")}
             className="stat-card text-left hover:border-primary/40 transition-colors"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg font-bold text-foreground">OnlyFans</p>
-                <p className="text-sm text-muted-foreground">Chats & Messages</p>
+                <p className="text-lg font-bold text-foreground">Browser</p>
+                <p className="text-sm text-muted-foreground">Launch Sessions</p>
               </div>
               <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                <MessageCircle className="h-5 w-5 text-primary" />
+                <Globe className="h-5 w-5 text-primary" />
               </div>
             </div>
           </button>
@@ -187,10 +187,10 @@ export default function EmployeeDashboard() {
             <Button 
               variant="outline" 
               className="h-auto py-4 flex flex-col items-center gap-2"
-              onClick={() => navigate("/employee/onlyfans")}
+              onClick={() => navigate("/employee/browser")}
             >
-              <MessageCircle className="h-5 w-5" />
-              <span>OnlyFans</span>
+              <Globe className="h-5 w-5" />
+              <span>Browser Sessions</span>
             </Button>
             <Button 
               variant="outline" 
