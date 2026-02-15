@@ -19,7 +19,6 @@ import {
   Search,
   HelpCircle,
   Bot,
-  BrainCircuit,
   Share2,
   MessagesSquare,
   ChevronDown,
@@ -50,10 +49,9 @@ import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Coach PBF", url: "/coach-pbf", icon: Bot },
-  { title: "Agent Hub", url: "/agent-hub", icon: BrainCircuit },
+  { title: "AI Assistant", url: "/coach-pbf", icon: Bot },
   { title: "Creators", url: "/creators", icon: Users },
-  { title: "Creator Messages", url: "/messages", icon: MessageSquare },
+  { title: "Messages", url: "/messages", icon: MessageSquare },
   { title: "Team", url: "/team", icon: UserCog },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: Calendar },
@@ -62,7 +60,7 @@ const mainNavItems = [
 
 const collapsibleSections = [
   {
-    label: "OnlyFans",
+    label: "Operations",
     items: [
       { title: "Live Sessions", url: "/browser-sync", icon: Globe },
       { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
@@ -70,18 +68,18 @@ const collapsibleSections = [
     ],
   },
   {
-    label: "Recruiting",
+    label: "AI Tools",
     items: [
-      { title: "Recruiting", url: "/recruiting", icon: UserPlus },
-      { title: "OF Discovery", url: "/tools/creator-discovery", icon: Search },
-      { title: "Applications", url: "/applications", icon: ClipboardList },
+      { title: "Tatum · Social", url: "/coach/social-media", icon: Share2 },
+      { title: "Izzy · Chatter", url: "/coach/ai-chatter", icon: MessagesSquare },
     ],
   },
   {
-    label: "Coach PBF",
+    label: "Growth",
     items: [
-      { title: "Tatum", url: "/coach/social-media", icon: Share2 },
-      { title: "Izzy", url: "/coach/ai-chatter", icon: MessagesSquare },
+      { title: "Recruiting", url: "/recruiting", icon: UserPlus },
+      { title: "Creator Discovery", url: "/tools/creator-discovery", icon: Search },
+      { title: "Applications", url: "/applications", icon: ClipboardList },
     ],
   },
   {

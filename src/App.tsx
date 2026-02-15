@@ -150,7 +150,7 @@ const AppRoutes = () => {
         <Route path="/subscriber-dms" element={<ProtectedRoute allowedUserTypes={["agency"]}><OnlyFansDashboard /></ProtectedRoute>} />
         <Route path="/marketing" element={<ProtectedRoute allowedUserTypes={["agency"]}><MarketingAnalytics /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute allowedUserTypes={["agency"]}><UserGuide /></ProtectedRoute>} />
-        <Route path="/agent-hub" element={<ProtectedRoute allowedUserTypes={["agency"]}><AgentHub /></ProtectedRoute>} />
+        <Route path="/agent-hub" element={<Navigate to="/coach-pbf" replace />} />
         <Route path="/coach/social-media" element={<ProtectedRoute allowedUserTypes={["agency"]}><SocialMediaManager /></ProtectedRoute>} />
         <Route path="/coach/ai-chatter" element={<ProtectedRoute allowedUserTypes={["agency"]}><AIChatterPage /></ProtectedRoute>} />
         
