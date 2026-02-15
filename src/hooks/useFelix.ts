@@ -226,7 +226,6 @@ export function useFelix() {
     isLoadingHistory,
     error,
     sendQuery,
-    clearMessages: startNewChat,
     getQuickInsight,
     startNewChat,
     selectConversation,

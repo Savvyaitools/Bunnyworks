@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,7 +23,7 @@ export function useIzzy({ creatorId, accountId, fanId }: UseIzzyOptions) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
+  
 
   const getSuggestions = useCallback(async (
     fanMessage: string,
@@ -60,16 +60,12 @@ export function useIzzy({ creatorId, accountId, fanId }: UseIzzyOptions) {
       setError(message);
       
       if (message.includes('Rate limit')) {
-        toast({
-          title: 'Too many requests',
+        toast.error('Too many requests', {
           description: 'Please wait a moment before trying again.',
-          variant: 'destructive'
         });
       } else if (message.includes('credits')) {
-        toast({
-          title: 'AI Credits Exhausted',
+        toast.error('AI Credits Exhausted', {
           description: 'Please add credits to continue using IZZY.',
-          variant: 'destructive'
         });
       }
       
@@ -77,7 +73,7 @@ export function useIzzy({ creatorId, accountId, fanId }: UseIzzyOptions) {
     } finally {
       setIsLoading(false);
     }
-  }, [creatorId, accountId, fanId, toast]);
+  }, [creatorId, accountId, fanId]);
 
   const logSelection = useCallback(async (
     selectedIndex: number | null,
