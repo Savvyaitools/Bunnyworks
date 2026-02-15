@@ -48,6 +48,7 @@ const PortalInvoices = lazy(() => import("./pages/portal/PortalInvoices"));
 const PortalContent = lazy(() => import("./pages/portal/PortalContent"));
 const PortalContentPlans = lazy(() => import("./pages/portal/PortalContentPlans"));
 const PortalTasks = lazy(() => import("./pages/portal/PortalTasks"));
+const PortalCredentials = lazy(() => import("./pages/portal/PortalCredentials"));
 
 // Employee pages
 const EmployeeDashboard = lazy(() => import("./pages/employee/EmployeeDashboard"));
@@ -58,6 +59,7 @@ const EmployeeTimeLogs = lazy(() => import("./pages/employee/EmployeeTimeLogs"))
 const EmployeeCreatorMessages = lazy(() => import("./pages/employee/EmployeeCreatorMessages"));
 const EmployeeOnlyFans = lazy(() => import("./pages/employee/EmployeeOnlyFans"));
 const EmployeePerformancePage = lazy(() => import("./pages/employee/EmployeePerformance"));
+const EmployeeBrowserSessions = lazy(() => import("./pages/employee/EmployeeBrowserSessions"));
 
 // Tool pages
 const WebScraper = lazy(() => import("./pages/tools/WebScraper"));
@@ -169,6 +171,7 @@ const AppRoutes = () => {
         <Route path="/portal/content" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContent /></ProtectedRoute>} />
         <Route path="/portal/plans" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContentPlans /></ProtectedRoute>} />
         <Route path="/portal/tasks" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalTasks /></ProtectedRoute>} />
+        <Route path="/portal/credentials" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalCredentials /></ProtectedRoute>} />
         
         {/* Employee Portal Routes */}
         <Route path="/employee" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeDashboard /></ProtectedRoute>} />
@@ -179,6 +182,7 @@ const AppRoutes = () => {
         <Route path="/employee/onlyfans" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeOnlyFans /></ProtectedRoute>} />
         <Route path="/employee/performance" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeePerformancePage /></ProtectedRoute>} />
         <Route path="/employee/creator-messages" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeCreatorMessages /></ProtectedRoute>} />
+        <Route path="/employee/browser" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeBrowserSessions /></ProtectedRoute>} />
         
         <Route path="*" element={<NotFound />} />
       </Routes>

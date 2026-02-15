@@ -7,7 +7,8 @@ import {
   LogOut,
   ChevronLeft,
   User,
-  CalendarDays
+  CalendarDays,
+  KeyRound
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -35,6 +36,7 @@ const portalNavItems = [
   { title: "Messages", url: "/portal/messages", icon: MessageSquare, badge: 2 },
   { title: "Invoices", url: "/portal/invoices", icon: FileText },
   { title: "Content Vault", url: "/portal/content", icon: FolderOpen },
+  { title: "Login Credentials", url: "/portal/credentials", icon: KeyRound },
 ];
 
 export function PortalSidebar() {
