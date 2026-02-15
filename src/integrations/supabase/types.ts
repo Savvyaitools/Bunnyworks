@@ -997,6 +997,86 @@ export type Database = {
           },
         ]
       }
+      coach_pbf_conversations: {
+        Row: {
+          agency_id: string
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_pbf_conversations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_pbf_conversations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_pbf_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          data_accessed: Json | null
+          id: string
+          query_type: string | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          data_accessed?: Json | null
+          id?: string
+          query_type?: string | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          data_accessed?: Json | null
+          id?: string
+          query_type?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_pbf_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "coach_pbf_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_files: {
         Row: {
           agency_id: string | null

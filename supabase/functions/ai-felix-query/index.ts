@@ -15,6 +15,7 @@ interface FelixRequest {
   agencyId: string;
   userId: string;
   queryType?: 'analytics' | 'comparison' | 'recommendation' | 'forecast' | 'report' | 'general';
+  conversationHistory?: { role: string; content: string }[];
 }
 
 // Prompt injection detection patterns
@@ -37,7 +38,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query, agencyId, userId, queryType = 'general' } = await req.json() as FelixRequest;
+    const { query, agencyId, userId, queryType = 'general', conversationHistory = [] } = await req.json() as FelixRequest;
 
     // ========== INPUT VALIDATION ==========
     if (!query || typeof query !== 'string') {
@@ -180,6 +181,22 @@ RESPONSE GUIDELINES:
 
 If asked about something outside your data access, be honest about limitations but offer what help you can.`;
 
+    // Build messages array with conversation history
+    const aiMessages: { role: string; content: string }[] = [
+      { role: 'system', content: systemPrompt },
+    ];
+
+    // Add conversation history for context (last 20 messages)
+    const safeHistory = (conversationHistory || []).slice(-20);
+    for (const msg of safeHistory) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        aiMessages.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    // Add current query
+    aiMessages.push({ role: 'user', content: trimmedQuery });
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -188,10 +205,7 @@ If asked about something outside your data access, be honest about limitations b
       },
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: trimmedQuery }
-        ],
+        messages: aiMessages,
       }),
     });
 
