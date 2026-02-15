@@ -36,12 +36,9 @@ const InternalMessages = lazy(() => import("./pages/InternalMessages"));
 const DataImport = lazy(() => import("./pages/DataImport"));
 const Applications = lazy(() => import("./pages/Applications"));
 const BrowserSync = lazy(() => import("./pages/BrowserSync"));
-const OnlyFansDashboard = lazy(() => import("./pages/OnlyFansDashboard"));
-const MarketingAnalytics = lazy(() => import("./pages/MarketingAnalytics"));
-const EmployeePerformance = lazy(() => import("./pages/EmployeePerformance"));
 const UserGuide = lazy(() => import("./pages/UserGuide"));
 const CoachPBF = lazy(() => import("./pages/Felix"));
-const AgentHub = lazy(() => import("./pages/AgentHub"));
+const EmployeePerformance = lazy(() => import("./pages/EmployeePerformance"));
 
 // Portal pages
 const PortalDashboard = lazy(() => import("./pages/portal/PortalDashboard"));
@@ -61,11 +58,7 @@ const EmployeePerformancePage = lazy(() => import("./pages/employee/EmployeePerf
 const EmployeeBrowserSessions = lazy(() => import("./pages/employee/EmployeeBrowserSessions"));
 
 // Tool pages
-const WebScraper = lazy(() => import("./pages/tools/WebScraper"));
 const CreatorDiscovery = lazy(() => import("./pages/tools/CreatorDiscovery"));
-const AIChatting = lazy(() => import("./pages/tools/AIChatting"));
-const AIVoiceCloner = lazy(() => import("./pages/tools/AIVoiceCloner"));
-const AIContentGenerator = lazy(() => import("./pages/tools/AIContentGenerator"));
 
 // Coach PBF pages
 const SocialMediaManager = lazy(() => import("./pages/coach/SocialMediaManager"));
@@ -116,10 +109,7 @@ const AppRoutes = () => {
         <Route path="/apply/creator/:agencyId" element={<CreatorApplication />} />
         <Route path="/apply/employee/:agencyId" element={<EmployeeApplication />} />
         
-        {/* Public Tool Pages */}
-        <Route path="/tools/chatting" element={<AIChatting />} />
-        <Route path="/tools/voice-cloner" element={<AIVoiceCloner />} />
-        <Route path="/tools/content-generator" element={<AIContentGenerator />} />
+        
         
         {/* Legal Pages */}
         <Route path="/terms" element={<TermsOfService />} />
@@ -149,11 +139,8 @@ const AppRoutes = () => {
         <Route path="/shifts" element={<ProtectedRoute allowedUserTypes={["agency"]}><ShiftRoster /></ProtectedRoute>} />
         <Route path="/data-import" element={<ProtectedRoute allowedUserTypes={["agency"]}><DataImport /></ProtectedRoute>} />
         <Route path="/applications" element={<ProtectedRoute allowedUserTypes={["agency"]}><Applications /></ProtectedRoute>} />
-        <Route path="/tools/scraper" element={<ProtectedRoute allowedUserTypes={["agency"]}><WebScraper /></ProtectedRoute>} />
         <Route path="/tools/creator-discovery" element={<ProtectedRoute allowedUserTypes={["agency"]}><CreatorDiscovery /></ProtectedRoute>} />
         <Route path="/browser-sync" element={<ProtectedRoute allowedUserTypes={["agency"]}><BrowserSync /></ProtectedRoute>} />
-        <Route path="/subscriber-dms" element={<ProtectedRoute allowedUserTypes={["agency"]}><OnlyFansDashboard /></ProtectedRoute>} />
-        <Route path="/marketing" element={<ProtectedRoute allowedUserTypes={["agency"]}><MarketingAnalytics /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute allowedUserTypes={["agency"]}><UserGuide /></ProtectedRoute>} />
         <Route path="/agent-hub" element={<Navigate to="/coach-pbf" replace />} />
         <Route path="/coach/social-media" element={<ProtectedRoute allowedUserTypes={["agency"]}><SocialMediaManager /></ProtectedRoute>} />
@@ -165,7 +152,7 @@ const AppRoutes = () => {
         <Route path="/employees/performance" element={<Navigate to="/team/performance" replace />} />
         <Route path="/chatters" element={<Navigate to="/team/chatters" replace />} />
         <Route path="/internal-messages" element={<Navigate to="/team-chat" replace />} />
-        <Route path="/of-dashboard" element={<Navigate to="/subscriber-dms" replace />} />
+        <Route path="/of-dashboard" element={<Navigate to="/dashboard" replace />} />
         
         {/* Creator Portal Routes */}
         <Route path="/portal" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalDashboard /></ProtectedRoute>} />
