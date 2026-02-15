@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       if (le || !link) return json({ error: "Session link not found" }, 404);
       const { data: emp } = await svc.from("employees").select("id").eq("auth_user_id", uid).maybeSingle();
       if (!emp) return json({ error: "Employee not found" }, 403);
-      const { data: perm } = await svc.from("employee_of_permissions").select("id").eq("employee_id", emp.id).eq("creator_id", link.creator_id).maybeSingle();
+      const { data: perm } = await svc.from("employee_of_permissions").select("*").eq("employee_id", emp.id).eq("creator_id", link.creator_id).maybeSingle();
       if (!perm) return json({ error: "Not authorized" }, 403);
       if (!link.is_active) return json({ error: "Session revoked" }, 400);
       if (new Date(link.expires_at) < new Date()) return json({ error: "Session expired" }, 400);
@@ -93,14 +93,28 @@ Deno.serve(async (req) => {
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", link.creator_id).single();
       const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
-      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 28800, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter", creatorName: cr?.name || "Unknown" } };
+
+      // Extract permission flags for injection into browser session
+      const permFlags = {
+        can_view_chats: perm.can_view_chats ?? false,
+        can_send_messages: perm.can_send_messages ?? false,
+        can_send_mass_messages: perm.can_send_mass_messages ?? false,
+        can_view_fans: perm.can_view_fans ?? false,
+        can_view_posts: perm.can_view_posts ?? false,
+        can_create_posts: perm.can_create_posts ?? false,
+        can_view_vault: perm.can_view_vault ?? false,
+        can_view_earnings: perm.can_view_earnings ?? false,
+        can_view_notifications: perm.can_view_notifications ?? false,
+      };
+
+      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 28800, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter", creatorName: cr?.name || "Unknown", permissions: permFlags } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.debuggerFullscreenUrl;
       await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter" });
       await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });
-      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform });
+      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags });
     }
 
     if (action === "terminate_session") {

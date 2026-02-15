@@ -5,6 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X, Maximize2, Minimize2, Monitor } from "lucide-react";
 
+export interface BrowserPermissions {
+  can_view_chats: boolean;
+  can_send_messages: boolean;
+  can_send_mass_messages: boolean;
+  can_view_fans: boolean;
+  can_view_posts: boolean;
+  can_create_posts: boolean;
+  can_view_vault: boolean;
+  can_view_earnings: boolean;
+  can_view_notifications: boolean;
+}
+
 interface EmbeddedBrowserViewerProps {
   embedUrl: string;
   title?: string;
@@ -13,6 +25,19 @@ interface EmbeddedBrowserViewerProps {
   onSaveAndClose?: () => void;
   showSaveButton?: boolean;
   saving?: boolean;
+  permissions?: BrowserPermissions;
+}
+
+function getPermissionSummary(perms: BrowserPermissions): string {
+  const labels: string[] = [];
+  if (perms.can_view_chats || perms.can_send_messages) labels.push("Chats");
+  if (perms.can_view_fans) labels.push("Fans");
+  if (perms.can_view_posts || perms.can_create_posts) labels.push("Posts");
+  if (perms.can_view_vault) labels.push("Vault");
+  if (perms.can_view_earnings) labels.push("Earnings");
+  if (labels.length === 5) return "Full Access";
+  if (labels.length === 0) return "View Only";
+  return labels.join(" · ");
 }
 
 export function EmbeddedBrowserViewer({
@@ -23,6 +48,7 @@ export function EmbeddedBrowserViewer({
   onSaveAndClose,
   showSaveButton = false,
   saving = false,
+  permissions,
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -47,6 +73,14 @@ export function EmbeddedBrowserViewer({
             <span className="h-2 w-2 rounded-full bg-green-500 mr-1.5 inline-block animate-pulse" />
             Live
           </Badge>
+          {permissions && (
+            <Badge 
+              variant="outline" 
+              className="text-xs bg-primary/10 text-primary border-primary/30"
+            >
+              {getPermissionSummary(permissions)}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {showSaveButton && onSaveAndClose && (

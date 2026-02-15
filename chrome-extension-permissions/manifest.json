@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "CreatorOS Permission Guard",
+  "version": "1.0.0",
+  "description": "Enforces role-based access restrictions on OnlyFans pages based on employee permissions",
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.onlyfans.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.onlyfans.com/*"],
+      "js": ["content.js"],
+      "css": ["blocked.css"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "icons": {
+    "16": "../chrome-extension/icons/icon16.png",
+    "48": "../chrome-extension/icons/icon48.png",
+    "128": "../chrome-extension/icons/icon128.png"
+  }
+}
