@@ -38,7 +38,7 @@ const OnlyFansDashboard = lazy(() => import("./pages/OnlyFansDashboard"));
 const MarketingAnalytics = lazy(() => import("./pages/MarketingAnalytics"));
 const EmployeePerformance = lazy(() => import("./pages/EmployeePerformance"));
 const UserGuide = lazy(() => import("./pages/UserGuide"));
-const Felix = lazy(() => import("./pages/Felix"));
+const CoachPBF = lazy(() => import("./pages/Felix"));
 const AgentHub = lazy(() => import("./pages/AgentHub"));
 
 // Portal pages
@@ -130,9 +130,15 @@ const AppRoutes = () => {
             <Index />
           </ProtectedRoute>
         } />
+        <Route path="/coach-pbf" element={
+          <ProtectedRoute allowedUserTypes={["agency"]}>
+            <CoachPBF />
+          </ProtectedRoute>
+        } />
+        {/* Legacy redirect */}
         <Route path="/felix" element={
           <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Felix />
+            <CoachPBF />
           </ProtectedRoute>
         } />
         <Route path="/creators" element={

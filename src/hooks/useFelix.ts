@@ -28,7 +28,7 @@ export function useFelix() {
     if (!agency?.id || !user?.id) {
       toast({
         title: 'Not authenticated',
-        description: 'Please log in to use FELIX.',
+        description: 'Please log in to use Coach PBF.',
         variant: 'destructive'
       });
       return null;
