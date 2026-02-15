@@ -44,7 +44,7 @@ const menuSections = [
     title: "Main",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-      { title: "AI Assistant", url: "/coach-pbf", icon: Bot },
+      { title: "Coach PBF", url: "/coach-pbf", icon: Bot },
       { title: "Creators", url: "/creators", icon: Users },
       { title: "Messages", url: "/messages", icon: MessageSquare },
       { title: "Team", url: "/team", icon: UserCog },
@@ -62,17 +62,10 @@ const menuSections = [
     ],
   },
   {
-    title: "AI Tools",
-    items: [
-      { title: "Tatum · Social", url: "/coach/social-media", icon: Share2 },
-      { title: "Izzy · Chatter", url: "/coach/ai-chatter", icon: MessagesSquare },
-    ],
-  },
-  {
     title: "Growth",
     items: [
       { title: "Recruiting", url: "/recruiting", icon: UserPlus },
-      { title: "Creator Discovery", url: "/tools/creator-discovery", icon: Search },
+      { title: "Outreach Lead Gen", url: "/tools/creator-discovery", icon: Search },
       { title: "Applications", url: "/applications", icon: ClipboardList },
     ],
   },
