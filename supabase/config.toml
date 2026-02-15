@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.ai-chatter]
 verify_jwt = false
+
+[functions.upload-browserbase-extension]
+verify_jwt = false
