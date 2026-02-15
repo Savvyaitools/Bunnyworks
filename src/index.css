@@ -119,6 +119,12 @@
     scroll-padding-top: 5rem;
   }
 
+  /* Mouse-follow glow tracking */
+  .glow-card {
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
@@ -142,15 +148,97 @@
   /* Glass card effect */
   .glass-card {
     @apply bg-card/80 backdrop-blur-xl border border-white/[0.08] rounded-xl;
+    background-image: linear-gradient(
+      135deg,
+      hsl(0 0% 100% / 0.04) 0%,
+      transparent 50%,
+      hsl(0 0% 0% / 0.02) 100%
+    );
+  }
+
+  /* Glossy surface — top highlight sheen */
+  .gloss {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gloss::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      165deg,
+      hsl(0 0% 100% / 0.06) 0%,
+      hsl(0 0% 100% / 0.02) 30%,
+      transparent 55%
+    );
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* Glow effects */
   .glow-primary {
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.25);
+    box-shadow:
+      0 0 40px hsl(var(--primary) / 0.25),
+      0 0 80px hsl(var(--primary) / 0.08);
   }
 
   .glow-sm {
     box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
+  }
+
+  .glow-lg {
+    box-shadow:
+      0 0 60px hsl(var(--primary) / 0.3),
+      0 0 120px hsl(var(--primary) / 0.1),
+      inset 0 1px 0 hsl(0 0% 100% / 0.06);
+  }
+
+  /* Glow card — hover-activated ambient glow */
+  .glow-card {
+    @apply relative rounded-2xl border border-border bg-card transition-all duration-500;
+    background-image: linear-gradient(
+      160deg,
+      hsl(0 0% 100% / 0.03) 0%,
+      transparent 40%
+    );
+  }
+
+  .glow-card::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: radial-gradient(
+      600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      hsl(var(--primary) / 0.08),
+      transparent 40%
+    );
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-card:hover::after {
+    opacity: 1;
+  }
+
+  .glow-card:hover {
+    border-color: hsl(var(--primary) / 0.25);
+    box-shadow: 0 8px 40px hsl(var(--primary) / 0.1);
+  }
+
+  /* Shadow glow for buttons */
+  .shadow-glow {
+    box-shadow:
+      0 0 20px hsl(var(--primary) / 0.3),
+      0 4px 16px hsl(var(--primary) / 0.2);
+  }
+
+  .shadow-glow-sm {
+    box-shadow: 0 0 12px hsl(var(--primary) / 0.2);
   }
 
   /* Gradient text */

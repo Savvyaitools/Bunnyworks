@@ -96,7 +96,7 @@ export function ScreenshotShowcase() {
 
         {/* Content */}
         <motion.div
-          className="rounded-xl sm:rounded-2xl border border-border bg-card overflow-hidden"
+          className="rounded-xl sm:rounded-2xl border border-border bg-card gloss overflow-hidden shadow-glow-sm"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
