@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X, Monitor, PanelRightOpen, PanelRightClose } from "lucide-react";
 import { BrowserSessionPanel } from "./BrowserSessionPanel";
+import { IzzyOverlay } from "./IzzyOverlay";
 
 export interface BrowserPermissions {
   can_view_chats: boolean;
@@ -26,6 +27,7 @@ interface EmbeddedBrowserViewerProps {
   showSaveButton?: boolean;
   saving?: boolean;
   permissions?: BrowserPermissions;
+  creatorId?: string;
 }
 
 function getPermissionSummary(perms: BrowserPermissions): string {
@@ -49,6 +51,7 @@ export function EmbeddedBrowserViewer({
   showSaveButton = false,
   saving = false,
   permissions,
+  creatorId,
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
@@ -147,6 +150,11 @@ export function EmbeddedBrowserViewer({
           iframeRef={iframeRef}
         />
       </div>
+
+      {/* Izzy AI Floating Overlay */}
+      {creatorId && (
+        <IzzyOverlay creatorId={creatorId} creatorName={title} />
+      )}
     </div>
   );
 }

@@ -63,6 +63,7 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
         onSaveAndClose={handleSaveAndClose}
         showSaveButton
         saving={saving}
+        creatorId={selectedCreator}
       />
     );
   }
