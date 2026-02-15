@@ -81,15 +81,12 @@ Deno.serve(async (req) => {
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", creatorId).single();
       const ctxId = await getCtx(svc, BK, BP, creatorId, platform);
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
-      // Auto-navigate to platform URL first, before fetching live view URL
+      // Fetch debug URL and navigate in parallel for speed
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
-      if (startUrl && sess.connectUrl) {
-        await navigateSession(sess.connectUrl, startUrl);
-      }
-      // Small delay to let the session stabilize after navigation
-      await new Promise(r => setTimeout(r, 1000));
-      // Fetch live view URL after navigation is complete
-      const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
+      const [dbg] = await Promise.all([
+        bb(BK, `/sessions/${sess.id}/debug`),
+        startUrl && sess.connectUrl ? navigateSession(sess.connectUrl, startUrl) : Promise.resolve(),
+      ]);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       const { data: ex } = await svc.from("creator_session_links").select("id").eq("creator_id", creatorId).eq("platform", platform).maybeSingle();
       let slId: string;
@@ -145,14 +142,12 @@ Deno.serve(async (req) => {
       const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
-      // Auto-navigate first
+      // Fetch debug URL and navigate in parallel for speed
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
-      if (chatterStartUrl && sess.connectUrl) {
-        await navigateSession(sess.connectUrl, chatterStartUrl);
-      }
-      await new Promise(r => setTimeout(r, 1000));
-      // Fetch live view URL after navigation
-      const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
+      const [dbg] = await Promise.all([
+        bb(BK, `/sessions/${sess.id}/debug`),
+        chatterStartUrl && sess.connectUrl ? navigateSession(sess.connectUrl, chatterStartUrl) : Promise.resolve(),
+      ]);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter" });
       await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });

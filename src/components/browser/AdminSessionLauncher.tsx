@@ -55,7 +55,8 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
 
   const handleClose = async () => {
     if (activeSession) {
-      await terminateSession(activeSession.sessionId);
+      // Auto-save the session context when closing (so it doesn't stay stuck at "authenticating")
+      await saveAndClose(activeSession.sessionLinkId, activeSession.sessionId);
       setActiveSession(null);
     }
   };
