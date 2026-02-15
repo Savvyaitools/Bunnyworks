@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { FelixChat } from "@/components/ai/FelixChat";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Brain, BarChart3, Lightbulb, Clock, TrendingUp, Zap, Share2, MessagesSquare } from "lucide-react";
+import { Bot, Brain, Zap, Share2, MessagesSquare } from "lucide-react";
 import { AgentStatusCard } from "@/components/agents/AgentStatusCard";
 import { AlertsFeed } from "@/components/agents/AlertsFeed";
 import { ActionLog } from "@/components/agents/ActionLog";
@@ -17,22 +16,6 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { isToday } from "date-fns";
 import { cn } from "@/lib/utils";
-
-const capabilities = [
-  { icon: BarChart3, title: "Analytics", description: "Ask about revenue, performance metrics, and trends" },
-  { icon: TrendingUp, title: "Comparisons", description: "Compare creators, chatters, or time periods" },
-  { icon: Lightbulb, title: "Recommendations", description: "Get strategic advice and improvement suggestions" },
-  { icon: Clock, title: "Forecasts", description: "Predict future performance based on trends" },
-];
-
-const exampleQueries = [
-  "How did we perform this week compared to last week?",
-  "Which creator has the highest conversion rate?",
-  "What should I focus on to increase revenue?",
-  "Show me our top 3 chatters by messages sent",
-  "Any creators underperforming their potential?",
-  "What's our average response time across the team?",
-];
 
 const tabs = [
   { id: "chat", label: "Chat", icon: Bot },
@@ -90,35 +73,37 @@ export default function Felix() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow">
-              <Bot className="h-7 w-7 text-primary-foreground" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow">
+              <Brain className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              Coach PBF
-              <Brain className="h-5 w-5 text-primary" />
-            </h1>
-            <p className="text-muted-foreground">
-              Your AI-powered agency orchestrator & tools
-            </p>
+              <h1 className="text-2xl font-bold tracking-tight">Coach PBF</h1>
+              <p className="text-sm text-muted-foreground">
+                AI-powered agency orchestrator & tools
+              </p>
             </div>
           </div>
           {activeTab === "agents" && (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => triggerAgent('sentinel')} disabled={triggering !== null}>
-                <Zap className="h-4 w-4 mr-1" />
-                {triggering === 'sentinel' ? 'Running...' : 'Run Sentinel'}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => triggerAgent('herald')} disabled={triggering !== null}>
-                <Zap className="h-4 w-4 mr-1" />
-                {triggering === 'herald' ? 'Running...' : 'Run Herald'}
-              </Button>
+              {['sentinel', 'herald'].map((agent) => (
+                <Button
+                  key={agent}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => triggerAgent(agent)}
+                  disabled={triggering !== null}
+                  className="capitalize"
+                >
+                  <Zap className="h-3.5 w-3.5 mr-1.5" />
+                  {triggering === agent ? 'Running…' : `Run ${agent}`}
+                </Button>
+              ))}
             </div>
           )}
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-border">
+        <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg w-fit">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -128,85 +113,47 @@ export default function Felix() {
                 else setActiveTab(tab.id);
               }}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors relative",
-                activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-all",
+                activeTab === tab.id
+                  ? "bg-card text-foreground shadow-sm border border-border/50"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
-              {activeTab === tab.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
             </button>
           ))}
         </div>
 
-        {/* Chat Tab */}
+        {/* Chat Tab — full width */}
         {activeTab === "chat" && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <FelixChat className="h-[600px]" />
-            </div>
-            <div className="space-y-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">What I Can Do</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {capabilities.map((cap) => (
-                    <div key={cap.title} className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <cap.icon className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{cap.title}</p>
-                        <p className="text-xs text-muted-foreground">{cap.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Try Asking</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {exampleQueries.map((query, index) => (
-                      <p key={index} className="text-sm text-muted-foreground p-2 rounded-md bg-muted/50 hover:bg-muted cursor-pointer transition-colors">
-                        "{query}"
-                      </p>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <FelixChat className="h-[calc(100vh-220px)]" />
         )}
 
-        {/* Agents Tab */}
+        {/* Agents Tab — clean dashboard grid */}
         {activeTab === "agents" && (
           <div className="space-y-6">
-            {/* Agent Status Cards */}
+            {/* Agent Status Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <AgentStatusCard agentType="sentinel" lastRun={getLastRun('sentinel')} actionsToday={getTodayActions('sentinel')} />
               <AgentStatusCard agentType="herald" lastRun={getLastRun('herald')} actionsToday={getTodayActions('herald')} />
               <AgentStatusCard agentType="scholar" lastRun={getLastRun('scholar')} actionsToday={getTodayActions('scholar')} />
             </div>
 
+            {/* Briefing + Goals row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-6">
-                <DailyBriefingCard />
-                <AlertsFeed alerts={alerts} onDismiss={(id) => dismissAlert.mutate(id)} />
-              </div>
-              <div className="space-y-6">
-                <GoalProgress goals={goals} />
-                <ActionLog
-                  actions={actions}
-                  feedback={feedback}
-                  onFeedback={(actionId, rating) => submitFeedback.mutate({ actionId, rating })}
-                />
-              </div>
+              <DailyBriefingCard />
+              <GoalProgress goals={goals} />
+            </div>
+
+            {/* Alerts + Action Log row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <AlertsFeed alerts={alerts} onDismiss={(id) => dismissAlert.mutate(id)} />
+              <ActionLog
+                actions={actions}
+                feedback={feedback}
+                onFeedback={(actionId, rating) => submitFeedback.mutate({ actionId, rating })}
+              />
             </div>
           </div>
         )}
