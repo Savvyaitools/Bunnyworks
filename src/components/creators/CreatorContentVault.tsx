@@ -119,10 +119,11 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
       // Generate signed URLs for thumbnails
       const filesWithUrls = await Promise.all(
         fileData.map(async (file) => {
-          if (file.file_type.startsWith('image/') || file.file_type.startsWith('video/')) {
+          const ft = file.file_type;
+          if (ft.startsWith('image/') || ft.startsWith('video/') || ft === 'Image' || ft === 'Video') {
             const { data } = await supabase.storage
               .from('content-vault')
-              .createSignedUrl(file.file_path, 3600); // 1 hour expiry
+              .createSignedUrl(file.file_path, 3600);
             return { ...file, signedUrl: data?.signedUrl };
           }
           return file;
@@ -362,9 +363,13 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     }
   };
 
+  const isImage = (fileType: string) => fileType.startsWith('image/') || fileType === 'Image';
+  const isVideo = (fileType: string) => fileType.startsWith('video/') || fileType === 'Video';
+  const isMedia = (fileType: string) => isImage(fileType) || isVideo(fileType);
+
   const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return <Image className="h-8 w-8 text-primary" />;
-    if (fileType.startsWith('video/')) return <Video className="h-8 w-8 text-primary" />;
+    if (isImage(fileType)) return <Image className="h-8 w-8 text-primary" />;
+    if (isVideo(fileType)) return <Video className="h-8 w-8 text-primary" />;
     return <File className="h-8 w-8 text-muted-foreground" />;
   };
 
@@ -603,14 +608,15 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
             >
               {/* Large Thumbnail */}
               <div className="aspect-[4/5] relative bg-muted/30 flex items-center justify-center overflow-hidden">
-                {file.file_type.startsWith('image/') && file.signedUrl ? (
+                {isImage(file.file_type) && file.signedUrl ? (
                   <img
                     src={file.signedUrl}
                     alt={file.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     loading="lazy"
+                    crossOrigin="anonymous"
                   />
-                ) : file.file_type.startsWith('video/') && file.signedUrl ? (
+                ) : isVideo(file.file_type) && file.signedUrl ? (
                   <video
                     src={`${file.signedUrl}#t=0.5`}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -630,7 +636,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                   </div>
                 )}
                 {/* Hover overlay with preview button */}
-                {(file.file_type.startsWith('image/') || file.file_type.startsWith('video/')) && (
+                {isMedia(file.file_type) && (
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
                     <div className="flex items-center gap-1 text-white text-xs font-medium">
                       <Eye className="h-3.5 w-3.5" />
@@ -728,9 +734,9 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
               onClick={() => openPreview(file)}
             >
               <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden shrink-0 flex items-center justify-center">
-                {file.file_type.startsWith('image/') && file.signedUrl ? (
-                  <img src={file.signedUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
-                ) : file.file_type.startsWith('video/') && file.signedUrl ? (
+                {isImage(file.file_type) && file.signedUrl ? (
+                  <img src={file.signedUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" crossOrigin="anonymous" />
+                ) : isVideo(file.file_type) && file.signedUrl ? (
                   <video src={`${file.signedUrl}#t=0.5`} className="w-full h-full object-cover" muted preload="metadata" playsInline crossOrigin="anonymous" />
                 ) : (
                   getFileIcon(file.file_type)
@@ -780,18 +786,21 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
           </DialogHeader>
           {previewFile && previewUrl && (
             <div className="flex items-center justify-center overflow-hidden">
-              {previewFile.file_type.startsWith('image/') ? (
+              {isImage(previewFile.file_type) ? (
                 <img
                   src={previewUrl}
                   alt={previewFile.name}
                   className="max-h-[70vh] max-w-full object-contain rounded-lg"
+                  crossOrigin="anonymous"
                 />
-              ) : previewFile.file_type.startsWith('video/') ? (
+              ) : isVideo(previewFile.file_type) ? (
                 <video
                   src={previewUrl}
                   controls
                   autoPlay
+                  playsInline
                   className="max-h-[70vh] max-w-full rounded-lg"
+                  crossOrigin="anonymous"
                 />
               ) : (
                 <div className="text-center py-8">
