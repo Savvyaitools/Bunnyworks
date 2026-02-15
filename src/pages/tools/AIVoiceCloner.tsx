@@ -279,7 +279,7 @@ const AIVoiceCloner = () => {
             <span className="text-lg font-semibold text-foreground">Creator OS</span>
           </div>
           <div className="text-muted-foreground text-sm">
-            © 2025 My Creator Suite. All rights reserved.
+            © 2026 My Creator Suite. All rights reserved.
           </div>
         </div>
       </footer>
