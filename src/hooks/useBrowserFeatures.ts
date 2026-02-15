@@ -122,3 +122,26 @@ export function useBrowserExtensions() {
 
   return { extensions: extensions ?? [], isLoading };
 }
+
+export function useExtensionUpload() {
+  const { agency } = useAgency();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (type: "permission_guard" | "analytics_scraper") => {
+      const { data, error } = await supabase.functions.invoke("upload-browserbase-extension", {
+        body: { type, agencyId: agency?.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`${data.name} extension activated successfully`);
+      queryClient.invalidateQueries({ queryKey: ["browser-extensions"] });
+    },
+    onError: (err: Error) => {
+      toast.error(`Failed to upload extension: ${err.message}`);
+    },
+  });
+}

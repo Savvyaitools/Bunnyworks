@@ -14,9 +14,4 @@
       "all_frames": false
     }
   ],
-  "icons": {
-    "16": "../chrome-extension/icons/icon16.png",
-    "48": "../chrome-extension/icons/icon48.png",
-    "128": "../chrome-extension/icons/icon128.png"
-  }
 }
