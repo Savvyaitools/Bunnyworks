@@ -59,18 +59,26 @@ export default function EmployeeCreatorHub() {
 
     setEmployeeRole(employee.role);
 
-    // Get assigned creators via creator_assignments
+    // Get assigned creators via employee_of_permissions (primary source)
+    const { data: permissions } = await supabase
+      .from("employee_of_permissions")
+      .select("creator_id")
+      .eq("employee_id", employee.id);
+
+    // Also check creator_assignments as fallback
     const { data: assignments } = await supabase
       .from("creator_assignments")
       .select("creator_id")
       .eq("employee_id", employee.id);
 
-    if (!assignments || assignments.length === 0) {
+    const permCreatorIds = (permissions || []).map((p) => p.creator_id);
+    const assignCreatorIds = (assignments || []).map((a) => a.creator_id);
+    const creatorIds = [...new Set([...permCreatorIds, ...assignCreatorIds])];
+
+    if (creatorIds.length === 0) {
       setLoading(false);
       return;
     }
-
-    const creatorIds = assignments.map((a) => a.creator_id);
 
     const { data: creatorsData } = await supabase
       .from("creators")
