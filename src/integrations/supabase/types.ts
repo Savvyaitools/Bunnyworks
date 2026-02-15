@@ -1335,6 +1335,76 @@ export type Database = {
           },
         ]
       }
+      creator_credential_submissions: {
+        Row: {
+          agency_id: string
+          created_at: string
+          creator_id: string
+          encrypted_password: string
+          id: string
+          notes: string | null
+          platform: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          creator_id: string
+          encrypted_password: string
+          id?: string
+          notes?: string | null
+          platform?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          creator_id?: string
+          encrypted_password?: string
+          id?: string
+          notes?: string | null
+          platform?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_credential_submissions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_credential_submissions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_credential_submissions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_earnings: {
         Row: {
           amount: number

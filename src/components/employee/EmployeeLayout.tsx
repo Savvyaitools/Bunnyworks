@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, MessageSquare, Calendar, Clock, LogOut, User, BarChart3, MessageCircle, Users, MessagesSquare } from "lucide-react";
+import { Home, MessageSquare, Calendar, Clock, LogOut, User, BarChart3, MessageCircle, Users, MessagesSquare, Globe } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ export function EmployeeLayout({ children }: EmployeeLayoutProps) {
     { icon: MessagesSquare, label: "Team Chat", path: "/employee/team-chat" },
     { icon: Users, label: "Creators", path: "/employee/creator-messages" },
     { icon: MessageCircle, label: "OnlyFans", path: "/employee/onlyfans" },
+    { icon: Globe, label: "Browser", path: "/employee/browser" },
     { icon: BarChart3, label: "Stats", path: "/employee/performance" },
     { icon: Calendar, label: "Shifts", path: "/employee/shifts" },
   ];
