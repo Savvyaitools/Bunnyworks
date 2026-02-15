@@ -50,7 +50,7 @@ import { useQCAssignments } from "@/hooks/useQCAssignments";
 import { useCreatorAssignments } from "@/hooks/useCreatorAssignments";
 import { TimeAnalytics } from "@/components/shifts";
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // Shift time blocks configuration
 const SHIFT_BLOCKS = [
@@ -286,10 +286,8 @@ export default function ShiftRoster() {
       .filter(s => s.chatter_id === draggedChatter.id);
 
     if (originalShifts.length === 0) {
-      toast({
-        title: "Cannot move",
+      toast.error("Cannot move", {
         description: "No shifts found to move.",
-        variant: "destructive",
       });
       setDraggedChatter(null);
       return;
@@ -320,8 +318,7 @@ export default function ShiftRoster() {
       });
     }
 
-    toast({
-      title: "Shift moved",
+    toast.success("Shift moved", {
       description: `Moved chatter to ${targetBlock.label}`,
     });
 
@@ -334,10 +331,8 @@ export default function ShiftRoster() {
   const handleAddShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.chatter_id || !formData.creator_id || !formData.shift_date || !formData.shift_block) {
-      toast({
-        title: "Missing fields",
+      toast.error("Missing fields", {
         description: "Please fill in all required fields.",
-        variant: "destructive",
       });
       return;
     }
@@ -345,10 +340,8 @@ export default function ShiftRoster() {
     // Get block times from SHIFT_BLOCKS
     const block = SHIFT_BLOCKS.find(b => b.id === formData.shift_block);
     if (!block) {
-      toast({
-        title: "Invalid shift block",
+      toast.error("Invalid shift block", {
         description: "Please select a valid shift block.",
-        variant: "destructive",
       });
       return;
     }

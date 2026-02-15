@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAgency } from "./useAgency";
 
 export interface QCAssignment {
@@ -80,16 +80,13 @@ export function useQCAssignments(date?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["qc-assignments"] });
-      toast({
-        title: "QC Assigned",
+      toast.success("QC Assigned", {
         description: "Quality Controller has been assigned to the shift.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to assign QC: " + error.message,
-        variant: "destructive",
       });
     },
   });
@@ -105,16 +102,13 @@ export function useQCAssignments(date?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["qc-assignments"] });
-      toast({
-        title: "QC Removed",
+      toast.success("QC Removed", {
         description: "Quality Controller has been removed from the shift.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to remove QC: " + error.message,
-        variant: "destructive",
       });
     },
   });
