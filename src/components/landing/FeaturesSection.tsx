@@ -71,7 +71,7 @@ export function FeaturesSection() {
               variants={cardVariants}
               whileHover={{ y: -4, borderColor: "hsl(330 100% 64% / 0.3)" }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border border-border bg-card group h-full cursor-default"
+              className="p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border border-border bg-card gloss glow-card group h-full cursor-default"
             >
               <motion.div
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 sm:mb-5"

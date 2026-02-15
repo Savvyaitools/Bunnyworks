@@ -18,10 +18,25 @@ export function HeroSection() {
 
   return (
     <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-end pb-10 sm:pb-20 pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-background">
-      {/* Animated glow */}
+      {/* Primary glow orb */}
       <motion.div
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] sm:w-[600px] h-[300px] sm:h-[400px] bg-primary/8 blur-[120px] sm:blur-[150px] rounded-full pointer-events-none"
-        style={{ y: glowY, scale: glowScale }}
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] sm:w-[700px] h-[350px] sm:h-[500px] rounded-full pointer-events-none"
+        style={{
+          y: glowY,
+          scale: glowScale,
+          background: "radial-gradient(ellipse, hsl(330 100% 64% / 0.12), hsl(280 80% 60% / 0.06) 50%, transparent 70%)",
+          filter: "blur(80px)",
+        }}
+      />
+      {/* Secondary accent glow */}
+      <motion.div
+        className="absolute top-2/3 right-1/4 w-[300px] sm:w-[400px] h-[200px] sm:h-[300px] rounded-full pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse, hsl(280 80% 65% / 0.08), transparent 70%)",
+          filter: "blur(100px)",
+        }}
+        animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
       />
 
       <div className="max-w-7xl mx-auto w-full relative z-10">

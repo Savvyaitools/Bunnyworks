@@ -71,7 +71,7 @@ export function AIToolsSection() {
               variants={agentVariants}
               whileHover={{ y: -6, borderColor: "hsl(330 100% 64% / 0.4)" }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="p-6 sm:p-8 lg:p-10 rounded-xl sm:rounded-2xl border border-border bg-card group h-full relative cursor-default overflow-hidden"
+              className="p-6 sm:p-8 lg:p-10 rounded-xl sm:rounded-2xl border border-border bg-card gloss glow-card group h-full relative cursor-default overflow-hidden"
             >
               {/* Hover glow */}
               <motion.div

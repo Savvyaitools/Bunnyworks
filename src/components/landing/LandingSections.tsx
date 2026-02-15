@@ -113,7 +113,7 @@ export function HowItWorksSection() {
               custom={i}
               variants={stepVariants}
               whileHover={{ y: -4 }}
-              className="p-6 sm:p-8 lg:p-10 rounded-xl sm:rounded-2xl border border-border bg-card h-full relative overflow-hidden cursor-default group"
+              className="p-6 sm:p-8 lg:p-10 rounded-xl sm:rounded-2xl border border-border bg-card gloss glow-card h-full relative overflow-hidden cursor-default group"
             >
               <motion.span
                 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary/10 group-hover:text-primary/20 transition-colors block mb-4 sm:mb-6"
@@ -182,7 +182,7 @@ function PricingCard({ name, price, period, desc, features, ctaLabel, highlight,
       custom={i}
       variants={pricingVariants}
       whileHover={{ y: -6, borderColor: highlight ? "hsl(330 100% 64% / 0.6)" : "hsl(330 100% 64% / 0.3)" }}
-      className={`p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border flex flex-col h-full cursor-default ${highlight ? "border-primary bg-card relative" : "border-border bg-card"}`}
+      className={`p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border flex flex-col h-full cursor-default gloss ${highlight ? "border-primary bg-card relative glow-lg" : "border-border bg-card glow-card"}`}
     >
       {badge && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] sm:text-xs font-medium px-3 sm:px-4 py-0.5 sm:py-1 rounded-full">{badge}</div>
