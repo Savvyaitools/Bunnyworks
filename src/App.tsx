@@ -50,7 +50,7 @@ const PortalInvoices = lazy(() => import("./pages/portal/PortalInvoices"));
 const PortalContent = lazy(() => import("./pages/portal/PortalContent"));
 const PortalContentPlans = lazy(() => import("./pages/portal/PortalContentPlans"));
 const PortalTasks = lazy(() => import("./pages/portal/PortalTasks"));
-const PortalCredentials = lazy(() => import("./pages/portal/PortalCredentials"));
+
 
 // Employee pages
 const EmployeeDashboard = lazy(() => import("./pages/employee/EmployeeDashboard"));
@@ -174,7 +174,7 @@ const AppRoutes = () => {
         <Route path="/portal/content" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContent /></ProtectedRoute>} />
         <Route path="/portal/plans" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContentPlans /></ProtectedRoute>} />
         <Route path="/portal/tasks" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalTasks /></ProtectedRoute>} />
-        <Route path="/portal/credentials" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalCredentials /></ProtectedRoute>} />
+        
         
         {/* Employee Portal Routes */}
         <Route path="/employee" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeDashboard /></ProtectedRoute>} />
