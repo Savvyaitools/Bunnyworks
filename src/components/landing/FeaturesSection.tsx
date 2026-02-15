@@ -1,14 +1,15 @@
 import { Users, DollarSign, TrendingUp, Monitor, Shield, Lock, Zap, Calendar, MessageSquare, FileText, Smartphone, Globe, BarChart3, Clock } from "lucide-react";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
 import { motion } from "framer-motion";
+import { AnimatedCounter } from "./AnimationPrimitives";
 
 const features = [
-  { icon: Users, title: "Unified Team Management", description: "Creators, chatters, and employees in one system with role-based access and per-creator permissions." },
-  { icon: DollarSign, title: "Revenue Intelligence", description: "Track gross earnings, net revenue, and commissions. Auto-sync OnlyFans data with breakdowns by subs, tips, PPV." },
-  { icon: TrendingUp, title: "Chatter Analytics", description: "Messages sent, PPV conversions, and revenue per shift. Data-driven leaderboards and team optimization." },
-  { icon: Monitor, title: "Cloud Browser Sessions", description: "Launch live OnlyFans, Fansly & Fanvue sessions in-browser. No downloads, pre-authenticated, persistent login states." },
-  { icon: Shield, title: "Creator Portal", description: "Branded white-label portal for creators to view earnings, download content plans, and communicate with your team." },
-  { icon: Lock, title: "Enterprise Security", description: "Row-level data isolation, per-employee permissions, encrypted sessions, and full audit trails." },
+  { icon: Users, title: "Unified Team Management", description: "Creators, chatters, and employees in one system with role-based access and per-creator permissions.", stat: "40+" , statLabel: "features" },
+  { icon: DollarSign, title: "Revenue Intelligence", description: "Track gross earnings, net revenue, and commissions. Auto-sync OnlyFans data with breakdowns by subs, tips, PPV.", stat: "Real-time", statLabel: "syncing" },
+  { icon: TrendingUp, title: "Chatter Analytics", description: "Messages sent, PPV conversions, and revenue per shift. Data-driven leaderboards and team optimization.", stat: "28%", statLabel: "avg lift" },
+  { icon: Monitor, title: "Cloud Browser Sessions", description: "Launch live OnlyFans, Fansly & Fanvue sessions in-browser. No downloads, pre-authenticated, persistent login states.", stat: "Zero", statLabel: "downloads" },
+  { icon: Shield, title: "Creator Portal", description: "Branded white-label portal for creators to view earnings, download content plans, and communicate with your team.", stat: "White", statLabel: "label" },
+  { icon: Lock, title: "Enterprise Security", description: "Row-level data isolation, per-employee permissions, encrypted sessions, and full audit trails.", stat: "256-bit", statLabel: "encrypted" },
 ];
 
 const moreFeatures = [
@@ -48,6 +49,14 @@ export function FeaturesSection() {
     <section id="features" className="py-12 sm:py-16 lg:py-24 px-4 sm:px-6 lg:px-8 border-t border-border">
       <div className="max-w-7xl mx-auto">
         <ScrollReveal className="mb-10 sm:mb-14 lg:mb-20">
+          <motion.span
+            className="inline-block text-[10px] sm:text-xs uppercase tracking-widest text-primary font-semibold mb-3 sm:mb-4"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+          >
+            Platform Features
+          </motion.span>
           <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-3 sm:mb-4">
             Everything you need
             <br />
@@ -69,19 +78,31 @@ export function FeaturesSection() {
               key={feature.title}
               custom={i}
               variants={cardVariants}
-              whileHover={{ y: -4, borderColor: "hsl(330 100% 64% / 0.3)" }}
+              whileHover={{ y: -6, borderColor: "hsl(330 100% 64% / 0.3)" }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border border-border bg-card gloss glow-card group h-full cursor-default"
+              className="p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl border border-border bg-card gloss glow-card group h-full cursor-default relative overflow-hidden"
             >
+              {/* Hover gradient overlay */}
               <motion.div
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 sm:mb-5"
-                whileHover={{ rotate: 5, scale: 1.1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 15 }}
-              >
-                <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              </motion.div>
-              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+              />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-4 sm:mb-5">
+                  <motion.div
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center"
+                    whileHover={{ rotate: 5, scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                  >
+                    <feature.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  </motion.div>
+                  <div className="text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="text-sm sm:text-base font-bold text-primary">{feature.stat}</div>
+                    <div className="text-[10px] text-muted-foreground">{feature.statLabel}</div>
+                  </div>
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+              </div>
             </motion.div>
           ))}
         </motion.div>
@@ -97,10 +118,15 @@ export function FeaturesSection() {
               key={feature.title}
               custom={i}
               variants={miniCardVariants}
-              whileHover={{ y: -2, scale: 1.02 }}
-              className="p-3 sm:p-4 rounded-lg sm:rounded-xl border border-border bg-card/50 hover:border-primary/30 transition-colors h-full cursor-default"
+              whileHover={{ y: -3, scale: 1.03, borderColor: "hsl(330 100% 64% / 0.2)" }}
+              className="p-3 sm:p-4 rounded-lg sm:rounded-xl border border-border bg-card/50 transition-colors h-full cursor-default group"
             >
-              <feature.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary mb-1.5 sm:mb-2" />
+              <motion.div
+                whileHover={{ rotate: 10 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                <feature.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary mb-1.5 sm:mb-2 group-hover:text-primary transition-colors" />
+              </motion.div>
               <h4 className="font-medium text-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">{feature.title}</h4>
               <p className="text-[10px] sm:text-xs text-muted-foreground">{feature.description}</p>
             </motion.div>
