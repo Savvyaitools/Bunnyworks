@@ -125,12 +125,54 @@
     }
   }
 
+  // Hide OnlyFans native sidebar to force navigation through CreatorOS panel
+  function hideOFSidebar() {
+    // Target known sidebar selectors
+    const selectors = [
+      '.b-sidebar',
+      '.l-sidebar',
+      'nav[class*="sidebar"]',
+      'aside[class*="sidebar"]',
+      'div.l-sidebar__menu',
+    ];
+    for (const sel of selectors) {
+      document.querySelectorAll(sel).forEach((el) => {
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('width', '0', 'important');
+      });
+    }
+    // Fallback: find the sidebar by its content pattern (Home, Notifications, Messages links)
+    const navLinks = document.querySelectorAll('a[href="/"]');
+    for (const link of navLinks) {
+      const parent = link.closest('nav, aside, div[role="navigation"]');
+      if (parent && parent.querySelector('a[href="/my/chats"]')) {
+        parent.style.setProperty('display', 'none', 'important');
+        parent.style.setProperty('width', '0', 'important');
+        // Expand main content
+        const wrapper = document.querySelector('.l-wrapper, .b-wrapper, main');
+        if (wrapper) {
+          wrapper.style.setProperty('margin-left', '0', 'important');
+          wrapper.style.setProperty('padding-left', '0', 'important');
+        }
+        break;
+      }
+    }
+  }
+
   // Check on initial load
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", checkAndBlock);
+    document.addEventListener("DOMContentLoaded", () => {
+      checkAndBlock();
+      hideOFSidebar();
+    });
   } else {
     checkAndBlock();
+    hideOFSidebar();
   }
+
+  // Re-hide sidebar periodically (OnlyFans SPA may re-render)
+  const sidebarInterval = setInterval(hideOFSidebar, 2000);
+  setTimeout(() => clearInterval(sidebarInterval), 30000); // Stop after 30s
 
   // Monitor SPA navigation (OnlyFans is a SPA)
   const origPush = history.pushState;
