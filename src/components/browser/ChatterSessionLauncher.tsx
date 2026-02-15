@@ -3,65 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrowserSessions } from "@/hooks/useBrowserSessions";
 import { EmbeddedBrowserViewer, type BrowserPermissions } from "./EmbeddedBrowserViewer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import {
-  Globe, Loader2, MessageSquare, Users, Eye, DollarSign, Image,
-  AlertCircle, Clock, CheckCircle2, Wifi, WifiOff,
+  Globe, Loader2, Monitor, AlertCircle,
 } from "lucide-react";
 
 interface ChatterSessionLauncherProps {
   chatterId?: string;
-}
-
-interface CreatorSessionInfo {
-  creatorId: string;
-  creatorName: string;
-  creatorAlias?: string | null;
-  creatorAvatar?: string | null;
-  sessionLinkId?: string;
-  platform?: string;
-  sessionStatus?: string | null;
-  hasContext?: boolean;
-  permissions?: any;
-}
-
-function getAccessLabel(perms: any): { label: string; variant: "default" | "secondary" | "outline" } {
-  const flags = [
-    perms?.can_view_chats, perms?.can_send_messages, perms?.can_view_fans,
-    perms?.can_view_posts, perms?.can_create_posts, perms?.can_view_vault,
-    perms?.can_view_earnings,
-  ];
-  const trueCount = flags.filter(Boolean).length;
-  if (trueCount >= 6) return { label: "Full Access", variant: "default" };
-  if (trueCount >= 3) return { label: "Limited Access", variant: "secondary" };
-  if (trueCount >= 1) return { label: "Chat Only", variant: "outline" };
-  return { label: "View Only", variant: "outline" };
-}
-
-function SessionStatusBadge({ status }: { status?: string | null }) {
-  if (status === "authenticated") {
-    return (
-      <Badge className="bg-primary/15 text-primary border-primary/30 text-xs gap-1">
-        <CheckCircle2 className="h-3 w-3" /> Ready
-      </Badge>
-    );
-  }
-  if (status === "authenticating") {
-    return (
-      <Badge variant="outline" className="text-xs gap-1 text-amber-500 border-amber-500/30">
-        <Clock className="h-3 w-3" /> Authenticating
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="text-xs gap-1 text-muted-foreground">
-      <WifiOff className="h-3 w-3" /> Not Set Up
-    </Badge>
-  );
 }
 
 export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProps) {
@@ -124,7 +76,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
   const permittedCreatorIds = permissionsData?.map((p) => p.creator_id) ?? [];
   const allCreatorIds = [...new Set([...permittedCreatorIds, ...(assignedCreatorIds ?? [])])];
 
-  // Get ALL creators the chatter is assigned to (not just those with sessions)
+  // Get creators
   const { data: creators, isLoading: creatorsLoading } = useQuery({
     queryKey: ["chatter-creators-full", allCreatorIds],
     queryFn: async () => {
@@ -139,9 +91,9 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     enabled: allCreatorIds.length > 0,
   });
 
-  // Get ALL session links for assigned creators (any status)
+  // Get session links — only authenticated ones matter for chatters
   const { data: sessionLinks, isLoading: linksLoading } = useQuery({
-    queryKey: ["chatter-session-links-all", allCreatorIds],
+    queryKey: ["chatter-session-links-ready", allCreatorIds],
     queryFn: async () => {
       if (allCreatorIds.length === 0) return [];
       const { data, error } = await supabase
@@ -153,41 +105,30 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
       return data ?? [];
     },
     enabled: allCreatorIds.length > 0,
-    refetchInterval: 15000, // Poll for status changes
+    refetchInterval: 15000,
   });
 
-  // Build combined creator-session info
-  const creatorSessions: CreatorSessionInfo[] = (creators ?? []).map((c) => {
-    const link = (sessionLinks ?? []).find((l) => l.creator_id === c.id);
+  // Split into ready and not-ready
+  const readyCreators: { creator: typeof creators extends (infer T)[] ? T : never; link: NonNullable<typeof sessionLinks>[0]; perms: any }[] = [];
+  const notReadyCreators: { creator: typeof creators extends (infer T)[] ? T : never; reason: string }[] = [];
+
+  (creators ?? []).forEach((c) => {
+    const link = (sessionLinks ?? []).find(
+      (l) => l.creator_id === c.id && l.session_status === "authenticated" && !!l.browserbase_context_id
+    );
     const perms = permissionsData?.find((p) => p.creator_id === c.id);
-    return {
-      creatorId: c.id,
-      creatorName: c.name,
-      creatorAlias: c.alias,
-      creatorAvatar: c.avatar_url,
-      sessionLinkId: link?.id,
-      platform: link?.platform,
-      sessionStatus: link?.session_status,
-      hasContext: !!link?.browserbase_context_id,
-      permissions: perms,
-    };
+    if (link) {
+      readyCreators.push({ creator: c, link, perms });
+    } else {
+      const pendingLink = (sessionLinks ?? []).find((l) => l.creator_id === c.id);
+      const reason = pendingLink?.session_status === "authenticating"
+        ? "Admin is logging in..."
+        : "Awaiting admin authentication";
+      notReadyCreators.push({ creator: c, reason });
+    }
   });
 
-  // Sort: authenticated first, then authenticating, then no session
-  const sorted = [...creatorSessions].sort((a, b) => {
-    const order = (s?: string | null) => s === "authenticated" ? 0 : s === "authenticating" ? 1 : 2;
-    return order(a.sessionStatus) - order(b.sessionStatus);
-  });
-
-  const isLoading = creatorsLoading || linksLoading;
-
-  const getPermissionsForCreator = (creatorId: string) => {
-    return permissionsData?.find((p) => p.creator_id === creatorId);
-  };
-
-  const handleLaunch = async (info: CreatorSessionInfo) => {
-    if (!info.sessionLinkId) return;
-
+  const handleLaunch = async (creatorId: string, sessionLinkId: string, creatorName: string) => {
     let resolvedChatterId = chatterId;
     if (!resolvedChatterId) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -202,18 +143,18 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     }
     if (!resolvedChatterId) return;
 
-    setLaunchingCreatorId(info.creatorId);
-    const result = await launchChatterSession(info.sessionLinkId, resolvedChatterId);
+    setLaunchingCreatorId(creatorId);
+    const result = await launchChatterSession(sessionLinkId, resolvedChatterId);
     setLaunchingCreatorId(null);
 
     if (result) {
-      const perms = getPermissionsForCreator(info.creatorId);
+      const perms = permissionsData?.find((p) => p.creator_id === creatorId);
       setActiveSession({
         embedUrl: result.embedUrl,
         sessionId: result.sessionId,
         platform: result.platform,
-        creatorName: info.creatorName,
-        creatorId: info.creatorId,
+        creatorName,
+        creatorId,
         permissions: perms ? {
           can_view_chats: perms.can_view_chats ?? false,
           can_send_messages: perms.can_send_messages ?? false,
@@ -249,16 +190,17 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     );
   }
 
-  if (isLoading) {
+  if (creatorsLoading || linksLoading) {
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-24" />
-        <Skeleton className="h-24" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
       </div>
     );
   }
 
-  if (sorted.length === 0) {
+  if (readyCreators.length === 0 && notReadyCreators.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -272,123 +214,83 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     );
   }
 
-  const readyCount = sorted.filter(s => s.sessionStatus === "authenticated").length;
-  const pendingCount = sorted.filter(s => s.sessionStatus === "authenticating").length;
-
   return (
-    <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="flex items-center gap-4 text-sm">
-        <div className="flex items-center gap-1.5">
-          <Wifi className="h-4 w-4 text-primary" />
-          <span className="font-medium">{readyCount} ready</span>
-        </div>
-        {pendingCount > 0 && (
-          <div className="flex items-center gap-1.5 text-amber-500">
-            <Clock className="h-4 w-4" />
-            <span>{pendingCount} pending</span>
-          </div>
-        )}
-        <span className="text-muted-foreground">
-          {sorted.length} creator{sorted.length !== 1 ? "s" : ""} assigned
-        </span>
-      </div>
-
-      {/* Creator cards */}
-      <div className="grid gap-3">
-        {sorted.map((info) => {
-          const access = info.permissions ? getAccessLabel(info.permissions) : null;
-          const canLaunch = info.sessionStatus === "authenticated" && !!info.sessionLinkId;
-          const isLaunching = launchingCreatorId === info.creatorId && launching;
-
-          return (
-            <Card
-              key={info.creatorId}
-              className={canLaunch ? "border-primary/20 bg-primary/[0.02]" : "opacity-80"}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <UserAvatar name={info.creatorName} className="h-10 w-10" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm truncate">
-                          {info.creatorName}
-                        </span>
-                        {info.platform && (
-                          <Badge variant="outline" className="text-xs capitalize shrink-0">
-                            {info.platform}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <SessionStatusBadge status={info.sessionStatus || (info.sessionLinkId ? undefined : null)} />
-                        {access && (
-                          <Badge variant={access.variant} className="text-xs">
-                            {access.label}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Permission icons */}
-                      {info.permissions && (
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          {(info.permissions.can_view_chats || info.permissions.can_send_messages) && (
-                            <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          {info.permissions.can_view_fans && (
-                            <Users className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          {(info.permissions.can_view_posts || info.permissions.can_create_posts) && (
-                            <Image className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          {info.permissions.can_view_earnings && (
-                            <DollarSign className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          {info.permissions.can_view_vault && (
-                            <Eye className="h-3 w-3 text-muted-foreground" />
-                          )}
-                        </div>
-                      )}
+    <div className="space-y-6">
+      {/* Ready to launch */}
+      {readyCreators.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Monitor className="h-4 w-4" />
+            Ready to Launch ({readyCreators.length})
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {readyCreators.map(({ creator, link }) => {
+              const isLaunching = launchingCreatorId === creator.id && launching;
+              return (
+                <Card
+                  key={creator.id}
+                  className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer group"
+                  onClick={() => !isLaunching && handleLaunch(creator.id, link.id, creator.name)}
+                >
+                  <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                    <UserAvatar name={creator.name} className="h-14 w-14" />
+                    <div>
+                      <span className="font-semibold text-sm block">{creator.name}</span>
+                      <Badge variant="outline" className="text-xs capitalize mt-1">
+                        {link.platform}
+                      </Badge>
                     </div>
-                  </div>
+                    <Button
+                      size="sm"
+                      disabled={isLaunching}
+                      className="w-full mt-auto gap-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLaunch(creator.id, link.id, creator.name);
+                      }}
+                    >
+                      {isLaunching ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Globe className="h-4 w-4" />
+                          Launch Session
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                  <div className="shrink-0">
-                    {canLaunch ? (
-                      <Button
-                        onClick={() => handleLaunch(info)}
-                        disabled={isLaunching}
-                        size="sm"
-                        className="min-w-[80px]"
-                      >
-                        {isLaunching ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Globe className="h-3.5 w-3.5 mr-1.5" />
-                            Launch
-                          </>
-                        )}
-                      </Button>
-                    ) : info.sessionStatus === "authenticating" ? (
-                      <div className="text-xs text-amber-500 text-right max-w-[120px]">
-                        <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
-                        Admin is setting up
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground text-right max-w-[120px]">
-                        <WifiOff className="h-3.5 w-3.5 inline mr-1" />
-                        No session yet
-                      </div>
-                    )}
+      {/* Not ready */}
+      {notReadyCreators.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            Awaiting Setup ({notReadyCreators.length})
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {notReadyCreators.map(({ creator, reason }) => (
+              <Card key={creator.id} className="opacity-60">
+                <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                  <UserAvatar name={creator.name} className="h-14 w-14" />
+                  <div>
+                    <span className="font-semibold text-sm block">{creator.name}</span>
+                    <span className="text-xs text-muted-foreground mt-1 block">{reason}</span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                  <Button size="sm" variant="outline" disabled className="w-full mt-auto">
+                    Not Available
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
