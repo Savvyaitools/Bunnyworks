@@ -25,9 +25,8 @@ serve(async (req) => {
     if (agencyId) {
       const queries: Promise<any>[] = [
         supabase.from('agent_memories').select('category, content, importance').eq('agency_id', agencyId).eq('agent_type', 'tatum').order('importance', { ascending: false }).limit(30),
-        supabase.from('creators').select('name, status, revenue, platform, niche').eq('agency_id', agencyId),
+        supabase.from('creators').select('id, name, status, revenue, platform, niche').eq('agency_id', agencyId),
         supabase.from('content_plans').select('title, board_column, platform, status, scheduled_date, creators(name)').eq('agency_id', agencyId).order('updated_at', { ascending: false }).limit(20),
-        supabase.from('creator_social_accounts').select('username, platform, of_connection_status, creators(name)').limit(20),
       ];
 
       if (creatorId) {
@@ -37,8 +36,14 @@ serve(async (req) => {
       }
 
       const results = await Promise.all(queries);
-      const [memoriesRes, creatorsRes, plansRes, socialsRes] = results;
-      const earningsRes = results[4];
+      const [memoriesRes, creatorsRes, plansRes] = results;
+      const earningsRes = results[3];
+
+      // Fetch social accounts scoped to this agency's creators
+      const agencyCreatorIds = (creatorsRes.data || []).map((c: any) => c.id);
+      const { data: socialsData } = agencyCreatorIds.length > 0
+        ? await supabase.from('creator_social_accounts').select('username, platform, of_connection_status, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
+        : { data: [] };
 
       if (memoriesRes.data?.length) {
         memoryContext = `\n\nYOUR MEMORY (brand/content preferences you've learned):\n${memoriesRes.data.map((m: any) => `- [${m.category}]: ${m.content}`).join('\n')}\nApply these to match the agency's established style.`;
@@ -46,7 +51,7 @@ serve(async (req) => {
 
       const creatorsInfo = creatorsRes.data?.map((c: any) => `${c.name}: ${c.platform || 'N/A'}, niche=${c.niche || 'general'}, revenue=$${c.revenue || 0}`).join(' | ') || '';
       const plansInfo = plansRes.data?.slice(0, 10).map((p: any) => `"${p.title}" (${p.creators?.name}, ${p.board_column}, ${p.platform || '?'})`).join(' | ') || '';
-      const socialsInfo = socialsRes.data?.map((s: any) => `${s.creators?.name}: @${s.username} on ${s.platform}`).join(' | ') || '';
+      const socialsInfo = (socialsData || []).map((s: any) => `${s.creators?.name}: @${s.username} on ${s.platform}`).join(' | ') || '';
       const earningsInfo = earningsRes?.data?.map((e: any) => `$${e.amount} (${e.period_start}→${e.period_end}, subs=$${e.subscriptions||0}, tips=$${e.tips||0})`).join(' | ') || '';
 
       dataContext = `\n\nAGENCY DATA FOR CONTEXT:
