@@ -37,19 +37,20 @@ const competitorComparison = {
 
 export function ComparisonSection() {
   return (
-    <section id="comparison" className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
+    <section id="comparison" className="py-16 sm:py-24 px-6 lg:px-8 border-t border-border">
       <div className="max-w-7xl mx-auto">
-        <ScrollReveal className="text-center mb-10 sm:mb-16">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3 sm:mb-4">
-            See How We <span className="gradient-text">Compare</span>
+        <ScrollReveal className="mb-14 sm:mb-20">
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-4">
+            See how we{" "}
+            <span className="gradient-text">compare.</span>
           </h2>
-          <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
-            Creator OS is the only platform with AI agents, cloud browser sessions, and enterprise security — all built in.
+          <p className="text-base sm:text-lg text-muted-foreground max-w-xl">
+            The only platform with AI agents, cloud browsers, and enterprise security — all built in.
           </p>
         </ScrollReveal>
 
         <ScrollReveal>
-          <div className="glass-card overflow-hidden">
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
             {/* Mobile */}
             <div className="block lg:hidden">
               {competitorComparison.features.map((feature, fi) => (
@@ -57,9 +58,9 @@ export function ComparisonSection() {
                   <div className="font-medium text-foreground mb-3 text-sm">{feature.name}</div>
                   <div className="grid grid-cols-2 gap-2">
                     {competitorComparison.competitors.map((c) => (
-                      <div key={c.name} className={`flex items-center justify-between p-2 rounded-lg ${c.highlight ? "bg-primary/10 border border-primary/30" : "bg-muted/30"}`}>
+                      <div key={c.name} className={`flex items-center justify-between p-2 rounded-lg ${c.highlight ? "bg-primary/10 border border-primary/20" : "bg-muted/30"}`}>
                         <span className={`text-xs ${c.highlight ? "text-primary font-medium" : "text-muted-foreground"}`}>{c.name}</span>
-                        {c.values[fi] === true ? <Check className={`h-4 w-4 ${c.highlight ? "text-primary" : "text-green-500"}`} /> : c.values[fi] === false ? <X className="h-4 w-4 text-muted-foreground/50" /> : <span className="text-[10px] text-amber-500 font-medium">Partial</span>}
+                        {c.values[fi] === true ? <Check className={`h-4 w-4 ${c.highlight ? "text-primary" : "text-success"}`} /> : c.values[fi] === false ? <X className="h-4 w-4 text-muted-foreground/40" /> : <span className="text-[10px] text-warning font-medium">Partial</span>}
                       </div>
                     ))}
                   </div>
@@ -72,37 +73,30 @@ export function ComparisonSection() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left p-4 font-semibold text-foreground">Features</th>
+                    <th className="text-left p-5 font-semibold text-foreground text-sm">Features</th>
                     {competitorComparison.competitors.map((c) => (
-                      <th key={c.name} className={`p-4 text-center font-semibold min-w-[140px] ${c.highlight ? "text-primary bg-primary/5" : "text-foreground"}`}>
-                        <div className="flex flex-col items-center gap-1">
-                          {c.name}
-                          {c.highlight && <span className="text-[10px] font-normal bg-primary/20 text-primary px-2 py-0.5 rounded-full">You're here</span>}
-                        </div>
+                      <th key={c.name} className={`p-5 text-center font-semibold text-sm min-w-[130px] ${c.highlight ? "text-primary bg-primary/5" : "text-foreground"}`}>
+                        {c.name}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {competitorComparison.features.map((feature, fi) => (
-                    <tr key={feature.name} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                      <td className="p-4 text-foreground text-sm font-medium">{feature.name}</td>
+                    <tr key={feature.name} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                      <td className="p-4 text-foreground text-sm">{feature.name}</td>
                       {competitorComparison.competitors.map((c) => (
                         <td key={c.name} className={`p-4 text-center ${c.highlight ? "bg-primary/5" : ""}`}>
                           {c.values[fi] === true ? (
                             <div className="flex justify-center">
-                              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${c.highlight ? "bg-primary/20" : "bg-green-500/20"}`}>
-                                <Check className={`h-4 w-4 ${c.highlight ? "text-primary" : "text-green-500"}`} />
-                              </div>
+                              <Check className={`h-4 w-4 ${c.highlight ? "text-primary" : "text-success"}`} />
                             </div>
                           ) : c.values[fi] === false ? (
                             <div className="flex justify-center">
-                              <div className="w-6 h-6 rounded-full bg-muted/50 flex items-center justify-center">
-                                <X className="h-4 w-4 text-muted-foreground/50" />
-                              </div>
+                              <X className="h-4 w-4 text-muted-foreground/30" />
                             </div>
                           ) : (
-                            <span className="text-xs text-amber-500 font-medium bg-amber-500/10 px-2 py-1 rounded-full">Limited</span>
+                            <span className="text-xs text-warning font-medium">Limited</span>
                           )}
                         </td>
                       ))}
@@ -112,19 +106,16 @@ export function ComparisonSection() {
               </table>
             </div>
 
-            <div className="p-4 sm:p-6 bg-gradient-to-r from-primary/10 to-accent/10 border-t border-border">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                  <p className="text-foreground font-semibold text-sm sm:text-base">The only platform with AI agents, cloud browsers & enterprise security.</p>
-                  <p className="text-muted-foreground text-xs sm:text-sm">Join 500+ agencies that made the switch to Creator OS</p>
-                </div>
-                <Link to="/auth">
-                  <Button className="bg-primary hover:bg-primary/90 glow-sm whitespace-nowrap">
-                    Start Free Trial
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
+            <div className="p-6 sm:p-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-foreground font-medium text-sm sm:text-base">
+                The most complete platform for creator agencies.
+              </p>
+              <Link to="/auth">
+                <Button className="bg-primary hover:bg-primary/90 rounded-full px-6">
+                  Start Free Trial
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </div>
           </div>
         </ScrollReveal>
