@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgency } from '@/hooks/useAgency';
 
@@ -27,7 +27,6 @@ export function useFelix() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
   const { user } = useAuth();
   const { agency } = useAgency();
 
@@ -94,19 +93,11 @@ export function useFelix() {
       query_type: queryType || null,
       data_accessed: dataAccessed || [],
     });
-    // Update conversation title from first user message
-    if (role === 'user') {
-      const shortTitle = content.length > 60 ? content.substring(0, 57) + '...' : content;
-      await supabase
-        .from('coach_pbf_conversations')
-        .update({ title: shortTitle, updated_at: new Date().toISOString() })
-        .eq('id', conversationId);
-    } else {
-      await supabase
-        .from('coach_pbf_conversations')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', conversationId);
-    }
+    const shortTitle = role === 'user' ? (content.length > 60 ? content.substring(0, 57) + '...' : content) : undefined;
+    await supabase
+      .from('coach_pbf_conversations')
+      .update({ ...(shortTitle ? { title: shortTitle } : {}), updated_at: new Date().toISOString() })
+      .eq('id', conversationId);
   }, []);
 
   // Start a new chat
@@ -130,15 +121,10 @@ export function useFelix() {
     queryType: 'analytics' | 'comparison' | 'recommendation' | 'forecast' | 'report' | 'general' = 'general'
   ) => {
     if (!agency?.id || !user?.id) {
-      toast({
-        title: 'Not authenticated',
-        description: 'Please log in to use Coach PBF.',
-        variant: 'destructive'
-      });
+      toast.error('Please log in to use Coach PBF.');
       return null;
     }
 
-    // Ensure we have a conversation
     let convId = activeConversationId;
     if (!convId) {
       convId = await createConversation(query.length > 60 ? query.substring(0, 57) + '...' : query);
@@ -146,7 +132,6 @@ export function useFelix() {
       setActiveConversationId(convId);
     }
 
-    // Add user message immediately
     const userMessage: FelixMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -154,15 +139,12 @@ export function useFelix() {
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
-    
-    // Save user message
     await saveMessage(convId, 'user', query);
 
     setIsLoading(true);
     setError(null);
 
     try {
-      // Send conversation history for context
       const historyForContext = messages.slice(-20).map(m => ({
         role: m.role,
         content: m.content,
@@ -192,7 +174,7 @@ export function useFelix() {
       
       setMessages(prev => [...prev, assistantMessage]);
       await saveMessage(convId, 'assistant', data.response, data.queryType, data.dataAccessed);
-      await loadConversations(); // Refresh list
+      await loadConversations();
       return data.response;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to process query';
@@ -208,20 +190,16 @@ export function useFelix() {
       await saveMessage(convId, 'assistant', errorMessage.content);
       
       if (message.includes('Rate limit')) {
-        toast({ title: 'Too many requests', description: 'Please wait a moment before trying again.', variant: 'destructive' });
+        toast.error('Too many requests. Please wait a moment before trying again.');
       } else if (message.includes('credits')) {
-        toast({ title: 'AI Credits Exhausted', description: 'Please add credits to continue using Coach PBF.', variant: 'destructive' });
+        toast.error('AI Credits Exhausted. Please add credits to continue using Coach PBF.');
       }
       
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, [agency?.id, user?.id, toast, activeConversationId, createConversation, saveMessage, messages, loadConversations]);
-
-  const clearMessages = useCallback(() => {
-    startNewChat();
-  }, [startNewChat]);
+  }, [agency?.id, user?.id, activeConversationId, createConversation, saveMessage, messages, loadConversations]);
 
   const deleteConversation = useCallback(async (conversationId: string) => {
     await supabase.from('coach_pbf_conversations').delete().eq('id', conversationId);
@@ -237,7 +215,6 @@ export function useFelix() {
       top_performers: "Who are my top performing creators and chatters this week? What's making them successful?",
       alerts: "Are there any issues or concerns I should be aware of? Any performance drops or missed targets?"
     };
-    
     return sendQuery(queries[insightType], insightType === 'alerts' ? 'recommendation' : 'analytics');
   }, [sendQuery]);
 
@@ -249,7 +226,7 @@ export function useFelix() {
     isLoadingHistory,
     error,
     sendQuery,
-    clearMessages,
+    clearMessages: startNewChat,
     getQuickInsight,
     startNewChat,
     selectConversation,

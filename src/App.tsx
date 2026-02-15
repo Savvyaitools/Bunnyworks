@@ -1,13 +1,13 @@
 import { Suspense, lazy } from "react";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 
 // Eager load landing and auth pages for fast initial load
 import Landing from "./pages/Landing";
@@ -78,8 +78,8 @@ const EmployeeApplication = lazy(() => import("./pages/apply/EmployeeApplication
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes default
-      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -125,257 +125,60 @@ const AppRoutes = () => {
         <Route path="/employee-login" element={<EmployeeAuth />} />
         
         {/* Agency Routes - Protected */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Index />
-          </ProtectedRoute>
-        } />
-        <Route path="/coach-pbf" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <CoachPBF />
-          </ProtectedRoute>
-        } />
-        {/* Legacy redirect */}
-        <Route path="/felix" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <CoachPBF />
-          </ProtectedRoute>
-        } />
-        <Route path="/creators" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Creators />
-          </ProtectedRoute>
-        } />
-        <Route path="/creators/:id" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <CreatorDetail />
-          </ProtectedRoute>
-        } />
-        {/* Team Routes (new) */}
-        <Route path="/team" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Employees />
-          </ProtectedRoute>
-        } />
-        <Route path="/team/chatters" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Chatters />
-          </ProtectedRoute>
-        } />
-        <Route path="/team/performance" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <EmployeePerformance />
-          </ProtectedRoute>
-        } />
+        <Route path="/dashboard" element={<ProtectedRoute allowedUserTypes={["agency"]}><Index /></ProtectedRoute>} />
+        <Route path="/coach-pbf" element={<ProtectedRoute allowedUserTypes={["agency"]}><CoachPBF /></ProtectedRoute>} />
+        <Route path="/creators" element={<ProtectedRoute allowedUserTypes={["agency"]}><Creators /></ProtectedRoute>} />
+        <Route path="/creators/:id" element={<ProtectedRoute allowedUserTypes={["agency"]}><CreatorDetail /></ProtectedRoute>} />
+        <Route path="/team" element={<ProtectedRoute allowedUserTypes={["agency"]}><Employees /></ProtectedRoute>} />
+        <Route path="/team/chatters" element={<ProtectedRoute allowedUserTypes={["agency"]}><Chatters /></ProtectedRoute>} />
+        <Route path="/team/performance" element={<ProtectedRoute allowedUserTypes={["agency"]}><EmployeePerformance /></ProtectedRoute>} />
+        <Route path="/tasks" element={<ProtectedRoute allowedUserTypes={["agency"]}><Tasks /></ProtectedRoute>} />
+        <Route path="/calendar" element={<ProtectedRoute allowedUserTypes={["agency"]}><Calendar /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute allowedUserTypes={["agency"]}><Messages /></ProtectedRoute>} />
+        <Route path="/sop" element={<ProtectedRoute allowedUserTypes={["agency"]}><SOPLibrary /></ProtectedRoute>} />
+        <Route path="/invoices" element={<ProtectedRoute allowedUserTypes={["agency"]}><Invoices /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute allowedUserTypes={["agency"]}><Notifications /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute allowedUserTypes={["agency"]}><Settings /></ProtectedRoute>} />
+        <Route path="/recruiting" element={<ProtectedRoute allowedUserTypes={["agency"]}><Recruiting /></ProtectedRoute>} />
+        <Route path="/team-chat" element={<ProtectedRoute allowedUserTypes={["agency"]}><InternalMessages /></ProtectedRoute>} />
+        <Route path="/shifts" element={<ProtectedRoute allowedUserTypes={["agency"]}><ShiftRoster /></ProtectedRoute>} />
+        <Route path="/data-import" element={<ProtectedRoute allowedUserTypes={["agency"]}><DataImport /></ProtectedRoute>} />
+        <Route path="/applications" element={<ProtectedRoute allowedUserTypes={["agency"]}><Applications /></ProtectedRoute>} />
+        <Route path="/tools/scraper" element={<ProtectedRoute allowedUserTypes={["agency"]}><WebScraper /></ProtectedRoute>} />
+        <Route path="/tools/creator-discovery" element={<ProtectedRoute allowedUserTypes={["agency"]}><CreatorDiscovery /></ProtectedRoute>} />
+        <Route path="/browser-sync" element={<ProtectedRoute allowedUserTypes={["agency"]}><BrowserSync /></ProtectedRoute>} />
+        <Route path="/subscriber-dms" element={<ProtectedRoute allowedUserTypes={["agency"]}><OnlyFansDashboard /></ProtectedRoute>} />
+        <Route path="/marketing" element={<ProtectedRoute allowedUserTypes={["agency"]}><MarketingAnalytics /></ProtectedRoute>} />
+        <Route path="/guide" element={<ProtectedRoute allowedUserTypes={["agency"]}><UserGuide /></ProtectedRoute>} />
+        <Route path="/agent-hub" element={<ProtectedRoute allowedUserTypes={["agency"]}><AgentHub /></ProtectedRoute>} />
+        <Route path="/coach/social-media" element={<ProtectedRoute allowedUserTypes={["agency"]}><SocialMediaManager /></ProtectedRoute>} />
+        <Route path="/coach/ai-chatter" element={<ProtectedRoute allowedUserTypes={["agency"]}><AIChatterPage /></ProtectedRoute>} />
+        
         {/* Legacy redirects */}
-        <Route path="/employees" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Employees />
-          </ProtectedRoute>
-        } />
-        <Route path="/employees/performance" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <EmployeePerformance />
-          </ProtectedRoute>
-        } />
-        <Route path="/tasks" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Tasks />
-          </ProtectedRoute>
-        } />
-        <Route path="/calendar" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Calendar />
-          </ProtectedRoute>
-        } />
-        <Route path="/messages" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Messages />
-          </ProtectedRoute>
-        } />
-        <Route path="/sop" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <SOPLibrary />
-          </ProtectedRoute>
-        } />
-        <Route path="/invoices" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Invoices />
-          </ProtectedRoute>
-        } />
-        <Route path="/notifications" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Notifications />
-          </ProtectedRoute>
-        } />
-        <Route path="/settings" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Settings />
-          </ProtectedRoute>
-        } />
-        <Route path="/recruiting" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Recruiting />
-          </ProtectedRoute>
-        } />
-        {/* Team Chat (renamed from internal-messages) */}
-        <Route path="/team-chat" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <InternalMessages />
-          </ProtectedRoute>
-        } />
-        {/* Legacy routes */}
-        <Route path="/chatters" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Chatters />
-          </ProtectedRoute>
-        } />
-        <Route path="/shifts" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <ShiftRoster />
-          </ProtectedRoute>
-        } />
-        <Route path="/internal-messages" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <InternalMessages />
-          </ProtectedRoute>
-        } />
-        <Route path="/data-import" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <DataImport />
-          </ProtectedRoute>
-        } />
-        <Route path="/applications" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <Applications />
-          </ProtectedRoute>
-        } />
-        <Route path="/tools/scraper" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <WebScraper />
-          </ProtectedRoute>
-        } />
-        <Route path="/tools/creator-discovery" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <CreatorDiscovery />
-          </ProtectedRoute>
-        } />
-        <Route path="/browser-sync" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <BrowserSync />
-          </ProtectedRoute>
-        } />
-        {/* Subscriber DMs (renamed from of-dashboard) */}
-        <Route path="/subscriber-dms" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <OnlyFansDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/marketing" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <MarketingAnalytics />
-          </ProtectedRoute>
-        } />
-        {/* Legacy route */}
-        <Route path="/of-dashboard" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <OnlyFansDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/guide" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <UserGuide />
-          </ProtectedRoute>
-        } />
-        <Route path="/agent-hub" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <AgentHub />
-          </ProtectedRoute>
-        } />
-        <Route path="/coach/social-media" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <SocialMediaManager />
-          </ProtectedRoute>
-        } />
-        <Route path="/coach/ai-chatter" element={
-          <ProtectedRoute allowedUserTypes={["agency"]}>
-            <AIChatterPage />
-          </ProtectedRoute>
-        } />
+        <Route path="/felix" element={<Navigate to="/coach-pbf" replace />} />
+        <Route path="/employees" element={<Navigate to="/team" replace />} />
+        <Route path="/employees/performance" element={<Navigate to="/team/performance" replace />} />
+        <Route path="/chatters" element={<Navigate to="/team/chatters" replace />} />
+        <Route path="/internal-messages" element={<Navigate to="/team-chat" replace />} />
+        <Route path="/of-dashboard" element={<Navigate to="/subscriber-dms" replace />} />
         
-        {/* Creator Portal Routes - Protected */}
-        <Route path="/portal" element={
-          <ProtectedRoute allowedUserTypes={["creator"]}>
-            <PortalDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/portal/messages" element={
-          <ProtectedRoute allowedUserTypes={["creator"]}>
-            <PortalMessages />
-          </ProtectedRoute>
-        } />
-        <Route path="/portal/invoices" element={
-          <ProtectedRoute allowedUserTypes={["creator"]}>
-            <PortalInvoices />
-          </ProtectedRoute>
-        } />
-        <Route path="/portal/content" element={
-          <ProtectedRoute allowedUserTypes={["creator"]}>
-            <PortalContent />
-          </ProtectedRoute>
-        } />
-        <Route path="/portal/plans" element={
-          <ProtectedRoute allowedUserTypes={["creator"]}>
-            <PortalContentPlans />
-          </ProtectedRoute>
-        } />
-        <Route path="/portal/tasks" element={
-          <ProtectedRoute allowedUserTypes={["creator"]}>
-            <PortalTasks />
-          </ProtectedRoute>
-        } />
+        {/* Creator Portal Routes */}
+        <Route path="/portal" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalDashboard /></ProtectedRoute>} />
+        <Route path="/portal/messages" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalMessages /></ProtectedRoute>} />
+        <Route path="/portal/invoices" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalInvoices /></ProtectedRoute>} />
+        <Route path="/portal/content" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContent /></ProtectedRoute>} />
+        <Route path="/portal/plans" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContentPlans /></ProtectedRoute>} />
+        <Route path="/portal/tasks" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalTasks /></ProtectedRoute>} />
         
-        {/* Employee Portal Routes - Protected */}
-        <Route path="/employee" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeeDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/employee/messages" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeeMessages />
-          </ProtectedRoute>
-        } />
-        <Route path="/employee/team-chat" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeeTeamChat />
-          </ProtectedRoute>
-        } />
-        <Route path="/employee/shifts" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeeShifts />
-          </ProtectedRoute>
-        } />
-        <Route path="/employee/time-logs" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeeTimeLogs />
-          </ProtectedRoute>
-        } />
-        <Route path="/employee/onlyfans" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeeOnlyFans />
-          </ProtectedRoute>
-        } />
-        <Route path="/employee/performance" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeePerformancePage />
-          </ProtectedRoute>
-        } />
-        <Route path="/employee/creator-messages" element={
-          <ProtectedRoute allowedUserTypes={["employee"]}>
-            <EmployeeCreatorMessages />
-          </ProtectedRoute>
-        } />
+        {/* Employee Portal Routes */}
+        <Route path="/employee" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeDashboard /></ProtectedRoute>} />
+        <Route path="/employee/messages" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeMessages /></ProtectedRoute>} />
+        <Route path="/employee/team-chat" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTeamChat /></ProtectedRoute>} />
+        <Route path="/employee/shifts" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeShifts /></ProtectedRoute>} />
+        <Route path="/employee/time-logs" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTimeLogs /></ProtectedRoute>} />
+        <Route path="/employee/onlyfans" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeOnlyFans /></ProtectedRoute>} />
+        <Route path="/employee/performance" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeePerformancePage /></ProtectedRoute>} />
+        <Route path="/employee/creator-messages" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeCreatorMessages /></ProtectedRoute>} />
         
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -387,10 +190,10 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <CommandPalette />
             <AppRoutes />
           </AuthProvider>
         </BrowserRouter>
