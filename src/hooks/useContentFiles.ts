@@ -90,9 +90,8 @@ export function useContentFiles() {
 
       if (uploadError) throw uploadError;
 
-      let fileType = "Document";
-      if (file.type.startsWith("video/")) fileType = "Video";
-      else if (file.type.startsWith("image/")) fileType = "Image";
+      // Store actual MIME type for proper preview detection
+      const fileType = file.type || "application/octet-stream";
 
       const { error: insertError } = await supabase.from("content_files").insert({
         name: file.name,
