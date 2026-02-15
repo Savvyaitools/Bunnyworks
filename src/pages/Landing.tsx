@@ -9,6 +9,7 @@ import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { ComparisonSection } from "@/components/landing/ComparisonSection";
 import { HowItWorksSection, TestimonialsSection, PricingSection, FinalCTASection } from "@/components/landing/LandingSections";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import { GradientDivider, ScrollGlowOrb } from "@/components/landing/AnimationPrimitives";
 
 const Landing = () => {
   // Mouse-follow glow tracking for .glow-card elements
@@ -28,18 +29,31 @@ const Landing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Global ambient glow that follows scroll */}
+      <ScrollGlowOrb />
+      
       <LandingNav />
       <HeroSection />
+      <GradientDivider />
       <PlatformLogos />
+      <GradientDivider />
       <ScreenshotShowcase />
+      <GradientDivider />
       <PainPointsSection />
+      <GradientDivider />
       <FeaturesSection />
+      <GradientDivider />
       <AIToolsSection />
+      <GradientDivider />
       <ComparisonSection />
+      <GradientDivider />
       <HowItWorksSection />
+      <GradientDivider />
       <TestimonialsSection />
+      <GradientDivider />
       <PricingSection />
+      <GradientDivider />
       <FinalCTASection />
       <LandingFooter />
     </div>

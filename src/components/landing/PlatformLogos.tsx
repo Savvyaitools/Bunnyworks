@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Marquee } from "./AnimationPrimitives";
 
 const platforms = [
   { name: "OnlyFans", color: "#00AFF0", icon: "OF" },
@@ -11,26 +12,40 @@ const platforms = [
   { name: "Snapchat", color: "#FFFC00", icon: "SC" },
 ];
 
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.06 },
-  },
-};
+const trustItems = [
+  "SOC 2 Compliant",
+  "256-bit Encryption",
+  "GDPR Ready",
+  "99.9% Uptime SLA",
+  "Row-Level Security",
+  "Zero Download Required",
+  "Enterprise Grade",
+  "Multi-Platform Support",
+];
 
-const itemVariants = {
-  hidden: { opacity: 0, scale: 0.8, y: 10 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { type: "spring" as const, stiffness: 300, damping: 20 },
-  },
-};
+function PlatformBadge({ p }: { p: typeof platforms[0] }) {
+  return (
+    <motion.div
+      className="flex items-center gap-1.5 sm:gap-2 group cursor-default"
+      whileHover={{ scale: 1.08, y: -2 }}
+      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+    >
+      <div
+        className="w-7 h-7 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center text-[10px] sm:text-xs lg:text-sm font-bold transition-all duration-300 group-hover:shadow-lg"
+        style={{ backgroundColor: `${p.color}20`, color: p.color }}
+      >
+        {p.icon}
+      </div>
+      <span className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground group-hover:text-foreground transition-colors font-medium hidden sm:inline">
+        {p.name}
+      </span>
+    </motion.div>
+  );
+}
 
 export function PlatformLogos() {
   return (
-    <section className="py-6 sm:py-10 lg:py-12 px-4 sm:px-6 lg:px-8 border-b border-border/50">
+    <section className="py-6 sm:py-10 lg:py-12 px-4 sm:px-6 lg:px-8 border-b border-border/50 space-y-6 sm:space-y-8">
       <div className="max-w-7xl mx-auto">
         <motion.p
           className="text-center text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground font-medium mb-5 sm:mb-8"
@@ -43,31 +58,29 @@ export function PlatformLogos() {
         </motion.p>
         <motion.div
           className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 lg:gap-10"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-30px" }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
         >
           {platforms.map((p) => (
-            <motion.div
-              key={p.name}
-              variants={itemVariants}
-              className="flex items-center gap-1.5 sm:gap-2 group cursor-default"
-              whileHover={{ scale: 1.08, y: -2 }}
-              transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            >
-              <div
-                className="w-7 h-7 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center text-[10px] sm:text-xs lg:text-sm font-bold transition-all duration-300 group-hover:shadow-lg"
-                style={{ backgroundColor: `${p.color}20`, color: p.color }}
-              >
-                {p.icon}
-              </div>
-              <span className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground group-hover:text-foreground transition-colors font-medium hidden sm:inline">
-                {p.name}
-              </span>
-            </motion.div>
+            <PlatformBadge key={p.name} p={p} />
           ))}
         </motion.div>
+      </div>
+
+      {/* Trust marquee */}
+      <div className="border-t border-border/50 pt-4 sm:pt-6">
+        <Marquee speed={40}>
+          <div className="flex items-center gap-8">
+            {trustItems.map((item) => (
+              <span key={item} className="text-[10px] sm:text-xs text-muted-foreground/60 uppercase tracking-widest font-medium flex items-center gap-2 whitespace-nowrap">
+                <span className="w-1 h-1 rounded-full bg-primary/40" />
+                {item}
+              </span>
+            ))}
+          </div>
+        </Marquee>
       </div>
     </section>
   );
