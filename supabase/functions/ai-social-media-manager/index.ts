@@ -16,11 +16,63 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { action, topic, platform, creatorName, creatorNiche, creatorPersona, days, agencyId, creatorId } = await req.json();
+    const { action, topic, platform, creatorName, creatorNiche, creatorPersona, days, agencyId, creatorId, ofAccountId } = await req.json();
 
-    // Load agency data + Tatum memories + creator performance in parallel
+    // Load agency data + Tatum memories + creator performance + live OF data in parallel
     let dataContext = "";
     let memoryContext = "";
+    let liveOFContext = "";
+
+    // Fetch live OnlyFans data if account is connected
+    if (ofAccountId) {
+      const OF_API_BASE = "https://app.onlyfansapi.com/api";
+      const ofApiKey = Deno.env.get("ONLYFANS_API_KEY");
+      if (ofApiKey) {
+        try {
+          const [earningsRes, fansRes, postsRes] = await Promise.all([
+            fetch(`${OF_API_BASE}/${ofAccountId}/payouts/earning-statistics`, {
+              headers: { "Authorization": `Bearer ${ofApiKey}`, "Content-Type": "application/json" },
+            }),
+            fetch(`${OF_API_BASE}/${ofAccountId}/fans/active?limit=5`, {
+              headers: { "Authorization": `Bearer ${ofApiKey}`, "Content-Type": "application/json" },
+            }),
+            fetch(`${OF_API_BASE}/${ofAccountId}/posts?limit=10`, {
+              headers: { "Authorization": `Bearer ${ofApiKey}`, "Content-Type": "application/json" },
+            }),
+          ]);
+
+          const parts: string[] = [];
+
+          if (earningsRes.ok) {
+            const ed = await earningsRes.json();
+            const t = ed?.data?.list?.total || ed?.total || {};
+            parts.push(`Live Earnings: total=$${t?.all?.total_net ?? ed?.total ?? 0}, subs=$${t?.subscribes?.total_net ?? 0}, tips=$${t?.tips?.total_net ?? 0}, messages=$${t?.chat_messages?.total_net ?? 0}`);
+          }
+
+          if (fansRes.ok) {
+            const fd = await fansRes.json();
+            const fans = fd?.data || fd || [];
+            const count = fd?.total || fans.length || 0;
+            parts.push(`Active Subscribers: ${count}`);
+          }
+
+          if (postsRes.ok) {
+            const pd = await postsRes.json();
+            const posts = (pd?.data || pd || []).slice(0, 5);
+            if (posts.length > 0) {
+              const topPosts = posts.map((p: any) => `"${(p.text || '').slice(0, 60)}..." (likes=${p.likes_count || 0}, comments=${p.comments_count || 0})`).join(' | ');
+              parts.push(`Recent Posts: ${topPosts}`);
+            }
+          }
+
+          if (parts.length > 0) {
+            liveOFContext = `\n\nLIVE ONLYFANS DATA (real-time from platform):\n${parts.join('\n')}\nUse this live data to inform content strategy, identify trends, and make data-driven recommendations.`;
+          }
+        } catch (e) {
+          console.error("Failed to fetch live OF data for Tatum:", e);
+        }
+      }
+    }
 
     if (agencyId) {
       const queries: Promise<any>[] = [
@@ -39,10 +91,9 @@ serve(async (req) => {
       const [memoriesRes, creatorsRes, plansRes] = results;
       const earningsRes = results[3];
 
-      // Fetch social accounts scoped to this agency's creators
       const agencyCreatorIds = (creatorsRes.data || []).map((c: any) => c.id);
       const { data: socialsData } = agencyCreatorIds.length > 0
-        ? await supabase.from('creator_social_accounts').select('username, platform, of_connection_status, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
+        ? await supabase.from('creator_social_accounts').select('username, platform, of_connection_status, of_account_id, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
         : { data: [] };
 
       if (memoriesRes.data?.length) {
@@ -65,7 +116,7 @@ Use this data to create more targeted, performance-informed content suggestions.
     let systemPrompt = "";
     let userPrompt = "";
 
-    const basePersonality = `You are Tatum, a personal social media strategist for this OnlyFans agency. You know their creators, their brand styles, what content performs well, and their posting preferences. You give tailored, data-backed advice — not generic templates.${memoryContext}${dataContext}`;
+    const basePersonality = `You are Tatum, a personal social media strategist for this OnlyFans agency. You know their creators, their brand styles, what content performs well, and their posting preferences. You give tailored, data-backed advice — not generic templates.${memoryContext}${dataContext}${liveOFContext}`;
 
     if (action === "generate_posts") {
       systemPrompt = `${basePersonality}\n\nGenerate platform-optimized posts. Use creator-specific language and consider their audience. Always respond with valid JSON only.\n\nAfter JSON, if you spot new brand preferences worth remembering, append: <!--MEMORIES:[{"category":"...","content":"...","importance":1-10}]-->`;

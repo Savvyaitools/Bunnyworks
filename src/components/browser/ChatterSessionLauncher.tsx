@@ -34,6 +34,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     sessionId: string;
     platform: string;
     creatorName: string;
+    creatorId?: string;
     permissions?: BrowserPermissions;
   } | null>(null);
 
@@ -137,6 +138,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         sessionId: result.sessionId,
         platform: result.platform,
         creatorName: creator?.name || "Creator",
+        creatorId: creatorId,
         permissions: perms ? {
           can_view_chats: perms.can_view_chats ?? false,
           can_send_messages: perms.can_send_messages ?? false,
@@ -167,6 +169,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         platform={activeSession.platform}
         onClose={handleClose}
         permissions={activeSession.permissions}
+        creatorId={activeSession.creatorId}
       />
     );
   }

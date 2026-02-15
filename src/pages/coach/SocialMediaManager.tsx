@@ -12,6 +12,8 @@ import {
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreators } from "@/hooks/useCreators";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 interface GeneratedPost {
@@ -31,6 +33,7 @@ interface StrategyInsight {
 
 export default function SocialMediaManager() {
   const { creators } = useCreators();
+  const { profile } = useAuth();
   const [selectedCreator, setSelectedCreator] = useState<string>("");
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState<string>("instagram");
@@ -40,6 +43,22 @@ export default function SocialMediaManager() {
   const [strategyInsights, setStrategyInsights] = useState<StrategyInsight[]>([]);
   const [contentCalendar, setContentCalendar] = useState<GeneratedPost[]>([]);
   const [generatingCalendar, setGeneratingCalendar] = useState(false);
+
+  // Look up the OF account ID for the selected creator
+  const { data: ofAccountId } = useQuery({
+    queryKey: ["creator-of-account", selectedCreator],
+    queryFn: async () => {
+      if (!selectedCreator) return null;
+      const { data } = await supabase
+        .from("creator_social_accounts" as any)
+        .select("of_account_id")
+        .eq("creator_id", selectedCreator)
+        .eq("platform", "onlyfans")
+        .maybeSingle();
+      return (data as any)?.of_account_id ?? null;
+    },
+    enabled: !!selectedCreator,
+  });
 
   const generatePosts = async () => {
     if (!topic.trim()) {
@@ -57,6 +76,9 @@ export default function SocialMediaManager() {
           creatorName: creator?.name || "the creator",
           creatorNiche: "general",
           creatorPersona: creator?.persona || "",
+          agencyId: profile?.agency_id,
+          creatorId: selectedCreator || undefined,
+          ofAccountId: ofAccountId || undefined,
         },
       });
       if (error) throw error;
@@ -80,6 +102,9 @@ export default function SocialMediaManager() {
           creatorName: creator?.name || "the creator",
           creatorNiche: "general",
           platform,
+          agencyId: profile?.agency_id,
+          creatorId: selectedCreator || undefined,
+          ofAccountId: ofAccountId || undefined,
         },
       });
       if (error) throw error;
@@ -104,6 +129,9 @@ export default function SocialMediaManager() {
           creatorNiche: "general",
           platform,
           days: 7,
+          agencyId: profile?.agency_id,
+          creatorId: selectedCreator || undefined,
+          ofAccountId: ofAccountId || undefined,
         },
       });
       if (error) throw error;
