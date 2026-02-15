@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, Image, X } from "lucide-react";
+import { Calendar, Image, X, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { KanbanItem } from "./KanbanBoard";
@@ -8,12 +8,13 @@ import type { KanbanItem } from "./KanbanBoard";
 interface KanbanCardProps {
   item: KanbanItem;
   onClick?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
   isDragOverlay?: boolean;
   disabled?: boolean;
 }
 
-export function KanbanCard({ item, onClick, onDelete, isDragOverlay, disabled }: KanbanCardProps) {
+export function KanbanCard({ item, onClick, onEdit, onDelete, isDragOverlay, disabled }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -44,18 +45,31 @@ export function KanbanCard({ item, onClick, onDelete, isDragOverlay, disabled }:
         onClick?.();
       }}
     >
-      {/* Delete Button */}
-      {onDelete && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="absolute top-1.5 right-1.5 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-opacity"
-        >
-          <X className="h-3 w-3 text-destructive" />
-        </button>
-      )}
+      {/* Action Buttons */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onEdit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="p-1 rounded-md hover:bg-muted transition-colors"
+          >
+            <Pencil className="h-3 w-3 text-muted-foreground" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="p-1 rounded-md hover:bg-destructive/20 transition-colors"
+          >
+            <X className="h-3 w-3 text-destructive" />
+          </button>
+        )}
+      </div>
 
       <h4 className="text-sm font-medium text-foreground pr-5 line-clamp-2">{item.title}</h4>
 

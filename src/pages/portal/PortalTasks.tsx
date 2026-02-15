@@ -32,7 +32,7 @@ function formatDate(dateString: string | null): string {
 }
 
 export default function PortalTasks() {
-  const { tasks, loading, updateTaskStatus } = useCreatorPortal();
+  const { tasks, loading, updateTaskStatus, refetchTasks } = useCreatorPortal();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | "All">("All");
 
@@ -56,8 +56,9 @@ export default function PortalTasks() {
     const success = await updateTaskStatus(taskId, newStatus);
     if (success) {
       toast.success(newStatus === "Completed" ? "Task marked as complete" : "Task reopened");
+      refetchTasks();
     } else {
-      toast.error("Failed to update task");
+      toast.error("Failed to update task. Please try again.");
     }
   };
 

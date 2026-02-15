@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Maximize2, Minimize2, Monitor, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { X, Monitor, PanelRightOpen, PanelRightClose } from "lucide-react";
 import { BrowserSessionPanel } from "./BrowserSessionPanel";
 
 export interface BrowserPermissions {
@@ -52,8 +52,8 @@ export function EmbeddedBrowserViewer({
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Always render as a fixed full-viewport overlay
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
       {/* Toolbar */}
@@ -129,6 +129,7 @@ export function EmbeddedBrowserViewer({
             </div>
           )}
           <iframe
+            ref={iframeRef}
             src={embedUrl}
             className="w-full h-full border-0"
             allow="clipboard-read; clipboard-write"
@@ -143,6 +144,7 @@ export function EmbeddedBrowserViewer({
           platform={platform || "onlyfans"}
           collapsed={!panelOpen}
           onToggle={() => setPanelOpen(!panelOpen)}
+          iframeRef={iframeRef}
         />
       </div>
     </div>

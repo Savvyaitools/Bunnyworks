@@ -230,6 +230,7 @@ export default function PortalContentPlans() {
                   onMoveCard={handleMoveCard}
                   onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
                   readOnly
+                  hiddenColumns={["projects"]}
                 />
               </TabsContent>
               <TabsContent value="social">
@@ -238,6 +239,7 @@ export default function PortalContentPlans() {
                   onMoveCard={handleMoveCard}
                   onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
                   readOnly
+                  hiddenColumns={["projects"]}
                 />
               </TabsContent>
             </Tabs>
