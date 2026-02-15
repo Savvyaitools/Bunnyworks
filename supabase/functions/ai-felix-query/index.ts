@@ -39,7 +39,15 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const today = new Date().toISOString().split('T')[0];
 
-    // Gather ALL agency data + memories in parallel
+    // Get IDs for agency-scoped filtering on tables without agency_id
+    const { data: agencyCreators } = await supabase.from('creators').select('id').eq('agency_id', agencyId);
+    const creatorIds = (agencyCreators || []).map((c: any) => c.id);
+    const { data: agencyEmployeesLookup } = await supabase.from('employees').select('id').eq('agency_id', agencyId);
+    const employeeIds = (agencyEmployeesLookup || []).map((e: any) => e.id);
+    const { data: agencyChattersLookup } = await supabase.from('chatters').select('id').eq('agency_id', agencyId);
+    const chatterIds = (agencyChattersLookup || []).map((c: any) => c.id);
+
+    // Gather ALL agency data + memories in parallel (all queries scoped to this agency)
     const [
       { data: agency }, { data: creators }, { data: employees }, { data: chatters },
       { data: recentEarnings }, { data: tasks }, { data: kpis }, { data: memories },
@@ -51,18 +59,30 @@ serve(async (req) => {
       supabase.from('creators').select('*').eq('agency_id', agencyId),
       supabase.from('employees').select('*').eq('agency_id', agencyId),
       supabase.from('chatters').select('*').eq('agency_id', agencyId),
-      supabase.from('creator_earnings').select('*, creators(name)').eq('creators.agency_id', agencyId).order('period_end', { ascending: false }).limit(50),
+      creatorIds.length > 0
+        ? supabase.from('creator_earnings').select('*, creators(name)').in('creator_id', creatorIds).order('period_end', { ascending: false }).limit(50)
+        : Promise.resolve({ data: [] }),
       supabase.from('tasks').select('*').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(100),
-      supabase.from('employee_kpis').select('*, employees(name)').order('period_end', { ascending: false }).limit(30),
+      employeeIds.length > 0
+        ? supabase.from('employee_kpis').select('*, employees(name)').in('employee_id', employeeIds).order('period_end', { ascending: false }).limit(30)
+        : Promise.resolve({ data: [] }),
       supabase.from('agent_memories').select('*').eq('agency_id', agencyId).eq('agent_type', 'coach_pbf').order('importance', { ascending: false }).limit(50),
       supabase.from('content_plans').select('*, creators(name)').eq('agency_id', agencyId).order('updated_at', { ascending: false }).limit(30),
-      supabase.from('chatter_shifts').select('*, chatters(name), creators(name)').gte('shift_start', today).order('shift_start', { ascending: true }).limit(30),
+      chatterIds.length > 0
+        ? supabase.from('chatter_shifts').select('*, chatters(name), creators(name)').in('chatter_id', chatterIds).gte('shift_start', today).order('shift_start', { ascending: true }).limit(30)
+        : Promise.resolve({ data: [] }),
       supabase.from('custom_requests').select('*, creators(name)').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(20),
       supabase.from('recruiting_creators').select('*').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(15),
-      supabase.from('creator_social_accounts').select('*, creators(name)').order('updated_at', { ascending: false }).limit(30),
+      creatorIds.length > 0
+        ? supabase.from('creator_social_accounts').select('*, creators(name)').in('creator_id', creatorIds).order('updated_at', { ascending: false }).limit(30)
+        : Promise.resolve({ data: [] }),
       supabase.from('ai_performance_alerts').select('*').eq('agency_id', agencyId).eq('is_dismissed', false).order('created_at', { ascending: false }).limit(10),
-      supabase.from('creator_assignments').select('*, chatters(name), creators(name)').limit(50),
-      supabase.from('chatter_time_logs').select('*, chatters(name)').order('clock_in', { ascending: false }).limit(30),
+      creatorIds.length > 0
+        ? supabase.from('creator_assignments').select('*, chatters(name), creators(name)').in('creator_id', creatorIds).limit(50)
+        : Promise.resolve({ data: [] }),
+      chatterIds.length > 0
+        ? supabase.from('chatter_time_logs').select('*, chatters(name)').in('chatter_id', chatterIds).order('clock_in', { ascending: false }).limit(30)
+        : Promise.resolve({ data: [] }),
       supabase.from('profiles').select('full_name, email').eq('id', userId).single(),
     ]);
 

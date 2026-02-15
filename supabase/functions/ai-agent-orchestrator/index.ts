@@ -24,6 +24,12 @@ interface AgencyData {
 }
 
 async function gatherAgencyData(supabase: any, agencyId: string): Promise<AgencyData> {
+  // Get creator/chatter IDs for agency-scoped filtering on tables without agency_id
+  const { data: agencyCreators } = await supabase.from('creators').select('id').eq('agency_id', agencyId);
+  const creatorIds = (agencyCreators || []).map((c: any) => c.id);
+  const { data: agencyChatters } = await supabase.from('chatters').select('id').eq('agency_id', agencyId);
+  const chatterIds = (agencyChatters || []).map((c: any) => c.id);
+
   const [
     { data: agency },
     { data: creators },
@@ -40,8 +46,12 @@ async function gatherAgencyData(supabase: any, agencyId: string): Promise<Agency
     supabase.from('creators').select('*').eq('agency_id', agencyId),
     supabase.from('employees').select('*').eq('agency_id', agencyId),
     supabase.from('tasks').select('*').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(100),
-    supabase.from('creator_earnings').select('*, creators(name)').order('period_end', { ascending: false }).limit(50),
-    supabase.from('chatter_shifts').select('*, chatters(name), creators(name)').order('shift_start', { ascending: false }).limit(50),
+    creatorIds.length > 0
+      ? supabase.from('creator_earnings').select('*, creators(name)').in('creator_id', creatorIds).order('period_end', { ascending: false }).limit(50)
+      : Promise.resolve({ data: [] }),
+    chatterIds.length > 0
+      ? supabase.from('chatter_shifts').select('*, chatters(name), creators(name)').in('chatter_id', chatterIds).order('shift_start', { ascending: false }).limit(50)
+      : Promise.resolve({ data: [] }),
     supabase.from('ai_performance_alerts').select('*').eq('agency_id', agencyId).eq('is_dismissed', false).order('created_at', { ascending: false }).limit(20),
     supabase.from('agent_goals').select('*').eq('agency_id', agencyId).eq('is_active', true),
     supabase.from('agent_feedback').select('*, agent_actions(action_type, parameters)').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(20),
