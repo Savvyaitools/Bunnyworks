@@ -57,12 +57,20 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const [addToColumn, setAddToColumn] = useState<string>("to_do");
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<ContentPlan | null>(null);
   const [activeTab, setActiveTab] = useState<"platform" | "social">("platform");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const createFileInputRef = useRef<HTMLInputElement>(null);
   const { uploading, uploadMedia, deleteMedia, updatePlanMedia } = useContentPlanMedia();
   const [pendingMedia, setPendingMedia] = useState<ContentReferenceMedia[]>([]);
   const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    scheduled_date: "",
+    platform: "",
+  });
+  const [editFormData, setEditFormData] = useState({
     title: "",
     description: "",
     scheduled_date: "",
@@ -125,6 +133,45 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
     }
   };
 
+  const updatePlan = async () => {
+    if (!editingPlan || !editFormData.title.trim()) return;
+
+    const contentCategory = editFormData.platform ? getContentCategory(editFormData.platform) : undefined;
+
+    const { error } = await supabase
+      .from("content_plans")
+      .update({
+        title: editFormData.title,
+        description: editFormData.description || null,
+        scheduled_date: editFormData.scheduled_date || null,
+        platform: editFormData.platform || null,
+        ...(contentCategory ? { content_category: contentCategory } : {}),
+      })
+      .eq("id", editingPlan.id);
+
+    if (error) {
+      toast.error("Failed to update content plan");
+    } else {
+      toast.success("Content plan updated");
+      setIsEditOpen(false);
+      setEditingPlan(null);
+      fetchPlans();
+    }
+  };
+
+  const handleEditCard = (item: KanbanItem) => {
+    const plan = plans.find(p => p.id === item.id);
+    if (!plan) return;
+    setEditingPlan(plan);
+    setEditFormData({
+      title: plan.title,
+      description: plan.description || "",
+      scheduled_date: plan.scheduled_date || "",
+      platform: plan.platform || "",
+    });
+    setIsEditOpen(true);
+  };
+
   const handleCreateFormFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
@@ -142,12 +189,10 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   };
 
   const handleMoveCard = async (cardId: string, newColumn: string, newPosition: number) => {
-    // Optimistic update
     setPlans(prev => {
       const updated = prev.map(p => 
         p.id === cardId ? { ...p, board_column: newColumn, board_position: newPosition } : p
       );
-      // Reindex positions in the target column
       const targetItems = updated
         .filter(p => p.board_column === newColumn && p.id !== cardId)
         .sort((a, b) => a.board_position - b.board_position);
@@ -216,7 +261,6 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Filter plans by category
   const platformPlans = plans.filter(p =>
     p.content_category === "platform" ||
     (!p.content_category && PLATFORM_PLATFORMS.includes(p.platform || ''))
@@ -225,8 +269,6 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
     p.content_category === "social" ||
     (!p.content_category && SOCIAL_PLATFORMS.includes(p.platform || ''))
   );
-
-  const currentPlans = activeTab === "platform" ? platformPlans : socialPlans;
 
   const handleAddCard = (column: string) => {
     setAddToColumn(column);
@@ -314,6 +356,62 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Plan Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Card</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Title"
+              value={editFormData.title}
+              onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+            />
+            <Textarea
+              placeholder="Description"
+              value={editFormData.description}
+              onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                type="date"
+                value={editFormData.scheduled_date}
+                onChange={(e) => setEditFormData({ ...editFormData, scheduled_date: e.target.value })}
+                className="[color-scheme:dark]"
+              />
+              <Select
+                value={editFormData.platform}
+                onValueChange={(v) => setEditFormData({ ...editFormData, platform: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OnlyFans"><span className="flex items-center gap-2"><Heart className="h-4 w-4 text-blue-400" />OnlyFans</span></SelectItem>
+                  <SelectItem value="Fansly"><span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-cyan-400" />Fansly</span></SelectItem>
+                  <SelectItem value="Reddit"><span className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-orange-500" />Reddit</span></SelectItem>
+                  <SelectItem value="Instagram"><span className="flex items-center gap-2"><Instagram className="h-4 w-4 text-pink-500" />Instagram</span></SelectItem>
+                  <SelectItem value="TikTok"><span className="flex items-center gap-2"><Music className="h-4 w-4 text-white" />TikTok</span></SelectItem>
+                  <SelectItem value="Twitter"><span className="flex items-center gap-2"><Twitter className="h-4 w-4 text-blue-400" />Twitter</span></SelectItem>
+                  <SelectItem value="YouTube"><span className="flex items-center gap-2"><Youtube className="h-4 w-4 text-red-500" />YouTube</span></SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={updatePlan} className="flex-1">Save Changes</Button>
+              <Button variant="outline" onClick={() => {
+                if (editingPlan) openMediaDialog(editingPlan);
+                setIsEditOpen(false);
+              }}>
+                <Image className="h-4 w-4 mr-2" />
+                Media
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Media Dialog */}
       <Dialog open={isMediaDialogOpen} onOpenChange={setIsMediaDialogOpen}>
         <DialogContent className="max-w-2xl">
@@ -376,6 +474,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
             items={platformPlans as unknown as KanbanItem[]}
             onMoveCard={handleMoveCard}
             onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
+            onEditCard={handleEditCard}
             onAddCard={handleAddCard}
             onDeleteCard={deletePlan}
           />
@@ -385,6 +484,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
             items={socialPlans as unknown as KanbanItem[]}
             onMoveCard={handleMoveCard}
             onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
+            onEditCard={handleEditCard}
             onAddCard={handleAddCard}
             onDeleteCard={deletePlan}
           />

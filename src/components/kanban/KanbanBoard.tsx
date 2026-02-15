@@ -20,7 +20,7 @@ import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 
 export const BOARD_COLUMNS = [
-  { id: "resources", title: "Resources", color: "bg-emerald-500" },
+  { id: "resources", title: "Ideas", color: "bg-emerald-500" },
   { id: "instructions", title: "Instructions", color: "bg-red-500" },
   { id: "to_do", title: "To Do", color: "bg-blue-500" },
   { id: "projects", title: "Projects", color: "bg-purple-500" },
@@ -48,7 +48,9 @@ interface KanbanBoardProps {
   onCardClick?: (item: KanbanItem) => void;
   onAddCard?: (column: string) => void;
   onDeleteCard?: (cardId: string) => void;
+  onEditCard?: (item: KanbanItem) => void;
   readOnly?: boolean;
+  hiddenColumns?: string[];
 }
 
 export function KanbanBoard({
@@ -57,7 +59,9 @@ export function KanbanBoard({
   onCardClick,
   onAddCard,
   onDeleteCard,
+  onEditCard,
   readOnly = false,
+  hiddenColumns = [],
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -125,7 +129,7 @@ export function KanbanBoard({
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-4 overflow-x-auto pb-4 min-h-[400px]">
-        {BOARD_COLUMNS.map((column) => {
+        {BOARD_COLUMNS.filter(col => !hiddenColumns.includes(col.id)).map((column) => {
           const columnItems = getColumnItems(column.id);
           return (
             <KanbanColumn
@@ -145,6 +149,7 @@ export function KanbanBoard({
                     key={item.id}
                     item={item}
                     onClick={onCardClick ? () => onCardClick(item) : undefined}
+                    onEdit={!readOnly && onEditCard ? () => onEditCard(item) : undefined}
                     onDelete={!readOnly && onDeleteCard ? () => onDeleteCard(item.id) : undefined}
                     disabled={readOnly}
                   />

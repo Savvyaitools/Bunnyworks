@@ -69,21 +69,39 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
 
   const permittedCreatorIds = permissionsData?.map((p) => p.creator_id) ?? [];
 
-  // Get authenticated session links for permitted creators
-  const { data: sessionLinks, isLoading } = useQuery({
-    queryKey: ["chatter-available-sessions", permittedCreatorIds],
+  // Also check creator_assignments for chatters who might not have employee_of_permissions
+  const { data: assignedCreatorIds } = useQuery({
+    queryKey: ["chatter-assigned-creators", chatterId],
     queryFn: async () => {
-      if (!permittedCreatorIds || permittedCreatorIds.length === 0) return [];
+      if (!chatterId) return [];
+      const { data, error } = await supabase
+        .from("creator_assignments")
+        .select("creator_id")
+        .eq("chatter_id", chatterId);
+      if (error) return [];
+      return data.map(d => d.creator_id);
+    },
+    enabled: !!chatterId,
+  });
+
+  // Merge both sources of creator IDs
+  const allCreatorIds = [...new Set([...permittedCreatorIds, ...(assignedCreatorIds ?? [])])];
+
+  // Get authenticated session links for permitted/assigned creators
+  const { data: sessionLinks, isLoading } = useQuery({
+    queryKey: ["chatter-available-sessions", allCreatorIds],
+    queryFn: async () => {
+      if (allCreatorIds.length === 0) return [];
       const { data, error } = await supabase
         .from("creator_session_links")
         .select("id, platform, session_status, is_active, browserbase_context_id, creator:creators(id, name, alias, avatar_url)")
-        .in("creator_id", permittedCreatorIds)
+        .in("creator_id", allCreatorIds)
         .eq("is_active", true)
         .eq("session_status", "authenticated");
       if (error) return [];
       return data ?? [];
     },
-    enabled: permittedCreatorIds.length > 0,
+    enabled: allCreatorIds.length > 0,
   });
 
   const readySessions = sessionLinks?.filter(
@@ -163,11 +181,15 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
           <Globe className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Sessions Available</h3>
-          <p className="text-sm text-muted-foreground">
-            No pre-authenticated browser sessions are available for your assigned creators.
-            <br />Ask your manager to set up browser access.
+          <h3 className="text-lg font-semibold mb-2">No Sessions Available Yet</h3>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Your manager needs to set up browser sessions for your assigned creators first.
+            Once they authenticate a creator account, you'll see it here ready to launch.
           </p>
+          <div className="mt-4 text-xs text-muted-foreground space-y-1">
+            <p>✓ You are assigned to {allCreatorIds.length} creator{allCreatorIds.length !== 1 ? "s" : ""}</p>
+            <p>✗ No authenticated browser sessions found</p>
+          </div>
         </CardContent>
       </Card>
     );

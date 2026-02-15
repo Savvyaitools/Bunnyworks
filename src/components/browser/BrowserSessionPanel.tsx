@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,14 +21,50 @@ interface BrowserSessionPanelProps {
   platform: string;
   collapsed: boolean;
   onToggle: () => void;
+  iframeRef?: React.RefObject<HTMLIFrameElement>;
 }
+
+// Platform URL mappings for quick actions
+const PLATFORM_URLS: Record<string, Record<string, string>> = {
+  onlyfans: {
+    "Open Chats": "https://onlyfans.com/my/chats",
+    "View Fans List": "https://onlyfans.com/my/subscribers/active",
+    "Check Earnings": "https://onlyfans.com/my/banking",
+    "Create Post": "https://onlyfans.com/posts/create",
+    "Send Mass DM": "https://onlyfans.com/my/chats/send",
+    "Vault Media": "https://onlyfans.com/my/vault",
+  },
+  fansly: {
+    "Open Chats": "https://fansly.com/messages",
+    "View Fans List": "https://fansly.com/manage/subscribers",
+    "Check Earnings": "https://fansly.com/manage/earnings",
+    "Create Post": "https://fansly.com/post/create",
+    "Send Mass DM": "https://fansly.com/messages/mass",
+    "Vault Media": "https://fansly.com/manage/vault",
+  },
+};
 
 export function BrowserSessionPanel({
   creatorName,
   platform,
   collapsed,
   onToggle,
+  iframeRef,
 }: BrowserSessionPanelProps) {
+  const platformKey = platform.toLowerCase();
+  const urls = PLATFORM_URLS[platformKey] || PLATFORM_URLS.onlyfans;
+
+  const navigateIframe = useCallback((url: string) => {
+    if (iframeRef?.current) {
+      try {
+        iframeRef.current.src = url;
+      } catch {
+        // Cross-origin — use postMessage fallback or just open in iframe
+        window.open(url, "_blank");
+      }
+    }
+  }, [iframeRef]);
+
   if (collapsed) {
     return (
       <div className="w-10 bg-card border-l flex flex-col items-center py-3 gap-3">
@@ -49,6 +85,15 @@ export function BrowserSessionPanel({
       </div>
     );
   }
+
+  const actions = [
+    { label: "Open Chats", description: "Go to messages inbox" },
+    { label: "View Fans List", description: "See active subscribers" },
+    { label: "Check Earnings", description: "Today's revenue breakdown" },
+    { label: "Create Post", description: "Draft a new post" },
+    { label: "Send Mass DM", description: "Bulk message fans" },
+    { label: "Vault Media", description: "View content vault" },
+  ];
 
   return (
     <div className="w-80 bg-card border-l flex flex-col">
@@ -93,12 +138,14 @@ export function BrowserSessionPanel({
             <p className="text-xs text-muted-foreground mb-3">
               Quick actions for this session
             </p>
-            <ActionButton label="Open Chats" description="Go to messages inbox" />
-            <ActionButton label="View Fans List" description="See active subscribers" />
-            <ActionButton label="Check Earnings" description="Today's revenue breakdown" />
-            <ActionButton label="Create Post" description="Draft a new post" />
-            <ActionButton label="Send Mass DM" description="Bulk message fans" />
-            <ActionButton label="Vault Media" description="View content vault" />
+            {actions.map((action) => (
+              <ActionButton
+                key={action.label}
+                label={action.label}
+                description={action.description}
+                onClick={() => navigateIframe(urls[action.label] || "#")}
+              />
+            ))}
           </TabsContent>
 
           <TabsContent value="tips" className="p-3 space-y-3 mt-0">
@@ -155,9 +202,12 @@ function QuickStat({
   );
 }
 
-function ActionButton({ label, description }: { label: string; description: string }) {
+function ActionButton({ label, description, onClick }: { label: string; description: string; onClick: () => void }) {
   return (
-    <button className="w-full text-left p-2.5 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors">
+    <button
+      onClick={onClick}
+      className="w-full text-left p-2.5 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors"
+    >
       <span className="text-sm font-medium">{label}</span>
       <span className="block text-xs text-muted-foreground">{description}</span>
     </button>
