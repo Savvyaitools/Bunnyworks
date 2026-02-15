@@ -61,7 +61,7 @@ export function LandingFooter() {
           viewport={{ once: true }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <span className="text-muted-foreground text-[10px] sm:text-xs">© 2025 My Creator Suite. All rights reserved.</span>
+          <span className="text-muted-foreground text-[10px] sm:text-xs">© 2026 My Creator Suite. All rights reserved.</span>
           <span className="text-muted-foreground text-[10px] sm:text-xs">mycreatorsuite.com</span>
         </motion.div>
       </div>
