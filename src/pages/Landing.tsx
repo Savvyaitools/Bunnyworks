@@ -1,5 +1,6 @@
 import { LandingNav } from "@/components/landing/LandingNav";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { AIToolsSection } from "@/components/landing/AIToolsSection";
 import { PainPointsSection } from "@/components/landing/PainPointsSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
@@ -12,9 +13,10 @@ const Landing = () => {
     <div className="min-h-screen bg-background">
       <LandingNav />
       <HeroSection />
-      <AIToolsSection />
+      <PlatformLogos />
       <PainPointsSection />
       <FeaturesSection />
+      <AIToolsSection />
       <ComparisonSection />
       <HowItWorksSection />
       <TestimonialsSection />

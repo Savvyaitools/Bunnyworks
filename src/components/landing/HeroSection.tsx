@@ -1,13 +1,19 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Globe, Shield, Smartphone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
 
+const highlights = [
+  { icon: Globe, text: "Cloud-Based — No Downloads Required" },
+  { icon: Smartphone, text: "Full Mobile Access" },
+  { icon: Shield, text: "Enterprise-Grade Security" },
+];
+
 const stats = [
   { value: "85%", label: "Less Admin Time" },
-  { value: "$50M+", label: "Revenue Tracked Monthly" },
-  { value: "10K+", label: "Active Creators Managed" },
-  { value: "24/7", label: "Automated Operations" },
+  { value: "$50M+", label: "Revenue Tracked" },
+  { value: "10K+", label: "Creators Managed" },
+  { value: "24/7", label: "AI-Powered Ops" },
 ];
 
 export function HeroSection() {
@@ -20,17 +26,28 @@ export function HeroSection() {
         <div className="animate-fade-in">
           <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 sm:mb-8">
             <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
-            <span className="text-xs sm:text-sm text-primary font-medium">#1 Management Platform for Creator Agencies</span>
+            <span className="text-xs sm:text-sm text-primary font-medium">The #1 All-in-One Platform for Creator Agencies</span>
           </div>
           <img src={myCreatorSuiteLogo} alt="Creator OS Logo" className="h-20 sm:h-28 lg:h-32 w-auto mx-auto mb-6 sm:mb-8 animate-float animate-neon-glow" />
           <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6">
             <span className="gradient-text">Creator OS</span>
             <br />
-            <span className="text-foreground text-2xl sm:text-4xl lg:text-6xl">Scale Your OnlyFans Agency with Confidence</span>
+            <span className="text-foreground text-2xl sm:text-4xl lg:text-5xl">Manage. Automate. Scale Your Agency.</span>
           </h1>
-          <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto mb-8 sm:mb-10 leading-relaxed px-2">
-            The all-in-one CRM built for OFM agencies. Manage creators, track revenue in real-time, optimize chatter performance, and automate operations—so you can focus on growth, not spreadsheets.
+          <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto mb-6 sm:mb-8 leading-relaxed px-2">
+            The cloud-based CRM with built-in AI agents — Coach PBF, Tatum & Izzy — that replaces spreadsheets, scattered tools, and guesswork. 
+            Manage creators across OnlyFans, Fansly & Fanvue from any device, no download required.
           </p>
+
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-6 sm:mb-8">
+            {highlights.map((h) => (
+              <div key={h.text} className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
+                <h.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                <span className="text-xs sm:text-sm">{h.text}</span>
+              </div>
+            ))}
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0">
             <Link to="/auth">
               <Button size="lg" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 glow-primary">
@@ -42,7 +59,7 @@ export function HeroSection() {
               Watch 2-Minute Demo
             </Button>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-4">No credit card required • Full access • Cancel anytime</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-4">No credit card required • No downloads • Cancel anytime</p>
         </div>
 
         <div className="mt-12 sm:mt-20 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 max-w-4xl mx-auto">
