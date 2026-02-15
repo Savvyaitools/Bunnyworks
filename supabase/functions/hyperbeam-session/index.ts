@@ -109,7 +109,7 @@ async function createAdminSession(supabase: any, apiKey: string, userId: string,
       height: 800,
       timeout: {
         absolute: 3600,
-        inactive: 600,
+        inactive: 900,
         warning: 60,
       },
     }),
@@ -348,9 +348,9 @@ async function launchChatterSession(supabase: any, apiKey: string, userId: strin
       width: 1920,
       height: 1080,
       timeout: {
-        absolute: 28800,
-        inactive: 1800,
-        warning: 300,
+        absolute: 3600,
+        inactive: 900,
+        warning: 60,
       },
     }),
   });
