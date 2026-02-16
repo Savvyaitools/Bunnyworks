@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Globe, Users, Mail, Phone, FileText, FolderOpen, Megaphone, ClipboardList, Layers } from "lucide-react";
+import { User, Globe, Users, FileText, FolderOpen, Megaphone, ClipboardList, Layers } from "lucide-react";
 import { CreatorContentVault } from "@/components/creators/CreatorContentVault";
 import { CreatorContentPlans } from "@/components/creators/CreatorContentPlans";
 import { CreatorCustomRequests } from "@/components/creators/CreatorCustomRequests";
@@ -25,8 +25,6 @@ interface AssignedCreator {
   followers: string | null;
   status: string;
   online_status: boolean | null;
-  email: string;
-  phone: string | null;
   persona: string | null;
   onlyfans_url: string | null;
   instagram_url: string | null;
@@ -82,7 +80,7 @@ export default function EmployeeCreatorHub() {
 
     const { data: creatorsData } = await supabase
       .from("creators")
-      .select("id, name, alias, avatar_url, avatar_seed, platform, followers, status, online_status, email, phone, persona, onlyfans_url, instagram_url, twitter_url, tiktok_url, snapchat_url")
+      .select("id, name, alias, avatar_url, avatar_seed, platform, followers, status, online_status, persona, onlyfans_url, instagram_url, twitter_url, tiktok_url, snapchat_url")
       .in("id", creatorIds);
 
     if (creatorsData) {
@@ -294,27 +292,7 @@ function CreatorModelInfo({ creator }: { creator: AssignedCreator }) {
         </Card>
       </div>
 
-      {/* Contact info */}
-      <Card className="glass-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Mail className="h-4 w-4 text-primary" />
-            Contact Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Mail className="h-4 w-4 text-muted-foreground" />
-            <span className="text-foreground">{creator.email}</span>
-          </div>
-          {creator.phone && (
-            <div className="flex items-center gap-3">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span className="text-foreground">{creator.phone}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Note: Creator personal contact details (email, phone) are restricted to agency owners only */}
 
       {/* Persona */}
       {creator.persona && (
