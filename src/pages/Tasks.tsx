@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Search, Plus, Clock, User, Calendar, Trash2, Tag } from "lucide-react";
+import { Search, Plus, Clock, User, Calendar, Trash2, Tag, ChevronDown, ChevronRight } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,9 @@ export default function Tasks() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | "All">("All");
   const [selectedRequestType, setSelectedRequestType] = useState<RequestType | "all">("all");
+  const isMobile = useIsMobile();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [collapsedStatuses, setCollapsedStatuses] = useState<Record<string, boolean>>({});
 
   const { tasks, loading, stats, createTask, updateTask, deleteTask } = useTasks();
   const { creators } = useCreators();
@@ -210,100 +213,117 @@ export default function Tasks() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {(Object.keys(groupedTasks) as TaskStatus[]).map((status, colIndex) => (
-              <div 
-                key={status} 
-                className="space-y-4 animate-fade-in"
-                style={{ animationDelay: `${150 + colIndex * 100}ms` }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-semibold text-foreground">{status}</h2>
-                    <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                      {groupedTasks[status].length}
-                    </Badge>
-                  </div>
-                </div>
+          <div className={cn(
+            isMobile ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-4 gap-6"
+          )}>
+            {(Object.keys(groupedTasks) as TaskStatus[]).map((status, colIndex) => {
+              const isCollapsed = isMobile && collapsedStatuses[status];
+              const toggleCollapse = () => setCollapsedStatuses(prev => ({ ...prev, [status]: !prev[status] }));
 
-                <div className="space-y-3">
-                  {groupedTasks[status].map((task, index) => (
-                    <div
-                      key={task.id}
-                      className={cn(
-                        "glass-card p-4 cursor-pointer transition-all duration-200 hover:border-primary/40 hover:-translate-y-0.5 group",
-                        isOverdue(task.due_date) && task.status !== "Completed" && "border-destructive/50"
+              return (
+                <div 
+                  key={status} 
+                  className="space-y-3 animate-fade-in"
+                  style={{ animationDelay: `${150 + colIndex * 100}ms` }}
+                >
+                  <div 
+                    className={cn("flex items-center justify-between", isMobile && "cursor-pointer p-3 glass-card")}
+                    onClick={isMobile ? toggleCollapse : undefined}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isMobile && (
+                        isCollapsed 
+                          ? <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          : <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       )}
-                      style={{ animationDelay: `${200 + colIndex * 100 + index * 50}ms` }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Checkbox 
-                          checked={task.status === "Completed"}
-                          onCheckedChange={(checked) => handleStatusChange(task, checked ? "Completed" : "To Do")}
-                          className="mt-1 border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h3 className={cn(
-                            "font-medium text-foreground mb-1",
-                            task.status === "Completed" && "line-through text-muted-foreground"
-                          )}>
-                            {task.title}
-                          </h3>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3 whitespace-pre-wrap">
-                              {task.description}
-                            </p>
+                      <h2 className="font-semibold text-foreground">{status}</h2>
+                      <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                        {groupedTasks[status].length}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {!isCollapsed && (
+                    <div className="space-y-3">
+                      {groupedTasks[status].map((task, index) => (
+                        <div
+                          key={task.id}
+                          className={cn(
+                            "glass-card p-4 cursor-pointer transition-all duration-200 hover:border-primary/40 hover:-translate-y-0.5 group",
+                            isOverdue(task.due_date) && task.status !== "Completed" && "border-destructive/50"
                           )}
+                          style={{ animationDelay: `${200 + colIndex * 100 + index * 50}ms` }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Checkbox 
+                              checked={task.status === "Completed"}
+                              onCheckedChange={(checked) => handleStatusChange(task, checked ? "Completed" : "To Do")}
+                              className="mt-1 border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h3 className={cn(
+                                "font-medium text-foreground mb-1",
+                                task.status === "Completed" && "line-through text-muted-foreground"
+                              )}>
+                                {task.title}
+                              </h3>
+                              {task.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-3 whitespace-pre-wrap">
+                                  {task.description}
+                                </p>
+                              )}
 
-                          <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <Badge className={cn("border", priorityColors[task.priority as Priority])}>
-                              {task.priority}
-                            </Badge>
-                            {(task as any).request_type === "custom" && (
-                              <Badge className={cn("border", requestTypeColors.custom)}>
-                                Custom
-                              </Badge>
-                            )}
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <User className="h-3 w-3" />
-                              {getCreatorName(task.creator_id)}
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <Badge className={cn("border", priorityColors[task.priority as Priority])}>
+                                  {task.priority}
+                                </Badge>
+                                {(task as any).request_type === "custom" && (
+                                  <Badge className={cn("border", requestTypeColors.custom)}>
+                                    Custom
+                                  </Badge>
+                                )}
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <User className="h-3 w-3" />
+                                  {getCreatorName(task.creator_id)}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Calendar className="h-3 w-3" />
+                                  {formatDate(task.due_date)}
+                                </div>
+                                {isOverdue(task.due_date) && task.status !== "Completed" && (
+                                  <Badge className="bg-destructive/20 text-destructive border-0 text-xs">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Overdue
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs text-muted-foreground">{getAssigneeName(task.assignee_id)}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteTask(task.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-
-                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(task.due_date)}
-                            </div>
-                            {isOverdue(task.due_date) && task.status !== "Completed" && (
-                              <Badge className="bg-destructive/20 text-destructive border-0 text-xs">
-                                <Clock className="h-3 w-3 mr-1" />
-                                Overdue
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs text-muted-foreground">{getAssigneeName(task.assignee_id)}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteTask(task.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
