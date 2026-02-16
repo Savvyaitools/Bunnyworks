@@ -203,8 +203,8 @@ export function PricingSection() {
           viewport={{ once: true, margin: "-50px" }}
         >
           <PricingCard i={0} name="Core" price="$69" originalPrice="$100" period="/month" desc="1 creator · 5 team members" discountBadge="Save 31%" features={["Unified employee management", "Basic shift scheduling", "Creator profiles + onboarding", "Task management dashboard", "Basic performance tracking", "Fan CRM", "Cloud Browser Sessions", "50 GB Content Vault"]} ctaLabel="Get Started" highlight={false} />
-          <PricingCard i={1} name="Scale" price="$129" originalPrice="$200" period="/month" desc="2 creators · 10 team members" discountBadge="Save 36%" features={["Everything in Core, plus:", "Advanced chatter performance", "PPV & revenue analytics per shift", "Recruiting pipeline + follow-ups", "Coverage gap detection", "Cloud Browser Sessions", "Priority support", "200 GB Content Vault"]} ctaLabel="Start Free Trial" highlight={true} badge="Most Popular" />
-          <PricingCard i={2} name="Pro" price="$249" originalPrice="$400" period="/month" desc="4 creators · 15 team members" discountBadge="Save 38%" features={["Everything in Scale, plus:", "AI Coach (PBF) insights", "AI Smart Replies (Izzy)", "Automated daily summaries", "Creator consistency scoring", "Staff reliability metrics", "Early access to features", "600 GB Content Vault"]} ctaLabel="Start Free Trial" highlight={false} />
+          <PricingCard i={1} name="Scale" price="$129" originalPrice="$200" period="/month" desc="2 creators · 10 team members" discountBadge="Save 36%" features={["Everything in Core, plus:", "Advanced chatter performance", "PPV & revenue analytics per shift", "Recruiting pipeline + follow-ups", "Coverage gap detection", "~Coach PBF~ AI insights", "Priority support", "200 GB Content Vault"]} ctaLabel="Start Free Trial" highlight={true} badge="Most Popular" />
+          <PricingCard i={2} name="Pro" price="$249" originalPrice="$400" period="/month" desc="4 creators · 15 team members" discountBadge="Save 38%" features={["Everything in Scale, plus:", "~Izzy~ AI Smart Replies", "~Tatum~ Social Media AI", "Automated daily summaries", "Creator consistency scoring", "Staff reliability metrics", "Early access to features", "600 GB Content Vault"]} ctaLabel="Start Free Trial" highlight={false} />
           <PricingCard i={3} name="Enterprise" price="Custom" period="" desc="Unlimited creators & team" features={["Everything in Pro, plus:", "AI Chatting System", "AI Voice Cloner", "AI Content Generator", "Custom KPIs & automations", "White-label experience", "Dedicated implementation", "1 TB+ Vault + SLA"]} ctaLabel="Contact Sales" highlight={false} isEnterprise />
         </motion.div>
 
@@ -271,19 +271,36 @@ function PricingCard({ name, price, originalPrice, period, desc, features, ctaLa
       )}
       <p className="text-[10px] sm:text-xs text-muted-foreground mb-4 sm:mb-6">{desc}</p>
       <ul className="space-y-2 sm:space-y-2.5 mb-6 sm:mb-8 flex-1">
-        {features.map((item, j) => (
-          <motion.li
-            key={item}
-            className="flex items-start gap-2 sm:gap-2.5 text-xs sm:text-sm text-muted-foreground"
-            initial={{ opacity: 0, x: -10 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: j * 0.05 + i * 0.1 }}
-          >
-            <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0 mt-0.5" />
-            <span>{item}</span>
-          </motion.li>
-        ))}
+        {features.map((item, j) => {
+          // AI agent names wrapped in ~ are rendered with special styling
+          const hasAgent = item.includes("~");
+          const parts = hasAgent ? item.split("~") : [item];
+          return (
+            <motion.li
+              key={item}
+              className="flex items-start gap-2 sm:gap-2.5 text-xs sm:text-sm text-muted-foreground"
+              initial={{ opacity: 0, x: -10 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: j * 0.05 + i * 0.1 }}
+            >
+              <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0 mt-0.5" />
+              <span>
+                {hasAgent
+                  ? parts.map((part, k) =>
+                      k % 2 === 1 ? (
+                        <span key={k} className="font-bold text-primary bg-primary/10 px-1 py-0.5 rounded text-[10px] sm:text-xs uppercase tracking-wide">
+                          {part}
+                        </span>
+                      ) : (
+                        <span key={k}>{part}</span>
+                      )
+                    )
+                  : item}
+              </span>
+            </motion.li>
+          );
+        })}
       </ul>
       {isEnterprise ? (
         <Button variant="outline" className="w-full rounded-full mt-auto text-xs sm:text-sm">{ctaLabel}</Button>
