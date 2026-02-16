@@ -149,15 +149,21 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
 
 // Hook to get all unread message counts across conversations
 export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
+  const { agencyId } = useAgency();
+
   const { data, refetch } = useQuery({
-    queryKey: ["unread-messages", senderType],
+    queryKey: ["unread-messages", senderType, agencyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (!agencyId) return {};
+
+      let query = supabase
         .from("messages")
         .select("conversation_id")
         .eq("read", false)
+        .eq("agency_id", agencyId)
         .neq("sender_type", senderType);
 
+      const { data, error } = await query;
       if (error) throw error;
 
       const counts: Record<string, number> = {};
@@ -167,6 +173,7 @@ export function useUnreadMessages(senderType: "agency" | "creator" = "agency") {
 
       return counts;
     },
+    enabled: !!agencyId,
   });
 
   const unreadCounts = data || {};

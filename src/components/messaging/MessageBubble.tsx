@@ -1,6 +1,6 @@
 import { Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatTime } from "@/lib/formatters";
+import { formatMessageTimestamp } from "@/lib/formatters";
 
 interface MessageBubbleProps {
   content: string;
@@ -59,7 +59,7 @@ export function MessageBubble({
           "flex items-center gap-1 mt-1",
           isOwn ? "justify-end" : "justify-start"
         )}>
-          <p className={timestampClasses}>{formatTime(timestamp)}</p>
+          <p className={timestampClasses}>{formatMessageTimestamp(timestamp)}</p>
           {isOwn && showReadReceipt && (
             read ? (
               <CheckCheck className={checkClasses} />

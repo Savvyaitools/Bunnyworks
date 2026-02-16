@@ -112,3 +112,36 @@ export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength).trim() + "...";
 }
+
+/**
+ * Format a message timestamp showing date + time.
+ * Today: "Today, 2:30 PM"
+ * Yesterday: "Yesterday, 2:30 PM"
+ * This year: "Dec 27, 2:30 PM"
+ * Older: "Dec 27, 2024, 2:30 PM"
+ */
+export function formatMessageTimestamp(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const messageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const time = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  if (messageDay.getTime() === today.getTime()) return `Today, ${time}`;
+  if (messageDay.getTime() === yesterday.getTime()) return `Yesterday, ${time}`;
+  
+  const sameYear = date.getFullYear() === now.getFullYear();
+  const dateStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+
+  return `${dateStr}, ${time}`;
+}
