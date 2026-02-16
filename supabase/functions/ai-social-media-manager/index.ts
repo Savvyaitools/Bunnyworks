@@ -133,6 +133,14 @@ Respond ONLY with JSON: {"calendar": [{"platform": "string", "caption": "string"
       userPrompt = `Analyze and provide growth strategy insights for ${creatorName} (niche: ${creatorNiche}).
 Platform: ${platform}
 Respond ONLY with JSON: {"insights": [{"title": "string", "description": "string", "priority": "high|medium|low", "metric": "optional string"}]}`;
+    } else if (action === "analyze_trends") {
+      systemPrompt = `${basePersonality}\n\nYou are analyzing scraped web content about trending social media strategies. Extract actionable trends and format them for content creators. Be specific and practical. Respond with valid JSON only.`;
+      userPrompt = `Analyze these scraped trending content articles and extract 4-6 actionable trends for ${creatorName} on ${platform}.
+
+SCRAPED CONTENT:
+${topic}
+
+Respond ONLY with JSON: {"trends": [{"title": "string", "platform": "string", "description": "string (2-3 sentences)", "engagement": "string (e.g. 'High', 'Viral', 'Growing')", "url": "string or null", "actionable_tip": "string (specific action the creator should take)"}]}`;
     } else {
       throw new Error("Invalid action");
     }

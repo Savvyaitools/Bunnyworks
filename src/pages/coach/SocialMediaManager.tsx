@@ -5,9 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
-  Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle
+  Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
+  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight
 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +18,7 @@ import { useCreators } from "@/hooks/useCreators";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { firecrawlApi } from "@/lib/api/firecrawl";
 
 interface GeneratedPost {
   platform: string;
@@ -31,6 +35,15 @@ interface StrategyInsight {
   metric?: string;
 }
 
+interface TrendItem {
+  title: string;
+  platform: string;
+  description: string;
+  engagement: string;
+  url?: string;
+  actionable_tip: string;
+}
+
 export default function SocialMediaManager() {
   const { creators } = useCreators();
   const { profile } = useAuth();
@@ -43,6 +56,8 @@ export default function SocialMediaManager() {
   const [strategyInsights, setStrategyInsights] = useState<StrategyInsight[]>([]);
   const [contentCalendar, setContentCalendar] = useState<GeneratedPost[]>([]);
   const [generatingCalendar, setGeneratingCalendar] = useState(false);
+  const [scanningTrends, setScanningTrends] = useState(false);
+  const [trends, setTrends] = useState<TrendItem[]>([]);
 
   // Look up the OF account ID for the selected creator
   const { data: ofAccountId } = useQuery({
@@ -60,18 +75,125 @@ export default function SocialMediaManager() {
     enabled: !!selectedCreator,
   });
 
+  // Fetch live OnlyFans data for dashboard cards
+  const { data: liveOFData, isLoading: loadingOF } = useQuery({
+    queryKey: ["tatum-live-of", selectedCreator, ofAccountId],
+    queryFn: async () => {
+      if (!ofAccountId || !selectedCreator) return null;
+      // Call the social media manager with a special "fetch_live_data" action
+      // We'll use the existing edge function but with a lightweight request
+      const { data: earnings } = await supabase
+        .from("creator_earnings")
+        .select("amount, subscriptions, tips, messages_revenue, period_start, period_end")
+        .eq("creator_id", selectedCreator)
+        .order("period_end", { ascending: false })
+        .limit(7);
+      
+      const { data: socialAccounts } = await supabase
+        .from("creator_social_accounts" as any)
+        .select("username, platform, of_connection_status, of_last_synced_at")
+        .eq("creator_id", selectedCreator);
+
+      const totalRevenue = (earnings || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+      const totalSubs = (earnings || []).reduce((sum: number, e: any) => sum + (e.subscriptions || 0), 0);
+      const totalTips = (earnings || []).reduce((sum: number, e: any) => sum + (e.tips || 0), 0);
+      const totalMessages = (earnings || []).reduce((sum: number, e: any) => sum + (e.messages_revenue || 0), 0);
+      
+      const ofAccount = (socialAccounts as any[] || []).find((s: any) => s.platform === "onlyfans");
+
+      return {
+        revenue: totalRevenue,
+        subs: totalSubs,
+        tips: totalTips,
+        messagesRev: totalMessages,
+        connected: ofAccount?.of_connection_status === "connected",
+        lastSynced: ofAccount?.of_last_synced_at,
+        earnings: earnings || [],
+      };
+    },
+    enabled: !!selectedCreator && !!ofAccountId,
+    refetchInterval: 60000,
+  });
+
   const generatePosts = async () => {
-    if (!topic.trim()) {
-      toast.error("Please enter a topic or theme");
-      return;
-    }
+    if (!topic.trim()) { toast.error("Please enter a topic or theme"); return; }
     setGenerating(true);
     try {
       const creator = creators?.find(c => c.id === selectedCreator);
       const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
+        body: { action: "generate_posts", topic, platform, creatorName: creator?.name || "the creator", creatorNiche: "general", creatorPersona: creator?.persona || "", agencyId: profile?.agency_id, creatorId: selectedCreator || undefined, ofAccountId: ofAccountId || undefined },
+      });
+      if (error) throw error;
+      setGeneratedPosts(data.posts || []);
+      toast.success(`Generated ${data.posts?.length || 0} post ideas`);
+    } catch (err) { toast.error("Failed to generate posts"); console.error(err); }
+    finally { setGenerating(false); }
+  };
+
+  const analyzeStrategy = async () => {
+    setAnalyzingStrategy(true);
+    try {
+      const creator = creators?.find(c => c.id === selectedCreator);
+      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
+        body: { action: "analyze_strategy", creatorName: creator?.name || "the creator", creatorNiche: "general", platform, agencyId: profile?.agency_id, creatorId: selectedCreator || undefined, ofAccountId: ofAccountId || undefined },
+      });
+      if (error) throw error;
+      setStrategyInsights(data.insights || []);
+      toast.success("Strategy analysis complete");
+    } catch (err) { toast.error("Failed to analyze strategy"); console.error(err); }
+    finally { setAnalyzingStrategy(false); }
+  };
+
+  const generateCalendar = async () => {
+    setGeneratingCalendar(true);
+    try {
+      const creator = creators?.find(c => c.id === selectedCreator);
+      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
+        body: { action: "generate_calendar", creatorName: creator?.name || "the creator", creatorNiche: "general", platform, days: 7, agencyId: profile?.agency_id, creatorId: selectedCreator || undefined, ofAccountId: ofAccountId || undefined },
+      });
+      if (error) throw error;
+      setContentCalendar(data.calendar || []);
+      toast.success("7-day content calendar generated");
+    } catch (err) { toast.error("Failed to generate calendar"); console.error(err); }
+    finally { setGeneratingCalendar(false); }
+  };
+
+  const scanTrends = async () => {
+    setScanningTrends(true);
+    setTrends([]);
+    try {
+      const platformQueries: Record<string, string> = {
+        instagram: "trending Instagram Reels content ideas for OnlyFans creators 2026",
+        twitter: "trending Twitter X content strategies adult creators 2026",
+        tiktok: "trending TikTok content ideas for adult content creators 2026",
+        reddit: "trending Reddit NSFW subreddit promotion strategies creators 2026",
+        all: "trending social media content strategies for OnlyFans creators 2026",
+      };
+
+      const query = platformQueries[platform] || platformQueries.all;
+
+      // Use Firecrawl search to find trending content
+      const searchResult = await firecrawlApi.search(query, {
+        limit: 8,
+        scrapeOptions: { formats: ["markdown"] },
+      });
+
+      if (!searchResult.success || !searchResult.data) {
+        throw new Error(searchResult.error || "Search failed");
+      }
+
+      const searchData = searchResult.data as any[];
+      const scrapedContent = searchData
+        .slice(0, 6)
+        .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 500)}`)
+        .join("\n\n---\n\n");
+
+      // Send to AI to analyze and extract actionable trends
+      const creator = creators?.find(c => c.id === selectedCreator);
+      const { data: aiData, error: aiError } = await supabase.functions.invoke("ai-social-media-manager", {
         body: {
-          action: "generate_posts",
-          topic,
+          action: "analyze_trends",
+          topic: scrapedContent,
           platform,
           creatorName: creator?.name || "the creator",
           creatorNiche: "general",
@@ -81,67 +203,15 @@ export default function SocialMediaManager() {
           ofAccountId: ofAccountId || undefined,
         },
       });
-      if (error) throw error;
-      setGeneratedPosts(data.posts || []);
-      toast.success(`Generated ${data.posts?.length || 0} post ideas`);
-    } catch (err) {
-      toast.error("Failed to generate posts");
-      console.error(err);
-    } finally {
-      setGenerating(false);
-    }
-  };
 
-  const analyzeStrategy = async () => {
-    setAnalyzingStrategy(true);
-    try {
-      const creator = creators?.find(c => c.id === selectedCreator);
-      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
-        body: {
-          action: "analyze_strategy",
-          creatorName: creator?.name || "the creator",
-          creatorNiche: "general",
-          platform,
-          agencyId: profile?.agency_id,
-          creatorId: selectedCreator || undefined,
-          ofAccountId: ofAccountId || undefined,
-        },
-      });
-      if (error) throw error;
-      setStrategyInsights(data.insights || []);
-      toast.success("Strategy analysis complete");
+      if (aiError) throw aiError;
+      setTrends(aiData.trends || []);
+      toast.success(`Found ${aiData.trends?.length || 0} trending strategies`);
     } catch (err) {
-      toast.error("Failed to analyze strategy");
-      console.error(err);
+      console.error("Trends scan error:", err);
+      toast.error("Failed to scan trends. Make sure Firecrawl is connected.");
     } finally {
-      setAnalyzingStrategy(false);
-    }
-  };
-
-  const generateCalendar = async () => {
-    setGeneratingCalendar(true);
-    try {
-      const creator = creators?.find(c => c.id === selectedCreator);
-      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
-        body: {
-          action: "generate_calendar",
-          creatorName: creator?.name || "the creator",
-          creatorNiche: "general",
-          platform,
-          days: 7,
-          agencyId: profile?.agency_id,
-          creatorId: selectedCreator || undefined,
-          ofAccountId: ofAccountId || undefined,
-        },
-      });
-      if (error) throw error;
-      setContentCalendar(data.calendar || []);
-      toast.success("7-day content calendar generated");
-    } catch (err) {
-      toast.error("Failed to generate calendar");
-      console.error(err);
-    } finally {
-      setGeneratingCalendar(false);
+      setScanningTrends(false);
     }
   };
 
@@ -161,7 +231,7 @@ export default function SocialMediaManager() {
               Tatum
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              AI Social Media Manager — generate content, schedule posts, and optimize your strategy
+              AI Social Media Manager — generate content, analyze trends, and optimize strategy
             </p>
           </div>
         </div>
@@ -192,13 +262,50 @@ export default function SocialMediaManager() {
           </Select>
         </div>
 
+        {/* Live OF Data Cards — only show when creator selected + OF connected */}
+        {selectedCreator && ofAccountId && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <LiveStatCard
+              icon={DollarSign}
+              label="Revenue (7d)"
+              value={loadingOF ? null : `$${(liveOFData?.revenue || 0).toLocaleString()}`}
+              color="text-green-500"
+              loading={loadingOF}
+            />
+            <LiveStatCard
+              icon={Users}
+              label="Subscriptions"
+              value={loadingOF ? null : `$${(liveOFData?.subs || 0).toLocaleString()}`}
+              color="text-blue-500"
+              loading={loadingOF}
+            />
+            <LiveStatCard
+              icon={Flame}
+              label="Tips"
+              value={loadingOF ? null : `$${(liveOFData?.tips || 0).toLocaleString()}`}
+              color="text-amber-500"
+              loading={loadingOF}
+            />
+            <LiveStatCard
+              icon={MessageCircle}
+              label="Messages Rev"
+              value={loadingOF ? null : `$${(liveOFData?.messagesRev || 0).toLocaleString()}`}
+              color="text-purple-500"
+              loading={loadingOF}
+            />
+          </div>
+        )}
+
         <Tabs defaultValue="generate" className="space-y-4">
           <TabsList>
             <TabsTrigger value="generate" className="gap-1.5">
-              <Sparkles className="h-4 w-4" /> Generate Posts
+              <Sparkles className="h-4 w-4" /> Generate
             </TabsTrigger>
             <TabsTrigger value="calendar" className="gap-1.5">
-              <Calendar className="h-4 w-4" /> Content Calendar
+              <Calendar className="h-4 w-4" /> Calendar
+            </TabsTrigger>
+            <TabsTrigger value="trends" className="gap-1.5">
+              <Flame className="h-4 w-4" /> Trends
             </TabsTrigger>
             <TabsTrigger value="strategy" className="gap-1.5">
               <BarChart3 className="h-4 w-4" /> Strategy
@@ -213,12 +320,7 @@ export default function SocialMediaManager() {
                 <CardDescription>Describe a topic or theme and AI will create platform-optimized posts</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Textarea
-                  placeholder="e.g. New photo set teaser, behind the scenes content, fan engagement poll..."
-                  value={topic}
-                  onChange={e => setTopic(e.target.value)}
-                  rows={3}
-                />
+                <Textarea placeholder="e.g. New photo set teaser, behind the scenes content, fan engagement poll..." value={topic} onChange={e => setTopic(e.target.value)} rows={3} />
                 <Button onClick={generatePosts} disabled={generating}>
                   {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
                   {generating ? "Generating..." : "Generate Posts"}
@@ -247,14 +349,10 @@ export default function SocialMediaManager() {
                           ))}
                         </div>
                       )}
-                      <div className="flex gap-2 pt-2">
-                        <Button size="sm" variant="outline" onClick={() => {
-                          navigator.clipboard.writeText(post.caption + "\n\n" + post.hashtags.map(t => `#${t}`).join(" "));
-                          toast.success("Copied to clipboard");
-                        }}>
-                          Copy
-                        </Button>
-                      </div>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        navigator.clipboard.writeText(post.caption + "\n\n" + post.hashtags.map(t => `#${t}`).join(" "));
+                        toast.success("Copied to clipboard");
+                      }}>Copy</Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -308,6 +406,83 @@ export default function SocialMediaManager() {
             )}
           </TabsContent>
 
+          {/* Trends Tab */}
+          <TabsContent value="trends" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-orange-500" />
+                  Trending Content Scanner
+                </CardTitle>
+                <CardDescription>
+                  Scrapes and analyzes what's trending on social platforms right now to inform your content strategy
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <Globe className="h-4 w-4 text-orange-500 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    Tatum will scan the web for trending content on <strong className="text-foreground">{platform === "all" ? "all platforms" : platform}</strong>, then analyze and extract actionable insights for your creator's niche.
+                  </p>
+                </div>
+                <Button onClick={scanTrends} disabled={scanningTrends} className="gap-2">
+                  {scanningTrends ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  {scanningTrends ? "Scanning trends..." : "Scan Trending Content"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {trends.length > 0 && (
+              <div className="space-y-3">
+                {trends.map((trend, i) => (
+                  <Card key={i} className="border-l-4 border-l-orange-500/60 hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs capitalize">{trend.platform}</Badge>
+                            {trend.engagement && (
+                              <Badge variant="secondary" className="text-[10px] gap-1">
+                                <TrendingUp className="h-2.5 w-2.5" />
+                                {trend.engagement}
+                              </Badge>
+                            )}
+                          </div>
+                          <h4 className="font-semibold text-sm">{trend.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{trend.description}</p>
+                        </div>
+                        {trend.url && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" asChild>
+                            <a href={trend.url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-start gap-2 p-2.5 rounded-md bg-primary/5 border border-primary/10">
+                        <ArrowUpRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                        <p className="text-xs text-primary font-medium">{trend.actionable_tip}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {!scanningTrends && trends.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Globe className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="text-sm text-muted-foreground">Click "Scan Trending Content" to discover what's hot right now</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
           {/* Strategy Tab */}
           <TabsContent value="strategy" className="space-y-4">
             <Card>
@@ -347,5 +522,27 @@ export default function SocialMediaManager() {
         </Tabs>
       </div>
     </DashboardLayout>
+  );
+}
+
+function LiveStatCard({ icon: Icon, label, value, color, loading }: {
+  icon: React.ElementType; label: string; value: string | null; color: string; loading: boolean;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-3 flex items-center gap-3">
+        <div className={`h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0`}>
+          <Icon className={`h-4 w-4 ${color}`} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] text-muted-foreground truncate">{label}</p>
+          {loading ? (
+            <Skeleton className="h-5 w-16 mt-0.5" />
+          ) : (
+            <p className="text-sm font-bold truncate">{value || "—"}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

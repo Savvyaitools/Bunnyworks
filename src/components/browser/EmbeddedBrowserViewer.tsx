@@ -153,7 +153,7 @@ export function EmbeddedBrowserViewer({
 
       {/* Izzy AI Floating Overlay */}
       {creatorId && (
-        <IzzyOverlay creatorId={creatorId} creatorName={title} />
+        <IzzyOverlay creatorId={creatorId} creatorName={title} iframeRef={iframeRef} />
       )}
     </div>
   );
