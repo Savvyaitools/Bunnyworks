@@ -73,16 +73,16 @@ export default function CreatorDetail() {
         </Button>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-card border border-border flex-wrap h-auto gap-1 p-1">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="platforms">Accounts</TabsTrigger>
-            <TabsTrigger value="plans">Content Plans</TabsTrigger>
-            <TabsTrigger value="vault">Content Vault</TabsTrigger>
-            <TabsTrigger value="marketing">Marketing</TabsTrigger>
-            <TabsTrigger value="requests">Custom Requests</TabsTrigger>
-            <TabsTrigger value="earnings">Earnings</TabsTrigger>
-            <TabsTrigger value="team-access">Team Access</TabsTrigger>
-            <TabsTrigger value="browser">Browser</TabsTrigger>
+          <TabsList className="bg-card border border-border h-auto gap-1 p-1 overflow-x-auto flex-nowrap w-full justify-start scrollbar-hide">
+            <TabsTrigger value="overview" className="whitespace-nowrap">Overview</TabsTrigger>
+            <TabsTrigger value="platforms" className="whitespace-nowrap">Accounts</TabsTrigger>
+            <TabsTrigger value="plans" className="whitespace-nowrap">Plans</TabsTrigger>
+            <TabsTrigger value="vault" className="whitespace-nowrap">Vault</TabsTrigger>
+            <TabsTrigger value="marketing" className="whitespace-nowrap">Marketing</TabsTrigger>
+            <TabsTrigger value="requests" className="whitespace-nowrap">Requests</TabsTrigger>
+            <TabsTrigger value="earnings" className="whitespace-nowrap">Earnings</TabsTrigger>
+            <TabsTrigger value="team-access" className="whitespace-nowrap">Team</TabsTrigger>
+            <TabsTrigger value="browser" className="whitespace-nowrap">Browser</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="bg-card rounded-lg border border-border p-6">

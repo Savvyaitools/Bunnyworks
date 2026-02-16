@@ -341,7 +341,7 @@ const Index = () => {
           </div>
 
           {/* Right Column - Main Chart */}
-          <div className="lg:col-span-2 h-[350px]">
+          <div className="lg:col-span-2 h-[250px] lg:h-[350px]">
             <CreatorRevenueChart />
           </div>
         </div>

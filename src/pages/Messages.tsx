@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, MoreVertical } from "lucide-react";
+import { Search, MoreVertical, ArrowLeft } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
 import { useCreators } from "@/hooks/useCreators";
 import { UserAvatar } from "@/components/shared";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   MessageBubble, 
   ChatInput, 
@@ -25,7 +26,9 @@ export default function Messages() {
   const [selectedConvo, setSelectedConvo] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const { creators } = useCreators();
 
@@ -91,7 +94,7 @@ export default function Messages() {
     <DashboardLayout>
       <div className="h-[calc(100vh-8rem)] flex gap-4 animate-fade-in">
         {/* Conversations List */}
-        <div className="w-80 flex flex-col glass-card">
+        <div className={`${isMobile ? 'w-full' : 'w-80'} flex flex-col glass-card ${isMobile && mobileShowChat ? 'hidden' : ''}`}>
           <div className="p-4 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground mb-4">Messages</h2>
             <div className="relative">
@@ -119,7 +122,10 @@ export default function Messages() {
                   unreadCount={unreadCounts[convo.id] || 0}
                   isOnline={convo.online}
                   isSelected={currentConvo?.id === convo.id}
-                  onClick={() => setSelectedConvo(convo)}
+                  onClick={() => {
+                    setSelectedConvo(convo);
+                    if (isMobile) setMobileShowChat(true);
+                  }}
                 />
               ))}
             </div>
@@ -127,12 +133,17 @@ export default function Messages() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col glass-card">
+        <div className={`flex-1 flex flex-col glass-card ${isMobile && !mobileShowChat ? 'hidden' : ''}`}>
           {currentConvo ? (
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
+                  {isMobile && (
+                    <Button variant="ghost" size="icon" onClick={() => setMobileShowChat(false)}>
+                      <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                  )}
                   <UserAvatar
                     name={currentConvo.name}
                     avatarSeed={currentConvo.avatar}

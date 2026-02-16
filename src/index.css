@@ -475,39 +475,13 @@
     min-width: 44px;
   }
 
-  /* Compact text on mobile */
-  h1 {
-    font-size: 1.5rem !important;
-    line-height: 1.2;
+  /* Hide scrollbar for tab lists */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-
-  h2 {
-    font-size: 1.25rem !important;
-  }
-
-  /* Tighter spacing on mobile */
-  .space-y-6 > * + * {
-    margin-top: 1rem;
-  }
-
-  .space-y-8 > * + * {
-    margin-top: 1.25rem;
-  }
-
-  /* Cards less padding on mobile */
-  .glass-card {
-    padding: 1rem;
-  }
-
-  .stat-card {
-    padding: 1rem;
-  }
-
-  /* Ensure tables scroll horizontally */
-  table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 
   /* Fix dialog/sheet sizing on mobile */
