@@ -192,7 +192,7 @@ export function PricingSection() {
             <span className="gradient-text">pricing.</span>
           </h2>
           <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-xl">
-            Scale as you grow. No hidden fees. Cancel anytime.
+            $100 per creator. Bundled plans save you more. Cancel anytime.
           </p>
         </ScrollReveal>
 
@@ -202,11 +202,21 @@ export function PricingSection() {
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
         >
-          <PricingCard i={0} name="Core" price="$69" period="/month" desc="Solo managers & small agencies" features={["Up to 2 creators", "3 team members", "Basic shift scheduling", "50 GB Content Vault"]} ctaLabel="Get Started" highlight={false} />
-          <PricingCard i={1} name="Scale" price="$129" period="/month" desc="Real agencies running teams" features={["Up to 6 creators", "15 team members", "PPV & revenue analytics", "200 GB Content Vault"]} ctaLabel="Start Free Trial" highlight={true} badge="Most Popular" />
-          <PricingCard i={2} name="Pro" price="$249" period="/month" desc="AI-powered growth" features={["Up to 15 creators", "40 team members", "AI performance insights", "600 GB Content Vault"]} ctaLabel="Start Free Trial" highlight={false} />
-          <PricingCard i={3} name="Enterprise" price="$399+" period="custom" desc="Large & multi-brand operators" features={["Unlimited everything", "AI Chatting + Voice Cloner", "White-label experience", "1 TB+ Vault + SLA"]} ctaLabel="Contact Sales" highlight={false} isEnterprise />
+          <PricingCard i={0} name="Core" price="$69" originalPrice="$100" period="/month" desc="1 creator · 5 team members" discountBadge="Save 31%" features={["Fan CRM", "Basic shift scheduling", "50 GB Content Vault", "Cloud Browser Sessions"]} ctaLabel="Get Started" highlight={false} />
+          <PricingCard i={1} name="Scale" price="$129" originalPrice="$200" period="/month" desc="2 creators · 10 team members" discountBadge="Save 36%" features={["PPV & revenue analytics", "Recruiting pipeline", "200 GB Content Vault", "Priority support"]} ctaLabel="Start Free Trial" highlight={true} badge="Most Popular" />
+          <PricingCard i={2} name="Pro" price="$249" originalPrice="$400" period="/month" desc="4 creators · 15 team members" discountBadge="Save 38%" features={["AI Coach (PBF)", "AI Smart Replies (Izzy)", "600 GB Content Vault", "Early access to features"]} ctaLabel="Start Free Trial" highlight={false} />
+          <PricingCard i={3} name="Enterprise" price="Custom" period="" desc="Unlimited creators & team" features={["AI Chatting + Voice Cloner", "White-label experience", "1 TB+ Vault + SLA", "Dedicated implementation"]} ctaLabel="Contact Sales" highlight={false} isEnterprise />
         </motion.div>
+
+        <motion.p
+          className="text-center text-xs sm:text-sm text-muted-foreground mt-6 sm:mt-8"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.5 }}
+        >
+          Each creator includes 5 team member slots. Need more? Add creators at <span className="text-primary font-medium">$100/creator</span>.
+        </motion.p>
       </div>
     </section>
   );
@@ -222,8 +232,8 @@ const pricingVariants = {
   }),
 };
 
-function PricingCard({ name, price, period, desc, features, ctaLabel, highlight, badge, isEnterprise, i }: {
-  name: string; price: string; period: string; desc: string; features: string[]; ctaLabel: string; highlight: boolean; badge?: string; isEnterprise?: boolean; i: number;
+function PricingCard({ name, price, originalPrice, period, desc, features, ctaLabel, highlight, badge, discountBadge, isEnterprise, i }: {
+  name: string; price: string; originalPrice?: string; period: string; desc: string; features: string[]; ctaLabel: string; highlight: boolean; badge?: string; discountBadge?: string; isEnterprise?: boolean; i: number;
 }) {
   return (
     <motion.div
@@ -241,11 +251,24 @@ function PricingCard({ name, price, period, desc, features, ctaLabel, highlight,
           {badge}
         </motion.div>
       )}
-      <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1">{name}</h3>
-      <div className="flex items-baseline gap-1 mb-1">
-        <span className="text-2xl sm:text-3xl font-bold text-foreground">{price}</span>
-        <span className="text-xs sm:text-sm text-muted-foreground">{period}</span>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-base sm:text-lg font-semibold text-foreground">{name}</h3>
+        {discountBadge && (
+          <span className="text-[10px] sm:text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+            {discountBadge}
+          </span>
+        )}
       </div>
+      <div className="flex items-baseline gap-1.5 mb-1">
+        {originalPrice && (
+          <span className="text-sm sm:text-base text-muted-foreground line-through">{originalPrice}</span>
+        )}
+        <span className="text-2xl sm:text-3xl font-bold text-foreground">{price}</span>
+        {period && <span className="text-xs sm:text-sm text-muted-foreground">{period}</span>}
+      </div>
+      {!isEnterprise && (
+        <p className="text-[10px] sm:text-xs text-primary/80 mb-2">+$100/extra creator</p>
+      )}
       <p className="text-[10px] sm:text-xs text-muted-foreground mb-4 sm:mb-6">{desc}</p>
       <ul className="space-y-2 sm:space-y-2.5 mb-6 sm:mb-8 flex-1">
         {features.map((item, j) => (
