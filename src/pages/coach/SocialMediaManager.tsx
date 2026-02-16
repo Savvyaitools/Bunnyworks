@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
   Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight
+  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair
 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,16 @@ interface TrendItem {
   actionable_tip: string;
 }
 
+interface NicheContentPlan {
+  reference_url: string;
+  reference_title: string;
+  platform: string;
+  what_works: string;
+  recreation_prompt: string;
+  hashtags: string[];
+  estimated_engagement: string;
+}
+
 export default function SocialMediaManager() {
   const { creators } = useCreators();
   const { profile } = useAuth();
@@ -58,6 +68,10 @@ export default function SocialMediaManager() {
   const [generatingCalendar, setGeneratingCalendar] = useState(false);
   const [scanningTrends, setScanningTrends] = useState(false);
   const [trends, setTrends] = useState<TrendItem[]>([]);
+  const [nicheQuery, setNicheQuery] = useState("");
+  const [creatorSocialUrl, setCreatorSocialUrl] = useState("");
+  const [nicheContentPlan, setNicheContentPlan] = useState<NicheContentPlan[]>([]);
+  const [researchingNiche, setResearchingNiche] = useState(false);
 
   // Look up the OF account ID for the selected creator
   const { data: ofAccountId } = useQuery({
@@ -171,8 +185,6 @@ export default function SocialMediaManager() {
       };
 
       const query = platformQueries[platform] || platformQueries.all;
-
-      // Use Firecrawl search to find trending content
       const searchResult = await firecrawlApi.search(query, {
         limit: 8,
         scrapeOptions: { formats: ["markdown"] },
@@ -188,7 +200,6 @@ export default function SocialMediaManager() {
         .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 500)}`)
         .join("\n\n---\n\n");
 
-      // Send to AI to analyze and extract actionable trends
       const creator = creators?.find(c => c.id === selectedCreator);
       const { data: aiData, error: aiError } = await supabase.functions.invoke("ai-social-media-manager", {
         body: {
@@ -212,6 +223,73 @@ export default function SocialMediaManager() {
       toast.error("Failed to scan trends. Make sure Firecrawl is connected.");
     } finally {
       setScanningTrends(false);
+    }
+  };
+
+  const researchNiche = async () => {
+    if (!nicheQuery.trim()) { toast.error("Enter a niche or content style to research"); return; }
+    setResearchingNiche(true);
+    setNicheContentPlan([]);
+    try {
+      // Step 1: Scrape niche-specific content with Firecrawl
+      const searchQuery = `${nicheQuery} trending content examples ${platform !== "all" ? platform : ""} creator inspiration 2026`;
+      const searchResult = await firecrawlApi.search(searchQuery, {
+        limit: 10,
+        scrapeOptions: { formats: ["markdown"] },
+      });
+
+      if (!searchResult.success || !searchResult.data) {
+        throw new Error(searchResult.error || "Niche search failed");
+      }
+
+      // Step 2: If creator social URL provided, scrape their existing content
+      let existingSocialContent = "";
+      if (creatorSocialUrl.trim()) {
+        try {
+          const scrapeResult = await firecrawlApi.scrape(creatorSocialUrl.trim(), {
+            formats: ["markdown"],
+            onlyMainContent: true,
+          });
+          if (scrapeResult.success && scrapeResult.data) {
+            const scraped = scrapeResult.data as any;
+            existingSocialContent = (scraped.data?.markdown || scraped.markdown || "").slice(0, 2000);
+          }
+        } catch (e) {
+          console.warn("Could not scrape creator social:", e);
+        }
+      }
+
+      const searchData = (searchResult.data as any[]).slice(0, 8);
+      const scrapedReferences = searchData
+        .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
+        .join("\n\n---\n\n");
+
+      // Step 3: Send to AI for niche content plan with reference links
+      const creator = creators?.find(c => c.id === selectedCreator);
+      const { data: aiData, error: aiError } = await supabase.functions.invoke("ai-social-media-manager", {
+        body: {
+          action: "niche_content_plan",
+          topic: scrapedReferences,
+          nicheQuery: nicheQuery,
+          existingSocialContent,
+          platform,
+          creatorName: creator?.name || "the creator",
+          creatorNiche: nicheQuery,
+          creatorPersona: creator?.persona || "",
+          agencyId: profile?.agency_id,
+          creatorId: selectedCreator || undefined,
+          ofAccountId: ofAccountId || undefined,
+        },
+      });
+
+      if (aiError) throw aiError;
+      setNicheContentPlan(aiData.content_plan || []);
+      toast.success(`Generated ${aiData.content_plan?.length || 0} content ideas with reference links`);
+    } catch (err) {
+      console.error("Niche research error:", err);
+      toast.error("Failed to research niche. Make sure Firecrawl is connected.");
+    } finally {
+      setResearchingNiche(false);
     }
   };
 
@@ -407,31 +485,127 @@ export default function SocialMediaManager() {
           </TabsContent>
 
           {/* Trends Tab */}
-          <TabsContent value="trends" className="space-y-4">
-            <Card>
+          <TabsContent value="trends" className="space-y-6">
+            {/* Niche Content Research Section */}
+            <Card className="border-primary/30">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-500" />
-                  Trending Content Scanner
+                  <Crosshair className="h-5 w-5 text-primary" />
+                  Niche Content Research
                 </CardTitle>
                 <CardDescription>
-                  Scrapes and analyzes what's trending on social platforms right now to inform your content strategy
+                  Crawl niche-specific trending content, review the creator's existing social media, and get a content plan with real reference links to recreate
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                  <Globe className="h-4 w-4 text-orange-500 shrink-0" />
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Content niche / style to research *</label>
+                    <Textarea
+                      placeholder="e.g. Fitness model aesthetic reels, luxury lifestyle teasers, cosplay TikToks, GFE content promotion..."
+                      value={nicheQuery}
+                      onChange={e => setNicheQuery(e.target.value)}
+                      rows={2}
+                      className="resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Creator's social media URL <span className="text-muted-foreground/60">(optional — for personalized plan)</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Link className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <input
+                        type="url"
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        placeholder="https://instagram.com/creatorname or https://tiktok.com/@creator"
+                        value={creatorSocialUrl}
+                        onChange={e => setCreatorSocialUrl(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                  <Crosshair className="h-4 w-4 text-primary shrink-0" />
                   <p className="text-xs text-muted-foreground">
-                    Tatum will scan the web for trending content on <strong className="text-foreground">{platform === "all" ? "all platforms" : platform}</strong>, then analyze and extract actionable insights for your creator's niche.
+                    Tatum will crawl <strong className="text-foreground">{nicheQuery || "your niche"}</strong> content across the web, find top-performing examples with links, and create a recreation plan tailored to your creator.
                   </p>
                 </div>
-                <Button onClick={scanTrends} disabled={scanningTrends} className="gap-2">
-                  {scanningTrends ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
-                  {scanningTrends ? "Scanning trends..." : "Scan Trending Content"}
+                <Button onClick={researchNiche} disabled={researchingNiche || !nicheQuery.trim()} className="gap-2">
+                  {researchingNiche ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {researchingNiche ? "Researching niche..." : "Research & Build Content Plan"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Niche Content Plan Results */}
+            {nicheContentPlan.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Crosshair className="h-4 w-4 text-primary" />
+                  Content Plan — {nicheContentPlan.length} Reference Ideas
+                </h3>
+                {nicheContentPlan.map((item, i) => (
+                  <Card key={i} className="border-l-4 border-l-primary/60 hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="text-xs capitalize">{item.platform}</Badge>
+                            <Badge variant="secondary" className="text-[10px] gap-1">
+                              <TrendingUp className="h-2.5 w-2.5" />
+                              {item.estimated_engagement}
+                            </Badge>
+                          </div>
+                          <h4 className="font-semibold text-sm">{item.reference_title}</h4>
+                        </div>
+                        {item.reference_url && (
+                          <Button size="sm" variant="outline" className="gap-1.5 shrink-0 text-xs" asChild>
+                            <a href={item.reference_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3 w-3" />
+                              View Reference
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Why it works</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{item.what_works}</p>
+                        </div>
+                        <div className="p-2.5 rounded-md bg-primary/5 border border-primary/10">
+                          <p className="text-[10px] font-medium text-primary uppercase tracking-wider mb-1">How to recreate</p>
+                          <p className="text-xs text-foreground leading-relaxed">{item.recreation_prompt}</p>
+                        </div>
+                      </div>
+                      {item.hashtags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {item.hashtags.map((tag, j) => (
+                            <span key={j} className="text-xs text-primary">#{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Generic Trends Scanner (existing) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-destructive" />
+                  Quick Trend Scan
+                </CardTitle>
+                <CardDescription>
+                  Generic scan of what's trending right now (no niche filter)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={scanTrends} disabled={scanningTrends} variant="outline" className="gap-2">
+                  {scanningTrends ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {scanningTrends ? "Scanning..." : "Quick Scan"}
                 </Button>
               </CardContent>
             </Card>
@@ -439,7 +613,7 @@ export default function SocialMediaManager() {
             {trends.length > 0 && (
               <div className="space-y-3">
                 {trends.map((trend, i) => (
-                  <Card key={i} className="border-l-4 border-l-orange-500/60 hover:shadow-md transition-shadow">
+                  <Card key={i} className="border-l-4 border-l-destructive/40 hover:shadow-md transition-shadow">
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
@@ -473,11 +647,11 @@ export default function SocialMediaManager() {
               </div>
             )}
 
-            {!scanningTrends && trends.length === 0 && (
+            {!scanningTrends && trends.length === 0 && nicheContentPlan.length === 0 && !researchingNiche && (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <Globe className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                  <p className="text-sm text-muted-foreground">Click "Scan Trending Content" to discover what's hot right now</p>
+                  <Crosshair className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="text-sm text-muted-foreground">Enter your creator's niche above to get a content plan with real reference links</p>
                 </CardContent>
               </Card>
             )}
