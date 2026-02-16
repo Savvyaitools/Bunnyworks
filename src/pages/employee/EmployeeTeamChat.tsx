@@ -33,7 +33,6 @@ export default function EmployeeTeamChat() {
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Determine if user is employee or chatter
   const fetchStaffData = useCallback(async () => {
     if (!user?.email) return null;
 
@@ -177,7 +176,7 @@ export default function EmployeeTeamChat() {
   if (loading) {
     return (
       <EmployeeLayout>
-        <div className="space-y-4">
+        <div className="space-y-4 p-2">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-96 w-full" />
         </div>
@@ -198,19 +197,19 @@ export default function EmployeeTeamChat() {
 
   return (
     <EmployeeLayout>
-      <div className="flex flex-col h-[calc(100vh-12rem)]">
+      <div className="flex flex-col h-[calc(100vh-10rem)] md:h-[calc(100vh-12rem)]">
         {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Users className="h-6 w-6" />
+        <div className="mb-3 md:mb-4 px-1">
+          <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2">
+            <Users className="h-5 w-5 md:h-6 md:w-6" />
             Team Chat
           </h1>
-          <p className="text-sm text-muted-foreground">Chat with the agency management team</p>
+          <p className="text-xs md:text-sm text-muted-foreground">Chat with the agency management team</p>
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 glass-card p-4" ref={scrollRef}>
-          <div className="space-y-3">
+        <ScrollArea className="flex-1 glass-card p-3 md:p-4" ref={scrollRef}>
+          <div className="space-y-2 md:space-y-3">
             {messages.length === 0 ? (
               <MessagingEmptyState 
                 type="no-messages" 
@@ -234,7 +233,7 @@ export default function EmployeeTeamChat() {
         </ScrollArea>
 
         {/* Input */}
-        <div className="mt-4">
+        <div className="mt-3 md:mt-4">
           <ChatInput
             value={newMessage}
             onChange={setNewMessage}
