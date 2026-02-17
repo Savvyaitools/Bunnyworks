@@ -47,17 +47,41 @@ async function bb(k: string, p: string, o: RequestInit = {}) {
   return r.json();
 }
 
+// Check if a Browserbase session is still alive
+async function isSessionAlive(k: string, sessionId: string): Promise<boolean> {
+  try {
+    const d = await bb(k, `/sessions/${sessionId}`);
+    return d.status === "RUNNING";
+  } catch {
+    return false;
+  }
+}
+
 async function getCtx(sb: any, k: string, pid: string, cid: string, plat: string) {
-  const { data: ex } = await sb.from("creator_session_links").select("browserbase_context_id").eq("creator_id", cid).eq("platform", plat).not("browserbase_context_id", "is", null).maybeSingle();
-  if (ex?.browserbase_context_id) return ex.browserbase_context_id;
+  // Always try to reuse existing context for cookie/session persistence
+  const { data: ex } = await sb.from("creator_session_links")
+    .select("browserbase_context_id")
+    .eq("creator_id", cid)
+    .eq("platform", plat)
+    .not("browserbase_context_id", "is", null)
+    .maybeSingle();
+  if (ex?.browserbase_context_id) {
+    console.log(`Reusing existing context ${ex.browserbase_context_id} for creator ${cid}`);
+    return ex.browserbase_context_id;
+  }
+  console.log(`Creating new context for creator ${cid}`);
   const ctx = await bb(k, "/contexts", { method: "POST", body: JSON.stringify({ projectId: pid }) });
   return ctx.id;
 }
 
 function proxyConf(c: any) {
-  const p: any = { type: "browserbase" };
-  if (c?.proxy_country) { p.geolocation = { country: c.proxy_country }; if (c.proxy_state) p.geolocation.state = c.proxy_state; }
-  return [p];
+  // Always use US residential proxy with state pinning for IP consistency
+  const country = c?.proxy_country || "US";
+  const state = c?.proxy_state || "california";
+  return [{
+    type: "browserbase",
+    geolocation: { country, state },
+  }];
 }
 
 Deno.serve(async (req) => {
@@ -79,8 +103,38 @@ Deno.serve(async (req) => {
       const { creatorId, platform, agencyId } = p;
       if (!creatorId || !platform || !agencyId) return json({ error: "creatorId, platform, agencyId required" }, 400);
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", creatorId).single();
+      
+      // Always reuse existing context to preserve cookies/login state
       const ctxId = await getCtx(svc, BK, BP, creatorId, platform);
+      
+      // Check if there's an existing session link stuck at "authenticating" with a saved context
+      const { data: existingLink } = await svc.from("creator_session_links")
+        .select("id, session_status, browserbase_context_id, browserbase_session_id, last_saved_at")
+        .eq("creator_id", creatorId)
+        .eq("platform", platform)
+        .maybeSingle();
+
+      // If stuck at authenticating but has a saved context, the previous session likely ended naturally
+      // Browserbase auto-persists context when persist:true, so the cookies are saved
+      if (existingLink?.session_status === "authenticating" && existingLink?.browserbase_context_id) {
+        // Check if the old session is actually dead
+        if (existingLink.browserbase_session_id) {
+          const alive = await isSessionAlive(BK, existingLink.browserbase_session_id);
+          if (!alive) {
+            console.log(`Recovering stuck session for creator ${creatorId} - old session is dead, context preserved`);
+            await svc.from("creator_session_links").update({
+              session_status: "authenticated",
+              last_saved_at: existingLink.last_saved_at || new Date().toISOString(),
+              browserbase_session_id: null,
+              browserbase_live_url: null,
+              updated_at: new Date().toISOString(),
+            }).eq("id", existingLink.id);
+          }
+        }
+      }
+
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      
       // Fetch debug URL and navigate in parallel for speed
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       const [dbg] = await Promise.all([
@@ -88,10 +142,10 @@ Deno.serve(async (req) => {
         startUrl && sess.connectUrl ? navigateSession(sess.connectUrl, startUrl) : Promise.resolve(),
       ]);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
-      const { data: ex } = await svc.from("creator_session_links").select("id").eq("creator_id", creatorId).eq("platform", platform).maybeSingle();
+      
       let slId: string;
-      if (ex) {
-        const { data } = await svc.from("creator_session_links").update({ browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(), updated_at: new Date().toISOString() }).eq("id", ex.id).select("id").single();
+      if (existingLink) {
+        const { data } = await svc.from("creator_session_links").update({ browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(), updated_at: new Date().toISOString() }).eq("id", existingLink.id).select("id").single();
         slId = data!.id;
       } else {
         const { data } = await svc.from("creator_session_links").insert({ creator_id: creatorId, agency_id: agencyId, platform, created_by: uid, encrypted_session: "browserbase", browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString() }).select("id").single();
@@ -104,10 +158,71 @@ Deno.serve(async (req) => {
     if (action === "save_and_close") {
       const { sessionLinkId, browserbaseSessionId } = p;
       if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
-      try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
-      await svc.from("creator_session_links").update({ session_status: "authenticated", last_saved_at: new Date().toISOString(), browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
+      
+      // Check if session is still alive before trying to release
+      const alive = await isSessionAlive(BK, browserbaseSessionId);
+      if (alive) {
+        try { 
+          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
+          console.log(`Session ${browserbaseSessionId} released successfully`);
+        } catch (e) {
+          console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
+        }
+      } else {
+        // Session already ended - Browserbase auto-persists context when persist:true
+        console.log(`Session ${browserbaseSessionId} already ended - context auto-persisted by Browserbase`);
+      }
+      
+      // Always update status to authenticated regardless of release success
+      // The context with cookies is persisted by Browserbase either way
+      await svc.from("creator_session_links").update({ 
+        session_status: "authenticated", 
+        last_saved_at: new Date().toISOString(), 
+        browserbase_session_id: null, 
+        browserbase_live_url: null, 
+        updated_at: new Date().toISOString() 
+      }).eq("id", sessionLinkId);
+      
       await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString() }).eq("browserbase_session_id", browserbaseSessionId);
-      return json({ success: true, message: "Login saved." });
+      return json({ success: true, message: "Login saved. Cookies and session data persisted in context." });
+    }
+
+    if (action === "check_and_recover_sessions") {
+      // Recover sessions stuck at "authenticating" where the Browserbase session has ended
+      const { agencyId } = p;
+      if (!agencyId) return json({ error: "agencyId required" }, 400);
+      
+      const { data: stuck } = await svc.from("creator_session_links")
+        .select("id, browserbase_session_id, browserbase_context_id, last_saved_at")
+        .eq("agency_id", agencyId)
+        .eq("session_status", "authenticating");
+      
+      const recovered: string[] = [];
+      for (const link of stuck || []) {
+        let shouldRecover = false;
+        
+        if (link.browserbase_session_id) {
+          const alive = await isSessionAlive(BK, link.browserbase_session_id);
+          if (!alive) shouldRecover = true;
+        } else {
+          // No session ID means it was already cleaned up but status wasn't updated
+          shouldRecover = true;
+        }
+        
+        if (shouldRecover && link.browserbase_context_id) {
+          await svc.from("creator_session_links").update({
+            session_status: "authenticated",
+            last_saved_at: link.last_saved_at || new Date().toISOString(),
+            browserbase_session_id: null,
+            browserbase_live_url: null,
+            updated_at: new Date().toISOString(),
+          }).eq("id", link.id);
+          recovered.push(link.id);
+          console.log(`Recovered stuck session ${link.id}`);
+        }
+      }
+      
+      return json({ success: true, recoveredCount: recovered.length, recoveredIds: recovered });
     }
 
     if (action === "launch_chatter_session") {

@@ -142,6 +142,16 @@ export function useBrowserSessions() {
     }
   };
 
+  const recoverStuckSessions = async () => {
+    if (!agencyId) return;
+    try {
+      await invokeAction("check_and_recover_sessions", { agencyId });
+      invalidate();
+    } catch (err) {
+      console.warn("Session recovery failed:", err);
+    }
+  };
+
   return {
     sessionLinks: sessionLinks ?? [],
     activeSessions: activeSessions ?? [],
@@ -153,5 +163,6 @@ export function useBrowserSessions() {
     launchChatterSession,
     terminateSession,
     invalidate,
+    recoverStuckSessions,
   };
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,21 @@ interface AdminSessionLauncherProps {
 
 export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLauncherProps) {
   const { creators } = useCreators();
-  const { sessionLinks, createAdminSession, saveAndClose, terminateSession, launching } = useBrowserSessions();
+  const { sessionLinks, createAdminSession, saveAndClose, terminateSession, launching, recoverStuckSessions } = useBrowserSessions();
+  const recoveryRan = useRef(false);
+
+  // Auto-recover stuck "authenticating" sessions on mount
+  useEffect(() => {
+    if (!recoveryRan.current && sessionLinks.length > 0) {
+      const hasStuck = sessionLinks.some(
+        (l) => l.session_status === "authenticating" && l.last_saved_at
+      );
+      if (hasStuck) {
+        recoveryRan.current = true;
+        recoverStuckSessions();
+      }
+    }
+  }, [sessionLinks]);
 
   const [selectedPlatform, setSelectedPlatform] = useState<string>("onlyfans");
   const [activeSession, setActiveSession] = useState<{
