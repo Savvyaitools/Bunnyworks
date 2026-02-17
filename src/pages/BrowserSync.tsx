@@ -1,10 +1,11 @@
-import { Monitor, Bell, Puzzle } from "lucide-react";
+import { Monitor, Bell, Puzzle, Shield } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
 import { BrowserSessionsDashboard } from "@/components/browser/BrowserSessionsDashboard";
 import { CaptchaAlertsFeed } from "@/components/browser/CaptchaAlertsFeed";
 import { ExtensionActivationCards } from "@/components/browser/ExtensionActivationCards";
+import { SessionModeToggle } from "@/components/browser/SessionModeToggle";
 
 export default function BrowserSync() {
   return (
@@ -29,6 +30,10 @@ export default function BrowserSync() {
               <Bell className="h-4 w-4" />
               Monitoring
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Shield className="h-4 w-4" />
+              Session Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="live-sessions" className="space-y-4">
@@ -42,6 +47,10 @@ export default function BrowserSync() {
 
           <TabsContent value="monitoring" className="space-y-4">
             <CaptchaAlertsFeed />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <SessionModeToggle />
           </TabsContent>
         </Tabs>
       </div>

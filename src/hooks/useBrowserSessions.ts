@@ -33,6 +33,8 @@ export interface ActiveSession {
   is_active: boolean | null;
   started_at: string | null;
   ended_at: string | null;
+  viewer_count: number;
+  viewer_ids: string[];
 }
 
 async function invokeAction(action: string, params: Record<string, unknown>) {
@@ -51,7 +53,6 @@ export function useBrowserSessions() {
 
   const agencyId = agency?.id;
 
-  // Fetch all session links for the agency
   const { data: sessionLinks, isLoading: linksLoading } = useQuery({
     queryKey: ["browser-session-links", agencyId],
     queryFn: async () => {
@@ -66,7 +67,6 @@ export function useBrowserSessions() {
     enabled: !!agencyId,
   });
 
-  // Fetch active sessions
   const { data: activeSessions, isLoading: sessionsLoading } = useQuery({
     queryKey: ["browser-active-sessions", agencyId],
     queryFn: async () => {
@@ -80,7 +80,7 @@ export function useBrowserSessions() {
       return (data ?? []) as ActiveSession[];
     },
     enabled: !!agencyId,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   const invalidate = () => {
@@ -123,19 +123,24 @@ export function useBrowserSessions() {
     try {
       const result = await invokeAction("launch_chatter_session", { sessionLinkId, chatterId });
       invalidate();
-      return result as { embedUrl: string; sessionId: string; platform: string };
+      return result as { embedUrl: string; sessionId: string; platform: string; joined?: boolean; viewerCount?: number };
     } catch (err: any) {
-      toast.error("Failed to launch session: " + (err.message || "Unknown error"));
+      const msg = err.message || "Unknown error";
+      if (msg.includes("Session in use by")) {
+        toast.error(msg, { duration: 5000 });
+      } else {
+        toast.error("Failed to launch session: " + msg);
+      }
       return null;
     } finally {
       setLaunching(false);
     }
   };
 
-  const terminateSession = async (browserbaseSessionId: string) => {
+  const terminateSession = async (browserbaseSessionId: string, chatterId?: string) => {
     try {
-      await invokeAction("terminate_session", { browserbaseSessionId });
-      toast.success("Session terminated");
+      await invokeAction("terminate_session", { browserbaseSessionId, chatterId });
+      toast.success("Session closed");
       invalidate();
     } catch (err: any) {
       toast.error("Failed to terminate session: " + (err.message || "Unknown error"));
@@ -152,6 +157,13 @@ export function useBrowserSessions() {
     }
   };
 
+  /** Get active session for a specific session link (for pooling UI) */
+  const getActiveSessionForLink = (sessionLinkId: string): ActiveSession | undefined => {
+    return (activeSessions ?? []).find(
+      (s) => s.session_link_id === sessionLinkId && s.is_active && s.session_type === "chatter"
+    );
+  };
+
   return {
     sessionLinks: sessionLinks ?? [],
     activeSessions: activeSessions ?? [],
@@ -164,5 +176,6 @@ export function useBrowserSessions() {
     terminateSession,
     invalidate,
     recoverStuckSessions,
+    getActiveSessionForLink,
   };
 }
