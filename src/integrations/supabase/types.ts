@@ -26,10 +26,13 @@ export type Database = {
           has_recording: boolean | null
           id: string
           is_active: boolean | null
+          last_heartbeat_at: string | null
           recording_url: string | null
           session_link_id: string | null
           session_type: string | null
           started_at: string | null
+          viewer_count: number
+          viewer_ids: string[]
         }
         Insert: {
           agency_id: string
@@ -42,10 +45,13 @@ export type Database = {
           has_recording?: boolean | null
           id?: string
           is_active?: boolean | null
+          last_heartbeat_at?: string | null
           recording_url?: string | null
           session_link_id?: string | null
           session_type?: string | null
           started_at?: string | null
+          viewer_count?: number
+          viewer_ids?: string[]
         }
         Update: {
           agency_id?: string
@@ -58,10 +64,13 @@ export type Database = {
           has_recording?: boolean | null
           id?: string
           is_active?: boolean | null
+          last_heartbeat_at?: string | null
           recording_url?: string | null
           session_link_id?: string | null
           session_type?: string | null
           started_at?: string | null
+          viewer_count?: number
+          viewer_ids?: string[]
         }
         Relationships: [
           {
@@ -96,6 +105,7 @@ export type Database = {
       }
       agencies: {
         Row: {
+          browser_session_mode: string
           browser_sync_enabled: boolean | null
           commission_rate: number
           created_at: string
@@ -111,6 +121,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          browser_session_mode?: string
           browser_sync_enabled?: boolean | null
           commission_rate?: number
           created_at?: string
@@ -126,6 +137,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          browser_session_mode?: string
           browser_sync_enabled?: boolean | null
           commission_rate?: number
           created_at?: string

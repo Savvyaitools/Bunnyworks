@@ -2,9 +2,10 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Monitor, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { X, Monitor, PanelRightOpen, PanelRightClose, Users } from "lucide-react";
 import { BrowserSessionPanel } from "./BrowserSessionPanel";
 import { IzzyOverlay } from "./IzzyOverlay";
+import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 
 export interface BrowserPermissions {
   can_view_chats: boolean;
@@ -28,6 +29,9 @@ interface EmbeddedBrowserViewerProps {
   saving?: boolean;
   permissions?: BrowserPermissions;
   creatorId?: string;
+  viewerCount?: number;
+  sessionId?: string;
+  chatterId?: string;
 }
 
 function getPermissionSummary(perms: BrowserPermissions): string {
@@ -52,10 +56,16 @@ export function EmbeddedBrowserViewer({
   saving = false,
   permissions,
   creatorId,
+  viewerCount = 1,
+  sessionId,
+  chatterId,
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Heartbeat: keeps session alive while this viewer has the tab open
+  useSessionHeartbeat(sessionId || null, chatterId);
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -73,6 +83,12 @@ export function EmbeddedBrowserViewer({
             <span className="h-2 w-2 rounded-full bg-green-500 mr-1.5 inline-block animate-pulse" />
             Live
           </Badge>
+          {viewerCount > 1 && (
+            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30">
+              <Users className="h-3 w-3 mr-1" />
+              {viewerCount} viewing
+            </Badge>
+          )}
           {permissions && (
             <Badge
               variant="outline"

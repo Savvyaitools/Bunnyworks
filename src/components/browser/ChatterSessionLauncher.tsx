@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import {
-  Globe, Loader2, Monitor, AlertCircle,
+  Globe, Loader2, Monitor, AlertCircle, Users,
 } from "lucide-react";
 
 interface ChatterSessionLauncherProps {
@@ -17,7 +17,7 @@ interface ChatterSessionLauncherProps {
 }
 
 export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProps) {
-  const { launchChatterSession, terminateSession, launching } = useBrowserSessions();
+  const { launchChatterSession, terminateSession, launching, activeSessions } = useBrowserSessions();
   const [activeSession, setActiveSession] = useState<{
     embedUrl: string;
     sessionId: string;
@@ -25,10 +25,10 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     creatorName: string;
     creatorId?: string;
     permissions?: BrowserPermissions;
+    viewerCount?: number;
   } | null>(null);
   const [launchingCreatorId, setLaunchingCreatorId] = useState<string | null>(null);
 
-  // Get employee_id for current user
   const { data: employeeId } = useQuery({
     queryKey: ["my-employee-id-for-sessions"],
     queryFn: async () => {
@@ -43,7 +43,6 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     },
   });
 
-  // Get permissions data
   const { data: permissionsData } = useQuery({
     queryKey: ["permitted-creator-permissions", employeeId],
     queryFn: async () => {
@@ -58,7 +57,6 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     enabled: !!employeeId,
   });
 
-  // Also check creator_assignments
   const { data: assignedCreatorIds } = useQuery({
     queryKey: ["chatter-assigned-creators", chatterId],
     queryFn: async () => {
@@ -76,7 +74,6 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
   const permittedCreatorIds = permissionsData?.map((p) => p.creator_id) ?? [];
   const allCreatorIds = [...new Set([...permittedCreatorIds, ...(assignedCreatorIds ?? [])])];
 
-  // Get creators
   const { data: creators, isLoading: creatorsLoading } = useQuery({
     queryKey: ["chatter-creators-full", allCreatorIds],
     queryFn: async () => {
@@ -91,7 +88,6 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     enabled: allCreatorIds.length > 0,
   });
 
-  // Get session links — only authenticated ones matter for chatters
   const { data: sessionLinks, isLoading: linksLoading } = useQuery({
     queryKey: ["chatter-session-links-ready", allCreatorIds],
     queryFn: async () => {
@@ -108,7 +104,13 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     refetchInterval: 15000,
   });
 
-  // Split into ready and not-ready
+  // Helper: find active chatter session for a session link
+  const getActiveViewers = (sessionLinkId: string) => {
+    return (activeSessions ?? []).find(
+      (s) => s.session_link_id === sessionLinkId && s.is_active && s.session_type === "chatter"
+    );
+  };
+
   const readyCreators: { creator: typeof creators extends (infer T)[] ? T : never; link: NonNullable<typeof sessionLinks>[0]; perms: any }[] = [];
   const notReadyCreators: { creator: typeof creators extends (infer T)[] ? T : never; reason: string }[] = [];
 
@@ -155,6 +157,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         platform: result.platform,
         creatorName,
         creatorId,
+        viewerCount: result.viewerCount ?? 1,
         permissions: perms ? {
           can_view_chats: perms.can_view_chats ?? false,
           can_send_messages: perms.can_send_messages ?? false,
@@ -172,7 +175,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
 
   const handleClose = async () => {
     if (activeSession) {
-      await terminateSession(activeSession.sessionId);
+      await terminateSession(activeSession.sessionId, chatterId);
       setActiveSession(null);
     }
   };
@@ -186,6 +189,9 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         onClose={handleClose}
         permissions={activeSession.permissions}
         creatorId={activeSession.creatorId}
+        viewerCount={activeSession.viewerCount}
+        sessionId={activeSession.sessionId}
+        chatterId={chatterId}
       />
     );
   }
@@ -216,7 +222,6 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
 
   return (
     <div className="space-y-6">
-      {/* Ready to launch */}
       {readyCreators.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -226,6 +231,10 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {readyCreators.map(({ creator, link }) => {
               const isLaunching = launchingCreatorId === creator.id && launching;
+              const activeViewerSession = getActiveViewers(link.id);
+              const hasActiveViewers = !!activeViewerSession && (activeViewerSession.viewer_count ?? 0) > 0;
+              const viewerCount = activeViewerSession?.viewer_count ?? 0;
+
               return (
                 <Card
                   key={creator.id}
@@ -240,6 +249,12 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
                         {link.platform}
                       </Badge>
                     </div>
+                    {hasActiveViewers && (
+                      <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30">
+                        <Users className="h-3 w-3 mr-1" />
+                        {viewerCount} active
+                      </Badge>
+                    )}
                     <Button
                       size="sm"
                       disabled={isLaunching}
@@ -251,6 +266,11 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
                     >
                       {isLaunching ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : hasActiveViewers ? (
+                        <>
+                          <Users className="h-4 w-4" />
+                          Join Session ({viewerCount} active)
+                        </>
                       ) : (
                         <>
                           <Globe className="h-4 w-4" />
@@ -266,7 +286,6 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         </div>
       )}
 
-      {/* Not ready */}
       {notReadyCreators.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">

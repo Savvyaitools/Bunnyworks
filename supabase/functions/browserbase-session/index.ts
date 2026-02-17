@@ -58,7 +58,6 @@ async function isSessionAlive(k: string, sessionId: string): Promise<boolean> {
 }
 
 async function getCtx(sb: any, k: string, pid: string, cid: string, plat: string) {
-  // Always try to reuse existing context for cookie/session persistence
   const { data: ex } = await sb.from("creator_session_links")
     .select("browserbase_context_id")
     .eq("creator_id", cid)
@@ -75,7 +74,6 @@ async function getCtx(sb: any, k: string, pid: string, cid: string, plat: string
 }
 
 function proxyConf(c: any) {
-  // Always use US residential proxy with state pinning for IP consistency
   const country = c?.proxy_country || "US";
   const state = c?.proxy_state || "california";
   return [{
@@ -104,20 +102,15 @@ Deno.serve(async (req) => {
       if (!creatorId || !platform || !agencyId) return json({ error: "creatorId, platform, agencyId required" }, 400);
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", creatorId).single();
       
-      // Always reuse existing context to preserve cookies/login state
       const ctxId = await getCtx(svc, BK, BP, creatorId, platform);
       
-      // Check if there's an existing session link stuck at "authenticating" with a saved context
       const { data: existingLink } = await svc.from("creator_session_links")
         .select("id, session_status, browserbase_context_id, browserbase_session_id, last_saved_at")
         .eq("creator_id", creatorId)
         .eq("platform", platform)
         .maybeSingle();
 
-      // If stuck at authenticating but has a saved context, the previous session likely ended naturally
-      // Browserbase auto-persists context when persist:true, so the cookies are saved
       if (existingLink?.session_status === "authenticating" && existingLink?.browserbase_context_id) {
-        // Check if the old session is actually dead
         if (existingLink.browserbase_session_id) {
           const alive = await isSessionAlive(BK, existingLink.browserbase_session_id);
           if (!alive) {
@@ -133,9 +126,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      // Admin sessions: 10-minute timeout (down from 60 min) — admins only need 2-5 min to log in
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 600, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
-      // Fetch debug URL and navigate in parallel for speed
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       const [dbg] = await Promise.all([
         bb(BK, `/sessions/${sess.id}/debug`),
@@ -151,7 +144,7 @@ Deno.serve(async (req) => {
         const { data } = await svc.from("creator_session_links").insert({ creator_id: creatorId, agency_id: agencyId, platform, created_by: uid, encrypted_session: "browserbase", browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString() }).select("id").single();
         slId = data!.id;
       }
-      await svc.from("active_browser_sessions").insert({ session_link_id: slId, agency_id: agencyId, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "admin" });
+      await svc.from("active_browser_sessions").insert({ session_link_id: slId, agency_id: agencyId, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "admin", viewer_count: 1, viewer_ids: [uid] });
       return json({ success: true, sessionLinkId: slId, embedUrl: liveUrl, sessionId: sess.id, contextId: ctxId });
     }
 
@@ -159,7 +152,6 @@ Deno.serve(async (req) => {
       const { sessionLinkId, browserbaseSessionId } = p;
       if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
       
-      // Check if session is still alive before trying to release
       const alive = await isSessionAlive(BK, browserbaseSessionId);
       if (alive) {
         try { 
@@ -169,12 +161,9 @@ Deno.serve(async (req) => {
           console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
         }
       } else {
-        // Session already ended - Browserbase auto-persists context when persist:true
         console.log(`Session ${browserbaseSessionId} already ended - context auto-persisted by Browserbase`);
       }
       
-      // Always update status to authenticated regardless of release success
-      // The context with cookies is persisted by Browserbase either way
       await svc.from("creator_session_links").update({ 
         session_status: "authenticated", 
         last_saved_at: new Date().toISOString(), 
@@ -183,12 +172,11 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString() 
       }).eq("id", sessionLinkId);
       
-      await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString() }).eq("browserbase_session_id", browserbaseSessionId);
+      await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("browserbase_session_id", browserbaseSessionId);
       return json({ success: true, message: "Login saved. Cookies and session data persisted in context." });
     }
 
     if (action === "check_and_recover_sessions") {
-      // Recover sessions stuck at "authenticating" where the Browserbase session has ended
       const { agencyId } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
       
@@ -205,7 +193,6 @@ Deno.serve(async (req) => {
           const alive = await isSessionAlive(BK, link.browserbase_session_id);
           if (!alive) shouldRecover = true;
         } else {
-          // No session ID means it was already cleaned up but status wasn't updated
           shouldRecover = true;
         }
         
@@ -225,6 +212,7 @@ Deno.serve(async (req) => {
       return json({ success: true, recoveredCount: recovered.length, recoveredIds: recovered });
     }
 
+    // ========== SESSION POOLING: launch_chatter_session ==========
     if (action === "launch_chatter_session") {
       const { sessionLinkId, chatterId } = p;
       if (!sessionLinkId) return json({ error: "sessionLinkId required" }, 400);
@@ -237,11 +225,78 @@ Deno.serve(async (req) => {
       if (!link.is_active) return json({ error: "Session revoked" }, 400);
       if (new Date(link.expires_at) < new Date()) return json({ error: "Session expired" }, 400);
       if (!link.browserbase_context_id) return json({ error: "Not authenticated yet" }, 400);
+
+      // Get agency session mode
+      const { data: agency } = await svc.from("agencies").select("browser_session_mode").eq("id", link.agency_id).single();
+      const sessionMode = agency?.browser_session_mode || "shared";
+
+      // Check for existing active session for this creator
+      const { data: existingSessions } = await svc.from("active_browser_sessions")
+        .select("id, browserbase_session_id, embed_url, viewer_count, viewer_ids, session_link_id, chatter_id")
+        .eq("session_link_id", sessionLinkId)
+        .eq("is_active", true)
+        .eq("session_type", "chatter")
+        .order("started_at", { ascending: false })
+        .limit(1);
+
+      const existingSession = existingSessions?.[0];
+
+      if (existingSession) {
+        // Verify the Browserbase session is still alive
+        const alive = await isSessionAlive(BK, existingSession.browserbase_session_id);
+
+        if (alive) {
+          if (sessionMode === "exclusive") {
+            // In exclusive mode, block access — find who's using it
+            let inUseBy = "another chatter";
+            if (existingSession.chatter_id) {
+              const { data: chatter } = await svc.from("chatters").select("name").eq("id", existingSession.chatter_id).maybeSingle();
+              if (chatter) inUseBy = chatter.name;
+            }
+            return json({ error: `Session in use by ${inUseBy}. Please wait until they finish.`, code: "SESSION_IN_USE", inUseBy }, 409);
+          }
+
+          // Shared mode: join existing session
+          const currentViewerIds: string[] = existingSession.viewer_ids || [];
+          const viewerId = chatterId || uid;
+          if (!currentViewerIds.includes(viewerId)) {
+            currentViewerIds.push(viewerId);
+          }
+
+          await svc.from("active_browser_sessions").update({
+            viewer_count: currentViewerIds.length,
+            viewer_ids: currentViewerIds,
+            last_heartbeat_at: new Date().toISOString(),
+          }).eq("id", existingSession.id);
+
+          await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "join" });
+
+          const permFlags = {
+            can_view_chats: perm.can_view_chats ?? false,
+            can_send_messages: perm.can_send_messages ?? false,
+            can_send_mass_messages: perm.can_send_mass_messages ?? false,
+            can_view_fans: perm.can_view_fans ?? false,
+            can_view_posts: perm.can_view_posts ?? false,
+            can_create_posts: perm.can_create_posts ?? false,
+            can_view_vault: perm.can_view_vault ?? false,
+            can_view_earnings: perm.can_view_earnings ?? false,
+            can_view_notifications: perm.can_view_notifications ?? false,
+          };
+
+          console.log(`Chatter ${viewerId} joined existing session ${existingSession.browserbase_session_id} (viewer count: ${currentViewerIds.length})`);
+          return json({ success: true, embedUrl: existingSession.embed_url, sessionId: existingSession.browserbase_session_id, platform: link.platform, permissions: permFlags, joined: true, viewerCount: currentViewerIds.length });
+        } else {
+          // Session died — clean it up
+          await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", existingSession.id);
+          console.log(`Cleaned up dead session ${existingSession.browserbase_session_id}`);
+        }
+      }
+
+      // No existing session or it was dead — create a new one
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", link.creator_id).single();
       const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
 
-      // Extract permission flags for injection into browser session
       const permFlags = {
         can_view_chats: perm.can_view_chats ?? false,
         can_send_messages: perm.can_send_messages ?? false,
@@ -257,23 +312,78 @@ Deno.serve(async (req) => {
       const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
-      // Fetch debug URL and navigate in parallel for speed
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
       const [dbg] = await Promise.all([
         bb(BK, `/sessions/${sess.id}/debug`),
         chatterStartUrl && sess.connectUrl ? navigateSession(sess.connectUrl, chatterStartUrl) : Promise.resolve(),
       ]);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
-      await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter" });
+      const viewerId = chatterId || uid;
+      await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter", viewer_count: 1, viewer_ids: [viewerId], last_heartbeat_at: new Date().toISOString() });
       await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });
-      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags });
+      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags, joined: false, viewerCount: 1 });
     }
 
+    // ========== VIEWER-AWARE TERMINATE ==========
     if (action === "terminate_session") {
-      const { browserbaseSessionId } = p;
+      const { browserbaseSessionId, chatterId: terminatingChatterId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
-      try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
-      await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString() }).eq("browserbase_session_id", browserbaseSessionId);
+
+      // Find the active session
+      const { data: session } = await svc.from("active_browser_sessions")
+        .select("id, viewer_count, viewer_ids")
+        .eq("browserbase_session_id", browserbaseSessionId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (session) {
+        const currentViewerIds: string[] = session.viewer_ids || [];
+        const viewerId = terminatingChatterId || uid;
+        const updatedViewerIds = currentViewerIds.filter((id: string) => id !== viewerId);
+        const newViewerCount = Math.max(0, updatedViewerIds.length);
+
+        if (newViewerCount <= 0) {
+          // Last viewer — release the Browserbase session
+          try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
+          await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", session.id);
+          console.log(`Last viewer left — session ${browserbaseSessionId} released`);
+        } else {
+          // Other viewers still active — just remove this viewer
+          await svc.from("active_browser_sessions").update({ viewer_count: newViewerCount, viewer_ids: updatedViewerIds }).eq("id", session.id);
+          console.log(`Viewer ${viewerId} left session ${browserbaseSessionId} (${newViewerCount} remaining)`);
+        }
+      } else {
+        // No tracked session, just try to release
+        try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
+        await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString() }).eq("browserbase_session_id", browserbaseSessionId);
+      }
+
+      return json({ success: true });
+    }
+
+    // ========== SESSION HEARTBEAT ==========
+    if (action === "session_heartbeat") {
+      const { browserbaseSessionId, chatterId: heartbeatChatterId } = p;
+      if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
+
+      await svc.from("active_browser_sessions").update({
+        last_heartbeat_at: new Date().toISOString(),
+      }).eq("browserbase_session_id", browserbaseSessionId).eq("is_active", true);
+
+      // Cleanup stale sessions: any active session with no heartbeat for 5+ minutes
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data: stale } = await svc.from("active_browser_sessions")
+        .select("id, browserbase_session_id, viewer_ids")
+        .eq("is_active", true)
+        .eq("session_type", "chatter")
+        .lt("last_heartbeat_at", fiveMinAgo);
+
+      for (const s of stale || []) {
+        console.log(`Cleaning up stale session ${s.browserbase_session_id} (no heartbeat for 5+ min)`);
+        try { await fetch(`${BB_API}/sessions/${s.browserbase_session_id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
+        await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", s.id);
+      }
+
       return json({ success: true });
     }
 
