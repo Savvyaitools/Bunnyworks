@@ -1,121 +1,129 @@
 
 
-# Mobile View Optimization
+# Browserbase Security Hardening and Fixed US Residential Proxies
 
-## Overview
-Multiple pages and components across the SaaS have layout, spacing, and usability issues on mobile devices. This plan addresses each problem area systematically across all three portals (Agency, Employee, Creator).
+## Root Cause Analysis
 
----
+Three critical issues are causing OnlyFans login warnings and session persistence failures:
 
-## Problems Identified
+### Issue 1: No Proxy Configured for Any Creator
+All 7 creators in the database have `proxy_country: NULL` and `proxy_state: NULL`. This means sessions launch with Browserbase's default datacenter IPs -- which OnlyFans flags as suspicious, triggering "multiple login attempts" alerts.
 
-1. **Messages page** -- Conversation sidebar is fixed at `w-80` with no mobile alternative. On phones, the chat panel is completely hidden or crushed.
-2. **Tasks page** -- Uses a 4-column Kanban grid that doesn't collapse to a usable single-column view on mobile.
-3. **Creator Detail page** -- 9 tabs (`TabsList`) overflow horizontally on mobile with no scroll indicator or wrapping.
-4. **Dashboard charts** -- Revenue charts and grids use `xl:grid-cols-3` which stacks fine, but chart containers have fixed heights (e.g. `h-[350px]`) that may be too tall on small screens.
-5. **Settings page** -- Tab navigation uses a horizontal row that likely overflows on mobile.
-6. **Chatters page** -- Chatter cards with multiple data points may overflow or feel cramped.
-7. **Global CSS overrides** -- Aggressive `!important` font-size rules on `h1`/`h2` and spacing reduction (`space-y-6 > * + *`) affect all pages unpredictably.
-8. **Business tab** -- `lg:grid-cols-3` layout with `h-[350px]` fixed chart height is too tall on mobile.
+### Issue 2: Sessions Stuck at "Authenticating"
+Two session links (`Addison Weems` and `suni`) show `session_status: authenticating` even though they have `last_saved_at` timestamps. This happens because:
+- The admin closes the browser window, which triggers `handleClose` -> `saveAndClose`
+- But if the Browserbase session has already timed out (15-min idle or 1-hour max), the `REQUEST_RELEASE` call fails silently
+- The context may not be fully persisted by Browserbase if the session was already dead
+- Result: status stays "authenticating" and next launch creates a NEW context instead of reusing the saved one, triggering another "new device" login on OnlyFans
 
----
-
-## Implementation Plan
-
-### 1. Messages Page -- Mobile Conversation/Chat Toggle
-
-Convert the Messages page to a mobile-responsive layout:
-- On mobile, show only the conversation list initially
-- When a conversation is tapped, slide in the full chat view with a back button
-- Hide the sidebar when chat is active on mobile
-- Use the existing `useIsMobile` hook to toggle between views
-
-**File**: `src/pages/Messages.tsx`
-
-### 2. Tasks Page -- Mobile List View
-
-Replace the 4-column Kanban grid with a stacked list view on mobile:
-- Show tasks grouped by status in collapsible sections
-- Each section shows the status header with count badge
-- Tasks render as compact cards in a single column
-- Keep the Kanban board for desktop (`lg:` breakpoint and up)
-
-**File**: `src/pages/Tasks.tsx`
-
-### 3. Creator Detail -- Scrollable Tabs
-
-Fix the 9-tab overflow:
-- Add `overflow-x-auto` and `scrollbar-hide` to the `TabsList`
-- Use `flex-nowrap` instead of `flex-wrap` to enable horizontal scrolling
-- Add `whitespace-nowrap` to each `TabsTrigger` so labels don't break
-- Consider shortening tab labels on mobile (e.g., "Requests" instead of "Custom Requests")
-
-**File**: `src/pages/CreatorDetail.tsx`
-
-### 4. Dashboard -- Responsive Chart Heights
-
-Fix chart containers for mobile:
-- Change `h-[350px]` to `h-[250px] lg:h-[350px]` for chart containers
-- Ensure sparkline cards stack properly in single column on mobile
-- Reduce padding on glass-card components inside dashboard grids
-
-**File**: `src/pages/Index.tsx`
-
-### 5. Settings Page -- Mobile Tab Navigation
-
-Convert the horizontal tab row to a vertical list or dropdown on mobile:
-- On mobile, show tabs as a vertical stack or use a `Select` dropdown
-- Keep the horizontal tab bar on desktop
-
-**File**: `src/pages/Settings.tsx`
-
-### 6. Global CSS Cleanup
-
-Remove or soften the aggressive mobile overrides that break layouts:
-- Remove `!important` from `h1` and `h2` font-size overrides -- these conflict with page-specific sizing
-- Remove the global `space-y-6` and `space-y-8` spacing reduction -- it creates unpredictable layout shifts
-- Remove the global `table { display: block }` override -- it breaks table layouts; apply only where needed
-- Keep the touch target (44px min), scrollbar, and safe-area rules
-
-**File**: `src/index.css`
-
-### 7. Chatters Page -- Compact Mobile Cards
-
-Adjust the chatter card layout for mobile:
-- Reduce padding and font sizes on mobile
-- Stack action buttons vertically or use a single menu button
-- Ensure skill badges and assignment lists wrap properly
-
-**File**: `src/pages/Chatters.tsx`
-
-### 8. Dialog Sizing
-
-Ensure all `DialogContent` components respect mobile widths:
-- Add `max-w-[calc(100vw-2rem)]` to dialog content
-- Ensure form fields inside dialogs don't overflow
-
-**File**: `src/components/ui/dialog.tsx` (if not already handled)
+### Issue 3: Rotating vs Fixed Proxies
+The current `proxyConf()` function uses `type: "browserbase"` which gives a different residential IP each session. OnlyFans sees each session as a login from a new location, triggering security alerts even with US proxies set.
 
 ---
 
-## Files to Modify
+## Solution
 
-| File | Change |
-|------|--------|
-| `src/pages/Messages.tsx` | Mobile conversation/chat toggle view |
-| `src/pages/Tasks.tsx` | Collapsible list view on mobile |
-| `src/pages/CreatorDetail.tsx` | Scrollable tab list |
-| `src/pages/Index.tsx` | Responsive chart heights |
-| `src/pages/Settings.tsx` | Mobile-friendly tab navigation |
-| `src/pages/Chatters.tsx` | Compact mobile cards |
-| `src/index.css` | Remove aggressive global overrides |
+### 1. Default All Creators to US Residential Proxy
+
+**Database Migration**: Set `proxy_country = 'US'` for all existing creators and make it the default for new ones.
+
+```text
+UPDATE creators SET proxy_country = 'US' WHERE proxy_country IS NULL;
+ALTER TABLE creators ALTER COLUMN proxy_country SET DEFAULT 'US';
+```
+
+This ensures every browser session routes through a US residential IP automatically, without requiring manual configuration per creator.
+
+### 2. Add Proxy Geo Settings to Browser Page
+
+**File**: `src/pages/BrowserSync.tsx`
+
+Re-add the `ProxyGeoSettings` component as a section within the Live Sessions tab (below the launcher). This was previously removed from the UI but the component still exists. Agency owners need easy access to override the default US proxy per creator (e.g., for UK-based creators).
+
+### 3. Fix Session Status Persistence
+
+**File**: `supabase/functions/browserbase-session/index.ts`
+
+In the `save_and_close` action:
+- Before sending `REQUEST_RELEASE`, check the session status via the Browserbase API first
+- If the session is already dead/completed, still update the database status to `authenticated` (the context was auto-persisted by Browserbase on session end)
+- Add explicit error handling so the status update never silently fails
+
+In the `create_admin_session` action:
+- Before creating a new context, check if the existing session link already has a valid context and status is "authenticating" with a `last_saved_at` -- this means the previous save partially succeeded
+- Reuse the existing context instead of creating a new one
+- This prevents OnlyFans from seeing a "new device" login
+
+### 4. Auto-Save on Session Timeout
+
+**File**: `supabase/functions/browserbase-session/index.ts`
+
+Add a new `check_and_recover_sessions` action that:
+- Queries all session links with `session_status = 'authenticating'` and `last_saved_at IS NOT NULL`
+- For each, checks if the Browserbase session is still running
+- If not running (timed out / completed), updates status to `authenticated` since Browserbase auto-persists context on session end when `persist: true` is set
+- This recovers the two currently stuck sessions
+
+### 5. Session Health Check Before Launch
+
+**File**: `supabase/functions/browserbase-session/index.ts`
+
+In both `create_admin_session` and `launch_chatter_session`:
+- Before launching, verify the existing context is still valid by attempting a lightweight Browserbase API call
+- If the context is invalid/expired, create a new one and warn the user they'll need to re-authenticate
+- Log context reuse vs creation events for debugging
+
+### 6. Proxy Pinning Strategy (IP Consistency)
+
+**File**: `supabase/functions/browserbase-session/index.ts`
+
+Update `proxyConf()` to request geolocation-pinned proxies with state-level specificity:
+- Default: `{ type: "browserbase", geolocation: { country: "US", state: "california" } }`
+- When a creator has `proxy_state` set, use that specific state
+- When no state is set, default to `california` for consistency
+- Store the last-used proxy state in `creator_session_links` so subsequent sessions request the same geolocation, reducing IP variation
+
+### 7. Frontend Session Recovery
+
+**File**: `src/components/browser/AdminSessionLauncher.tsx`
+
+- On component mount, check for sessions stuck at "authenticating" with a `last_saved_at` older than 2 hours
+- Auto-call the `check_and_recover_sessions` action to fix their status
+- Display recovered sessions as "authenticated" immediately
 
 ---
 
-## What Will NOT Change
+## Files to Create/Modify
 
-- Bottom navigation (already well-implemented)
-- Portal and Employee layouts (already responsive)
-- Authentication pages (already mobile-friendly)
-- Landing page (separate concern)
+| File | Action | Purpose |
+|------|--------|---------|
+| Database migration | Create | Default proxy_country to 'US', backfill existing creators |
+| `supabase/functions/browserbase-session/index.ts` | Modify | Fix save_and_close reliability, add session recovery, improve proxy config, add health checks |
+| `src/pages/BrowserSync.tsx` | Modify | Re-add ProxyGeoSettings component to the UI |
+| `src/components/browser/AdminSessionLauncher.tsx` | Modify | Auto-recover stuck sessions on mount |
+| `src/hooks/useBrowserSessions.ts` | Modify | Add recoverSessions method |
+
+---
+
+## Security Strategy Summary
+
+```text
+BEFORE (current):
+  No proxy -> Datacenter IP -> OnlyFans flags "suspicious login"
+  Session timeout -> Status stuck "authenticating" -> New context created -> "New device" alert
+  Rotating proxy -> Different IP each session -> "Multiple login locations" alert
+
+AFTER (proposed):
+  US proxy default -> Fixed geolocation -> Consistent residential IP region
+  Auto-recovery -> Status always reflects reality -> Context reused -> Same device
+  State-pinned proxy -> Same US state each session -> Minimal location variation
+```
+
+## Competitive Advantages
+
+1. **Zero manual proxy setup** -- US residential proxy enabled by default for every creator, no configuration needed
+2. **Self-healing sessions** -- Stuck sessions auto-recover, reducing admin support burden
+3. **IP consistency** -- State-level proxy pinning means OnlyFans sees the same geographic origin every time
+4. **Context persistence** -- Browserbase contexts with `persist: true` survive session timeouts, eliminating re-login requirements
+5. **No credentials stored** -- Login state lives in the Browserbase context (browser cookies/storage), never in the database
 
