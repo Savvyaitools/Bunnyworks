@@ -102,7 +102,7 @@ Focus on upsell opportunities. Look for:
 - Soft sell approaches that don't feel pushy`;
     }
 
-    const systemPrompt = `You are IZZY, an expert AI assistant for OnlyFans chatters. Your role is to generate message suggestions that match the creator's voice and maximize engagement and revenue.
+    const systemPrompt = `You are JODIE, an expert AI assistant for OnlyFans chatters. Your role is to generate message suggestions that match the creator's voice and maximize engagement and revenue.
 
 ${voiceDescription}
 
@@ -197,7 +197,7 @@ Response format (JSON only, no markdown):
     });
 
   } catch (error) {
-    console.error('IZZY error:', error);
+    console.error('JODIE error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,

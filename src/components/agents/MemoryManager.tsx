@@ -15,7 +15,7 @@ import { format } from "date-fns";
 const AGENT_TABS = [
   { id: "coach_pbf", label: "Coach PBF", icon: Bot },
   { id: "tatum", label: "Tatum", icon: Share2 },
-  { id: "izzy", label: "Izzy", icon: MessagesSquare },
+  { id: "izzy", label: "Jodie", icon: MessagesSquare },
 ];
 
 const CATEGORIES = [

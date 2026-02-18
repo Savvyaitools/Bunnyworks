@@ -12,7 +12,7 @@ interface AgentStatusCardProps {
 const agentConfig = {
   sentinel: { name: 'Sentinel', description: 'Performance Monitor', icon: Shield, schedule: 'Every 4 hours', color: 'text-destructive' },
   herald: { name: 'Herald', description: 'Daily Briefing', icon: Newspaper, schedule: 'Daily at 7 AM', color: 'text-accent' },
-  scholar: { name: 'Scholar', description: 'IZZY Learning Loop', icon: GraduationCap, schedule: 'Nightly', color: 'text-primary' },
+  scholar: { name: 'Scholar', description: 'JODIE Learning Loop', icon: GraduationCap, schedule: 'Nightly', color: 'text-primary' },
 };
 
 export function AgentStatusCard({ agentType, lastRun, actionsToday }: AgentStatusCardProps) {

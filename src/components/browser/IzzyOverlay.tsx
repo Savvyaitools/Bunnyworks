@@ -87,7 +87,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
     if (iframeRef?.current?.contentWindow) {
       try {
         iframeRef.current.contentWindow.postMessage(
-          { type: "IZZY_INJECT_REPLY", text },
+          { type: "JODIE_INJECT_REPLY", text },
           "*"
         );
       } catch {
@@ -126,7 +126,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
             ? "bg-green-500 text-white animate-pulse"
             : "bg-primary text-primary-foreground hover:scale-105"
         )}
-        title="Open Izzy AI"
+        title="Open Jodie AI"
       >
         <BrainCircuit className="h-6 w-6" />
         {history.length > 0 && (
@@ -154,7 +154,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
       )}>
         <div className="flex items-center gap-2">
           <BrainCircuit className={cn("h-4 w-4", autoMode ? "text-green-500" : "text-primary")} />
-          <span className="text-sm font-bold tracking-tight">Izzy</span>
+          <span className="text-sm font-bold tracking-tight">Jodie</span>
           {creatorName && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
               {creatorName}
@@ -234,7 +234,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-4 w-4 text-green-500 shrink-0" />
                 <p className="text-[11px] text-green-700 dark:text-green-400 leading-tight">
-                  Izzy is monitoring incoming messages. High-confidence replies (≥{confidenceThreshold}%) will be auto-drafted. You still approve before sending.
+                  Jodie is monitoring incoming messages. High-confidence replies (≥{confidenceThreshold}%) will be auto-drafted. You still approve before sending.
                 </p>
               </div>
             )}
