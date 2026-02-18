@@ -234,24 +234,14 @@ export function EmployeeForm({
         rows={2}
       />
 
-      <FormRow>
-        <FormField
-          type="text"
-          name="experience"
-          label="Experience"
-          placeholder="5 years in marketing"
-          register={register}
-          error={errors.experience}
-        />
-        <FormField
-          type="text"
-          name="education"
-          label="Education"
-          placeholder="MBA from Stanford"
-          register={register}
-          error={errors.education}
-        />
-      </FormRow>
+      <FormField
+        type="text"
+        name="experience"
+        label="Experience"
+        placeholder="5 years in marketing"
+        register={register}
+        error={errors.experience}
+      />
 
       <FormField
         type="text"
@@ -260,15 +250,6 @@ export function EmployeeForm({
         placeholder="Marketing, Sales, Analytics"
         register={register}
         error={errors.skills}
-      />
-
-      <FormField
-        type="text"
-        name="certifications"
-        label="Certifications (comma-separated)"
-        placeholder="Google Analytics, HubSpot"
-        register={register}
-        error={errors.certifications}
       />
 
       <FormField

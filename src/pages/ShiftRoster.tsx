@@ -330,7 +330,7 @@ export default function ShiftRoster() {
 
   const handleAddShift = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.chatter_id || !formData.creator_id || !formData.shift_date || !formData.shift_block) {
+    if (!formData.chatter_id || !formData.creator_id || !formData.shift_block) {
       toast.error("Missing fields", {
         description: "Please fill in all required fields.",
       });
@@ -346,8 +346,8 @@ export default function ShiftRoster() {
       return;
     }
 
-    // Create shift start and end times based on selected date and block
-    const shiftDate = new Date(formData.shift_date);
+    // Create shift start and end times based on today's date and block
+    const shiftDate = new Date();
     const shiftStart = new Date(shiftDate);
     shiftStart.setHours(block.start, 0, 0, 0);
     
@@ -480,38 +480,26 @@ export default function ShiftRoster() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Shift Date *</Label>
-                      <Input 
-                        type="date" 
-                        value={formData.shift_date || ""} 
-                        onChange={(e) => setFormData({ ...formData, shift_date: e.target.value })} 
-                        required 
-                        className="block w-full [color-scheme:dark]"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Shift Block *</Label>
-                      <Select 
-                        value={formData.shift_block || ""} 
-                        onValueChange={(v) => setFormData({ ...formData, shift_block: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select shift block" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="night">🌙 Night (12 AM - 8 AM)</SelectItem>
-                          <SelectItem value="day">☀️ Day (8 AM - 4 PM)</SelectItem>
-                          <SelectItem value="evening">🌆 Evening (4 PM - 12 AM)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Shift Block *</Label>
+                    <Select 
+                      value={formData.shift_block || ""} 
+                      onValueChange={(v) => setFormData({ ...formData, shift_block: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select shift block" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="night">🌙 Night (12 AM - 8 AM)</SelectItem>
+                        <SelectItem value="day">☀️ Day (8 AM - 4 PM)</SelectItem>
+                        <SelectItem value="evening">🌆 Evening (4 PM - 12 AM)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-primary"
-                    disabled={!formData.chatter_id || !formData.creator_id || !formData.shift_date || !formData.shift_block}
+                    disabled={!formData.chatter_id || !formData.creator_id || !formData.shift_block}
                   >
                     Add Shift
                   </Button>

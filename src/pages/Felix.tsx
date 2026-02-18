@@ -9,7 +9,7 @@ import { AlertsFeed } from "@/components/agents/AlertsFeed";
 import { ActionLog } from "@/components/agents/ActionLog";
 import { GoalProgress } from "@/components/agents/GoalProgress";
 import { DailyBriefingCard } from "@/components/agents/DailyBriefingCard";
-import { MemoryManager } from "@/components/agents/MemoryManager";
+
 import { useAgentRuns } from "@/hooks/useAgentRuns";
 import { useAgentAlerts } from "@/hooks/useAgentAlerts";
 import { useAgentGoals } from "@/hooks/useAgentGoals";
@@ -149,7 +149,6 @@ export default function Felix() {
               <FelixChat className="h-[600px]" />
             </div>
             <div className="space-y-6">
-              <MemoryManager />
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">What I Can Do</CardTitle>
