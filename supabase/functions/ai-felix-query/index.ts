@@ -92,11 +92,13 @@ serve(async (req) => {
     }
 
     const totalRevenue = recentEarnings?.reduce((s: number, e: any) => s + (e.amount || 0), 0) || 0;
-    const activeCreators = creators?.filter((c: any) => c.status === 'active').length || 0;
-    const activeEmployees = employees?.filter((e: any) => e.status === 'active' || e.status === 'Active').length || 0;
-    const pendingTasks = tasks?.filter((t: any) => t.status === 'pending').length || 0;
-    const completedTasks = tasks?.filter((t: any) => t.status === 'completed').length || 0;
-    const inProgressTasks = tasks?.filter((t: any) => t.status === 'in_progress').length || 0;
+    const normalize = (s: string) => (s || '').toLowerCase().replace(/[_ ]/g, '');
+    const activeCreators = creators?.filter((c: any) => normalize(c.status) === 'active').length || 0;
+    const activeEmployees = employees?.filter((e: any) => normalize(e.status) === 'active').length || 0;
+    const pendingTasks = tasks?.filter((t: any) => normalize(t.status) === 'todo' || normalize(t.status) === 'pending').length || 0;
+    const completedTasks = tasks?.filter((t: any) => normalize(t.status) === 'completed').length || 0;
+    const inProgressTasks = tasks?.filter((t: any) => normalize(t.status) === 'inprogress').length || 0;
+    const reviewTasks = tasks?.filter((t: any) => normalize(t.status) === 'review').length || 0;
 
     const memoryBlock = memories?.length
       ? `\nYOUR PERSISTENT MEMORY (things you know about this owner & agency):\n${memories.map((m: any) => `- [${m.category}] (★${m.importance}): ${m.content}`).join('\n')}\n\nUse these naturally to personalize every response. Don't say "I remember" — just apply the knowledge.`
@@ -131,7 +133,7 @@ REVENUE & EARNINGS:
 - By Creator: ${recentEarnings?.slice(0, 15).map((e: any) => `${e.creators?.name || '?'}: $${e.amount} (${e.period_start}→${e.period_end}, subs=$${e.subscriptions||0}, tips=$${e.tips||0}, msgs=$${e.messages_revenue||0})`).join(' | ') || 'No data'}
 
 TASKS:
-- Completed: ${completedTasks} | In Progress: ${inProgressTasks} | Pending: ${pendingTasks}
+- Completed: ${completedTasks} | In Progress: ${inProgressTasks} | Review: ${reviewTasks} | To Do: ${pendingTasks}
 - Recent: ${tasks?.slice(0, 10).map((t: any) => `"${t.title}" (${t.status}, priority=${t.priority || 'normal'}, due=${t.due_date || 'none'})`).join(' | ') || 'None'}
 
 EMPLOYEE KPIs:
