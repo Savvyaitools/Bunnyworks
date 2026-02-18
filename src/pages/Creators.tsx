@@ -70,25 +70,23 @@ export default function Creators() {
       persona: data.persona || null,
     });
 
-    // If password provided, create the auth account automatically
+    // If password provided, create the auth account via edge function (prevents session switch)
     if (data.password && data.password.length >= 8 && creatorResult) {
       try {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              full_name: data.name,
-              user_type: "creator",
-              agency_id: agencyId,
-            },
+        const { data: result, error } = await supabase.functions.invoke("create-user-account", {
+          body: {
+            email: data.email,
+            password: data.password,
+            fullName: data.name,
+            userType: "creator",
+            agencyId,
           },
         });
 
-        if (authError) throw authError;
-        if (authData.user) {
-          await updateCreator(creatorResult.id, { auth_user_id: authData.user.id });
+        if (error) throw error;
+        if (result?.error) throw new Error(result.error);
+        if (result?.user?.id) {
+          await updateCreator(creatorResult.id, { auth_user_id: result.user.id });
           toast.success("Creator added with login account!");
         }
       } catch (error: any) {
@@ -145,25 +143,23 @@ export default function Creators() {
 
     setIsCreatingAccount(true);
     try {
-      // Create auth account with agency_id so profile gets linked
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: selectedCreator.email,
-        password: password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: selectedCreator.name,
-            user_type: "creator",
-            agency_id: agencyId,
-          },
+      // Create auth account via edge function (prevents session switch)
+      const { data: result, error } = await supabase.functions.invoke("create-user-account", {
+        body: {
+          email: selectedCreator.email,
+          password: password,
+          fullName: selectedCreator.name,
+          userType: "creator",
+          agencyId,
         },
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Failed to create user account");
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      if (!result?.user?.id) throw new Error("Failed to create user account");
 
       // Link auth account to creator
-      await updateCreator(selectedCreator.id, { auth_user_id: authData.user.id });
+      await updateCreator(selectedCreator.id, { auth_user_id: result.user.id });
 
       setAccountCreated(true);
       toast.success("Login account created successfully!");
