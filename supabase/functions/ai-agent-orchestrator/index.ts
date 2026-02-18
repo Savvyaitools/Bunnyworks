@@ -73,10 +73,11 @@ async function gatherAgencyData(supabase: any, agencyId: string): Promise<Agency
 }
 
 function buildSentinelPrompt(data: AgencyData): string {
-  const activeCreators = data.creators.filter(c => c.status === 'active');
-  const overdueTasks = data.tasks.filter(t => t.status !== 'Done' && t.due_date && new Date(t.due_date) < new Date());
+  const normalize = (s: string) => (s || '').toLowerCase().replace(/[_ ]/g, '');
+  const activeCreators = data.creators.filter(c => normalize(c.status) === 'active');
+  const overdueTasks = data.tasks.filter(t => normalize(t.status) !== 'done' && normalize(t.status) !== 'completed' && t.due_date && new Date(t.due_date) < new Date());
   const totalRevenue = data.earnings.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const pendingTasks = data.tasks.filter(t => t.status === 'To Do');
+  const pendingTasks = data.tasks.filter(t => normalize(t.status) === 'todo' || normalize(t.status) === 'pending');
 
   const feedbackSummary = data.recentFeedback.length > 0
     ? `\nPAST FEEDBACK ON AGENT ACTIONS:\n${data.recentFeedback.map(f => 
@@ -128,10 +129,11 @@ Respond with ONLY the JSON array, no other text.`;
 }
 
 function buildHeraldPrompt(data: AgencyData): string {
+  const normalize = (s: string) => (s || '').toLowerCase().replace(/[_ ]/g, '');
   const totalRevenue = data.earnings.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const completedTasks = data.tasks.filter(t => t.status === 'Done').length;
-  const pendingTasks = data.tasks.filter(t => t.status === 'To Do').length;
-  const activeCreators = data.creators.filter(c => c.status === 'active').length;
+  const completedTasks = data.tasks.filter(t => normalize(t.status) === 'done' || normalize(t.status) === 'completed').length;
+  const pendingTasks = data.tasks.filter(t => normalize(t.status) === 'todo' || normalize(t.status) === 'pending').length;
+  const activeCreators = data.creators.filter(c => normalize(c.status) === 'active').length;
 
   return `You are HERALD, a daily briefing generator for an OnlyFans management agency.
 
