@@ -173,34 +173,7 @@ Deno.serve(async (req) => {
       const { sessionLinkId, browserbaseSessionId } = p;
       if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
       
-      const alive = await isSessionAlive(BK, browserbaseSessionId);
-      if (alive) {
-        try { 
-          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
-          console.log(`Session ${browserbaseSessionId} release requested`);
-          // Wait for Browserbase to fully persist the context (cookies, storage, etc.)
-          // This is critical — without this delay, a new session created immediately after
-          // may get stale cookies because the context hasn't finished saving yet.
-          let persisted = false;
-          for (let i = 0; i < 10; i++) {
-            await new Promise(r => setTimeout(r, 2000));
-            try {
-              const status = await bb(BK, `/sessions/${browserbaseSessionId}`);
-              if (status.status !== "RUNNING") {
-                console.log(`Session ${browserbaseSessionId} fully stopped after ${(i+1)*2}s (status: ${status.status})`);
-                persisted = true;
-                break;
-              }
-            } catch { break; }
-          }
-          if (!persisted) console.warn(`Session ${browserbaseSessionId} may still be shutting down`);
-        } catch (e) {
-          console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
-        }
-      } else {
-        console.log(`Session ${browserbaseSessionId} already ended - context auto-persisted by Browserbase`);
-      }
-      
+      // Update DB immediately — don't block the UI waiting for Browserbase
       await svc.from("creator_session_links").update({ 
         session_status: "authenticated", 
         last_saved_at: new Date().toISOString(), 
@@ -210,6 +183,20 @@ Deno.serve(async (req) => {
       }).eq("id", sessionLinkId);
       
       await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("browserbase_session_id", browserbaseSessionId);
+
+      // Fire-and-forget: request Browserbase to release (context persists automatically via persist:true)
+      const alive = await isSessionAlive(BK, browserbaseSessionId);
+      if (alive) {
+        try { 
+          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
+          console.log(`Session ${browserbaseSessionId} release requested`);
+        } catch (e) {
+          console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
+        }
+      } else {
+        console.log(`Session ${browserbaseSessionId} already ended`);
+      }
+      
       return json({ success: true, message: "Login saved. Cookies and session data persisted in context." });
     }
 
@@ -217,6 +204,7 @@ Deno.serve(async (req) => {
       const { agencyId } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
       
+      // 1. Recover stuck session links
       const { data: stuck } = await svc.from("creator_session_links")
         .select("id, browserbase_session_id, browserbase_context_id, last_saved_at")
         .eq("agency_id", agencyId)
@@ -230,23 +218,42 @@ Deno.serve(async (req) => {
           const alive = await isSessionAlive(BK, link.browserbase_session_id);
           if (!alive) shouldRecover = true;
         } else {
+          // No session ID means the session was never created or already died
           shouldRecover = true;
         }
         
-        if (shouldRecover && link.browserbase_context_id) {
+        if (shouldRecover) {
           await svc.from("creator_session_links").update({
-            session_status: "authenticated",
-            last_saved_at: link.last_saved_at || new Date().toISOString(),
+            session_status: link.browserbase_context_id ? "authenticated" : "pending",
+            last_saved_at: link.last_saved_at || (link.browserbase_context_id ? new Date().toISOString() : null),
             browserbase_session_id: null,
             browserbase_live_url: null,
             updated_at: new Date().toISOString(),
           }).eq("id", link.id);
           recovered.push(link.id);
-          console.log(`Recovered stuck session ${link.id}`);
+          console.log(`Recovered stuck session link ${link.id}`);
         }
       }
       
-      return json({ success: true, recoveredCount: recovered.length, recoveredIds: recovered });
+      // 2. Clean up orphaned active_browser_sessions (any type)
+      const { data: activeSessions } = await svc.from("active_browser_sessions")
+        .select("id, browserbase_session_id")
+        .eq("agency_id", agencyId)
+        .eq("is_active", true);
+      
+      let cleanedActive = 0;
+      for (const s of activeSessions || []) {
+        const alive = await isSessionAlive(BK, s.browserbase_session_id);
+        if (!alive) {
+          await svc.from("active_browser_sessions").update({ 
+            is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] 
+          }).eq("id", s.id);
+          cleanedActive++;
+          console.log(`Cleaned orphaned active session ${s.browserbase_session_id}`);
+        }
+      }
+      
+      return json({ success: true, recoveredCount: recovered.length, recoveredIds: recovered, cleanedActiveSessions: cleanedActive });
     }
 
     // ========== SESSION POOLING: launch_chatter_session ==========
