@@ -168,9 +168,14 @@ async function bb(k: string, p: string, o: RequestInit = {}) {
   if (!r.ok) {
     const t = await r.text();
     if (r.status === 402) throw new Error("BILLING: Browserbase free plan minutes used up.");
-    throw new Error(`Browserbase API error: ${t}`);
+    throw new Error(`Browserbase API error (${r.status}): ${t}`);
   }
-  return r.json();
+  const data = await r.json();
+  if (!data) {
+    console.error(`Browserbase API returned null/empty for ${p}`);
+    throw new Error(`Browserbase API returned empty response for ${p}`);
+  }
+  return data;
 }
 
 async function isSessionAlive(k: string, sessionId: string): Promise<boolean> {
@@ -195,6 +200,7 @@ async function getCtx(sb: any, k: string, pid: string, cid: string, plat: string
   }
   console.log(`Creating new context for creator ${cid}`);
   const ctx = await bb(k, "/contexts", { method: "POST", body: JSON.stringify({ projectId: pid }) });
+  if (!ctx?.id) throw new Error("Failed to create Browserbase context — no ID returned");
   return ctx.id;
 }
 
@@ -268,6 +274,11 @@ Deno.serve(async (req) => {
 
       // Admin sessions: 30-minute timeout
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      
+      if (!sess?.id) {
+        console.error("Browserbase session creation returned no session ID", JSON.stringify(sess));
+        return json({ error: "Failed to create browser session — no session ID returned" }, 502);
+      }
       
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       // Wait for session to be fully ready (context + browser boot)
@@ -475,6 +486,10 @@ Deno.serve(async (req) => {
       const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
+      if (!sess?.id) {
+        console.error("Browserbase chatter session creation returned no session ID", JSON.stringify(sess));
+        return json({ error: "Failed to create browser session — no session ID returned" }, 502);
+      }
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
       
       // Wait for context cookies to load
