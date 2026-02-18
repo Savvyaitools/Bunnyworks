@@ -145,10 +145,13 @@ Deno.serve(async (req) => {
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 600, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
-      const [dbg] = await Promise.all([
-        bb(BK, `/sessions/${sess.id}/debug`),
-        startUrl && sess.connectUrl ? navigateSession(sess.connectUrl, startUrl) : Promise.resolve(),
-      ]);
+      // Navigate FIRST, then fetch debug URL — avoids serving embed before page stabilises
+      if (startUrl && sess.connectUrl) {
+        await navigateSession(sess.connectUrl, startUrl);
+      }
+      // Small delay to let the page start rendering before we grab the debug URL
+      await new Promise(r => setTimeout(r, 1500));
+      const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       
       let slId: string;
@@ -328,10 +331,11 @@ Deno.serve(async (req) => {
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
-      const [dbg] = await Promise.all([
-        bb(BK, `/sessions/${sess.id}/debug`),
-        chatterStartUrl && sess.connectUrl ? navigateSession(sess.connectUrl, chatterStartUrl) : Promise.resolve(),
-      ]);
+      if (chatterStartUrl && sess.connectUrl) {
+        await navigateSession(sess.connectUrl, chatterStartUrl);
+      }
+      await new Promise(r => setTimeout(r, 1500));
+      const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       const viewerId = chatterId || uid;
       await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter", viewer_count: 1, viewer_ids: [viewerId], last_heartbeat_at: new Date().toISOString() });
