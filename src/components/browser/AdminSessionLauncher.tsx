@@ -26,7 +26,7 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
   useEffect(() => {
     if (!recoveryRan.current && sessionLinks.length > 0) {
       const hasStuck = sessionLinks.some(
-        (l) => l.session_status === "authenticating" && l.last_saved_at
+        (l) => l.session_status === "authenticating"
       );
       if (hasStuck) {
         recoveryRan.current = true;
