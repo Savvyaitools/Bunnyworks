@@ -25,20 +25,9 @@ async function navigateViaCDP(
 ): Promise<{ success: boolean; result?: unknown; error?: string }> {
   const timeout = options?.timeout ?? 20000;
 
-  // 1. Get debug connection info
-  const debugRes = await fetch(`${BB_API}/sessions/${sessionId}/debug`, {
-    headers: { "x-bb-api-key": apiKey },
-  });
-  if (!debugRes.ok) {
-    return { success: false, error: `Failed to get debug URL: ${await debugRes.text()}` };
-  }
-  const debugInfo = await debugRes.json();
-  const wsUrl = debugInfo.debuggerWsUrl || debugInfo.wsUrl;
-  if (!wsUrl) {
-    return { success: false, error: "No WebSocket URL in debug info" };
-  }
-
-  // 2. Connect via WebSocket
+  // Use Browserbase connect URL for raw CDP access
+  const wsUrl = `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`;
+  console.log(`CDP: Connecting for navigation to ${url}`);
   return new Promise((resolve) => {
     let msgId = 1;
     let resolved = false;
@@ -46,8 +35,9 @@ async function navigateViaCDP(
     const timer = setTimeout(() => {
       if (!resolved) {
         resolved = true;
+        console.warn(`CDP: Navigation timeout after ${timeout}ms (non-fatal)`);
         try { ws.close(); } catch {}
-        resolve({ success: true, result: null }); // timeout is non-fatal for navigation
+        resolve({ success: true, result: null });
       }
     }, timeout);
 
@@ -57,34 +47,80 @@ async function navigateViaCDP(
       return id;
     };
 
-    let navigateSent = false;
-    let pageLoadFired = false;
+    let getTargetsId: number | null = null;
+    let attachId: number | null = null;
+    let sessionId_cdp: string | null = null;
+    let navigateId: number | null = null;
     let evaluateId: number | null = null;
+    let pageEnableId: number | null = null;
 
     ws.onopen = () => {
-      send("Page.enable");
-      send("Runtime.enable");
+      console.log("CDP: WebSocket connected, getting targets");
+      getTargetsId = send("Target.getTargets");
     };
 
     ws.onmessage = (evt) => {
       try {
         const msg = JSON.parse(evt.data);
 
-        // After Page.enable succeeds, navigate
-        if (msg.id && !navigateSent) {
-          send("Page.navigate", { url });
-          navigateSent = true;
+        // Step 1: Get targets → find page target → attach
+        if (msg.id === getTargetsId) {
+          const targets = msg.result?.targetInfos || [];
+          const pageTarget = targets.find((t: any) => t.type === "page");
+          if (pageTarget) {
+            console.log(`CDP: Found page target ${pageTarget.targetId}, attaching`);
+            attachId = send("Target.attachToTarget", { targetId: pageTarget.targetId, flatten: true });
+          } else {
+            console.error("CDP: No page target found, targets:", targets.map((t: any) => t.type));
+            resolved = true;
+            clearTimeout(timer);
+            try { ws.close(); } catch {}
+            resolve({ success: false, error: "No page target found" });
+          }
           return;
         }
 
-        // Listen for load event
-        if (msg.method === "Page.loadEventFired") {
-          pageLoadFired = true;
-          if (options?.evaluate) {
-            evaluateId = send("Runtime.evaluate", {
-              expression: options.evaluate,
-              returnByValue: true,
-            });
+        // Step 2: Attached → enable Page domain on the session
+        if (msg.id === attachId) {
+          sessionId_cdp = msg.result?.sessionId;
+          console.log(`CDP: Attached to target, sessionId: ${sessionId_cdp}`);
+          if (sessionId_cdp) {
+            // Send commands scoped to the session
+            const id1 = msgId++;
+            ws.send(JSON.stringify({ id: id1, method: "Page.enable", params: {}, sessionId: sessionId_cdp }));
+            pageEnableId = id1;
+            const id2 = msgId++;
+            ws.send(JSON.stringify({ id: id2, method: "Runtime.enable", params: {}, sessionId: sessionId_cdp }));
+          }
+          return;
+        }
+
+        // Step 3: Page.enable OK → navigate
+        if (msg.id === pageEnableId && !navigateId && sessionId_cdp) {
+          console.log(`CDP: Page.enable OK, navigating to ${url}`);
+          const id = msgId++;
+          ws.send(JSON.stringify({ id, method: "Page.navigate", params: { url }, sessionId: sessionId_cdp }));
+          navigateId = id;
+          return;
+        }
+
+        // Step 4: Navigate response
+        if (msg.id === navigateId) {
+          if (msg.error) {
+            console.error("CDP: Page.navigate error:", msg.error);
+          } else {
+            console.log("CDP: Page.navigate OK, frameId:", msg.result?.frameId);
+          }
+          return;
+        }
+
+        // Step 5: Load event
+        if (msg.method === "Page.loadEventFired" || (msg.params?.method === "Page.loadEventFired")) {
+          console.log("CDP: Page load event fired");
+          if (options?.evaluate && sessionId_cdp) {
+            const id = msgId++;
+            ws.send(JSON.stringify({ id, method: "Runtime.evaluate", params: { expression: options.evaluate, returnByValue: true }, sessionId: sessionId_cdp }));
+            evaluateId = id;
           } else {
             clearTimeout(timer);
             resolved = true;
@@ -94,11 +130,12 @@ async function navigateViaCDP(
           return;
         }
 
-        // Return evaluate result
+        // Step 6: Evaluate result
         if (evaluateId && msg.id === evaluateId) {
           clearTimeout(timer);
           resolved = true;
           const val = msg.result?.result?.value;
+          console.log("CDP: Evaluate result received");
           try { ws.close(); } catch {}
           resolve({ success: true, result: val });
           return;
@@ -106,7 +143,8 @@ async function navigateViaCDP(
       } catch {}
     };
 
-    ws.onerror = () => {
+    ws.onerror = (err) => {
+      console.error("CDP: WebSocket error:", err);
       if (!resolved) {
         clearTimeout(timer);
         resolved = true;
@@ -118,7 +156,7 @@ async function navigateViaCDP(
       if (!resolved) {
         clearTimeout(timer);
         resolved = true;
-        resolve({ success: pageLoadFired });
+        resolve({ success: false, error: "WebSocket closed before completion" });
       }
     };
   });
@@ -232,8 +270,9 @@ Deno.serve(async (req) => {
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
-      // Wait for persistent context cookies to load
-      await new Promise(r => setTimeout(r, 3000));
+      // Wait for session to be fully ready (context + browser boot)
+      console.log(`Waiting for session ${sess.id} to be ready before CDP navigation...`);
+      await new Promise(r => setTimeout(r, 5000));
 
       // Navigate via CDP
       if (startUrl) {
