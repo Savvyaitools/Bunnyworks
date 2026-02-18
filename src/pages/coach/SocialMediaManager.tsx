@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
   Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair
+  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreators } from "@/hooks/useCreators";
@@ -55,6 +56,7 @@ interface NicheContentPlan {
 }
 
 export default function SocialMediaManager() {
+  const navigate = useNavigate();
   const { creators } = useCreators();
   const { profile } = useAuth();
   const [selectedCreator, setSelectedCreator] = useState<string>("");
@@ -303,14 +305,19 @@ export default function SocialMediaManager() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Share2 className="h-6 w-6 text-primary" />
-              Tatum
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              AI Social Media Manager — generate content, analyze trends, and optimize strategy
-            </p>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/coach-pbf")} className="shrink-0">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Share2 className="h-6 w-6 text-primary" />
+                Tatum
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                AI Social Media Manager — generate content, analyze trends, and optimize strategy
+              </p>
+            </div>
           </div>
         </div>
 

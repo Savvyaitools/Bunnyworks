@@ -205,25 +205,23 @@ export default function Employees() {
 
     setIsCreatingAccount(true);
     try {
-      // Create auth account with agency_id so profile gets linked
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: selectedEmployee.email,
-        password: password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: selectedEmployee.name,
-            user_type: "employee",
-            agency_id: agencyId,
-          },
+      // Create auth account via edge function (prevents session switch)
+      const { data: result, error } = await supabase.functions.invoke("create-user-account", {
+        body: {
+          email: selectedEmployee.email,
+          password: password,
+          fullName: selectedEmployee.name,
+          userType: "employee",
+          agencyId,
         },
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Failed to create user account");
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      if (!result?.user?.id) throw new Error("Failed to create user account");
 
       // Link auth account to employee
-      await updateEmployee(selectedEmployee.id, { auth_user_id: authData.user.id });
+      await updateEmployee(selectedEmployee.id, { auth_user_id: result.user.id });
       
       // Also link to chatters table if they're a chatter
       if (selectedEmployee.role === "Chatter") {
@@ -236,7 +234,7 @@ export default function Employees() {
         if (chatter) {
           await supabase
             .from("chatters")
-            .update({ auth_user_id: authData.user.id })
+            .update({ auth_user_id: result.user.id })
             .eq("id", chatter.id);
         }
       }
