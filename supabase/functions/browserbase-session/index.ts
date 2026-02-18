@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+import { Stagehand } from "npm:@browserbasehq/stagehand";
+import { z } from "npm:zod";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,27 +18,77 @@ const PLATFORM_URLS: Record<string, string> = {
   fansly: "https://fansly.com",
 };
 
-async function navigateSession(connectUrl: string, url: string) {
-  try {
-    const ws = new WebSocket(connectUrl);
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => { ws.close(); reject(new Error("WS timeout")); }, 10000);
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ id: 1, method: "Page.navigate", params: { url } }));
-      };
-      ws.onmessage = (ev) => {
-        try {
-          const msg = JSON.parse(typeof ev.data === "string" ? ev.data : "");
-          if (msg.id === 1) { clearTimeout(timeout); ws.close(); resolve(); }
-        } catch {}
-      };
-      ws.onerror = () => { clearTimeout(timeout); ws.close(); reject(new Error("WS error")); };
-    });
-  } catch (e) {
-    console.warn("Auto-navigate failed (non-fatal):", e);
-  }
+// ========== Stagehand Helper ==========
+async function createStagehandSession(sessionId: string) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const stagehand = new Stagehand({
+    env: "BROWSERBASE",
+    browserbaseSessionID: sessionId,
+    modelName: "openai/gpt-5-mini",
+    modelClientOptions: {
+      apiKey: LOVABLE_API_KEY,
+      baseURL: "https://ai.gateway.lovable.dev/v1",
+    },
+  });
+  await stagehand.init();
+  return stagehand;
 }
 
+// ========== Zod Schemas for Structured Extraction ==========
+const searchResultsSchema = z.object({
+  results: z.array(z.object({
+    title: z.string(),
+    url: z.string(),
+    snippet: z.string(),
+  })),
+});
+
+const articleIntelligenceSchema = z.object({
+  mainContent: z.string(),
+  keyTakeaways: z.array(z.string()),
+  statistics: z.array(z.string()).optional(),
+  topic: z.string(),
+});
+
+const ofEarningsSchema = z.object({
+  totalNet: z.number(),
+  subscriptions: z.number(),
+  tips: z.number(),
+  messages: z.number(),
+  referrals: z.number().optional(),
+  period: z.string().optional(),
+});
+
+const ofSubscriberSchema = z.object({
+  totalSubscribers: z.number(),
+  activeSubscribers: z.number(),
+});
+
+const ofPostsSchema = z.object({
+  posts: z.array(z.object({
+    text: z.string(),
+    likes: z.number(),
+    comments: z.number(),
+    tips: z.number().optional(),
+  })),
+});
+
+const loginStateSchema = z.object({
+  isLoggedIn: z.boolean(),
+  username: z.string().optional(),
+  indicator: z.string(),
+});
+
+const redditPostsSchema = z.object({
+  posts: z.array(z.object({
+    title: z.string(),
+    upvotes: z.number(),
+    comments: z.number(),
+    url: z.string(),
+  })),
+});
+
+// ========== Browserbase API helpers ==========
 async function bb(k: string, p: string, o: RequestInit = {}) {
   const r = await fetch(`${BB_API}${p}`, { ...o, headers: { ...bbH(k), ...(o.headers || {}) } });
   if (!r.ok) {
@@ -47,7 +99,6 @@ async function bb(k: string, p: string, o: RequestInit = {}) {
   return r.json();
 }
 
-// Check if a Browserbase session is still alive
 async function isSessionAlive(k: string, sessionId: string): Promise<boolean> {
   try {
     const d = await bb(k, `/sessions/${sessionId}`);
@@ -89,7 +140,6 @@ const STATE_ABBREV: Record<string, string> = {
 function proxyConf(c: any) {
   const country = c?.proxy_country || "US";
   const rawState = c?.proxy_state || "CA";
-  // Convert full state name to 2-letter code if needed
   const state = rawState.length > 2 ? (STATE_ABBREV[rawState.toLowerCase()] || "CA") : rawState.toUpperCase();
   return [{
     type: "browserbase",
@@ -112,6 +162,7 @@ Deno.serve(async (req) => {
     const uid = user.id;
     const { action, ...p } = await req.json();
 
+    // ========== CREATE ADMIN SESSION ==========
     if (action === "create_admin_session") {
       const { creatorId, platform, agencyId } = p;
       if (!creatorId || !platform || !agencyId) return json({ error: "creatorId, platform, agencyId required" }, 400);
@@ -141,18 +192,27 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Admin sessions: 30-minute timeout — give admins enough time to complete 2FA and verify login
+      // Admin sessions: 30-minute timeout
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
-      // Wait for persistent context cookies to fully load into the browser before navigating.
-      // Browserbase injects cookies from the context during session init — navigating too
-      // early races with this injection and OnlyFans sees an unauthenticated browser.
+      // Wait for persistent context cookies to load
       await new Promise(r => setTimeout(r, 3000));
-      if (startUrl && sess.connectUrl) {
-        await navigateSession(sess.connectUrl, startUrl);
+
+      // Use Stagehand for navigation instead of raw CDP
+      if (startUrl) {
+        try {
+          const stagehand = await createStagehandSession(sess.id);
+          const page = stagehand.page;
+          await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+          await stagehand.act("wait for the page to fully load");
+          await stagehand.close();
+        } catch (e) {
+          console.warn("Stagehand auto-navigate failed (non-fatal):", e);
+        }
       }
-      // Let the page start rendering before grabbing the debug URL
+
+      // Let the page render before grabbing debug URL
       await new Promise(r => setTimeout(r, 2000));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
@@ -169,11 +229,89 @@ Deno.serve(async (req) => {
       return json({ success: true, sessionLinkId: slId, embedUrl: liveUrl, sessionId: sess.id, contextId: ctxId });
     }
 
+    // ========== SAVE AND CLOSE (with Stagehand analytics scraping) ==========
     if (action === "save_and_close") {
       const { sessionLinkId, browserbaseSessionId } = p;
       if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
-      
-      // Update DB immediately — don't block the UI waiting for Browserbase
+
+      // Get session link details for analytics scraping
+      const { data: linkData } = await svc.from("creator_session_links")
+        .select("creator_id, platform, agency_id")
+        .eq("id", sessionLinkId)
+        .single();
+
+      // Attempt Stagehand analytics scraping before closing (fire-and-forget style)
+      let scrapedAnalytics = null;
+      const alive = await isSessionAlive(BK, browserbaseSessionId);
+      if (alive && linkData?.platform?.toLowerCase() === "onlyfans") {
+        try {
+          const stagehand = await createStagehandSession(browserbaseSessionId);
+          const page = stagehand.page;
+
+          // Scrape earnings
+          await page.goto("https://onlyfans.com/my/statistics", { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+          const earnings = await stagehand.extract(
+            "extract all visible earnings data including total net earnings, subscriptions revenue, tips revenue, messages revenue, and referrals revenue. Extract numbers as decimals.",
+            ofEarningsSchema
+          );
+
+          // Scrape subscriber counts
+          await page.goto("https://onlyfans.com/my/subscribers/active", { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+          const fans = await stagehand.extract(
+            "extract the total subscriber count and active subscriber count from this page",
+            ofSubscriberSchema
+          );
+
+          // Scrape recent posts
+          await page.goto("https://onlyfans.com/my/posts", { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+          const posts = await stagehand.extract(
+            "extract the 5 most recent posts with their text preview, like count, comment count, and tip amount if visible",
+            ofPostsSchema
+          );
+
+          await stagehand.close();
+
+          scrapedAnalytics = { earnings, fans, posts };
+
+          // Save earnings to creator_earnings table
+          if (linkData.creator_id && earnings) {
+            const now = new Date();
+            const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            await svc.from("creator_earnings").upsert({
+              creator_id: linkData.creator_id,
+              amount: earnings.totalNet || 0,
+              subscriptions: earnings.subscriptions || 0,
+              tips: earnings.tips || 0,
+              messages_revenue: earnings.messages || 0,
+              referrals: earnings.referrals || 0,
+              period_start: periodStart,
+              period_end: now.toISOString(),
+              platform: "onlyfans",
+              notes: "Auto-scraped via Stagehand on session close",
+            }, { onConflict: "creator_id,period_start,period_end" }).select("id");
+          }
+
+          // Save to of_cache
+          if (linkData.creator_id && fans) {
+            await svc.from("of_cache").upsert({
+              agency_id: linkData.agency_id,
+              creator_id: linkData.creator_id,
+              cache_key: "subscriber_counts",
+              cache_data: fans,
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            }, { onConflict: "agency_id,creator_id,cache_key" });
+          }
+
+          console.log("Stagehand analytics scraping completed successfully");
+        } catch (e) {
+          console.warn("Stagehand analytics scraping failed (non-fatal):", e);
+        }
+      }
+
+      // Update DB immediately
       await svc.from("creator_session_links").update({ 
         session_status: "authenticated", 
         last_saved_at: new Date().toISOString(), 
@@ -184,8 +322,7 @@ Deno.serve(async (req) => {
       
       await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("browserbase_session_id", browserbaseSessionId);
 
-      // Fire-and-forget: request Browserbase to release (context persists automatically via persist:true)
-      const alive = await isSessionAlive(BK, browserbaseSessionId);
+      // Release session
       if (alive) {
         try { 
           await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
@@ -193,18 +330,16 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
         }
-      } else {
-        console.log(`Session ${browserbaseSessionId} already ended`);
       }
       
-      return json({ success: true, message: "Login saved. Cookies and session data persisted in context." });
+      return json({ success: true, message: "Login saved. Cookies and session data persisted in context.", analytics: scrapedAnalytics });
     }
 
+    // ========== CHECK AND RECOVER SESSIONS ==========
     if (action === "check_and_recover_sessions") {
       const { agencyId } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
       
-      // 1. Recover stuck session links
       const { data: stuck } = await svc.from("creator_session_links")
         .select("id, browserbase_session_id, browserbase_context_id, last_saved_at")
         .eq("agency_id", agencyId)
@@ -213,15 +348,12 @@ Deno.serve(async (req) => {
       const recovered: string[] = [];
       for (const link of stuck || []) {
         let shouldRecover = false;
-        
         if (link.browserbase_session_id) {
           const alive = await isSessionAlive(BK, link.browserbase_session_id);
           if (!alive) shouldRecover = true;
         } else {
-          // No session ID means the session was never created or already died
           shouldRecover = true;
         }
-        
         if (shouldRecover) {
           await svc.from("creator_session_links").update({
             session_status: link.browserbase_context_id ? "authenticated" : "pending",
@@ -235,7 +367,6 @@ Deno.serve(async (req) => {
         }
       }
       
-      // 2. Clean up orphaned active_browser_sessions (any type)
       const { data: activeSessions } = await svc.from("active_browser_sessions")
         .select("id, browserbase_session_id")
         .eq("agency_id", agencyId)
@@ -249,14 +380,13 @@ Deno.serve(async (req) => {
             is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] 
           }).eq("id", s.id);
           cleanedActive++;
-          console.log(`Cleaned orphaned active session ${s.browserbase_session_id}`);
         }
       }
       
       return json({ success: true, recoveredCount: recovered.length, recoveredIds: recovered, cleanedActiveSessions: cleanedActive });
     }
 
-    // ========== SESSION POOLING: launch_chatter_session ==========
+    // ========== SESSION POOLING: launch_chatter_session (with Stagehand login verification) ==========
     if (action === "launch_chatter_session") {
       const { sessionLinkId, chatterId } = p;
       if (!sessionLinkId) return json({ error: "sessionLinkId required" }, 400);
@@ -270,11 +400,9 @@ Deno.serve(async (req) => {
       if (new Date(link.expires_at) < new Date()) return json({ error: "Session expired" }, 400);
       if (!link.browserbase_context_id) return json({ error: "Not authenticated yet" }, 400);
 
-      // Get agency session mode
       const { data: agency } = await svc.from("agencies").select("browser_session_mode").eq("id", link.agency_id).single();
       const sessionMode = agency?.browser_session_mode || "shared";
 
-      // Check for existing active session for this creator
       const { data: existingSessions } = await svc.from("active_browser_sessions")
         .select("id, browserbase_session_id, embed_url, viewer_count, viewer_ids, session_link_id, chatter_id")
         .eq("session_link_id", sessionLinkId)
@@ -286,12 +414,9 @@ Deno.serve(async (req) => {
       const existingSession = existingSessions?.[0];
 
       if (existingSession) {
-        // Verify the Browserbase session is still alive
         const alive = await isSessionAlive(BK, existingSession.browserbase_session_id);
-
         if (alive) {
           if (sessionMode === "exclusive") {
-            // In exclusive mode, block access — find who's using it
             let inUseBy = "another chatter";
             if (existingSession.chatter_id) {
               const { data: chatter } = await svc.from("chatters").select("name").eq("id", existingSession.chatter_id).maybeSingle();
@@ -300,7 +425,6 @@ Deno.serve(async (req) => {
             return json({ error: `Session in use by ${inUseBy}. Please wait until they finish.`, code: "SESSION_IN_USE", inUseBy }, 409);
           }
 
-          // Shared mode: join existing session
           const currentViewerIds: string[] = existingSession.viewer_ids || [];
           const viewerId = chatterId || uid;
           if (!currentViewerIds.includes(viewerId)) {
@@ -330,13 +454,12 @@ Deno.serve(async (req) => {
           console.log(`Chatter ${viewerId} joined existing session ${existingSession.browserbase_session_id} (viewer count: ${currentViewerIds.length})`);
           return json({ success: true, embedUrl: existingSession.embed_url, sessionId: existingSession.browserbase_session_id, platform: link.platform, permissions: permFlags, joined: true, viewerCount: currentViewerIds.length });
         } else {
-          // Session died — clean it up
           await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", existingSession.id);
           console.log(`Cleaned up dead session ${existingSession.browserbase_session_id}`);
         }
       }
 
-      // No existing session or it was dead — create a new one
+      // Create new session
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", link.creator_id).single();
       const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
@@ -357,18 +480,61 @@ Deno.serve(async (req) => {
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
-      // Wait for persistent context cookies to load before navigating
+      
+      // Wait for context cookies to load
       await new Promise(r => setTimeout(r, 3000));
-      if (chatterStartUrl && sess.connectUrl) {
-        await navigateSession(sess.connectUrl, chatterStartUrl);
+
+      // Use Stagehand for navigation + login verification
+      let loginVerified = true;
+      if (chatterStartUrl) {
+        try {
+          const stagehand = await createStagehandSession(sess.id);
+          const page = stagehand.page;
+          await page.goto(chatterStartUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+
+          // Verify login state
+          try {
+            const loginState = await stagehand.extract(
+              "check if the user is logged in to OnlyFans. Look for profile menu, dashboard elements, or login/signup buttons. If you see a login form or signup page, the user is NOT logged in.",
+              loginStateSchema
+            );
+            loginVerified = loginState.isLoggedIn;
+            if (!loginVerified) {
+              console.warn(`Login verification failed for creator ${link.creator_id}: ${loginState.indicator}`);
+              // Flag the session link as needing re-auth
+              await svc.from("creator_session_links").update({
+                session_status: "pending",
+                updated_at: new Date().toISOString(),
+              }).eq("id", sessionLinkId);
+
+              await svc.from("browser_session_events").insert({
+                agency_id: link.agency_id,
+                session_link_id: sessionLinkId,
+                browserbase_session_id: sess.id,
+                event_type: "login_expired",
+                severity: "warning",
+                title: "Login Expired",
+                message: `Creator session needs re-authentication. Detected: ${loginState.indicator}`,
+              });
+            }
+          } catch (verifyErr) {
+            console.warn("Login verification failed (non-fatal):", verifyErr);
+          }
+
+          await stagehand.close();
+        } catch (e) {
+          console.warn("Stagehand chatter nav failed (non-fatal):", e);
+        }
       }
+
       await new Promise(r => setTimeout(r, 2000));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       const viewerId = chatterId || uid;
       await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter", viewer_count: 1, viewer_ids: [viewerId], last_heartbeat_at: new Date().toISOString() });
       await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });
-      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags, joined: false, viewerCount: 1 });
+      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags, joined: false, viewerCount: 1, loginVerified });
     }
 
     // ========== VIEWER-AWARE TERMINATE ==========
@@ -376,7 +542,6 @@ Deno.serve(async (req) => {
       const { browserbaseSessionId, chatterId: terminatingChatterId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
 
-      // Find the active session
       const { data: session } = await svc.from("active_browser_sessions")
         .select("id, viewer_count, viewer_ids")
         .eq("browserbase_session_id", browserbaseSessionId)
@@ -390,17 +555,14 @@ Deno.serve(async (req) => {
         const newViewerCount = Math.max(0, updatedViewerIds.length);
 
         if (newViewerCount <= 0) {
-          // Last viewer — release the Browserbase session
           try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
           await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", session.id);
           console.log(`Last viewer left — session ${browserbaseSessionId} released`);
         } else {
-          // Other viewers still active — just remove this viewer
           await svc.from("active_browser_sessions").update({ viewer_count: newViewerCount, viewer_ids: updatedViewerIds }).eq("id", session.id);
           console.log(`Viewer ${viewerId} left session ${browserbaseSessionId} (${newViewerCount} remaining)`);
         }
       } else {
-        // No tracked session, just try to release
         try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
         await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString() }).eq("browserbase_session_id", browserbaseSessionId);
       }
@@ -410,14 +572,13 @@ Deno.serve(async (req) => {
 
     // ========== SESSION HEARTBEAT ==========
     if (action === "session_heartbeat") {
-      const { browserbaseSessionId, chatterId: heartbeatChatterId } = p;
+      const { browserbaseSessionId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
 
       await svc.from("active_browser_sessions").update({
         last_heartbeat_at: new Date().toISOString(),
       }).eq("browserbase_session_id", browserbaseSessionId).eq("is_active", true);
 
-      // Cleanup stale sessions: any active session with no heartbeat for 5+ minutes
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const { data: stale } = await svc.from("active_browser_sessions")
         .select("id, browserbase_session_id, viewer_ids")
@@ -426,7 +587,7 @@ Deno.serve(async (req) => {
         .lt("last_heartbeat_at", fiveMinAgo);
 
       for (const s of stale || []) {
-        console.log(`Cleaning up stale session ${s.browserbase_session_id} (no heartbeat for 5+ min)`);
+        console.log(`Cleaning up stale session ${s.browserbase_session_id}`);
         try { await fetch(`${BB_API}/sessions/${s.browserbase_session_id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
         await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", s.id);
       }
@@ -482,14 +643,14 @@ Deno.serve(async (req) => {
       if (!name) return json({ error: "Extension name required" }, 400);
       const { data, error } = await svc.from("browser_extensions").insert({ agency_id: agencyId, name, description: description || null }).select("id").single();
       if (error) throw new Error(error.message);
-      return json({ success: true, extensionId: data.id, message: "Extension record created. Upload ZIP via Browserbase dashboard." });
+      return json({ success: true, extensionId: data.id, message: "Extension record created." });
     }
 
     if (action === "list_extensions") {
       try { return json({ success: true, extensions: await bb(BK, `/extensions?projectId=${BP}`) }); } catch { return json({ success: true, extensions: [] }); }
     }
 
-    // ========== PROFILE WARMUP: warmup_single_profile ==========
+    // ========== PROFILE WARMUP: warmup_single_profile (Stagehand-powered) ==========
     if (action === "warmup_single_profile") {
       const { creatorId, agencyId, warmupType = "generic", contextId, keywords } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
@@ -497,7 +658,6 @@ Deno.serve(async (req) => {
       let bbContextId = contextId;
       let targetCreatorId = creatorId || null;
 
-      // If creator specified, look up their context
       if (creatorId && !bbContextId) {
         const { data: link } = await svc.from("creator_session_links")
           .select("browserbase_context_id")
@@ -507,10 +667,8 @@ Deno.serve(async (req) => {
         if (link?.browserbase_context_id) {
           bbContextId = link.browserbase_context_id;
         } else {
-          // Auto-provision a context for this creator
           const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
           bbContextId = ctx.id;
-          // Save it to a session link
           const { data: { user: warmupUser } } = await sb.auth.getUser();
           await svc.from("creator_session_links").upsert({
             creator_id: creatorId, agency_id: agencyId, platform: "onlyfans",
@@ -523,7 +681,6 @@ Deno.serve(async (req) => {
 
       if (!bbContextId) return json({ error: "No context available for warmup" }, 400);
 
-      // Create warmup record
       const { data: warmupRec, error: wErr } = await svc.from("creator_profile_warmups").insert({
         creator_id: targetCreatorId, agency_id: agencyId, browserbase_context_id: bbContextId,
         status: "running", warmup_type: warmupType,
@@ -533,7 +690,6 @@ Deno.serve(async (req) => {
       if (wErr) throw new Error(wErr.message);
       const warmupId = warmupRec.id;
 
-      // Get creator proxy settings if available
       let proxySettings = null;
       if (creatorId) {
         const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state").eq("id", creatorId).maybeSingle();
@@ -541,7 +697,6 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // Create short-lived session for warmup
         const sessBody: any = {
           projectId: BP,
           browserSettings: { context: { id: bbContextId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } },
@@ -551,70 +706,52 @@ Deno.serve(async (req) => {
         if (proxySettings) sessBody.proxies = proxyConf(proxySettings);
 
         const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
-        await new Promise(r => setTimeout(r, 3000)); // Wait for context to load
+        await new Promise(r => setTimeout(r, 3000));
 
-        const ws = new WebSocket(sess.connectUrl);
-        let msgId = 0;
-
-        const cdpSend = (method: string, params: any = {}) => new Promise<any>((resolve, reject) => {
-          const id = ++msgId;
-          const timeout = setTimeout(() => reject(new Error(`CDP timeout: ${method}`)), 30000);
-          const handler = (ev: MessageEvent) => {
-            try {
-              const msg = JSON.parse(typeof ev.data === "string" ? ev.data : "");
-              if (msg.id === id) {
-                clearTimeout(timeout);
-                ws.removeEventListener("message", handler);
-                resolve(msg.result || {});
-              }
-            } catch {}
-          };
-          ws.addEventListener("message", handler);
-          ws.send(JSON.stringify({ id, method, params }));
-        });
-
-        await new Promise<void>((resolve, reject) => {
-          const t = setTimeout(() => reject(new Error("WS connect timeout")), 15000);
-          ws.onopen = () => { clearTimeout(t); resolve(); };
-          ws.onerror = () => { clearTimeout(t); reject(new Error("WS error")); };
-        });
-
-        await cdpSend("Page.enable");
-        await cdpSend("Runtime.enable");
-
+        // Initialize Stagehand for this warmup session
+        const stagehand = await createStagehandSession(sess.id);
+        const page = stagehand.page;
         let sitesVisited = 0;
 
-        // Phase 1: Generic warmup sites
-        const genericSites = [
-          "https://www.google.com/search?q=best+movies+2026",
-          "https://www.youtube.com",
-          "https://www.reddit.com",
-          "https://www.x.com",
-          "https://www.instagram.com",
-          "https://www.amazon.com",
-          "https://en.wikipedia.org/wiki/Main_Page",
-          "https://www.espn.com",
-          "https://weather.com",
-          "https://www.netflix.com",
-        ];
-
+        // ===== Phase 1: Generic warmup (human-like browsing) =====
         if (warmupType === "generic" || warmupType === "full") {
-          for (const url of genericSites) {
+          const genericSites = [
+            { url: "https://www.google.com", actions: ["type 'best movies 2026' into the search bar and press Enter", "scroll down slowly and click on one of the search results", "scroll through the page for a few seconds"] },
+            { url: "https://www.youtube.com", actions: ["scroll down to browse trending videos", "click on a trending or recommended video", "wait for the video to start playing for a few seconds"] },
+            { url: "https://www.reddit.com", actions: ["scroll down through the front page posts", "click on an interesting post title", "scroll through the comments"] },
+            { url: "https://www.x.com", actions: ["scroll through the timeline"] },
+            { url: "https://www.instagram.com", actions: ["scroll through the feed slowly"] },
+            { url: "https://www.amazon.com", actions: ["type 'wireless headphones' into the search bar and press Enter", "scroll through the results and click on one", "scroll through the product page"] },
+            { url: "https://en.wikipedia.org/wiki/Main_Page", actions: ["click on a featured article link", "scroll through the article"] },
+            { url: "https://www.espn.com", actions: ["scroll down through the sports headlines"] },
+            { url: "https://weather.com", actions: ["scroll through the weather forecast"] },
+            { url: "https://www.netflix.com", actions: ["scroll through the page to browse content"] },
+          ];
+
+          for (const site of genericSites) {
             try {
-              await cdpSend("Page.navigate", { url });
-              await new Promise(r => setTimeout(r, 5000 + Math.random() * 3000));
-              await cdpSend("Runtime.evaluate", { expression: "window.scrollTo(0, Math.floor(Math.random() * 800) + 200)" });
-              await new Promise(r => setTimeout(r, 2000));
+              await page.goto(site.url, { waitUntil: "domcontentloaded", timeout: 15000 });
+              await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+
+              for (const action of site.actions) {
+                try {
+                  await stagehand.act(action);
+                  await new Promise(r => setTimeout(r, 1500 + Math.random() * 2000));
+                } catch (actErr) {
+                  console.warn(`Warmup act failed for "${action}" on ${site.url}:`, actErr);
+                  break;
+                }
+              }
+
               sitesVisited++;
-              // Update progress
               await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
             } catch (e) {
-              console.warn(`Warmup nav failed for ${url}:`, e);
+              console.warn(`Warmup nav failed for ${site.url}:`, e);
             }
           }
         }
 
-        // Phase 2: Research (niche-aware browsing + intelligence extraction)
+        // ===== Phase 2: Research (structured intelligence extraction) =====
         if (warmupType === "research" || warmupType === "full") {
           const defaultKeywords = [
             "onlyfans marketing strategy 2026",
@@ -625,37 +762,58 @@ Deno.serve(async (req) => {
           ];
           const searchKeywords = (keywords && Array.isArray(keywords) && keywords.length > 0) ? keywords : defaultKeywords;
 
-          const directUrls = [
-            "https://www.reddit.com/r/onlyfansadvice/",
-            "https://www.reddit.com/r/CreatorsAdvice/",
-            "https://x.com/search?q=onlyfans+tips&src=typed_query",
-          ];
-
-          // Keyword searches
+          // Keyword searches with structured extraction
           for (const kw of searchKeywords) {
             try {
               const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(kw)}`;
-              await cdpSend("Page.navigate", { url: searchUrl });
-              await new Promise(r => setTimeout(r, 5000 + Math.random() * 3000));
+              await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+              await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000));
 
-              // Extract page content
-              const result = await cdpSend("Runtime.evaluate", {
-                expression: `JSON.stringify({ title: document.title, text: document.body.innerText.substring(0, 2000) })`,
-                returnByValue: true,
-              });
-              const pageData = JSON.parse(result?.result?.value || "{}");
+              // Extract structured search results
+              const results = await stagehand.extract(
+                "extract the top 5 search result titles, URLs, and snippet descriptions from this Google search results page",
+                searchResultsSchema
+              );
 
-              if (pageData.text) {
+              // Save search results as intelligence
+              for (const result of results.results.slice(0, 3)) {
                 await svc.from("warmup_intelligence").insert({
                   warmup_id: warmupId, agency_id: agencyId,
-                  source_url: searchUrl, page_title: pageData.title || kw,
-                  extracted_text: pageData.text, category: "trend",
+                  source_url: result.url, page_title: result.title,
+                  extracted_text: result.snippet, category: "search_result",
+                  content_type: "search_result",
                   keywords: [kw],
                 });
               }
 
-              await cdpSend("Runtime.evaluate", { expression: "window.scrollTo(0, 500)" });
-              await new Promise(r => setTimeout(r, 2000));
+              // Visit top result and extract deeper intelligence
+              if (results.results.length > 0) {
+                try {
+                  await page.goto(results.results[0].url, { waitUntil: "domcontentloaded", timeout: 15000 });
+                  await new Promise(r => setTimeout(r, 3000));
+
+                  const intel = await stagehand.extract(
+                    "extract the main article content summary, key takeaways as a list, and any statistics or numbers mentioned. If this is not an article, extract the main page content.",
+                    articleIntelligenceSchema
+                  );
+
+                  await svc.from("warmup_intelligence").insert({
+                    warmup_id: warmupId, agency_id: agencyId,
+                    source_url: results.results[0].url, page_title: results.results[0].title,
+                    extracted_text: intel.mainContent.slice(0, 2000),
+                    category: "article",
+                    content_type: "article",
+                    key_takeaways: intel.keyTakeaways,
+                    statistics: intel.statistics || [],
+                    keywords: [kw, intel.topic],
+                  });
+                } catch (deepErr) {
+                  console.warn(`Deep extraction failed for ${results.results[0].url}:`, deepErr);
+                }
+              }
+
+              await stagehand.act("scroll down through the page");
+              await new Promise(r => setTimeout(r, 1500));
               sitesVisited++;
               await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
             } catch (e) {
@@ -663,39 +821,57 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Direct URL visits
-          for (const url of directUrls) {
+          // Reddit trend scraping with structured extraction
+          const redditUrls = [
+            "https://www.reddit.com/r/onlyfansadvice/",
+            "https://www.reddit.com/r/CreatorsAdvice/",
+          ];
+
+          for (const url of redditUrls) {
             try {
-              await cdpSend("Page.navigate", { url });
-              await new Promise(r => setTimeout(r, 6000 + Math.random() * 3000));
+              await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+              await new Promise(r => setTimeout(r, 4000 + Math.random() * 2000));
 
-              const result = await cdpSend("Runtime.evaluate", {
-                expression: `JSON.stringify({ title: document.title, text: document.body.innerText.substring(0, 2000) })`,
-                returnByValue: true,
-              });
-              const pageData = JSON.parse(result?.result?.value || "{}");
+              const redditData = await stagehand.extract(
+                "extract the top 10 post titles, upvote counts, comment counts, and post URLs from this subreddit page",
+                redditPostsSchema
+              );
 
-              if (pageData.text) {
-                const cat = url.includes("reddit") ? "niche_research" : url.includes("x.com") ? "trend" : "competitor";
+              for (const post of redditData.posts) {
                 await svc.from("warmup_intelligence").insert({
                   warmup_id: warmupId, agency_id: agencyId,
-                  source_url: url, page_title: pageData.title || url,
-                  extracted_text: pageData.text, category: cat,
-                  keywords: ["onlyfans"],
+                  source_url: post.url, page_title: post.title,
+                  extracted_text: post.title,
+                  category: "niche_research",
+                  content_type: "reddit_post",
+                  engagement_metrics: { upvotes: post.upvotes, comments: post.comments },
+                  keywords: ["onlyfans", "reddit"],
                 });
               }
 
-              await cdpSend("Runtime.evaluate", { expression: "window.scrollTo(0, 600)" });
+              await stagehand.act("scroll through the page slowly");
               await new Promise(r => setTimeout(r, 2000));
               sitesVisited++;
               await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
             } catch (e) {
-              console.warn(`Research direct nav failed for ${url}:`, e);
+              console.warn(`Reddit scraping failed for ${url}:`, e);
             }
+          }
+
+          // X/Twitter trend scraping
+          try {
+            await page.goto("https://x.com/search?q=onlyfans+tips&src=typed_query", { waitUntil: "domcontentloaded", timeout: 15000 });
+            await new Promise(r => setTimeout(r, 5000));
+            await stagehand.act("scroll through the search results");
+            await new Promise(r => setTimeout(r, 2000));
+            sitesVisited++;
+            await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+          } catch (e) {
+            console.warn("X/Twitter scraping failed:", e);
           }
         }
 
-        ws.close();
+        await stagehand.close();
 
         // Release session to persist cookies
         try {
@@ -724,7 +900,6 @@ Deno.serve(async (req) => {
 
       let targetIds: string[] = creatorIds || [];
       if (!targetIds.length) {
-        // Get all creators with browser contexts
         const { data: links } = await svc.from("creator_session_links")
           .select("creator_id")
           .eq("agency_id", agencyId)
@@ -732,7 +907,6 @@ Deno.serve(async (req) => {
         targetIds = (links || []).map((l: any) => l.creator_id);
       }
 
-      // Return list of creator IDs — frontend will fire individual warmup calls in parallel
       return json({ success: true, creatorIds: targetIds, count: targetIds.length, warmupType });
     }
 
@@ -741,17 +915,13 @@ Deno.serve(async (req) => {
       const { agencyId, warmupType = "full", keywords } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
 
-      // Create a new Browserbase context (no creator)
       const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
 
-      // Insert into pre_warmed_profiles
       const { data: profile, error: pErr } = await svc.from("pre_warmed_profiles").insert({
         agency_id: agencyId, browserbase_context_id: ctx.id, status: "available",
       }).select("id").single();
       if (pErr) throw new Error(pErr.message);
 
-      // Now warmup this context (reuse warmup_single_profile logic inline)
-      // We return immediately and the caller should invoke warmup_single_profile separately
       return json({ success: true, profileId: profile.id, contextId: ctx.id, message: "Pre-warm profile created. Trigger warmup_single_profile to warm it up." });
     }
 
@@ -767,12 +937,10 @@ Deno.serve(async (req) => {
         .single();
       if (!profile) return json({ error: "Pre-warm profile not found or already assigned" }, 404);
 
-      // Assign to creator
       await svc.from("pre_warmed_profiles").update({
         assigned_creator_id: creatorId, status: "assigned",
       }).eq("id", profileId);
 
-      // Create/update creator's session link with this context
       const { data: existingLink } = await svc.from("creator_session_links")
         .select("id")
         .eq("creator_id", creatorId)

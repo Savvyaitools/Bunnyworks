@@ -113,17 +113,33 @@ ${earningsInfo ? `Creator Earnings: ${earningsInfo}` : ''}
 Use this data to create more targeted, performance-informed content suggestions.`;
     }
 
-    // Fetch warmup intelligence for richer context
+    // Fetch warmup intelligence for richer context (now includes structured Stagehand data)
     let intelligenceContext = "";
     if (agencyId) {
       const { data: intelData } = await supabase.from("warmup_intelligence")
-        .select("source_url, page_title, extracted_text, category, keywords")
+        .select("source_url, page_title, extracted_text, category, keywords, key_takeaways, statistics, engagement_metrics, content_type")
         .eq("agency_id", agencyId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
       if (intelData && intelData.length > 0) {
-        const intelSummary = intelData.map((i: any) => `[${i.category}] ${i.page_title}: ${(i.extracted_text || '').slice(0, 200)}`).join('\n');
-        intelligenceContext = `\n\nRESEARCH INTELLIGENCE (scraped from live browsing sessions):\n${intelSummary}\nUse these real-world findings to ground your recommendations in current trends and competitor strategies.`;
+        const intelSummary = intelData.map((i: any) => {
+          let entry = `[${i.content_type || i.category}] ${i.page_title}`;
+          if (i.key_takeaways?.length > 0) {
+            entry += `\n  Key Takeaways: ${i.key_takeaways.join('; ')}`;
+          }
+          if (i.statistics?.length > 0) {
+            entry += `\n  Statistics: ${i.statistics.join('; ')}`;
+          }
+          if (i.engagement_metrics) {
+            const em = i.engagement_metrics;
+            entry += `\n  Engagement: ${em.upvotes ? `${em.upvotes} upvotes` : ''}${em.comments ? `, ${em.comments} comments` : ''}`;
+          }
+          if (!i.key_takeaways?.length && i.extracted_text) {
+            entry += `: ${(i.extracted_text || '').slice(0, 200)}`;
+          }
+          return entry;
+        }).join('\n');
+        intelligenceContext = `\n\nRESEARCH INTELLIGENCE (AI-extracted structured data from live browsing sessions):\n${intelSummary}\nUse these real-world findings with their specific statistics and engagement metrics to ground your recommendations in current trends and competitor strategies.`;
       }
     }
 

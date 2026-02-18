@@ -220,49 +220,87 @@ export function ProfileWarmupManager() {
               No intelligence gathered yet. Run a "Research" or "Full" warmup to start collecting data.
             </CardContent></Card>
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Research Intelligence</CardTitle>
-                <CardDescription>Data extracted during research warmup runs — automatically fed to Tatum</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="hidden md:table-cell">Snippet</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {intelligence.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell className="max-w-[200px]">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs truncate">{item.page_title || item.source_url}</span>
-                            {item.source_url && (
-                              <a href={item.source_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                              </a>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs capitalize">{item.category.replace("_", " ")}</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell max-w-[300px]">
-                          <p className="text-xs text-muted-foreground truncate">{item.extracted_text?.slice(0, 120)}</p>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-                        </TableCell>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Research Intelligence</CardTitle>
+                  <CardDescription>Structured data extracted via AI during research warmup runs — automatically fed to Tatum</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Source</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="hidden md:table-cell">Key Insights</TableHead>
+                        <TableHead className="hidden lg:table-cell">Engagement</TableHead>
+                        <TableHead>Date</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {intelligence.map(item => {
+                        const hasStructured = (item as any).key_takeaways?.length > 0 || (item as any).engagement_metrics;
+                        const contentType = (item as any).content_type || "raw";
+                        const typeBadgeVariant = contentType === "article" ? "default" : contentType === "reddit_post" ? "secondary" : "outline";
+
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="max-w-[200px]">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs truncate">{item.page_title || item.source_url}</span>
+                                {item.source_url && (
+                                  <a href={item.source_url} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                  </a>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={typeBadgeVariant} className="text-xs capitalize">
+                                {contentType.replace("_", " ")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell max-w-[350px]">
+                              {hasStructured && (item as any).key_takeaways?.length > 0 ? (
+                                <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+                                  {((item as any).key_takeaways as string[]).slice(0, 3).map((t, i) => (
+                                    <li key={i} className="truncate">{t}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-xs text-muted-foreground truncate">{item.extracted_text?.slice(0, 120)}</p>
+                              )}
+                              {(item as any).statistics?.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {((item as any).statistics as string[]).slice(0, 3).map((s, i) => (
+                                    <Badge key={i} variant="outline" className="text-[10px] font-mono">{s}</Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">
+                              {(item as any).engagement_metrics && (
+                                <div className="text-xs text-muted-foreground space-y-0.5">
+                                  {(item as any).engagement_metrics.upvotes != null && (
+                                    <span className="block">↑ {(item as any).engagement_metrics.upvotes}</span>
+                                  )}
+                                  {(item as any).engagement_metrics.comments != null && (
+                                    <span className="block">💬 {(item as any).engagement_metrics.comments}</span>
+                                  )}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
       </Tabs>
