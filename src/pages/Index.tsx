@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { DashboardLayout } from "@/components/layout";
 import { RevenueChart } from "@/components/dashboard";
 import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
-import { CreatorPlatformCards } from "@/components/dashboard/CreatorPlatformCards";
+import { DashboardTasks } from "@/components/dashboard/DashboardTasks";
 import { RevenueSourceBreakdown } from "@/components/dashboard/RevenueSourceBreakdown";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -283,9 +283,11 @@ const Index = () => {
           </div>
         </div>
 
-
-        {/* Activity Feed */}
-        <LiveActivityFeed />
+        {/* Tasks + Activity Feed */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <DashboardTasks />
+          <LiveActivityFeed />
+        </div>
       </div>
     </DashboardLayout>
   );
