@@ -109,6 +109,8 @@ export type Database = {
           browser_sync_enabled: boolean | null
           commission_rate: number
           created_at: string
+          ghl_contact_id: string | null
+          ghl_location_id: string | null
           id: string
           logo_url: string | null
           max_creators: number
@@ -116,7 +118,11 @@ export type Database = {
           name: string
           onboarding_completed: boolean | null
           onboarding_step: number | null
+          subscription_ends_at: string | null
+          subscription_started_at: string | null
+          subscription_status: string
           subscription_tier: string
+          trial_ends_at: string | null
           updated_at: string
           website: string | null
         }
@@ -125,6 +131,8 @@ export type Database = {
           browser_sync_enabled?: boolean | null
           commission_rate?: number
           created_at?: string
+          ghl_contact_id?: string | null
+          ghl_location_id?: string | null
           id?: string
           logo_url?: string | null
           max_creators?: number
@@ -132,7 +140,11 @@ export type Database = {
           name: string
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string
           subscription_tier?: string
+          trial_ends_at?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -141,6 +153,8 @@ export type Database = {
           browser_sync_enabled?: boolean | null
           commission_rate?: number
           created_at?: string
+          ghl_contact_id?: string | null
+          ghl_location_id?: string | null
           id?: string
           logo_url?: string | null
           max_creators?: number
@@ -148,7 +162,11 @@ export type Database = {
           name?: string
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
+          subscription_ends_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string
           subscription_tier?: string
+          trial_ends_at?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -3430,6 +3448,60 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_events: {
+        Row: {
+          agency_id: string | null
+          amount: number | null
+          created_at: string
+          currency: string | null
+          event_type: string
+          ghl_order_id: string | null
+          ghl_subscription_id: string | null
+          id: string
+          metadata: Json | null
+          status: string
+        }
+        Insert: {
+          agency_id?: string | null
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          event_type: string
+          ghl_order_id?: string | null
+          ghl_subscription_id?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+        }
+        Update: {
+          agency_id?: string | null
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          event_type?: string
+          ghl_order_id?: string | null
+          ghl_subscription_id?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_events_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
             referencedColumns: ["id"]
           },
         ]
