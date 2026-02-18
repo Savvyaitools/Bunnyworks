@@ -1,22 +1,26 @@
 import { useState, useEffect } from "react";
-import { User, Bell, Building, Shield } from "lucide-react";
+import { User, Bell, Building, Shield, CreditCard } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgency } from "@/hooks/useAgency";
 import { useAgencyLogo } from "@/hooks/useAgencyLogo";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared";
 import { LogoUpload } from "@/components/shared/LogoUpload";
+import { SUBSCRIPTION_TIERS } from "@/lib/subscriptionTiers";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
+  { id: "billing", label: "Billing", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "agency", label: "Agency", icon: Building },
   { id: "security", label: "Security", icon: Shield },
@@ -28,6 +32,7 @@ export default function Settings() {
   const { profile, user } = useAuth();
   const { agency, updateAgency, isUpdating, limits } = useAgency();
   const { uploadLogo, deleteLogo, uploading: logoUploading, logoUrl } = useAgencyLogo();
+  const { subscription, checkoutLoading, initiateCheckout, paymentHistory } = useSubscription();
 
   // Set global handler for LogoUpload
   useEffect(() => {
@@ -204,6 +209,113 @@ export default function Settings() {
                     {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {activeTab === "billing" && (
+              <div className="glass-card p-6 space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">Billing & Subscription</h2>
+                  <p className="text-sm text-muted-foreground">Manage your plan and payment history</p>
+                </div>
+
+                <Separator className="bg-border" />
+
+                {/* Current Plan */}
+                <div className="p-5 rounded-xl bg-muted/30 border border-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Current Plan</p>
+                      <p className="text-2xl font-bold text-foreground uppercase">{subscription?.tier || "Core"}</p>
+                    </div>
+                    <Badge variant={subscription?.isActive ? "default" : "destructive"} className="text-xs">
+                      {subscription?.status === "trialing" ? "Trial" : subscription?.status === "active" ? "Active" : subscription?.status || "Trialing"}
+                    </Badge>
+                  </div>
+                  {subscription?.isTrialing && subscription.daysRemaining !== null && (
+                    <p className="text-sm text-primary font-medium">
+                      {subscription.daysRemaining > 0
+                        ? `${subscription.daysRemaining} days remaining in trial`
+                        : "Trial expired — upgrade to continue"}
+                    </p>
+                  )}
+                </div>
+
+                {/* Upgrade Options */}
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Available Plans</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {(["core", "scale", "pro"] as const).map((tierId) => {
+                      const tier = SUBSCRIPTION_TIERS[tierId];
+                      const isCurrent = subscription?.tier === tierId;
+                      return (
+                        <div
+                          key={tierId}
+                          className={cn(
+                            "p-4 rounded-xl border transition-colors",
+                            isCurrent ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/30"
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-semibold text-foreground">{tier.name}</p>
+                            {tier.discountLabel && (
+                              <span className="text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                {tier.discountLabel}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-2xl font-bold text-foreground mb-1">
+                            ${tier.price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            {tier.maxCreators} creator{tier.maxCreators > 1 ? "s" : ""} · {tier.maxEmployees} team members
+                          </p>
+                          <Button
+                            className={cn(
+                              "w-full text-xs",
+                              isCurrent ? "" : "bg-gradient-primary hover:opacity-90 shadow-glow-sm"
+                            )}
+                            variant={isCurrent ? "outline" : "default"}
+                            disabled={isCurrent || checkoutLoading}
+                            onClick={() => initiateCheckout(tierId)}
+                          >
+                            {isCurrent ? "Current Plan" : checkoutLoading ? "Processing..." : "Upgrade"}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Need unlimited? <a href="mailto:sales@mycreatorsuite.com" className="text-primary hover:underline">Contact sales</a> for Enterprise.
+                  </p>
+                </div>
+
+                {/* Payment History */}
+                {paymentHistory.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Payment History</h3>
+                    <div className="space-y-2">
+                      {paymentHistory.slice(0, 5).map((event: any) => (
+                        <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 text-sm">
+                          <div>
+                            <p className="font-medium text-foreground capitalize">{event.event_type.replace(/_/g, " ")}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(event.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            {event.amount > 0 && (
+                              <p className="font-medium text-foreground">${(event.amount / 100).toFixed(2)}</p>
+                            )}
+                            <Badge variant={event.status === "completed" ? "default" : "secondary"} className="text-[10px]">
+                              {event.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
