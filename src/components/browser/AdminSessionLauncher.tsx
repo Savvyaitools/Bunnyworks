@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreators } from "@/hooks/useCreators";
 import { useBrowserSessions } from "@/hooks/useBrowserSessions";
-import { EmbeddedBrowserViewer } from "./EmbeddedBrowserViewer";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
 import {
   Globe, Loader2, ShieldCheck, KeyRound, CheckCircle2,
   Clock, RotateCcw, Plus,
@@ -18,25 +18,22 @@ interface AdminSessionLauncherProps {
 }
 
 export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLauncherProps) {
-  const { creators } = useCreators();
-  const { sessionLinks, createAdminSession, saveAndClose, terminateSession, launching, recoverStuckSessions, invalidate } = useBrowserSessions();
+  const { creators: allCreators } = useCreators();
+  const { sessionLinks, createAdminSession, saveAndClose, launching, recoverStuckSessions, invalidate } = useBrowserSessions();
+  const { activeSession, setActiveSession, clearSession, minimized, setMinimized } = useActiveBrowserSession();
 
-  // Auto-recover stuck sessions on mount and when session links change
+  // Filter to specific creator when inside a creator detail page
+  const creators = preselectedCreatorId
+    ? (allCreators ?? []).filter((c) => c.id === preselectedCreatorId)
+    : allCreators;
+
+  // Auto-recover stuck sessions on mount
   useEffect(() => {
     const hasStuck = sessionLinks.some((l) => l.session_status === "authenticating");
-    if (hasStuck) {
-      recoverStuckSessions();
-    }
+    if (hasStuck) recoverStuckSessions();
   }, [sessionLinks.length]);
 
   const [selectedPlatform, setSelectedPlatform] = useState<string>("onlyfans");
-  const [activeSession, setActiveSession] = useState<{
-    embedUrl: string;
-    sessionId: string;
-    sessionLinkId: string;
-    creatorId: string;
-  } | null>(null);
-  const [saving, setSaving] = useState(false);
   const [launchingCreatorId, setLaunchingCreatorId] = useState<string | null>(null);
 
   const handleLaunch = async (creatorId: string) => {
@@ -44,49 +41,20 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
     const result = await createAdminSession(creatorId, selectedPlatform);
     setLaunchingCreatorId(null);
     if (result) {
+      const creatorName = (allCreators ?? []).find((c) => c.id === creatorId)?.name;
       setActiveSession({
         embedUrl: result.embedUrl,
         sessionId: result.sessionId,
         sessionLinkId: result.sessionLinkId,
         creatorId,
+        creatorName,
+        platform: selectedPlatform,
       });
+      setMinimized(false);
     }
   };
 
-  const handleSaveAndClose = async () => {
-    if (!activeSession) return;
-    setSaving(true);
-    await saveAndClose(activeSession.sessionLinkId, activeSession.sessionId);
-    setActiveSession(null);
-    setSaving(false);
-  };
-
-  const handleClose = async () => {
-    if (activeSession) {
-      const session = activeSession;
-      setActiveSession(null); // Close UI immediately
-      // Save in background — don't block the user
-      saveAndClose(session.sessionLinkId, session.sessionId).catch(() => {
-        invalidate(); // Refresh state even on error
-      });
-    }
-  };
-
-  if (activeSession) {
-    const creatorName = creators?.find((c) => c.id === activeSession.creatorId)?.name;
-    return (
-      <EmbeddedBrowserViewer
-        embedUrl={activeSession.embedUrl}
-        title={`Login — ${creatorName || "Creator"}`}
-        platform={selectedPlatform}
-        onClose={handleClose}
-        onSaveAndClose={handleSaveAndClose}
-        showSaveButton
-        saving={saving}
-        creatorId={activeSession.creatorId}
-      />
-    );
-  }
+  // The ActiveSessionBanner handles rendering the viewer globally
 
   // Build a map of session links by creator_id + platform
   const linkMap = new Map<string, typeof sessionLinks[0]>();
@@ -150,10 +118,7 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
           const isLaunchingThis = launchingCreatorId === creator.id && launching;
 
           return (
-            <Card
-              key={creator.id}
-              className={isAuthenticated ? "border-primary/20" : ""}
-            >
+            <Card key={creator.id} className={isAuthenticated ? "border-primary/20" : ""}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
@@ -162,12 +127,9 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
                       <span className="font-semibold text-sm truncate block">
                         {creator.name}
                         {creator.alias ? (
-                          <span className="text-muted-foreground font-normal ml-1">
-                            ({creator.alias})
-                          </span>
+                          <span className="text-muted-foreground font-normal ml-1">({creator.alias})</span>
                         ) : null}
                       </span>
-
                       {isAuthenticated && link?.last_saved_at ? (
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <Badge className="bg-primary/15 text-primary border-primary/30 text-xs gap-1">
@@ -182,41 +144,19 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
                           <Clock className="h-3 w-3" /> Login in progress...
                         </Badge>
                       ) : (
-                        <span className="text-xs text-muted-foreground mt-0.5 block">
-                          Not yet authenticated
-                        </span>
+                        <span className="text-xs text-muted-foreground mt-0.5 block">Not yet authenticated</span>
                       )}
                     </div>
                   </div>
-
                   <div className="shrink-0">
                     {isAuthenticated ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleLaunch(creator.id)}
-                        disabled={isLaunchingThis}
-                        className="gap-1.5"
-                      >
-                        {isLaunchingThis ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
+                      <Button variant="outline" size="sm" onClick={() => handleLaunch(creator.id)} disabled={isLaunchingThis} className="gap-1.5">
+                        {isLaunchingThis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
                         Re-authenticate
                       </Button>
                     ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => handleLaunch(creator.id)}
-                        disabled={isLaunchingThis || isAuthenticating}
-                        className="gap-1.5"
-                      >
-                        {isLaunchingThis ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5" />
-                        )}
+                      <Button size="sm" onClick={() => handleLaunch(creator.id)} disabled={isLaunchingThis || isAuthenticating} className="gap-1.5">
+                        {isLaunchingThis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                         {isAuthenticating ? "In Progress..." : "Authenticate"}
                       </Button>
                     )}

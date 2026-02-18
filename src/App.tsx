@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ActiveBrowserSessionProvider } from "@/contexts/ActiveBrowserSessionContext";
+import { ActiveSessionBanner } from "@/components/browser/ActiveSessionBanner";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -190,8 +192,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <CommandPalette />
-            <AppRoutes />
+            <ActiveBrowserSessionProvider>
+              <CommandPalette />
+              <ActiveSessionBanner />
+              <AppRoutes />
+            </ActiveBrowserSessionProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
