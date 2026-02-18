@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { SessionRecordingViewer } from "./SessionRecordingViewer";
 import { SessionLogsViewer } from "./SessionLogsViewer";
 import { SessionDownloadsViewer } from "./SessionDownloadsViewer";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 function statusBadge(status: string | null) {
   switch (status) {
@@ -36,6 +37,7 @@ export function BrowserSessionsDashboard() {
   const { sessionLinks, activeSessions, linksLoading, terminateSession, invalidate } = useBrowserSessions();
   const captchaCheck = useCaptchaCheck();
   const [viewerPanel, setViewerPanel] = useState<ViewerPanel | null>(null);
+  const isMobile = useIsMobile();
 
   if (linksLoading) {
     return (
@@ -95,129 +97,188 @@ export function BrowserSessionsDashboard() {
           <RefreshCw className="h-4 w-4" />
         </Button>
       </CardHeader>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Creator</TableHead>
-              <TableHead>Platform</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Active Sessions</TableHead>
-              <TableHead>Last Used</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sessionLinks.map((link) => {
-              const activeCount = activeSessionMap.get(link.id) || 0;
-              const linkActiveSessions = activeSessions.filter(
-                (s) => s.session_link_id === link.id
-              );
-              const creatorLabel = link.creator?.name || "Unknown";
-
-              return (
-                <TableRow key={link.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <UserAvatar name={link.creator?.name || "?"} className="h-8 w-8" />
-                      <div>
-                        <span className="font-medium text-sm">
-                          {link.creator?.name || "Unknown"}
-                        </span>
-                        {link.creator?.alias && (
-                          <span className="text-xs text-muted-foreground ml-1">
-                            ({link.creator.alias})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {link.platform}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {statusBadge(link.session_status)}
-                  </TableCell>
-                  <TableCell>
-                    {activeCount > 0 ? (
-                      <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30">
-                        {activeCount} active
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">None</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {link.last_saved_at
-                      ? formatDistanceToNow(new Date(link.last_saved_at), { addSuffix: true })
-                      : "Never"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 flex-wrap">
-                      {/* Session inspection buttons for completed sessions */}
-                      {link.browserbase_session_id && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setViewerPanel({ type: "recording", sessionId: link.browserbase_session_id!, label: creatorLabel })}
-                            className="h-7 text-xs"
-                            title="View Recording"
-                          >
-                            <Film className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setViewerPanel({ type: "logs", sessionId: link.browserbase_session_id!, label: creatorLabel })}
-                            className="h-7 text-xs"
-                            title="View Logs"
-                          >
-                            <Terminal className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setViewerPanel({ type: "downloads", sessionId: link.browserbase_session_id!, label: creatorLabel })}
-                            className="h-7 text-xs"
-                            title="View Downloads"
-                          >
-                            <Download className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => captchaCheck.mutate({ browserbaseSessionId: link.browserbase_session_id!, sessionLinkId: link.id })}
-                            className="h-7 text-xs"
-                            title="Check CAPTCHA Events"
-                            disabled={captchaCheck.isPending}
-                          >
-                            <ShieldAlert className="h-3 w-3" />
-                          </Button>
-                        </>
-                      )}
-                      {linkActiveSessions.map((s) => (
-                        <Button
-                          key={s.id}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => terminateSession(s.browserbase_session_id)}
-                          className="text-destructive h-7 text-xs"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Kill
-                        </Button>
-                      ))}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+      <CardContent className={isMobile ? "px-3 pb-3" : "p-0"}>
+        {isMobile ? (
+          <MobileSessionList
+            sessionLinks={sessionLinks}
+            activeSessions={activeSessions}
+            activeSessionMap={activeSessionMap}
+            terminateSession={terminateSession}
+            captchaCheck={captchaCheck}
+            setViewerPanel={setViewerPanel}
+          />
+        ) : (
+          <DesktopSessionTable
+            sessionLinks={sessionLinks}
+            activeSessions={activeSessions}
+            activeSessionMap={activeSessionMap}
+            terminateSession={terminateSession}
+            captchaCheck={captchaCheck}
+            setViewerPanel={setViewerPanel}
+          />
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+// Shared props interface
+interface SessionListProps {
+  sessionLinks: any[];
+  activeSessions: any[];
+  activeSessionMap: Map<string, number>;
+  terminateSession: (id: string) => void;
+  captchaCheck: any;
+  setViewerPanel: (panel: ViewerPanel | null) => void;
+}
+
+function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel }: SessionListProps) {
+  return (
+    <div className="space-y-3">
+      {sessionLinks.map((link) => {
+        const activeCount = activeSessionMap.get(link.id) || 0;
+        const linkActiveSessions = activeSessions.filter((s: any) => s.session_link_id === link.id);
+        const creatorLabel = link.creator?.name || "Unknown";
+
+        return (
+          <div key={link.id} className="rounded-lg border bg-muted/30 p-3 space-y-3">
+            {/* Header: avatar + name + status */}
+            <div className="flex items-center gap-3">
+              <UserAvatar name={link.creator?.name || "?"} className="h-9 w-9" />
+              <div className="flex-1 min-w-0">
+                <span className="font-medium text-sm truncate block">
+                  {link.creator?.name || "Unknown"}
+                  {link.creator?.alias && (
+                    <span className="text-muted-foreground font-normal ml-1">({link.creator.alias})</span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <Badge variant="outline" className="capitalize text-xs">{link.platform}</Badge>
+                  {statusBadge(link.session_status)}
+                </div>
+              </div>
+            </div>
+
+            {/* Meta row */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {link.last_saved_at
+                  ? formatDistanceToNow(new Date(link.last_saved_at), { addSuffix: true })
+                  : "Never used"}
+              </span>
+              {activeCount > 0 && (
+                <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30 text-xs">
+                  {activeCount} active
+                </Badge>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {link.browserbase_session_id && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => setViewerPanel({ type: "recording", sessionId: link.browserbase_session_id!, label: creatorLabel })} className="h-8 text-xs gap-1">
+                    <Film className="h-3.5 w-3.5" /> Recording
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setViewerPanel({ type: "logs", sessionId: link.browserbase_session_id!, label: creatorLabel })} className="h-8 text-xs gap-1">
+                    <Terminal className="h-3.5 w-3.5" /> Logs
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setViewerPanel({ type: "downloads", sessionId: link.browserbase_session_id!, label: creatorLabel })} className="h-8 text-xs gap-1">
+                    <Download className="h-3.5 w-3.5" /> Files
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => captchaCheck.mutate({ browserbaseSessionId: link.browserbase_session_id!, sessionLinkId: link.id })} className="h-8 text-xs gap-1" disabled={captchaCheck.isPending}>
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              )}
+              {linkActiveSessions.map((s: any) => (
+                <Button key={s.id} variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-8 text-xs gap-1">
+                  <Trash2 className="h-3.5 w-3.5" /> Kill
+                </Button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel }: SessionListProps) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Creator</TableHead>
+          <TableHead>Platform</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Active Sessions</TableHead>
+          <TableHead>Last Used</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sessionLinks.map((link) => {
+          const activeCount = activeSessionMap.get(link.id) || 0;
+          const linkActiveSessions = activeSessions.filter((s: any) => s.session_link_id === link.id);
+          const creatorLabel = link.creator?.name || "Unknown";
+
+          return (
+            <TableRow key={link.id}>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <UserAvatar name={link.creator?.name || "?"} className="h-8 w-8" />
+                  <div>
+                    <span className="font-medium text-sm">{link.creator?.name || "Unknown"}</span>
+                    {link.creator?.alias && (
+                      <span className="text-xs text-muted-foreground ml-1">({link.creator.alias})</span>
+                    )}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className="capitalize">{link.platform}</Badge>
+              </TableCell>
+              <TableCell>{statusBadge(link.session_status)}</TableCell>
+              <TableCell>
+                {activeCount > 0 ? (
+                  <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30">{activeCount} active</Badge>
+                ) : (
+                  <span className="text-xs text-muted-foreground">None</span>
+                )}
+              </TableCell>
+              <TableCell className="text-xs text-muted-foreground">
+                {link.last_saved_at ? formatDistanceToNow(new Date(link.last_saved_at), { addSuffix: true }) : "Never"}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1 flex-wrap">
+                  {link.browserbase_session_id && (
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => setViewerPanel({ type: "recording", sessionId: link.browserbase_session_id!, label: creatorLabel })} className="h-7 text-xs" title="View Recording">
+                        <Film className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setViewerPanel({ type: "logs", sessionId: link.browserbase_session_id!, label: creatorLabel })} className="h-7 text-xs" title="View Logs">
+                        <Terminal className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setViewerPanel({ type: "downloads", sessionId: link.browserbase_session_id!, label: creatorLabel })} className="h-7 text-xs" title="View Downloads">
+                        <Download className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => captchaCheck.mutate({ browserbaseSessionId: link.browserbase_session_id!, sessionLinkId: link.id })} className="h-7 text-xs" title="Check CAPTCHA Events" disabled={captchaCheck.isPending}>
+                        <ShieldAlert className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
+                  {linkActiveSessions.map((s: any) => (
+                    <Button key={s.id} variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-7 text-xs">
+                      <Trash2 className="h-3 w-3 mr-1" /> Kill
+                    </Button>
+                  ))}
+                </div>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
