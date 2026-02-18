@@ -130,7 +130,7 @@ export function TodayStats() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {[...Array(4)].map((_, i) => (
           <motion.div 
             key={i} 
@@ -151,7 +151,7 @@ export function TodayStats() {
 
   return (
     <motion.div 
-      className="grid grid-cols-2 md:grid-cols-4 gap-4"
+      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-4"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -164,30 +164,6 @@ export function TodayStats() {
         trend={revenueTrend >= 0 ? "up" : "down"}
         trendValue={`${revenueTrend >= 0 ? "+" : ""}${revenueTrend}%`}
         index={0}
-      />
-      <StatCard
-        title="Messages Sent"
-        value={stats?.messagesSent || 0}
-        subValue="Total today"
-        icon={MessageSquare}
-        color="primary"
-        index={1}
-      />
-      <StatCard
-        title="Active Chatters"
-        value={stats?.activeChatters || 0}
-        subValue={`${stats?.totalChattersToday || 0} worked today`}
-        icon={Users}
-        color="accent"
-        index={2}
-      />
-      <StatCard
-        title="Avg Response"
-        value={`${stats?.avgResponseTime?.toFixed(1) || 0}m`}
-        subValue="Response time"
-        icon={Clock}
-        color="warning"
-        index={3}
       />
     </motion.div>
   );

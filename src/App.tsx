@@ -35,7 +35,7 @@ const Recruiting = lazy(() => import("./pages/Recruiting"));
 const Chatters = lazy(() => import("./pages/Chatters"));
 const ShiftRoster = lazy(() => import("./pages/ShiftRoster"));
 const InternalMessages = lazy(() => import("./pages/InternalMessages"));
-const DataImport = lazy(() => import("./pages/DataImport"));
+
 const Applications = lazy(() => import("./pages/Applications"));
 const BrowserSync = lazy(() => import("./pages/BrowserSync"));
 const UserGuide = lazy(() => import("./pages/UserGuide"));
@@ -140,7 +140,7 @@ const AppRoutes = () => {
         <Route path="/recruiting" element={<ProtectedRoute allowedUserTypes={["agency"]}><Recruiting /></ProtectedRoute>} />
         <Route path="/team-chat" element={<ProtectedRoute allowedUserTypes={["agency"]}><InternalMessages /></ProtectedRoute>} />
         <Route path="/shifts" element={<ProtectedRoute allowedUserTypes={["agency"]}><ShiftRoster /></ProtectedRoute>} />
-        <Route path="/data-import" element={<ProtectedRoute allowedUserTypes={["agency"]}><DataImport /></ProtectedRoute>} />
+        
         <Route path="/applications" element={<ProtectedRoute allowedUserTypes={["agency"]}><Applications /></ProtectedRoute>} />
         <Route path="/tools/creator-discovery" element={<ProtectedRoute allowedUserTypes={["agency"]}><CreatorDiscovery /></ProtectedRoute>} />
         <Route path="/browser-sync" element={<ProtectedRoute allowedUserTypes={["agency"]}><BrowserSync /></ProtectedRoute>} />
