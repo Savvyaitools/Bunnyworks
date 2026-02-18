@@ -145,12 +145,15 @@ Deno.serve(async (req) => {
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 600, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
-      // Navigate FIRST, then fetch debug URL — avoids serving embed before page stabilises
+      // Wait for persistent context cookies to fully load into the browser before navigating.
+      // Browserbase injects cookies from the context during session init — navigating too
+      // early races with this injection and OnlyFans sees an unauthenticated browser.
+      await new Promise(r => setTimeout(r, 3000));
       if (startUrl && sess.connectUrl) {
         await navigateSession(sess.connectUrl, startUrl);
       }
-      // Small delay to let the page start rendering before we grab the debug URL
-      await new Promise(r => setTimeout(r, 1500));
+      // Let the page start rendering before grabbing the debug URL
+      await new Promise(r => setTimeout(r, 2000));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       
@@ -174,7 +177,23 @@ Deno.serve(async (req) => {
       if (alive) {
         try { 
           await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
-          console.log(`Session ${browserbaseSessionId} released successfully`);
+          console.log(`Session ${browserbaseSessionId} release requested`);
+          // Wait for Browserbase to fully persist the context (cookies, storage, etc.)
+          // This is critical — without this delay, a new session created immediately after
+          // may get stale cookies because the context hasn't finished saving yet.
+          let persisted = false;
+          for (let i = 0; i < 10; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+              const status = await bb(BK, `/sessions/${browserbaseSessionId}`);
+              if (status.status !== "RUNNING") {
+                console.log(`Session ${browserbaseSessionId} fully stopped after ${(i+1)*2}s (status: ${status.status})`);
+                persisted = true;
+                break;
+              }
+            } catch { break; }
+          }
+          if (!persisted) console.warn(`Session ${browserbaseSessionId} may still be shutting down`);
         } catch (e) {
           console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
         }
@@ -331,10 +350,12 @@ Deno.serve(async (req) => {
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
+      // Wait for persistent context cookies to load before navigating
+      await new Promise(r => setTimeout(r, 3000));
       if (chatterStartUrl && sess.connectUrl) {
         await navigateSession(sess.connectUrl, chatterStartUrl);
       }
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 2000));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       const viewerId = chatterId || uid;
