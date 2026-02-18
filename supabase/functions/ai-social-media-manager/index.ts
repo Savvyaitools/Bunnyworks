@@ -113,10 +113,24 @@ ${earningsInfo ? `Creator Earnings: ${earningsInfo}` : ''}
 Use this data to create more targeted, performance-informed content suggestions.`;
     }
 
+    // Fetch warmup intelligence for richer context
+    let intelligenceContext = "";
+    if (agencyId) {
+      const { data: intelData } = await supabase.from("warmup_intelligence")
+        .select("source_url, page_title, extracted_text, category, keywords")
+        .eq("agency_id", agencyId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (intelData && intelData.length > 0) {
+        const intelSummary = intelData.map((i: any) => `[${i.category}] ${i.page_title}: ${(i.extracted_text || '').slice(0, 200)}`).join('\n');
+        intelligenceContext = `\n\nRESEARCH INTELLIGENCE (scraped from live browsing sessions):\n${intelSummary}\nUse these real-world findings to ground your recommendations in current trends and competitor strategies.`;
+      }
+    }
+
     let systemPrompt = "";
     let userPrompt = "";
 
-    const basePersonality = `You are Tatum, a personal social media strategist for this OnlyFans agency. You know their creators, their brand styles, what content performs well, and their posting preferences. You give tailored, data-backed advice — not generic templates.${memoryContext}${dataContext}${liveOFContext}`;
+    const basePersonality = `You are Tatum, a personal social media strategist for this OnlyFans agency. You know their creators, their brand styles, what content performs well, and their posting preferences. You give tailored, data-backed advice — not generic templates.${memoryContext}${dataContext}${liveOFContext}${intelligenceContext}`;
 
     if (action === "generate_posts") {
       systemPrompt = `${basePersonality}\n\nGenerate platform-optimized posts. Use creator-specific language and consider their audience. Always respond with valid JSON only.\n\nAfter JSON, if you spot new brand preferences worth remembering, append: <!--MEMORIES:[{"category":"...","content":"...","importance":1-10}]-->`;

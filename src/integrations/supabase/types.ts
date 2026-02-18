@@ -1540,6 +1540,73 @@ export type Database = {
           },
         ]
       }
+      creator_profile_warmups: {
+        Row: {
+          agency_id: string
+          browserbase_context_id: string
+          completed_at: string | null
+          created_at: string
+          creator_id: string | null
+          error_message: string | null
+          id: string
+          sites_visited: number
+          started_at: string | null
+          status: string
+          total_sites: number
+          warmup_type: string
+        }
+        Insert: {
+          agency_id: string
+          browserbase_context_id: string
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string | null
+          error_message?: string | null
+          id?: string
+          sites_visited?: number
+          started_at?: string | null
+          status?: string
+          total_sites?: number
+          warmup_type?: string
+        }
+        Update: {
+          agency_id?: string
+          browserbase_context_id?: string
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string | null
+          error_message?: string | null
+          id?: string
+          sites_visited?: number
+          started_at?: string | null
+          status?: string
+          total_sites?: number
+          warmup_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_profile_warmups_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_profile_warmups_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_profile_warmups_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_session_links: {
         Row: {
           agency_id: string
@@ -3469,6 +3536,61 @@ export type Database = {
           },
         ]
       }
+      pre_warmed_profiles: {
+        Row: {
+          agency_id: string
+          assigned_creator_id: string | null
+          browserbase_context_id: string
+          created_at: string
+          id: string
+          last_warmed_at: string | null
+          status: string
+          warmup_count: number
+        }
+        Insert: {
+          agency_id: string
+          assigned_creator_id?: string | null
+          browserbase_context_id: string
+          created_at?: string
+          id?: string
+          last_warmed_at?: string | null
+          status?: string
+          warmup_count?: number
+        }
+        Update: {
+          agency_id?: string
+          assigned_creator_id?: string | null
+          browserbase_context_id?: string
+          created_at?: string
+          id?: string
+          last_warmed_at?: string | null
+          status?: string
+          warmup_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_warmed_profiles_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_warmed_profiles_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_warmed_profiles_assigned_creator_id_fkey"
+            columns: ["assigned_creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           agency_id: string | null
@@ -4079,6 +4201,64 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      warmup_intelligence: {
+        Row: {
+          agency_id: string
+          category: string
+          created_at: string
+          extracted_text: string | null
+          id: string
+          keywords: string[] | null
+          page_title: string | null
+          source_url: string | null
+          warmup_id: string | null
+        }
+        Insert: {
+          agency_id: string
+          category?: string
+          created_at?: string
+          extracted_text?: string | null
+          id?: string
+          keywords?: string[] | null
+          page_title?: string | null
+          source_url?: string | null
+          warmup_id?: string | null
+        }
+        Update: {
+          agency_id?: string
+          category?: string
+          created_at?: string
+          extracted_text?: string | null
+          id?: string
+          keywords?: string[] | null
+          page_title?: string | null
+          source_url?: string | null
+          warmup_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warmup_intelligence_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warmup_intelligence_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warmup_intelligence_warmup_id_fkey"
+            columns: ["warmup_id"]
+            isOneToOne: false
+            referencedRelation: "creator_profile_warmups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
