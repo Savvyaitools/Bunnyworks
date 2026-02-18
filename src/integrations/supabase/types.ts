@@ -4206,34 +4206,46 @@ export type Database = {
         Row: {
           agency_id: string
           category: string
+          content_type: string | null
           created_at: string
+          engagement_metrics: Json | null
           extracted_text: string | null
           id: string
+          key_takeaways: string[] | null
           keywords: string[] | null
           page_title: string | null
           source_url: string | null
+          statistics: string[] | null
           warmup_id: string | null
         }
         Insert: {
           agency_id: string
           category?: string
+          content_type?: string | null
           created_at?: string
+          engagement_metrics?: Json | null
           extracted_text?: string | null
           id?: string
+          key_takeaways?: string[] | null
           keywords?: string[] | null
           page_title?: string | null
           source_url?: string | null
+          statistics?: string[] | null
           warmup_id?: string | null
         }
         Update: {
           agency_id?: string
           category?: string
+          content_type?: string | null
           created_at?: string
+          engagement_metrics?: Json | null
           extracted_text?: string | null
           id?: string
+          key_takeaways?: string[] | null
           keywords?: string[] | null
           page_title?: string | null
           source_url?: string | null
+          statistics?: string[] | null
           warmup_id?: string | null
         }
         Relationships: [
