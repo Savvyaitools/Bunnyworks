@@ -141,8 +141,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Admin sessions: 10-minute timeout (down from 60 min) — admins only need 2-5 min to log in
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 600, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      // Admin sessions: 30-minute timeout — give admins enough time to complete 2FA and verify login
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       // Wait for persistent context cookies to fully load into the browser before navigating.
