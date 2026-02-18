@@ -303,9 +303,11 @@ function PricingCard({ name, price, originalPrice, period, desc, features, ctaLa
         })}
       </ul>
       {isEnterprise ? (
-        <Button variant="outline" className="w-full rounded-full mt-auto text-xs sm:text-sm">{ctaLabel}</Button>
+        <a href="mailto:sales@mycreatorsuite.com?subject=Enterprise%20Plan%20Inquiry" className="mt-auto">
+          <Button variant="outline" className="w-full rounded-full mt-auto text-xs sm:text-sm">{ctaLabel}</Button>
+        </a>
       ) : (
-        <Link to="/auth" className="mt-auto">
+        <Link to={`/auth?plan=${name.toLowerCase()}`} className="mt-auto">
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button className={`w-full rounded-full text-xs sm:text-sm ${highlight ? "bg-primary hover:bg-primary/90 shadow-glow" : ""}`} variant={highlight ? "default" : "outline"}>{ctaLabel}</Button>
           </motion.div>

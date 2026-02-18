@@ -54,3 +54,12 @@ verify_jwt = false
 
 [functions.upload-browserbase-extension]
 verify_jwt = false
+
+[functions.ghl-create-checkout]
+verify_jwt = false
+
+[functions.ghl-webhook]
+verify_jwt = false
+
+[functions.create-user-account]
+verify_jwt = false
