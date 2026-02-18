@@ -143,9 +143,37 @@ export function HeroSection() {
             </div>
           </motion.div>
 
+          {/* Tech badges */}
+          <motion.div
+            className="mt-10 sm:mt-14 md:mt-20 flex flex-wrap items-center gap-3 sm:gap-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.75, duration: 0.6 }}
+          >
+            <span className="text-xs text-muted-foreground mr-1 uppercase tracking-widest font-medium">Powered by</span>
+            {[
+              { icon: "🔐", label: "End-to-End Encryption" },
+              { icon: "🛡️", label: "Zero-Trust Auth" },
+              { icon: "☁️", label: "Cloud-Native Sessions" },
+              { icon: "⚡", label: "Lightweight & Fast" },
+              { icon: "🖥️", label: "Dedicated Servers (Enterprise)" },
+            ].map((tech, i) => (
+              <motion.span
+                key={tech.label}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.85 + i * 0.07, type: "spring", stiffness: 200 }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-muted/50 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+              >
+                <span>{tech.icon}</span>
+                {tech.label}
+              </motion.span>
+            ))}
+          </motion.div>
+
           {/* Stats strip with animated counters */}
           <motion.div
-            className="mt-12 sm:mt-16 md:mt-24 flex flex-wrap gap-6 sm:gap-8 md:gap-16 border-t border-border pt-6 sm:pt-8"
+            className="mt-8 sm:mt-12 md:mt-16 flex flex-wrap gap-6 sm:gap-8 md:gap-16 border-t border-border pt-6 sm:pt-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.6 }}
