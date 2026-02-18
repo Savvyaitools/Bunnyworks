@@ -6,6 +6,8 @@ import { X, Monitor, PanelRightOpen, PanelRightClose, Users } from "lucide-react
 import { BrowserSessionPanel } from "./BrowserSessionPanel";
 import { IzzyOverlay } from "./IzzyOverlay";
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export interface BrowserPermissions {
   can_view_chats: boolean;
@@ -63,50 +65,61 @@ export function EmbeddedBrowserViewer({
   const [loaded, setLoaded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isMobile = useIsMobile();
 
   // Heartbeat: keeps session alive while this viewer has the tab open
   useSessionHeartbeat(sessionId || null, chatterId);
 
+  const panelContent = (
+    <BrowserSessionPanel
+      creatorName={title}
+      platform={platform || "onlyfans"}
+      collapsed={false}
+      onToggle={() => setPanelOpen(!panelOpen)}
+      iframeRef={iframeRef}
+    />
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0">
-        <div className="flex items-center gap-3">
-          <Monitor className="h-4 w-4 text-primary" />
-          <span className="font-medium text-sm">{title}</span>
-          {platform && (
-            <Badge variant="secondary" className="text-xs capitalize">
+      <div className="flex items-center justify-between px-2 sm:px-4 py-2 border-b bg-card shrink-0 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 overflow-hidden">
+          <Monitor className="h-4 w-4 text-primary shrink-0" />
+          <span className="font-medium text-sm truncate">{title}</span>
+          {!isMobile && platform && (
+            <Badge variant="secondary" className="text-xs capitalize shrink-0">
               {platform}
             </Badge>
           )}
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs shrink-0">
             <span className="h-2 w-2 rounded-full bg-green-500 mr-1.5 inline-block animate-pulse" />
             Live
           </Badge>
-          {viewerCount > 1 && (
-            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30">
+          {!isMobile && viewerCount > 1 && (
+            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30 shrink-0">
               <Users className="h-3 w-3 mr-1" />
               {viewerCount} viewing
             </Badge>
           )}
-          {permissions && (
+          {!isMobile && permissions && (
             <Badge
               variant="outline"
-              className="text-xs bg-primary/10 text-primary border-primary/30"
+              className="text-xs bg-primary/10 text-primary border-primary/30 shrink-0"
             >
               {getPermissionSummary(permissions)}
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {showSaveButton && onSaveAndClose && (
             <Button
               size="sm"
               onClick={onSaveAndClose}
               disabled={saving}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
             >
-              {saving ? "Saving..." : "Save Login & Close"}
+              {saving ? "Saving..." : isMobile ? "Save" : "Save Login & Close"}
             </Button>
           )}
           <Button
@@ -157,14 +170,33 @@ export function EmbeddedBrowserViewer({
           />
         </div>
 
-        {/* Side panel */}
-        <BrowserSessionPanel
-          creatorName={title}
-          platform={platform || "onlyfans"}
-          collapsed={!panelOpen}
-          onToggle={() => setPanelOpen(!panelOpen)}
-          iframeRef={iframeRef}
-        />
+        {/* Side panel — desktop: inline, mobile: sheet */}
+        {isMobile ? (
+          <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
+            <SheetContent side="right" className="p-0 w-[85vw] max-w-sm">
+              <div className="h-full overflow-auto">{panelContent}</div>
+            </SheetContent>
+          </Sheet>
+        ) : (
+          panelOpen && (
+            <BrowserSessionPanel
+              creatorName={title}
+              platform={platform || "onlyfans"}
+              collapsed={!panelOpen}
+              onToggle={() => setPanelOpen(!panelOpen)}
+              iframeRef={iframeRef}
+            />
+          )
+        )}
+        {!isMobile && !panelOpen && (
+          <BrowserSessionPanel
+            creatorName={title}
+            platform={platform || "onlyfans"}
+            collapsed={true}
+            onToggle={() => setPanelOpen(true)}
+            iframeRef={iframeRef}
+          />
+        )}
       </div>
 
       {/* Jodie AI Floating Overlay */}
