@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+import { Stagehand } from "npm:@browserbasehq/stagehand";
+import { z } from "npm:zod";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,22 +18,75 @@ const PLATFORM_URLS: Record<string, string> = {
   fansly: "https://fansly.com",
 };
 
-// ========== CDP Navigation Helper ==========
-async function navigateViaCDP(bbKey: string, sessionId: string, url: string) {
-  try {
-    const dbg = await bb(bbKey, `/sessions/${sessionId}/debug`);
-    const wsUrl = dbg.pages?.[0]?.debuggerWsUrl || dbg.debuggerWsUrl;
-    if (!wsUrl) {
-      console.warn("No WebSocket URL available for CDP navigation, skipping");
-      return;
-    }
-    // Use Browserbase REST debug endpoint to navigate instead of raw WS
-    // Simply wait — the browser will load the context cookies and we get the embed URL
-    console.log(`Session ${sessionId} created, context cookies will auto-load`);
-  } catch (e) {
-    console.warn("CDP navigation helper failed (non-fatal):", e);
-  }
+// ========== Stagehand Helper ==========
+async function createStagehandSession(sessionId: string) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const stagehand = new Stagehand({
+    env: "BROWSERBASE",
+    browserbaseSessionID: sessionId,
+    modelName: "openai/gpt-5-mini",
+    modelClientOptions: {
+      apiKey: LOVABLE_API_KEY,
+      baseURL: "https://ai.gateway.lovable.dev/v1",
+    },
+  });
+  await stagehand.init();
+  return stagehand;
 }
+
+// ========== Zod Schemas for Structured Extraction ==========
+const searchResultsSchema = z.object({
+  results: z.array(z.object({
+    title: z.string(),
+    url: z.string(),
+    snippet: z.string(),
+  })),
+});
+
+const articleIntelligenceSchema = z.object({
+  mainContent: z.string(),
+  keyTakeaways: z.array(z.string()),
+  statistics: z.array(z.string()).optional(),
+  topic: z.string(),
+});
+
+const ofEarningsSchema = z.object({
+  totalNet: z.number(),
+  subscriptions: z.number(),
+  tips: z.number(),
+  messages: z.number(),
+  referrals: z.number().optional(),
+  period: z.string().optional(),
+});
+
+const ofSubscriberSchema = z.object({
+  totalSubscribers: z.number(),
+  activeSubscribers: z.number(),
+});
+
+const ofPostsSchema = z.object({
+  posts: z.array(z.object({
+    text: z.string(),
+    likes: z.number(),
+    comments: z.number(),
+    tips: z.number().optional(),
+  })),
+});
+
+const loginStateSchema = z.object({
+  isLoggedIn: z.boolean(),
+  username: z.string().optional(),
+  indicator: z.string(),
+});
+
+const redditPostsSchema = z.object({
+  posts: z.array(z.object({
+    title: z.string(),
+    upvotes: z.number(),
+    comments: z.number(),
+    url: z.string(),
+  })),
+});
 
 // ========== Browserbase API helpers ==========
 async function bb(k: string, p: string, o: RequestInit = {}) {
@@ -137,104 +192,159 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Create Browserbase session with persistent context + proxy
-      const startUrl = PLATFORM_URLS[platform.toLowerCase()];
-      const sessBody: any = {
-        projectId: BP,
-        browserSettings: {
-          context: { id: ctxId, persist: true },
-          fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] },
-        },
-        proxies: proxyConf(cr),
-        keepAlive: true,
-        timeout: 1800,
-        userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" },
-      };
-
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
+      // Admin sessions: 30-minute timeout
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
+      const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       // Wait for persistent context cookies to load
-      await new Promise(r => setTimeout(r, 5000));
+      await new Promise(r => setTimeout(r, 3000));
 
+      // Use Stagehand for navigation instead of raw CDP
+      if (startUrl) {
+        try {
+          const stagehand = await createStagehandSession(sess.id);
+          const page = stagehand.page;
+          await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+          await stagehand.act("wait for the page to fully load");
+          await stagehand.close();
+        } catch (e) {
+          console.warn("Stagehand auto-navigate failed (non-fatal):", e);
+        }
+      }
+
+      // Let the page render before grabbing debug URL
+      await new Promise(r => setTimeout(r, 2000));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       
       let slId: string;
       if (existingLink) {
-        const { data } = await svc.from("creator_session_links").update({
-          browserbase_session_id: sess.id,
-          browserbase_context_id: ctxId,
-          browserbase_live_url: liveUrl,
-          session_status: "authenticating",
-          is_active: true,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq("id", existingLink.id).select("id").single();
+        const { data } = await svc.from("creator_session_links").update({ browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(), updated_at: new Date().toISOString() }).eq("id", existingLink.id).select("id").single();
         slId = data!.id;
       } else {
-        const { data } = await svc.from("creator_session_links").insert({
-          creator_id: creatorId, agency_id: agencyId, platform, created_by: uid,
-          encrypted_session: "browserbase",
-          browserbase_session_id: sess.id, browserbase_context_id: ctxId,
-          browserbase_live_url: liveUrl, session_status: "authenticating",
-          is_active: true, expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        }).select("id").single();
+        const { data } = await svc.from("creator_session_links").insert({ creator_id: creatorId, agency_id: agencyId, platform, created_by: uid, encrypted_session: "browserbase", browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString() }).select("id").single();
         slId = data!.id;
       }
-      await svc.from("active_browser_sessions").insert({
-        session_link_id: slId, agency_id: agencyId,
-        browserbase_session_id: sess.id, browserbase_live_url: liveUrl,
-        embed_url: liveUrl, session_type: "admin",
-        viewer_count: 1, viewer_ids: [uid],
-      });
+      await svc.from("active_browser_sessions").insert({ session_link_id: slId, agency_id: agencyId, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "admin", viewer_count: 1, viewer_ids: [uid] });
       return json({ success: true, sessionLinkId: slId, embedUrl: liveUrl, sessionId: sess.id, contextId: ctxId });
     }
 
-    // ========== SAVE AND CLOSE ==========
+    // ========== SAVE AND CLOSE (with Stagehand analytics scraping) ==========
     if (action === "save_and_close") {
       const { sessionLinkId, browserbaseSessionId } = p;
       if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
 
-      // Update DB immediately
-      await svc.from("creator_session_links").update({
-        session_status: "authenticated",
-        last_saved_at: new Date().toISOString(),
-        browserbase_session_id: null,
-        browserbase_live_url: null,
-        updated_at: new Date().toISOString(),
-      }).eq("id", sessionLinkId);
+      // Get session link details for analytics scraping
+      const { data: linkData } = await svc.from("creator_session_links")
+        .select("creator_id, platform, agency_id")
+        .eq("id", sessionLinkId)
+        .single();
 
-      await svc.from("active_browser_sessions").update({
-        is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [],
-      }).eq("browserbase_session_id", browserbaseSessionId);
-
-      // Release session to persist cookies in context
+      // Attempt Stagehand analytics scraping before closing (fire-and-forget style)
+      let scrapedAnalytics = null;
       const alive = await isSessionAlive(BK, browserbaseSessionId);
-      if (alive) {
+      if (alive && linkData?.platform?.toLowerCase() === "onlyfans") {
         try {
-          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, {
-            method: "POST", headers: bbH(BK),
-            body: JSON.stringify({ status: "REQUEST_RELEASE" }),
-          });
+          const stagehand = await createStagehandSession(browserbaseSessionId);
+          const page = stagehand.page;
+
+          // Scrape earnings
+          await page.goto("https://onlyfans.com/my/statistics", { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+          const earnings = await stagehand.extract(
+            "extract all visible earnings data including total net earnings, subscriptions revenue, tips revenue, messages revenue, and referrals revenue. Extract numbers as decimals.",
+            ofEarningsSchema
+          );
+
+          // Scrape subscriber counts
+          await page.goto("https://onlyfans.com/my/subscribers/active", { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+          const fans = await stagehand.extract(
+            "extract the total subscriber count and active subscriber count from this page",
+            ofSubscriberSchema
+          );
+
+          // Scrape recent posts
+          await page.goto("https://onlyfans.com/my/posts", { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+          const posts = await stagehand.extract(
+            "extract the 5 most recent posts with their text preview, like count, comment count, and tip amount if visible",
+            ofPostsSchema
+          );
+
+          await stagehand.close();
+
+          scrapedAnalytics = { earnings, fans, posts };
+
+          // Save earnings to creator_earnings table
+          if (linkData.creator_id && earnings) {
+            const now = new Date();
+            const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            await svc.from("creator_earnings").upsert({
+              creator_id: linkData.creator_id,
+              amount: earnings.totalNet || 0,
+              subscriptions: earnings.subscriptions || 0,
+              tips: earnings.tips || 0,
+              messages_revenue: earnings.messages || 0,
+              referrals: earnings.referrals || 0,
+              period_start: periodStart,
+              period_end: now.toISOString(),
+              platform: "onlyfans",
+              notes: "Auto-scraped via Stagehand on session close",
+            }, { onConflict: "creator_id,period_start,period_end" }).select("id");
+          }
+
+          // Save to of_cache
+          if (linkData.creator_id && fans) {
+            await svc.from("of_cache").upsert({
+              agency_id: linkData.agency_id,
+              creator_id: linkData.creator_id,
+              cache_key: "subscriber_counts",
+              cache_data: fans,
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            }, { onConflict: "agency_id,creator_id,cache_key" });
+          }
+
+          console.log("Stagehand analytics scraping completed successfully");
+        } catch (e) {
+          console.warn("Stagehand analytics scraping failed (non-fatal):", e);
+        }
+      }
+
+      // Update DB immediately
+      await svc.from("creator_session_links").update({ 
+        session_status: "authenticated", 
+        last_saved_at: new Date().toISOString(), 
+        browserbase_session_id: null, 
+        browserbase_live_url: null, 
+        updated_at: new Date().toISOString() 
+      }).eq("id", sessionLinkId);
+      
+      await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("browserbase_session_id", browserbaseSessionId);
+
+      // Release session
+      if (alive) {
+        try { 
+          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
           console.log(`Session ${browserbaseSessionId} release requested`);
         } catch (e) {
           console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
         }
       }
-
-      return json({ success: true, message: "Login saved. Cookies and session data persisted in context." });
+      
+      return json({ success: true, message: "Login saved. Cookies and session data persisted in context.", analytics: scrapedAnalytics });
     }
 
     // ========== CHECK AND RECOVER SESSIONS ==========
     if (action === "check_and_recover_sessions") {
       const { agencyId } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
-
+      
       const { data: stuck } = await svc.from("creator_session_links")
         .select("id, browserbase_session_id, browserbase_context_id, last_saved_at")
         .eq("agency_id", agencyId)
         .eq("session_status", "authenticating");
-
+      
       const recovered: string[] = [];
       for (const link of stuck || []) {
         let shouldRecover = false;
@@ -256,27 +366,27 @@ Deno.serve(async (req) => {
           console.log(`Recovered stuck session link ${link.id}`);
         }
       }
-
+      
       const { data: activeSessions } = await svc.from("active_browser_sessions")
         .select("id, browserbase_session_id")
         .eq("agency_id", agencyId)
         .eq("is_active", true);
-
+      
       let cleanedActive = 0;
       for (const s of activeSessions || []) {
         const alive = await isSessionAlive(BK, s.browserbase_session_id);
         if (!alive) {
-          await svc.from("active_browser_sessions").update({
-            is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [],
+          await svc.from("active_browser_sessions").update({ 
+            is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] 
           }).eq("id", s.id);
           cleanedActive++;
         }
       }
-
+      
       return json({ success: true, recoveredCount: recovered.length, recoveredIds: recovered, cleanedActiveSessions: cleanedActive });
     }
 
-    // ========== SESSION POOLING: launch_chatter_session ==========
+    // ========== SESSION POOLING: launch_chatter_session (with Stagehand login verification) ==========
     if (action === "launch_chatter_session") {
       const { sessionLinkId, chatterId } = p;
       if (!sessionLinkId) return json({ error: "sessionLinkId required" }, 400);
@@ -349,7 +459,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Create new chatter session
+      // Create new session
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", link.creator_id).single();
       const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
@@ -366,34 +476,65 @@ Deno.serve(async (req) => {
         can_view_notifications: perm.can_view_notifications ?? false,
       };
 
-      const cfg: any = {
-        projectId: BP,
-        browserSettings: {
-          context: { id: link.browserbase_context_id, persist: true },
-          fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] },
-        },
-        proxies: proxyConf(cr),
-        keepAlive: true,
-        timeout: 3600,
-        userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" },
-      };
+      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
-
+      const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
+      
       // Wait for context cookies to load
-      await new Promise(r => setTimeout(r, 5000));
+      await new Promise(r => setTimeout(r, 3000));
 
+      // Use Stagehand for navigation + login verification
+      let loginVerified = true;
+      if (chatterStartUrl) {
+        try {
+          const stagehand = await createStagehandSession(sess.id);
+          const page = stagehand.page;
+          await page.goto(chatterStartUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise(r => setTimeout(r, 3000));
+
+          // Verify login state
+          try {
+            const loginState = await stagehand.extract(
+              "check if the user is logged in to OnlyFans. Look for profile menu, dashboard elements, or login/signup buttons. If you see a login form or signup page, the user is NOT logged in.",
+              loginStateSchema
+            );
+            loginVerified = loginState.isLoggedIn;
+            if (!loginVerified) {
+              console.warn(`Login verification failed for creator ${link.creator_id}: ${loginState.indicator}`);
+              // Flag the session link as needing re-auth
+              await svc.from("creator_session_links").update({
+                session_status: "pending",
+                updated_at: new Date().toISOString(),
+              }).eq("id", sessionLinkId);
+
+              await svc.from("browser_session_events").insert({
+                agency_id: link.agency_id,
+                session_link_id: sessionLinkId,
+                browserbase_session_id: sess.id,
+                event_type: "login_expired",
+                severity: "warning",
+                title: "Login Expired",
+                message: `Creator session needs re-authentication. Detected: ${loginState.indicator}`,
+              });
+            }
+          } catch (verifyErr) {
+            console.warn("Login verification failed (non-fatal):", verifyErr);
+          }
+
+          await stagehand.close();
+        } catch (e) {
+          console.warn("Stagehand chatter nav failed (non-fatal):", e);
+        }
+      }
+
+      await new Promise(r => setTimeout(r, 2000));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       const viewerId = chatterId || uid;
-      await svc.from("active_browser_sessions").insert({
-        session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id,
-        browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl,
-        session_type: "chatter", viewer_count: 1, viewer_ids: [viewerId],
-        last_heartbeat_at: new Date().toISOString(),
-      });
+      await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter", viewer_count: 1, viewer_ids: [viewerId], last_heartbeat_at: new Date().toISOString() });
       await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });
-      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags, joined: false, viewerCount: 1 });
+      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags, joined: false, viewerCount: 1, loginVerified });
     }
 
     // ========== VIEWER-AWARE TERMINATE ==========
@@ -509,9 +650,9 @@ Deno.serve(async (req) => {
       try { return json({ success: true, extensions: await bb(BK, `/extensions?projectId=${BP}`) }); } catch { return json({ success: true, extensions: [] }); }
     }
 
-    // ========== PROFILE WARMUP ==========
+    // ========== PROFILE WARMUP: warmup_single_profile (Stagehand-powered) ==========
     if (action === "warmup_single_profile") {
-      const { creatorId, agencyId, warmupType = "generic", contextId } = p;
+      const { creatorId, agencyId, warmupType = "generic", contextId, keywords } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
 
       let bbContextId = contextId;
@@ -528,22 +669,22 @@ Deno.serve(async (req) => {
         } else {
           const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
           bbContextId = ctx.id;
+          const { data: { user: warmupUser } } = await sb.auth.getUser();
           await svc.from("creator_session_links").upsert({
             creator_id: creatorId, agency_id: agencyId, platform: "onlyfans",
-            created_by: uid, encrypted_session: "browserbase",
+            created_by: warmupUser?.id || uid, encrypted_session: "browserbase",
             browserbase_context_id: bbContextId, session_status: "pending",
-            is_active: false, expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            is_active: false, expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
           }, { onConflict: "creator_id,platform" }).select("id").single();
         }
       }
 
       if (!bbContextId) return json({ error: "No context available for warmup" }, 400);
 
-      const totalSites = warmupType === "generic" ? 10 : warmupType === "research" ? 15 : 25;
       const { data: warmupRec, error: wErr } = await svc.from("creator_profile_warmups").insert({
         creator_id: targetCreatorId, agency_id: agencyId, browserbase_context_id: bbContextId,
         status: "running", warmup_type: warmupType,
-        total_sites: totalSites,
+        total_sites: warmupType === "generic" ? 10 : warmupType === "research" ? 15 : 25,
         started_at: new Date().toISOString(),
       }).select("id").single();
       if (wErr) throw new Error(wErr.message);
@@ -567,10 +708,170 @@ Deno.serve(async (req) => {
         const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
         await new Promise(r => setTimeout(r, 3000));
 
-        // Simple warmup: just create session with context to build fingerprint
-        // The persistent context itself builds device trust with the platform
-        let sitesVisited = 1;
-        await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+        // Initialize Stagehand for this warmup session
+        const stagehand = await createStagehandSession(sess.id);
+        const page = stagehand.page;
+        let sitesVisited = 0;
+
+        // ===== Phase 1: Generic warmup (human-like browsing) =====
+        if (warmupType === "generic" || warmupType === "full") {
+          const genericSites = [
+            { url: "https://www.google.com", actions: ["type 'best movies 2026' into the search bar and press Enter", "scroll down slowly and click on one of the search results", "scroll through the page for a few seconds"] },
+            { url: "https://www.youtube.com", actions: ["scroll down to browse trending videos", "click on a trending or recommended video", "wait for the video to start playing for a few seconds"] },
+            { url: "https://www.reddit.com", actions: ["scroll down through the front page posts", "click on an interesting post title", "scroll through the comments"] },
+            { url: "https://www.x.com", actions: ["scroll through the timeline"] },
+            { url: "https://www.instagram.com", actions: ["scroll through the feed slowly"] },
+            { url: "https://www.amazon.com", actions: ["type 'wireless headphones' into the search bar and press Enter", "scroll through the results and click on one", "scroll through the product page"] },
+            { url: "https://en.wikipedia.org/wiki/Main_Page", actions: ["click on a featured article link", "scroll through the article"] },
+            { url: "https://www.espn.com", actions: ["scroll down through the sports headlines"] },
+            { url: "https://weather.com", actions: ["scroll through the weather forecast"] },
+            { url: "https://www.netflix.com", actions: ["scroll through the page to browse content"] },
+          ];
+
+          for (const site of genericSites) {
+            try {
+              await page.goto(site.url, { waitUntil: "domcontentloaded", timeout: 15000 });
+              await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+
+              for (const action of site.actions) {
+                try {
+                  await stagehand.act(action);
+                  await new Promise(r => setTimeout(r, 1500 + Math.random() * 2000));
+                } catch (actErr) {
+                  console.warn(`Warmup act failed for "${action}" on ${site.url}:`, actErr);
+                  break;
+                }
+              }
+
+              sitesVisited++;
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            } catch (e) {
+              console.warn(`Warmup nav failed for ${site.url}:`, e);
+            }
+          }
+        }
+
+        // ===== Phase 2: Research (structured intelligence extraction) =====
+        if (warmupType === "research" || warmupType === "full") {
+          const defaultKeywords = [
+            "onlyfans marketing strategy 2026",
+            "onlyfans agency management tips",
+            "creator economy trends",
+            "onlyfans subscriber growth tactics",
+            "fansly vs onlyfans comparison",
+          ];
+          const searchKeywords = (keywords && Array.isArray(keywords) && keywords.length > 0) ? keywords : defaultKeywords;
+
+          // Keyword searches with structured extraction
+          for (const kw of searchKeywords) {
+            try {
+              const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(kw)}`;
+              await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+              await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000));
+
+              // Extract structured search results
+              const results = await stagehand.extract(
+                "extract the top 5 search result titles, URLs, and snippet descriptions from this Google search results page",
+                searchResultsSchema
+              );
+
+              // Save search results as intelligence
+              for (const result of results.results.slice(0, 3)) {
+                await svc.from("warmup_intelligence").insert({
+                  warmup_id: warmupId, agency_id: agencyId,
+                  source_url: result.url, page_title: result.title,
+                  extracted_text: result.snippet, category: "search_result",
+                  content_type: "search_result",
+                  keywords: [kw],
+                });
+              }
+
+              // Visit top result and extract deeper intelligence
+              if (results.results.length > 0) {
+                try {
+                  await page.goto(results.results[0].url, { waitUntil: "domcontentloaded", timeout: 15000 });
+                  await new Promise(r => setTimeout(r, 3000));
+
+                  const intel = await stagehand.extract(
+                    "extract the main article content summary, key takeaways as a list, and any statistics or numbers mentioned. If this is not an article, extract the main page content.",
+                    articleIntelligenceSchema
+                  );
+
+                  await svc.from("warmup_intelligence").insert({
+                    warmup_id: warmupId, agency_id: agencyId,
+                    source_url: results.results[0].url, page_title: results.results[0].title,
+                    extracted_text: intel.mainContent.slice(0, 2000),
+                    category: "article",
+                    content_type: "article",
+                    key_takeaways: intel.keyTakeaways,
+                    statistics: intel.statistics || [],
+                    keywords: [kw, intel.topic],
+                  });
+                } catch (deepErr) {
+                  console.warn(`Deep extraction failed for ${results.results[0].url}:`, deepErr);
+                }
+              }
+
+              await stagehand.act("scroll down through the page");
+              await new Promise(r => setTimeout(r, 1500));
+              sitesVisited++;
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            } catch (e) {
+              console.warn(`Research search failed for "${kw}":`, e);
+            }
+          }
+
+          // Reddit trend scraping with structured extraction
+          const redditUrls = [
+            "https://www.reddit.com/r/onlyfansadvice/",
+            "https://www.reddit.com/r/CreatorsAdvice/",
+          ];
+
+          for (const url of redditUrls) {
+            try {
+              await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+              await new Promise(r => setTimeout(r, 4000 + Math.random() * 2000));
+
+              const redditData = await stagehand.extract(
+                "extract the top 10 post titles, upvote counts, comment counts, and post URLs from this subreddit page",
+                redditPostsSchema
+              );
+
+              for (const post of redditData.posts) {
+                await svc.from("warmup_intelligence").insert({
+                  warmup_id: warmupId, agency_id: agencyId,
+                  source_url: post.url, page_title: post.title,
+                  extracted_text: post.title,
+                  category: "niche_research",
+                  content_type: "reddit_post",
+                  engagement_metrics: { upvotes: post.upvotes, comments: post.comments },
+                  keywords: ["onlyfans", "reddit"],
+                });
+              }
+
+              await stagehand.act("scroll through the page slowly");
+              await new Promise(r => setTimeout(r, 2000));
+              sitesVisited++;
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            } catch (e) {
+              console.warn(`Reddit scraping failed for ${url}:`, e);
+            }
+          }
+
+          // X/Twitter trend scraping
+          try {
+            await page.goto("https://x.com/search?q=onlyfans+tips&src=typed_query", { waitUntil: "domcontentloaded", timeout: 15000 });
+            await new Promise(r => setTimeout(r, 5000));
+            await stagehand.act("scroll through the search results");
+            await new Promise(r => setTimeout(r, 2000));
+            sitesVisited++;
+            await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+          } catch (e) {
+            console.warn("X/Twitter scraping failed:", e);
+          }
+        }
+
+        await stagehand.close();
 
         // Release session to persist cookies
         try {
@@ -594,7 +895,7 @@ Deno.serve(async (req) => {
 
     // ========== PROFILE WARMUP: warmup_profiles (batch) ==========
     if (action === "warmup_profiles") {
-      const { creatorIds, agencyId, warmupType = "generic" } = p;
+      const { creatorIds, agencyId, warmupType = "generic", keywords } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
 
       let targetIds: string[] = creatorIds || [];
@@ -611,7 +912,7 @@ Deno.serve(async (req) => {
 
     // ========== PRE-WARM: create_pre_warm_profile ==========
     if (action === "create_pre_warm_profile") {
-      const { agencyId } = p;
+      const { agencyId, warmupType = "full", keywords } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
 
       const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
@@ -621,7 +922,7 @@ Deno.serve(async (req) => {
       }).select("id").single();
       if (pErr) throw new Error(pErr.message);
 
-      return json({ success: true, profileId: profile.id, contextId: ctx.id });
+      return json({ success: true, profileId: profile.id, contextId: ctx.id, message: "Pre-warm profile created. Trigger warmup_single_profile to warm it up." });
     }
 
     // ========== PRE-WARM: assign_pre_warm_profile ==========
@@ -657,7 +958,7 @@ Deno.serve(async (req) => {
           created_by: uid, encrypted_session: "browserbase",
           browserbase_context_id: profile.browserbase_context_id,
           session_status: "pending", is_active: false,
-          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
         });
       }
 
