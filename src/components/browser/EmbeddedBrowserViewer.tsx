@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Monitor, PanelRightOpen, PanelRightClose, Users } from "lucide-react";
+import { X, Monitor, PanelRightOpen, PanelRightClose, Users, AlertTriangle, RotateCcw } from "lucide-react";
 import { BrowserSessionPanel } from "./BrowserSessionPanel";
 import { IzzyOverlay } from "./IzzyOverlay";
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
@@ -64,8 +64,33 @@ export function EmbeddedBrowserViewer({
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [stuckDetected, setStuckDetected] = useState(false);
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isMobile = useIsMobile();
+
+  // Detect if iframe hasn't loaded after 30 seconds (likely stuck)
+  useEffect(() => {
+    if (!loaded) {
+      loadTimerRef.current = setTimeout(() => {
+        setStuckDetected(true);
+      }, 30000);
+    } else {
+      setStuckDetected(false);
+      if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
+    }
+    return () => {
+      if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
+    };
+  }, [loaded]);
+
+  const handleRetryLoad = useCallback(() => {
+    setLoaded(false);
+    setStuckDetected(false);
+    if (iframeRef.current) {
+      iframeRef.current.src = embedUrl;
+    }
+  }, [embedUrl]);
 
   // Heartbeat: keeps session alive while this viewer has the tab open
   useSessionHeartbeat(sessionId || null, chatterId);
@@ -153,11 +178,45 @@ export function EmbeddedBrowserViewer({
           {!loaded && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center space-y-3">
-                <Skeleton className="h-8 w-48 mx-auto" />
-                <p className="text-sm text-muted-foreground">
-                  Loading browser session...
-                </p>
+                {stuckDetected ? (
+                  <>
+                    <AlertTriangle className="h-10 w-10 text-yellow-500 mx-auto" />
+                    <p className="text-sm font-medium text-foreground">
+                      Session is taking longer than expected
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                      The browser may be stuck. This can happen if the platform is running a security check or CAPTCHA.
+                    </p>
+                    <div className="flex gap-2 justify-center pt-1">
+                      <Button size="sm" variant="outline" onClick={handleRetryLoad} className="gap-1.5">
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Retry Connection
+                      </Button>
+                      {showSaveButton && onSaveAndClose && (
+                        <Button size="sm" variant="destructive" onClick={onClose}>
+                          Close Session
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Skeleton className="h-8 w-48 mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      Loading browser session...
+                    </p>
+                  </>
+                )}
               </div>
+            </div>
+          )}
+          {/* Login guidance banner */}
+          {loaded && showSaveButton && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-card/95 backdrop-blur border border-border rounded-lg px-4 py-2 shadow-lg flex items-center gap-2 max-w-md animate-in fade-in slide-in-from-top-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                After logging in, click <span className="font-semibold text-foreground">"Save Login & Close"</span> to save the session for your team.
+              </p>
             </div>
           )}
           <iframe
