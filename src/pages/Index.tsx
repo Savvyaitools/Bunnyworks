@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout";
 import { RevenueChart } from "@/components/dashboard";
 import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { DashboardTasks } from "@/components/dashboard/DashboardTasks";
+import { DashboardAIInsights } from "@/components/dashboard/DashboardAIInsights";
 import { RevenueSourceBreakdown } from "@/components/dashboard/RevenueSourceBreakdown";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -283,11 +284,14 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Tasks + Activity Feed */}
+        {/* Tasks + AI Insights */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <DashboardTasks />
-          <LiveActivityFeed />
+          <DashboardAIInsights />
         </div>
+
+        {/* Activity Feed */}
+        <LiveActivityFeed />
       </div>
     </DashboardLayout>
   );
