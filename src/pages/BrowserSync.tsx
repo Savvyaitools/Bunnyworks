@@ -1,9 +1,10 @@
-import { Monitor, Bell } from "lucide-react";
+import { Monitor, Bell, MapPin } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
 import { BrowserSessionsDashboard } from "@/components/browser/BrowserSessionsDashboard";
 import { CaptchaAlertsFeed } from "@/components/browser/CaptchaAlertsFeed";
+import { ProxyGeoSettings } from "@/components/browser/ProxyGeoSettings";
 
 export default function BrowserSync() {
   return (
@@ -20,6 +21,10 @@ export default function BrowserSync() {
               <Monitor className="h-4 w-4" />
               Live Sessions
             </TabsTrigger>
+            <TabsTrigger value="proxy-settings" className="gap-2">
+              <MapPin className="h-4 w-4" />
+              Proxy Settings
+            </TabsTrigger>
             <TabsTrigger value="monitoring" className="gap-2">
               <Bell className="h-4 w-4" />
               Monitoring
@@ -29,6 +34,10 @@ export default function BrowserSync() {
           <TabsContent value="live-sessions" className="space-y-4">
             <AdminSessionLauncher />
             <BrowserSessionsDashboard />
+          </TabsContent>
+
+          <TabsContent value="proxy-settings" className="space-y-4">
+            <ProxyGeoSettings />
           </TabsContent>
 
           <TabsContent value="monitoring" className="space-y-4">
