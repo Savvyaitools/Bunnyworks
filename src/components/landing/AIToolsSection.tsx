@@ -26,7 +26,7 @@ const aiAgents = [
   },
   {
     icon: Bot,
-    name: "Izzy",
+    name: "Jodie",
     role: "Smart Fan Messaging",
     description: "AI-powered hybrid chatting that auto-replies to fans, flags low-confidence messages for human review, and includes a response simulator that learns from your best performers.",
     badge: "Revenue Driver",

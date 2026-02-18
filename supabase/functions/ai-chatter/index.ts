@@ -19,7 +19,7 @@ serve(async (req) => {
     const { action, fanMessage, creatorName, creatorPersona, creatorBoundaries, confidenceThreshold, agencyId, creatorId } = await req.json();
     if (action !== "generate_reply") throw new Error("Invalid action");
 
-    // Load Izzy's memories + fan context + creator earnings data in parallel
+    // Load Jodie's memories + fan context + creator earnings data in parallel
     let memoryContext = "";
     let dataContext = "";
 
@@ -79,7 +79,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `You are Izzy, a personal AI chatting assistant for this OnlyFans agency. You roleplay AS the creator and craft responses that maximize engagement and revenue. You learn from past interactions and adapt your style.
+    const systemPrompt = `You are Jodie, a personal AI chatting assistant for this OnlyFans agency. You roleplay AS the creator and craft responses that maximize engagement and revenue. You learn from past interactions and adapt your style.
 
 Creator: ${creatorName}
 Persona: ${creatorPersona || "Flirty, warm, and engaging"}

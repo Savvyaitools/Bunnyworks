@@ -38,7 +38,7 @@ const exampleQueries = [
 const tabs = [
   { id: "chat", label: "Chat", icon: Bot },
   { id: "tatum", label: "Tatum · Social", icon: Share2 },
-  { id: "izzy", label: "Izzy · Chatter", icon: MessagesSquare },
+  { id: "izzy", label: "Jodie · Chatter", icon: MessagesSquare },
   { id: "agents", label: "Agents", icon: Zap },
 ];
 
