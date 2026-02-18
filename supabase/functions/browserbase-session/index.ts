@@ -489,6 +489,314 @@ Deno.serve(async (req) => {
       try { return json({ success: true, extensions: await bb(BK, `/extensions?projectId=${BP}`) }); } catch { return json({ success: true, extensions: [] }); }
     }
 
+    // ========== PROFILE WARMUP: warmup_single_profile ==========
+    if (action === "warmup_single_profile") {
+      const { creatorId, agencyId, warmupType = "generic", contextId, keywords } = p;
+      if (!agencyId) return json({ error: "agencyId required" }, 400);
+
+      let bbContextId = contextId;
+      let targetCreatorId = creatorId || null;
+
+      // If creator specified, look up their context
+      if (creatorId && !bbContextId) {
+        const { data: link } = await svc.from("creator_session_links")
+          .select("browserbase_context_id")
+          .eq("creator_id", creatorId)
+          .not("browserbase_context_id", "is", null)
+          .maybeSingle();
+        if (link?.browserbase_context_id) {
+          bbContextId = link.browserbase_context_id;
+        } else {
+          // Auto-provision a context for this creator
+          const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
+          bbContextId = ctx.id;
+          // Save it to a session link
+          const { data: { user: warmupUser } } = await sb.auth.getUser();
+          await svc.from("creator_session_links").upsert({
+            creator_id: creatorId, agency_id: agencyId, platform: "onlyfans",
+            created_by: warmupUser?.id || uid, encrypted_session: "browserbase",
+            browserbase_context_id: bbContextId, session_status: "pending",
+            is_active: false, expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
+          }, { onConflict: "creator_id,platform" }).select("id").single();
+        }
+      }
+
+      if (!bbContextId) return json({ error: "No context available for warmup" }, 400);
+
+      // Create warmup record
+      const { data: warmupRec, error: wErr } = await svc.from("creator_profile_warmups").insert({
+        creator_id: targetCreatorId, agency_id: agencyId, browserbase_context_id: bbContextId,
+        status: "running", warmup_type: warmupType,
+        total_sites: warmupType === "generic" ? 10 : warmupType === "research" ? 15 : 25,
+        started_at: new Date().toISOString(),
+      }).select("id").single();
+      if (wErr) throw new Error(wErr.message);
+      const warmupId = warmupRec.id;
+
+      // Get creator proxy settings if available
+      let proxySettings = null;
+      if (creatorId) {
+        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state").eq("id", creatorId).maybeSingle();
+        if (cr) proxySettings = cr;
+      }
+
+      try {
+        // Create short-lived session for warmup
+        const sessBody: any = {
+          projectId: BP,
+          browserSettings: { context: { id: bbContextId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } },
+          keepAlive: false, timeout: 300,
+          userMetadata: { warmup: true, agencyId, creatorId: targetCreatorId },
+        };
+        if (proxySettings) sessBody.proxies = proxyConf(proxySettings);
+
+        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
+        await new Promise(r => setTimeout(r, 3000)); // Wait for context to load
+
+        const ws = new WebSocket(sess.connectUrl);
+        let msgId = 0;
+
+        const cdpSend = (method: string, params: any = {}) => new Promise<any>((resolve, reject) => {
+          const id = ++msgId;
+          const timeout = setTimeout(() => reject(new Error(`CDP timeout: ${method}`)), 30000);
+          const handler = (ev: MessageEvent) => {
+            try {
+              const msg = JSON.parse(typeof ev.data === "string" ? ev.data : "");
+              if (msg.id === id) {
+                clearTimeout(timeout);
+                ws.removeEventListener("message", handler);
+                resolve(msg.result || {});
+              }
+            } catch {}
+          };
+          ws.addEventListener("message", handler);
+          ws.send(JSON.stringify({ id, method, params }));
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error("WS connect timeout")), 15000);
+          ws.onopen = () => { clearTimeout(t); resolve(); };
+          ws.onerror = () => { clearTimeout(t); reject(new Error("WS error")); };
+        });
+
+        await cdpSend("Page.enable");
+        await cdpSend("Runtime.enable");
+
+        let sitesVisited = 0;
+
+        // Phase 1: Generic warmup sites
+        const genericSites = [
+          "https://www.google.com/search?q=best+movies+2026",
+          "https://www.youtube.com",
+          "https://www.reddit.com",
+          "https://www.x.com",
+          "https://www.instagram.com",
+          "https://www.amazon.com",
+          "https://en.wikipedia.org/wiki/Main_Page",
+          "https://www.espn.com",
+          "https://weather.com",
+          "https://www.netflix.com",
+        ];
+
+        if (warmupType === "generic" || warmupType === "full") {
+          for (const url of genericSites) {
+            try {
+              await cdpSend("Page.navigate", { url });
+              await new Promise(r => setTimeout(r, 5000 + Math.random() * 3000));
+              await cdpSend("Runtime.evaluate", { expression: "window.scrollTo(0, Math.floor(Math.random() * 800) + 200)" });
+              await new Promise(r => setTimeout(r, 2000));
+              sitesVisited++;
+              // Update progress
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            } catch (e) {
+              console.warn(`Warmup nav failed for ${url}:`, e);
+            }
+          }
+        }
+
+        // Phase 2: Research (niche-aware browsing + intelligence extraction)
+        if (warmupType === "research" || warmupType === "full") {
+          const defaultKeywords = [
+            "onlyfans marketing strategy 2026",
+            "onlyfans agency management tips",
+            "creator economy trends",
+            "onlyfans subscriber growth tactics",
+            "fansly vs onlyfans comparison",
+          ];
+          const searchKeywords = (keywords && Array.isArray(keywords) && keywords.length > 0) ? keywords : defaultKeywords;
+
+          const directUrls = [
+            "https://www.reddit.com/r/onlyfansadvice/",
+            "https://www.reddit.com/r/CreatorsAdvice/",
+            "https://x.com/search?q=onlyfans+tips&src=typed_query",
+          ];
+
+          // Keyword searches
+          for (const kw of searchKeywords) {
+            try {
+              const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(kw)}`;
+              await cdpSend("Page.navigate", { url: searchUrl });
+              await new Promise(r => setTimeout(r, 5000 + Math.random() * 3000));
+
+              // Extract page content
+              const result = await cdpSend("Runtime.evaluate", {
+                expression: `JSON.stringify({ title: document.title, text: document.body.innerText.substring(0, 2000) })`,
+                returnByValue: true,
+              });
+              const pageData = JSON.parse(result?.result?.value || "{}");
+
+              if (pageData.text) {
+                await svc.from("warmup_intelligence").insert({
+                  warmup_id: warmupId, agency_id: agencyId,
+                  source_url: searchUrl, page_title: pageData.title || kw,
+                  extracted_text: pageData.text, category: "trend",
+                  keywords: [kw],
+                });
+              }
+
+              await cdpSend("Runtime.evaluate", { expression: "window.scrollTo(0, 500)" });
+              await new Promise(r => setTimeout(r, 2000));
+              sitesVisited++;
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            } catch (e) {
+              console.warn(`Research search failed for "${kw}":`, e);
+            }
+          }
+
+          // Direct URL visits
+          for (const url of directUrls) {
+            try {
+              await cdpSend("Page.navigate", { url });
+              await new Promise(r => setTimeout(r, 6000 + Math.random() * 3000));
+
+              const result = await cdpSend("Runtime.evaluate", {
+                expression: `JSON.stringify({ title: document.title, text: document.body.innerText.substring(0, 2000) })`,
+                returnByValue: true,
+              });
+              const pageData = JSON.parse(result?.result?.value || "{}");
+
+              if (pageData.text) {
+                const cat = url.includes("reddit") ? "niche_research" : url.includes("x.com") ? "trend" : "competitor";
+                await svc.from("warmup_intelligence").insert({
+                  warmup_id: warmupId, agency_id: agencyId,
+                  source_url: url, page_title: pageData.title || url,
+                  extracted_text: pageData.text, category: cat,
+                  keywords: ["onlyfans"],
+                });
+              }
+
+              await cdpSend("Runtime.evaluate", { expression: "window.scrollTo(0, 600)" });
+              await new Promise(r => setTimeout(r, 2000));
+              sitesVisited++;
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            } catch (e) {
+              console.warn(`Research direct nav failed for ${url}:`, e);
+            }
+          }
+        }
+
+        ws.close();
+
+        // Release session to persist cookies
+        try {
+          await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) });
+        } catch (e) {
+          console.warn("Release failed (non-fatal):", e);
+        }
+
+        await svc.from("creator_profile_warmups").update({
+          status: "completed", sites_visited: sitesVisited, completed_at: new Date().toISOString(),
+        }).eq("id", warmupId);
+
+        return json({ success: true, warmupId, sitesVisited, status: "completed" });
+      } catch (e: any) {
+        await svc.from("creator_profile_warmups").update({
+          status: "failed", error_message: e.message, completed_at: new Date().toISOString(),
+        }).eq("id", warmupId);
+        return json({ error: e.message, warmupId, status: "failed" }, 500);
+      }
+    }
+
+    // ========== PROFILE WARMUP: warmup_profiles (batch) ==========
+    if (action === "warmup_profiles") {
+      const { creatorIds, agencyId, warmupType = "generic", keywords } = p;
+      if (!agencyId) return json({ error: "agencyId required" }, 400);
+
+      let targetIds: string[] = creatorIds || [];
+      if (!targetIds.length) {
+        // Get all creators with browser contexts
+        const { data: links } = await svc.from("creator_session_links")
+          .select("creator_id")
+          .eq("agency_id", agencyId)
+          .not("browserbase_context_id", "is", null);
+        targetIds = (links || []).map((l: any) => l.creator_id);
+      }
+
+      // Return list of creator IDs — frontend will fire individual warmup calls in parallel
+      return json({ success: true, creatorIds: targetIds, count: targetIds.length, warmupType });
+    }
+
+    // ========== PRE-WARM: create_pre_warm_profile ==========
+    if (action === "create_pre_warm_profile") {
+      const { agencyId, warmupType = "full", keywords } = p;
+      if (!agencyId) return json({ error: "agencyId required" }, 400);
+
+      // Create a new Browserbase context (no creator)
+      const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
+
+      // Insert into pre_warmed_profiles
+      const { data: profile, error: pErr } = await svc.from("pre_warmed_profiles").insert({
+        agency_id: agencyId, browserbase_context_id: ctx.id, status: "available",
+      }).select("id").single();
+      if (pErr) throw new Error(pErr.message);
+
+      // Now warmup this context (reuse warmup_single_profile logic inline)
+      // We return immediately and the caller should invoke warmup_single_profile separately
+      return json({ success: true, profileId: profile.id, contextId: ctx.id, message: "Pre-warm profile created. Trigger warmup_single_profile to warm it up." });
+    }
+
+    // ========== PRE-WARM: assign_pre_warm_profile ==========
+    if (action === "assign_pre_warm_profile") {
+      const { profileId, creatorId, agencyId } = p;
+      if (!profileId || !creatorId || !agencyId) return json({ error: "profileId, creatorId, agencyId required" }, 400);
+
+      const { data: profile } = await svc.from("pre_warmed_profiles")
+        .select("browserbase_context_id")
+        .eq("id", profileId)
+        .eq("status", "available")
+        .single();
+      if (!profile) return json({ error: "Pre-warm profile not found or already assigned" }, 404);
+
+      // Assign to creator
+      await svc.from("pre_warmed_profiles").update({
+        assigned_creator_id: creatorId, status: "assigned",
+      }).eq("id", profileId);
+
+      // Create/update creator's session link with this context
+      const { data: existingLink } = await svc.from("creator_session_links")
+        .select("id")
+        .eq("creator_id", creatorId)
+        .eq("platform", "onlyfans")
+        .maybeSingle();
+
+      if (existingLink) {
+        await svc.from("creator_session_links").update({
+          browserbase_context_id: profile.browserbase_context_id,
+          updated_at: new Date().toISOString(),
+        }).eq("id", existingLink.id);
+      } else {
+        await svc.from("creator_session_links").insert({
+          creator_id: creatorId, agency_id: agencyId, platform: "onlyfans",
+          created_by: uid, encrypted_session: "browserbase",
+          browserbase_context_id: profile.browserbase_context_id,
+          session_status: "pending", is_active: false,
+          expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
+        });
+      }
+
+      return json({ success: true, contextId: profile.browserbase_context_id });
+    }
+
     return json({ error: "Invalid action" }, 400);
   } catch (error) {
     console.error("browserbase-session error:", error);

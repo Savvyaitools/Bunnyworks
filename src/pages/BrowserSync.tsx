@@ -1,4 +1,4 @@
-import { Monitor, Bell, Puzzle, Shield } from "lucide-react";
+import { Monitor, Bell, Puzzle, Shield, Flame } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
@@ -6,6 +6,7 @@ import { BrowserSessionsDashboard } from "@/components/browser/BrowserSessionsDa
 import { CaptchaAlertsFeed } from "@/components/browser/CaptchaAlertsFeed";
 import { ExtensionActivationCards } from "@/components/browser/ExtensionActivationCards";
 import { SessionModeToggle } from "@/components/browser/SessionModeToggle";
+import { ProfileWarmupManager } from "@/components/browser/ProfileWarmupManager";
 
 export default function BrowserSync() {
   return (
@@ -21,6 +22,10 @@ export default function BrowserSync() {
             <TabsTrigger value="live-sessions" className="gap-2">
               <Monitor className="h-4 w-4" />
               Live Sessions
+            </TabsTrigger>
+            <TabsTrigger value="profile-builder" className="gap-2">
+              <Flame className="h-4 w-4" />
+              Profile Builder
             </TabsTrigger>
             <TabsTrigger value="extensions" className="gap-2">
               <Puzzle className="h-4 w-4" />
@@ -39,6 +44,10 @@ export default function BrowserSync() {
           <TabsContent value="live-sessions" className="space-y-4">
             <AdminSessionLauncher />
             <BrowserSessionsDashboard />
+          </TabsContent>
+
+          <TabsContent value="profile-builder" className="space-y-4">
+            <ProfileWarmupManager />
           </TabsContent>
 
           <TabsContent value="extensions" className="space-y-4">
