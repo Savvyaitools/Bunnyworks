@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download } from "lucide-react";
+import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { SessionRecordingViewer } from "./SessionRecordingViewer";
 import { SessionLogsViewer } from "./SessionLogsViewer";
@@ -137,7 +137,21 @@ export function BrowserSessionsDashboard() {
                       {link.platform}
                     </Badge>
                   </TableCell>
-                  <TableCell>{statusBadge(link.session_status)}</TableCell>
+                  <TableCell className="flex items-center gap-2">
+                    {statusBadge(link.session_status)}
+                    {link.browserbase_live_url && (
+                      <a
+                        href={link.browserbase_live_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        title="Open live session in new window"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Live
+                      </a>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {activeCount > 0 ? (
                       <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30">
