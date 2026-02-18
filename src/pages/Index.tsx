@@ -283,8 +283,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Creator Accounts */}
-        <CreatorPlatformCards />
 
         {/* Activity Feed */}
         <LiveActivityFeed />
