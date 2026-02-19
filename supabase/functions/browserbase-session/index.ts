@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
       }
 
       // Admin sessions: 30-minute timeout
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, solveCaptchas: true, blockAds: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       if (!sess?.id) {
         console.error("Browserbase session creation returned no session ID", JSON.stringify(sess));
@@ -483,7 +483,7 @@ Deno.serve(async (req) => {
         can_view_notifications: perm.can_view_notifications ?? false,
       };
 
-      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
+      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, solveCaptchas: true, blockAds: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       if (!sess?.id) {
