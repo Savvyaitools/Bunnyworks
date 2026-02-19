@@ -217,10 +217,22 @@ const STATE_ABBREV: Record<string, string> = {
   vermont: "VT", virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
 };
 
+// Rotate through diverse US states to avoid proxy pool flagging
+const PROXY_ROTATION_STATES = ["TX", "FL", "NY", "IL", "OH", "GA", "NC", "MI", "NJ", "VA", "WA", "AZ", "MA", "TN", "IN", "MO", "MD", "WI", "CO", "MN"];
+
 function proxyConf(c: any) {
   const country = c?.proxy_country || "US";
-  const rawState = c?.proxy_state || "CA";
-  const state = rawState.length > 2 ? (STATE_ABBREV[rawState.toLowerCase()] || "CA") : rawState.toUpperCase();
+  const rawState = c?.proxy_state;
+  let state: string;
+  if (rawState && rawState !== "CA") {
+    // Use explicit state if set and not the old default
+    state = rawState.length > 2 ? (STATE_ABBREV[rawState.toLowerCase()] || "TX") : rawState.toUpperCase();
+  } else {
+    // Rotate through diverse states instead of always using CA
+    const idx = Math.floor(Math.random() * PROXY_ROTATION_STATES.length);
+    state = PROXY_ROTATION_STATES[idx];
+  }
+  console.log(`Proxy: ${country}/${state} (rotation active)`);
   return [{
     type: "browserbase",
     geolocation: { country, state },
@@ -273,7 +285,7 @@ Deno.serve(async (req) => {
       }
 
       // Admin sessions: 30-minute timeout
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, solveCaptchas: true, blockAds: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       if (!sess?.id) {
         console.error("Browserbase session creation returned no session ID", JSON.stringify(sess));
@@ -483,7 +495,7 @@ Deno.serve(async (req) => {
         can_view_notifications: perm.can_view_notifications ?? false,
       };
 
-      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, solveCaptchas: true, blockAds: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
+      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       if (!sess?.id) {
