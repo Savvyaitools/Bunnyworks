@@ -6,9 +6,9 @@ import { motion } from "framer-motion";
 import { FloatingParticles, MagneticHover, AnimatedCounter } from "./AnimationPrimitives";
 
 const testimonials = [
-  { name: "Marcus T.", role: "Agency Owner, 35+ Creators", content: "Before Creator OS, I was spending 15 hours a week on spreadsheets. Now it's all automated. I've scaled from 15 to 35 creators without adding a single admin hire.", rating: 5, highlight: "15 hrs/week saved" },
+  { name: "Marcus T.", role: "Agency Owner, 35+ Creators", content: "Before BunnyWorksOS, I was spending 15 hours a week on spreadsheets. Now it's all automated. I've scaled from 15 to 35 creators without adding a single admin hire.", rating: 5, highlight: "15 hrs/week saved" },
   { name: "Elena R.", role: "Operations Manager", content: "The unified team management is a game-changer. Our PPV conversion rate increased 28% once we could actually see who was performing.", rating: 5, highlight: "28% PPV increase" },
-  { name: "David K.", role: "Agency Founder, Top 0.1%", content: "We tried 4 different tools before Creator OS. The shift scheduling with performance tracking is exactly what OFM agencies need.", rating: 5, highlight: "4x faster onboarding" },
+  { name: "David K.", role: "Agency Founder, Top 0.1%", content: "We tried 4 different tools before BunnyWorksOS. The shift scheduling with performance tracking is exactly what OFM agencies need.", rating: 5, highlight: "4x faster onboarding" },
 ];
 
 const ease = [0.25, 0.4, 0.25, 1] as const;
@@ -303,7 +303,7 @@ function PricingCard({ name, price, originalPrice, period, desc, features, ctaLa
         })}
       </ul>
       {isEnterprise ? (
-        <a href="mailto:sales@mycreatorsuite.com?subject=Enterprise%20Plan%20Inquiry" className="mt-auto">
+        <a href="mailto:sales@bunnyworksos.com?subject=Enterprise%20Plan%20Inquiry" className="mt-auto">
           <Button variant="outline" className="w-full rounded-full mt-auto text-xs sm:text-sm">{ctaLabel}</Button>
         </a>
       ) : (
@@ -360,7 +360,7 @@ export function FinalCTASection() {
                 Ready to scale?
               </motion.h2>
               <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mb-6 sm:mb-8 max-w-lg mx-auto">
-                Join 500+ agencies using Creator OS to streamline operations and boost revenue.
+                Join 500+ agencies using BunnyWorksOS to streamline operations and boost revenue.
               </p>
               <MagneticHover className="inline-block">
                 <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>

@@ -286,7 +286,7 @@ export default function Settings() {
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Need unlimited? <a href="mailto:sales@mycreatorsuite.com" className="text-primary hover:underline">Contact sales</a> for Enterprise.
+                    Need unlimited? <a href="mailto:sales@bunnyworksos.com" className="text-primary hover:underline">Contact sales</a> for Enterprise.
                   </p>
                 </div>
 
@@ -334,7 +334,7 @@ export default function Settings() {
                     { id: "tasks", label: "Task updates", description: "Notifications for task assignments and completions", default: true },
                     { id: "creators", label: "Creator activity", description: "When creators complete onboarding or submit content", default: true },
                     { id: "invoices", label: "Invoice notifications", description: "Payment received and overdue reminders", default: false },
-                    { id: "system", label: "System updates", description: "News and updates about Creator OS", default: false },
+                    { id: "system", label: "System updates", description: "News and updates about BunnyWorksOS", default: false },
                   ].map((item) => (
                     <div key={item.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
                       <div>

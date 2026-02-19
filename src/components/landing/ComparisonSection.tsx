@@ -28,7 +28,7 @@ const competitorComparison = {
     { name: "Multi-Platform Support" },
   ],
   competitors: [
-    { name: "Creator OS", highlight: true, values: [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
+    { name: "BunnyWorksOS", highlight: true, values: [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
     { name: "Supercreator", highlight: false, values: [true, true, "limited", true, false, "limited", true, false, false, false, false, "limited", true, false, false, false, "limited", "limited", false, false] },
     { name: "Infloww", highlight: false, values: [true, true, "limited", true, false, true, "limited", false, false, false, false, "limited", true, false, false, false, false, true, false, true] },
     { name: "CreatorHero", highlight: false, values: [true, true, false, "limited", false, true, true, false, false, false, false, "limited", "limited", false, false, false, false, true, false, true] },

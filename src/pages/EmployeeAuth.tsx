@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/bunnyworks-logo.png";
 import { z } from "zod";
 import { lovable } from "@/integrations/lovable/index";
 
@@ -128,7 +128,7 @@ export default function EmployeeAuth() {
       <div className="w-full max-w-md space-y-8 animate-fade-in relative z-10">
         {/* Logo and Header */}
         <div className="text-center">
-          <img src={logo} alt="Creator OS" className="h-20 w-auto mx-auto mb-4 animate-neon-glow" />
+          <img src={logo} alt="BunnyWorksOS" className="h-20 w-auto mx-auto mb-4 animate-neon-glow" />
           <h1 className="text-3xl font-bold gradient-text tracking-wider">Welcome Back</h1>
           <p className="text-muted-foreground mt-2">
             Sign in to your Creator or Team dashboard

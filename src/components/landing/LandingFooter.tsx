@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
+import bunnyWorksLogo from "@/assets/bunnyworks-logo.png";
 
 export function LandingFooter() {
   return (
@@ -14,11 +14,11 @@ export function LandingFooter() {
         >
           <div className="col-span-2">
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <img src={myCreatorSuiteLogo} alt="Creator OS" className="h-6 sm:h-7 w-auto" />
-              <span className="text-sm sm:text-base font-bold text-foreground">Creator OS</span>
+              <img src={bunnyWorksLogo} alt="BunnyWorksOS" className="h-6 sm:h-7 w-auto" />
+              <span className="text-sm sm:text-base font-bold text-foreground">BunnyWorksOS</span>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-sm leading-relaxed">
-              The #1 management platform for OnlyFans and Fansly agencies. Manage creators, track revenue, and scale with AI.
+              The #1 management platform for OnlyFans and Fansly agencies. Manage creators, track revenue, and scale with AI. Powered by BunnyWorksOS.
             </p>
           </div>
           <div>
@@ -61,8 +61,8 @@ export function LandingFooter() {
           viewport={{ once: true }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <span className="text-muted-foreground text-[10px] sm:text-xs">© 2026 My Creator Suite. All rights reserved.</span>
-          <span className="text-muted-foreground text-[10px] sm:text-xs">mycreatorsuite.com</span>
+          <span className="text-muted-foreground text-[10px] sm:text-xs">© 2026 BunnyWorksOS. All rights reserved.</span>
+          <span className="text-muted-foreground text-[10px] sm:text-xs">bunnyworksos.com</span>
         </motion.div>
       </div>
     </footer>

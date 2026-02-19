@@ -42,7 +42,7 @@ export default function PrivacyPolicy() {
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold">8. Contact</h2>
-          <p className="text-muted-foreground">For privacy-related inquiries, contact us at privacy@mycreatorsuite.com.</p>
+          <p className="text-muted-foreground">For privacy-related inquiries, contact us at privacy@bunnyworksos.com.</p>
         </section>
 
         <div className="mt-12">

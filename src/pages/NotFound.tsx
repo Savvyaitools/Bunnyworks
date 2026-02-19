@@ -1,14 +1,14 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Home, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/bunnyworks-logo.png";
 
 const NotFound = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden p-4">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
       <div className="text-center space-y-6 relative z-10 max-w-md">
-        <img src={logo} alt="Creator OS" className="h-16 w-auto mx-auto mb-2" />
+        <img src={logo} alt="BunnyWorksOS" className="h-16 w-auto mx-auto mb-2" />
         <h1 className="text-7xl font-bold gradient-text">404</h1>
         <p className="text-xl text-muted-foreground">This page doesn't exist or has been moved.</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
