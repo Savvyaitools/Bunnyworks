@@ -239,6 +239,151 @@ function proxyConf(c: any) {
   }];
 }
 
+// ========== State → Timezone mapping for geo-consistency ==========
+const STATE_TIMEZONES: Record<string, string> = {
+  TX: "America/Chicago", FL: "America/New_York", NY: "America/New_York", IL: "America/Chicago",
+  OH: "America/New_York", GA: "America/New_York", NC: "America/New_York", MI: "America/Detroit",
+  NJ: "America/New_York", VA: "America/New_York", WA: "America/Los_Angeles", AZ: "America/Phoenix",
+  MA: "America/New_York", TN: "America/Chicago", IN: "America/Indiana/Indianapolis", MO: "America/Chicago",
+  MD: "America/New_York", WI: "America/Chicago", CO: "America/Denver", MN: "America/Chicago",
+  CA: "America/Los_Angeles", PA: "America/New_York",
+};
+
+// ========== Pre-login warmup: visit innocent sites to build browsing history ==========
+async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: string): Promise<void> {
+  const tz = STATE_TIMEZONES[proxyState] || "America/New_York";
+  
+  // 1. Set timezone & locale overrides via CDP to match proxy geo
+  const wsUrl = `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`;
+  console.log(`Warmup: Starting pre-login warmup (tz=${tz}, state=${proxyState})`);
+  
+  await new Promise<void>((resolve) => {
+    let msgId = 1;
+    let resolved = false;
+    const ws = new WebSocket(wsUrl);
+    const timer = setTimeout(() => {
+      if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve(); }
+    }, 25000);
+
+    const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+      const id = msgId++;
+      const msg: any = { id, method, params };
+      if (sid) msg.sessionId = sid;
+      ws.send(JSON.stringify(msg));
+      return id;
+    };
+
+    let getTargetsId: number | null = null;
+    let attachId: number | null = null;
+    let cdpSession: string | null = null;
+    let step = 0;
+
+    ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+    
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        
+        if (msg.id === getTargetsId) {
+          const targets = msg.result?.targetInfos || [];
+          const page = targets.find((t: any) => t.type === "page");
+          if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+          else { resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve(); }
+          return;
+        }
+
+        if (msg.id === attachId) {
+          cdpSession = msg.result?.sessionId;
+          if (!cdpSession) { resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve(); return; }
+          
+          // Set timezone override to match proxy location
+          send("Emulation.setTimezoneOverride", { timezoneId: tz }, cdpSession);
+          // Set locale
+          send("Emulation.setLocaleOverride", { locale: "en-US" }, cdpSession);
+          // Inject navigator overrides for extra realism
+          send("Page.enable", {}, cdpSession);
+          send("Page.addScriptToEvaluateOnNewDocument", { source: `
+            // Override navigator.languages to match locale
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+            // Ensure WebGL vendor matches a real GPU
+            const getParam = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(p) {
+              if (p === 37445) return 'Google Inc. (NVIDIA)';
+              if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+              return getParam.call(this, p);
+            };
+            // Override connection info
+            if (navigator.connection) {
+              Object.defineProperty(navigator.connection, 'effectiveType', { get: () => '4g' });
+              Object.defineProperty(navigator.connection, 'downlink', { get: () => 10 });
+              Object.defineProperty(navigator.connection, 'rtt', { get: () => 50 });
+            }
+            // Override battery API to prevent fingerprint leaks
+            if (navigator.getBattery) {
+              navigator.getBattery = () => Promise.resolve({ charging: true, chargingTime: 0, dischargingTime: Infinity, level: 1, onchargingchange: null, onchargingtimechange: null, ondischargingtimechange: null, onlevelchange: null });
+            }
+          ` }, cdpSession);
+          
+          console.log("Warmup: Environment overrides set, navigating to Google...");
+          
+          // Navigate to Google first (builds browsing history)
+          send("Page.navigate", { url: "https://www.google.com" }, cdpSession);
+          step = 1;
+          return;
+        }
+
+        // Track page loads and continue warmup sequence
+        if ((msg.method === "Page.loadEventFired" || msg.params?.method === "Page.loadEventFired") && cdpSession) {
+          if (step === 1) {
+            // Google loaded — simulate a search after a human-like delay
+            console.log("Warmup: Google loaded, simulating search...");
+            setTimeout(() => {
+              if (resolved) return;
+              // Type a search query and scroll
+              send("Runtime.evaluate", { expression: `
+                (async () => {
+                  // Random scroll to look human
+                  window.scrollTo(0, Math.floor(Math.random() * 300));
+                  await new Promise(r => setTimeout(r, ${800 + Math.floor(Math.random() * 1200)}));
+                  // Click something or just idle
+                  window.scrollTo(0, 0);
+                })();
+              `, awaitPromise: true }, cdpSession);
+              step = 2;
+              // Navigate to a second innocent site
+              setTimeout(() => {
+                if (resolved) return;
+                console.log("Warmup: Navigating to YouTube...");
+                send("Page.navigate", { url: "https://www.youtube.com" }, cdpSession);
+                step = 3;
+              }, 1500 + Math.floor(Math.random() * 1000));
+            }, 1000 + Math.floor(Math.random() * 1500));
+            return;
+          }
+          
+          if (step === 3) {
+            // YouTube loaded — brief scroll then done
+            console.log("Warmup: YouTube loaded, brief interaction...");
+            setTimeout(() => {
+              if (resolved) return;
+              send("Runtime.evaluate", { expression: `window.scrollTo(0, ${200 + Math.floor(Math.random() * 400)})`, returnByValue: true }, cdpSession);
+              setTimeout(() => {
+                if (resolved) return;
+                console.log("Warmup: Pre-login warmup complete ✓");
+                resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve();
+              }, 1000 + Math.floor(Math.random() * 1000));
+            }, 1500 + Math.floor(Math.random() * 1000));
+            return;
+          }
+        }
+      } catch {}
+    };
+    
+    ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve(); } };
+    ws.onclose = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve(); } };
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -325,20 +470,34 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Resolve the proxy state for warmup geo-matching
+      const proxies = proxyConf(cr);
+      const resolvedState = proxies[0]?.geolocation?.state || "TX";
+
       // Admin sessions: 30-minute timeout
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies, keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
       
       if (!sess?.id) {
         console.error("Browserbase session creation returned no session ID", JSON.stringify(sess));
         return json({ error: "Failed to create browser session — no session ID returned" }, 502);
       }
       
-      const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       // Wait for session to be fully ready (context + browser boot)
-      console.log(`Waiting for session ${sess.id} to be ready before CDP navigation...`);
+      console.log(`Waiting for session ${sess.id} to be ready before warmup...`);
       await new Promise(r => setTimeout(r, 5000));
 
-      // Navigate via CDP
+      // Run pre-login warmup: visits Google & YouTube, sets timezone/locale/fingerprint overrides
+      try {
+        await preLoginWarmup(BK, sess.id, resolvedState);
+      } catch (e) {
+        console.warn("Pre-login warmup failed (non-fatal):", e);
+      }
+
+      // Brief pause after warmup before navigating to target platform
+      await new Promise(r => setTimeout(r, 1500 + Math.floor(Math.random() * 1500)));
+
+      // Navigate to the actual platform
+      const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
         try {
           await navigateViaCDP(BK, sess.id, startUrl, { timeout: 15000 });
@@ -536,17 +695,29 @@ Deno.serve(async (req) => {
         can_view_notifications: perm.can_view_notifications ?? false,
       };
 
-      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies: proxyConf(cr), keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
+      const proxies = proxyConf(cr);
+      const resolvedState = proxies[0]?.geolocation?.state || "TX";
+
+      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies, keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
       if (extIds.length > 0) cfg.extensionId = extIds[0];
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       if (!sess?.id) {
         console.error("Browserbase chatter session creation returned no session ID", JSON.stringify(sess));
         return json({ error: "Failed to create browser session — no session ID returned" }, 502);
       }
-      const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
       
       // Wait for context cookies to load
       await new Promise(r => setTimeout(r, 3000));
+
+      // Run pre-login warmup for chatter sessions too (sets timezone, locale, fingerprint overrides)
+      try {
+        await preLoginWarmup(BK, sess.id, resolvedState);
+      } catch (e) {
+        console.warn("Chatter pre-login warmup failed (non-fatal):", e);
+      }
+
+      await new Promise(r => setTimeout(r, 1000 + Math.floor(Math.random() * 1000)));
+      const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
 
       // Navigate via CDP + DOM-based login verification
       let loginVerified = true;
