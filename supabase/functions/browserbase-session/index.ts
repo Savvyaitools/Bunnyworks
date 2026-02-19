@@ -246,13 +246,54 @@ Deno.serve(async (req) => {
     if (!BK || !BP) throw new Error("Browserbase credentials not configured");
     const sUrl = Deno.env.get("SUPABASE_URL")!, sKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const auth = req.headers.get("Authorization");
+    const body = await req.json();
+    const { action, ...p } = body;
+
+    // ========== ADMIN-ONLY: REFRESH ALL CONTEXTS (service-role or user auth) ==========
+    if (action === "refresh_all_contexts") {
+      const svc = createClient(sUrl, sKey);
+      const { agencyId } = p;
+      if (!agencyId) return json({ error: "agencyId required" }, 400);
+
+      const { data: links } = await svc.from("creator_session_links")
+        .select("id, creator_id, browserbase_context_id, platform")
+        .eq("agency_id", agencyId)
+        .eq("is_active", true);
+
+      if (!links?.length) return json({ success: true, message: "No active session links found", refreshed: 0 });
+
+      const results: any[] = [];
+      for (const link of links) {
+        try {
+          const newCtx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
+          if (!newCtx?.id) throw new Error("No context ID returned");
+
+          await svc.from("creator_session_links").update({
+            browserbase_context_id: newCtx.id,
+            session_status: "pending",
+            browserbase_session_id: null,
+            browserbase_live_url: null,
+            last_saved_at: null,
+            updated_at: new Date().toISOString(),
+          }).eq("id", link.id);
+
+          results.push({ creatorId: link.creator_id, oldContext: link.browserbase_context_id, newContext: newCtx.id, status: "ok" });
+          console.log(`Refreshed context for creator ${link.creator_id}: ${link.browserbase_context_id} → ${newCtx.id}`);
+        } catch (err: any) {
+          results.push({ creatorId: link.creator_id, status: "error", error: err.message });
+          console.error(`Failed to refresh context for creator ${link.creator_id}:`, err.message);
+        }
+      }
+
+      return json({ success: true, refreshed: results.filter(r => r.status === "ok").length, total: links.length, results });
+    }
+
     if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
     const sb = createClient(sUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
     const svc = createClient(sUrl, sKey);
     const { data: { user }, error: ue } = await sb.auth.getUser();
     if (ue || !user) return json({ error: "Unauthorized" }, 401);
     const uid = user.id;
-    const { action, ...p } = await req.json();
 
     // ========== CREATE ADMIN SESSION ==========
     if (action === "create_admin_session") {
