@@ -245,7 +245,7 @@ export default function UserGuide() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">How to Use Creator OS</h1>
+          <h1 className="text-3xl font-bold text-foreground">How to Use BunnyWorksOS</h1>
           <p className="text-muted-foreground mt-1">
             Step-by-step guides to help you manage your agency effectively
           </p>

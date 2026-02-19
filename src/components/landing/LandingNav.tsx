@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/landing/MobileNav";
 import { motion, useScroll, useTransform } from "framer-motion";
-import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
+import bunnyWorksLogo from "@/assets/bunnyworks-logo.png";
 
 const mainNavLinks = [
   { label: "Features", href: "#features", isExternal: true },
@@ -38,8 +38,8 @@ export function LandingNav() {
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
           >
-            <img src={myCreatorSuiteLogo} alt="Creator OS" className="h-7 sm:h-8 w-auto" />
-            <span className="text-base sm:text-lg font-bold text-foreground tracking-tight">Creator OS</span>
+            <img src={bunnyWorksLogo} alt="BunnyWorksOS" className="h-7 sm:h-8 w-auto" />
+            <span className="text-base sm:text-lg font-bold text-foreground tracking-tight">BunnyWorksOS</span>
           </motion.div>
 
           <div className="hidden md:flex items-center gap-6 lg:gap-8">

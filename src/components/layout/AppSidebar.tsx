@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "sonner";
-import myCreatorSuiteLogo from "@/assets/mycreatorsuite-logo.png";
+import bunnyWorksLogo from "@/assets/bunnyworks-logo.png";
 
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -137,10 +137,10 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={myCreatorSuiteLogo} alt="Creator OS" className="w-9 h-9 object-contain animate-neon-glow" />
+            <img src={bunnyWorksLogo} alt="BunnyWorksOS" className="w-9 h-9 object-contain animate-neon-glow" />
             {!isCollapsed && (
               <div className="animate-fade-in">
-                <h1 className="font-semibold text-foreground">Creator OS</h1>
+                <h1 className="font-semibold text-foreground">BunnyWorksOS</h1>
                 <p className="text-xs text-muted-foreground">Agency CRM</p>
               </div>
             )}

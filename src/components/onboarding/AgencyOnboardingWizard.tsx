@@ -252,7 +252,7 @@ export function AgencyOnboardingWizard() {
 
       if (error) throw error;
       await refetch();
-      toast.success("Welcome to Creator OS!");
+      toast.success("Welcome to BunnyWorksOS!");
       navigate("/");
     } catch (error) {
       console.error("Error completing onboarding:", error);
@@ -276,7 +276,7 @@ export function AgencyOnboardingWizard() {
               <Rocket className="h-10 w-10 text-primary-foreground" />
             </motion.div>
             <div>
-              <h2 className="text-2xl font-bold mb-2 gradient-text">Welcome to Creator OS</h2>
+              <h2 className="text-2xl font-bold mb-2 gradient-text">Welcome to BunnyWorksOS</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
                 Let's set up your agency in just a few steps. We'll walk you through adding 
                 creators, connecting accounts, and building your team.

@@ -7,12 +7,12 @@ export default function TermsOfService() {
 
         <section className="space-y-4 mb-8">
           <h2 className="text-xl font-semibold">1. Acceptance of Terms</h2>
-          <p className="text-muted-foreground">By accessing or using Creator OS ("Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+          <p className="text-muted-foreground">By accessing or using BunnyWorksOS ("Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
         </section>
 
         <section className="space-y-4 mb-8">
           <h2 className="text-xl font-semibold">2. Description of Service</h2>
-          <p className="text-muted-foreground">Creator OS is a SaaS platform for managing OnlyFans agencies, including creator management, revenue tracking, shift scheduling, and related tools.</p>
+          <p className="text-muted-foreground">BunnyWorksOS is a SaaS platform for managing OnlyFans agencies, including creator management, revenue tracking, shift scheduling, and related tools.</p>
         </section>
 
         <section className="space-y-4 mb-8">
@@ -27,7 +27,7 @@ export default function TermsOfService() {
 
         <section className="space-y-4 mb-8">
           <h2 className="text-xl font-semibold">5. Intellectual Property</h2>
-          <p className="text-muted-foreground">All content, features, and functionality of the Service are owned by My Creator Suite and are protected by applicable intellectual property laws.</p>
+          <p className="text-muted-foreground">All content, features, and functionality of the Service are owned by BunnyWorksOS and are protected by applicable intellectual property laws.</p>
         </section>
 
         <section className="space-y-4 mb-8">
@@ -37,7 +37,7 @@ export default function TermsOfService() {
 
         <section className="space-y-4 mb-8">
           <h2 className="text-xl font-semibold">7. Limitation of Liability</h2>
-          <p className="text-muted-foreground">To the maximum extent permitted by law, Creator OS shall not be liable for any indirect, incidental, special, or consequential damages arising out of or in connection with the Service.</p>
+          <p className="text-muted-foreground">To the maximum extent permitted by law, BunnyWorksOS shall not be liable for any indirect, incidental, special, or consequential damages arising out of or in connection with the Service.</p>
         </section>
 
         <section className="space-y-4 mb-8">
@@ -47,7 +47,7 @@ export default function TermsOfService() {
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold">9. Contact</h2>
-          <p className="text-muted-foreground">For questions about these Terms, contact us at support@mycreatorsuite.com.</p>
+          <p className="text-muted-foreground">For questions about these Terms, contact us at support@bunnyworksos.com.</p>
         </section>
 
         <div className="mt-12">

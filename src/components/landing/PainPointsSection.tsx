@@ -49,7 +49,7 @@ export function PainPointsSection() {
               <span className="gradient-text">this.</span>
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground max-w-md">
-              Every agency owner knows these problems. Creator OS makes them disappear.
+              Every agency owner knows these problems. BunnyWorksOS makes them disappear.
             </p>
           </ScrollReveal>
 
