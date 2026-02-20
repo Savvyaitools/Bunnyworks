@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,15 +29,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileFetchRef = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
+    // Deduplicate: skip if we're already fetching for this user
+    if (profileFetchRef.current === userId) return null;
+    profileFetchRef.current = userId;
+
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .maybeSingle();
 
-    if (!error && data) {
+    // Only apply if this is still the latest fetch
+    if (profileFetchRef.current === userId && !error && data) {
       const profileData = data as Profile;
       setProfile(profileData);
       return profileData;
@@ -46,18 +52,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let initialSessionHandled = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer profile fetch to avoid deadlock
         if (session?.user) {
+          // Skip if getSession already handled this same user
+          if (initialSessionHandled && event === "INITIAL_SESSION") return;
           setTimeout(() => {
             fetchProfile(session.user.id);
           }, 0);
         } else {
+          profileFetchRef.current = null;
           setProfile(null);
         }
       }
@@ -65,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      initialSessionHandled = true;
       setSession(session);
       setUser(session?.user ?? null);
       

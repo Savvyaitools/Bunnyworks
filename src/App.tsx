@@ -101,6 +101,16 @@ function PageSkeleton() {
   );
 }
 
+const PortalErrorFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="text-center p-8 max-w-md border border-border rounded-xl bg-card">
+      <h2 className="text-xl font-semibold text-foreground mb-2">Portal Error</h2>
+      <p className="text-muted-foreground mb-4">Something went wrong in this section. The rest of the app is unaffected.</p>
+      <button onClick={() => window.location.reload()} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">Refresh</button>
+    </div>
+  </div>
+);
+
 const AppRoutes = () => {
   return (
     <Suspense fallback={<PageSkeleton />}>
@@ -157,23 +167,23 @@ const AppRoutes = () => {
         <Route path="/internal-messages" element={<Navigate to="/team-chat" replace />} />
         <Route path="/of-dashboard" element={<Navigate to="/dashboard" replace />} />
         
-        {/* Creator Portal Routes */}
-        <Route path="/portal" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalDashboard /></ProtectedRoute>} />
-        <Route path="/portal/messages" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalMessages /></ProtectedRoute>} />
-        <Route path="/portal/invoices" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalInvoices /></ProtectedRoute>} />
-        <Route path="/portal/content" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContent /></ProtectedRoute>} />
-        <Route path="/portal/plans" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalContentPlans /></ProtectedRoute>} />
-        <Route path="/portal/tasks" element={<ProtectedRoute allowedUserTypes={["creator"]}><PortalTasks /></ProtectedRoute>} />
+        {/* Creator Portal Routes - Scoped Error Boundary */}
+        <Route path="/portal" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalDashboard /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/portal/messages" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalMessages /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/portal/invoices" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalInvoices /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/portal/content" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalContent /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/portal/plans" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalContentPlans /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/portal/tasks" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalTasks /></ProtectedRoute></ErrorBoundary>} />
         
         
-        {/* Employee Portal Routes */}
-        <Route path="/employee" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeDashboard /></ProtectedRoute>} />
-        <Route path="/employee/team-chat" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTeamChat /></ProtectedRoute>} />
-        <Route path="/employee/browser" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeBrowserSessions /></ProtectedRoute>} />
-        <Route path="/employee/performance" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeePerformancePage /></ProtectedRoute>} />
-        <Route path="/employee/shifts" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeShifts /></ProtectedRoute>} />
-        <Route path="/employee/time-logs" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTimeLogs /></ProtectedRoute>} />
-        <Route path="/employee/creators" element={<ProtectedRoute allowedUserTypes={["employee"]}><EmployeeCreatorHub /></ProtectedRoute>} />
+        {/* Employee Portal Routes - Scoped Error Boundary */}
+        <Route path="/employee" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["employee"]}><EmployeeDashboard /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/employee/team-chat" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTeamChat /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/employee/browser" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["employee"]}><EmployeeBrowserSessions /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/employee/performance" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["employee"]}><EmployeePerformancePage /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/employee/shifts" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["employee"]}><EmployeeShifts /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/employee/time-logs" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["employee"]}><EmployeeTimeLogs /></ProtectedRoute></ErrorBoundary>} />
+        <Route path="/employee/creators" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["employee"]}><EmployeeCreatorHub /></ProtectedRoute></ErrorBoundary>} />
         {/* Legacy redirects */}
         <Route path="/employee/onlyfans" element={<Navigate to="/employee/browser" replace />} />
         <Route path="/employee/messages" element={<Navigate to="/employee/team-chat" replace />} />

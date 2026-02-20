@@ -394,11 +394,23 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, ...p } = body;
 
-    // ========== ADMIN-ONLY: REFRESH ALL CONTEXTS (service-role or user auth) ==========
+    if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    const sb = createClient(sUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
+    const svc = createClient(sUrl, sKey);
+    const { data: { user }, error: ue } = await sb.auth.getUser();
+    if (ue || !user) return json({ error: "Unauthorized" }, 401);
+    const uid = user.id;
+
+    // ========== ADMIN-ONLY: REFRESH ALL CONTEXTS (authorized) ==========
     if (action === "refresh_all_contexts") {
-      const svc = createClient(sUrl, sKey);
       const { agencyId } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
+
+      // Verify the caller owns this agency
+      const { data: profile } = await svc.from("profiles").select("agency_id, user_type").eq("id", uid).single();
+      if (!profile || profile.user_type !== "agency" || profile.agency_id !== agencyId) {
+        return json({ error: "Unauthorized: only agency owners can refresh contexts" }, 403);
+      }
 
       const { data: links } = await svc.from("creator_session_links")
         .select("id, creator_id, browserbase_context_id, platform")
@@ -432,13 +444,6 @@ Deno.serve(async (req) => {
 
       return json({ success: true, refreshed: results.filter(r => r.status === "ok").length, total: links.length, results });
     }
-
-    if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
-    const sb = createClient(sUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
-    const svc = createClient(sUrl, sKey);
-    const { data: { user }, error: ue } = await sb.auth.getUser();
-    if (ue || !user) return json({ error: "Unauthorized" }, 401);
-    const uid = user.id;
 
     // ========== CREATE ADMIN SESSION ==========
     if (action === "create_admin_session") {
