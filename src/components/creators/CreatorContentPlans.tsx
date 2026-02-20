@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Calendar, X, Upload, Image, Video, Download, Trash2, FileUp, Heart, Sparkles, MessageCircle, Instagram, Music, Twitter, Youtube } from "lucide-react";
+import { Plus, Calendar, X, Upload, Image, Video, Download, Trash2, FileUp, Heart, Sparkles, MessageCircle, MessageSquare, Instagram, Music, Twitter, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useContentPlanMedia, ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
 import { useAgency } from "@/hooks/useAgency";
 import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban";
+import { LinkifyText } from "@/components/shared/LinkifyText";
 
 interface ContentPlan {
   id: string;
@@ -37,6 +38,7 @@ interface ContentPlan {
   content_category: "platform" | "social" | null;
   board_column: string;
   board_position: number;
+  creator_notes: string | null;
 }
 
 interface CreatorContentPlansProps {
@@ -489,7 +491,9 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
               {selectedPlan.description && (
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">Description</p>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedPlan.description}</p>
+                  <div className="text-sm text-muted-foreground">
+                    <LinkifyText text={selectedPlan.description} />
+                  </div>
                 </div>
               )}
 
@@ -520,7 +524,19 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                 </div>
               )}
 
-              {!selectedPlan.description && (selectedPlan.reference_media?.length || 0) === 0 && (
+              {selectedPlan.creator_notes && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Creator Notes
+                  </p>
+                  <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 border border-border">
+                    <LinkifyText text={selectedPlan.creator_notes} />
+                  </div>
+                </div>
+              )}
+
+              {!selectedPlan.description && !selectedPlan.creator_notes && (selectedPlan.reference_media?.length || 0) === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No additional details for this card.</p>
               )}
             </div>

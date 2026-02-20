@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Download, Image, Video, FileText, Heart, Instagram } from "lucide-react";
+import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -10,11 +11,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
-import { cn } from "@/lib/utils";
 import { ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
-import { KanbanBoard, type KanbanItem } from "@/components/kanban";
+import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban";
+import { LinkifyText } from "@/components/shared/LinkifyText";
+import { toast } from "sonner";
 
 interface ContentPlan {
   id: string;
@@ -28,6 +37,7 @@ interface ContentPlan {
   content_category: "platform" | "social" | null;
   board_column: string;
   board_position: number;
+  creator_notes: string | null;
 }
 
 const PLATFORM_PLATFORMS = ["OnlyFans", "Fansly"];
@@ -38,8 +48,11 @@ export default function PortalContentPlans() {
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
-  const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"platform" | "social">("platform");
+  const [editNotes, setEditNotes] = useState("");
+  const [editColumn, setEditColumn] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const fetchPlans = useCallback(async () => {
     if (!creatorId) return;
@@ -67,9 +80,64 @@ export default function PortalContentPlans() {
     else if (!creatorLoading) setLoading(false);
   }, [creatorId, creatorLoading, fetchPlans]);
 
-  const openMediaDialog = (plan: ContentPlan) => {
+  const openDetailDialog = (plan: ContentPlan) => {
     setSelectedPlan(plan);
-    setIsMediaDialogOpen(true);
+    setEditNotes(plan.creator_notes || "");
+    setEditColumn(plan.board_column);
+    setIsDetailOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!selectedPlan) return;
+    setSaving(true);
+
+    const updates: Record<string, unknown> = {
+      creator_notes: editNotes || null,
+    };
+
+    if (editColumn !== selectedPlan.board_column) {
+      updates.board_column = editColumn;
+      const columnItems = plans.filter(p => p.board_column === editColumn);
+      updates.board_position = columnItems.length;
+    }
+
+    const { error } = await supabase
+      .from("content_plans")
+      .update(updates)
+      .eq("id", selectedPlan.id);
+
+    if (error) {
+      toast.error("Failed to save changes");
+    } else {
+      toast.success("Changes saved");
+      fetchPlans();
+      setIsDetailOpen(false);
+    }
+    setSaving(false);
+  };
+
+  const handleMoveCard = async (cardId: string, newColumn: string, newPosition: number) => {
+    setPlans(prev => {
+      const updated = prev.map(p =>
+        p.id === cardId ? { ...p, board_column: newColumn, board_position: newPosition } : p
+      );
+      const targetItems = updated
+        .filter(p => p.board_column === newColumn && p.id !== cardId)
+        .sort((a, b) => a.board_position - b.board_position);
+      targetItems.splice(newPosition, 0, updated.find(p => p.id === cardId)!);
+      targetItems.forEach((item, idx) => { item.board_position = idx; });
+      return updated;
+    });
+
+    const { error } = await supabase
+      .from("content_plans")
+      .update({ board_column: newColumn, board_position: newPosition })
+      .eq("id", cardId);
+
+    if (error) {
+      toast.error("Failed to move card");
+      fetchPlans();
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -95,12 +163,6 @@ export default function PortalContentPlans() {
     }
   };
 
-  // Portal is read-only for drag (creators can view but not reorder)
-  // but we allow column-based viewing
-  const handleMoveCard = async () => {
-    // Read-only in portal
-  };
-
   const platformPlans = plans.filter(p =>
     p.content_category === "platform" ||
     (!p.content_category && PLATFORM_PLATFORMS.includes(p.platform || ''))
@@ -116,10 +178,9 @@ export default function PortalContentPlans() {
   return (
     <PortalLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="animate-fade-in">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Content Plans</h1>
-          <p className="text-muted-foreground mt-1">View your scheduled content and download reference media</p>
+          <p className="text-muted-foreground mt-1">View your scheduled content, update status, and add notes</p>
         </div>
 
         {/* Stats */}
@@ -155,50 +216,109 @@ export default function PortalContentPlans() {
           </div>
         </div>
 
-        {/* Media Dialog */}
-        <Dialog open={isMediaDialogOpen} onOpenChange={setIsMediaDialogOpen}>
+        {/* Detail + Edit Dialog */}
+        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Reference Media - {selectedPlan?.title}</DialogTitle>
+              <DialogTitle>{selectedPlan?.title}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Download reference images and videos to replicate the content style.</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {(selectedPlan?.reference_media || []).map((media) => (
-                  <div key={media.id} className="relative group rounded-lg overflow-hidden border border-border bg-muted/50">
-                    {media.type === "image" ? (
-                      <img src={media.url} alt={media.name} className="w-full h-32 object-cover" />
-                    ) : (
-                      <div className="w-full h-32 flex items-center justify-center bg-muted"><Video className="h-8 w-8 text-muted-foreground" /></div>
-                    )}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button onClick={() => downloadFile(media.url, media.name)} className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors">
-                        <Download className="h-5 w-5 text-accent-foreground" />
-                      </button>
-                    </div>
-                    <div className="p-2">
-                      <p className="text-xs text-foreground truncate">{media.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatFileSize(media.size)}</p>
+            {selectedPlan && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedPlan.platform && (
+                    <Badge variant="outline">{selectedPlan.platform}</Badge>
+                  )}
+                  {selectedPlan.scheduled_date && (
+                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {new Date(selectedPlan.scheduled_date).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+
+                {selectedPlan.description && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-1">Description</p>
+                    <div className="text-sm text-muted-foreground">
+                      <LinkifyText text={selectedPlan.description} />
                     </div>
                   </div>
-                ))}
-              </div>
-              {(selectedPlan?.reference_media?.length || 0) === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No reference media available for this plan.</p>
-                </div>
-              )}
-              {(selectedPlan?.reference_media?.length || 0) > 0 && (
-                <div className="flex justify-end pt-4 border-t border-border">
-                  <Button variant="outline" onClick={() => {
-                    selectedPlan?.reference_media?.forEach(media => downloadFile(media.url, media.name));
-                  }}>
-                    <Download className="h-4 w-4 mr-2" />Download All
+                )}
+
+                {/* Reference Media */}
+                {(selectedPlan.reference_media?.length || 0) > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">
+                      Reference Media ({selectedPlan.reference_media?.length})
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {(selectedPlan.reference_media || []).map((media) => (
+                        <div key={media.id} className="relative group rounded-lg overflow-hidden border border-border bg-muted/50">
+                          {media.type === "image" ? (
+                            <img src={media.url} alt={media.name} className="w-full h-32 object-cover" />
+                          ) : (
+                            <div className="w-full h-32 flex items-center justify-center bg-muted"><Video className="h-8 w-8 text-muted-foreground" /></div>
+                          )}
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button onClick={() => downloadFile(media.url, media.name)} className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors">
+                              <Download className="h-5 w-5 text-accent-foreground" />
+                            </button>
+                          </div>
+                          <div className="p-2">
+                            <p className="text-xs text-foreground truncate">{media.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(media.size)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end pt-3">
+                      <Button variant="outline" size="sm" onClick={() => {
+                        selectedPlan.reference_media?.forEach(media => downloadFile(media.url, media.name));
+                      }}>
+                        <Download className="h-4 w-4 mr-2" />Download All
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Creator Editable Section */}
+                <div className="border-t border-border pt-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Your Updates
+                  </p>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Status</label>
+                    <Select value={editColumn} onValueChange={setEditColumn}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BOARD_COLUMNS.map((col) => (
+                          <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
+                    <Textarea
+                      placeholder="Add your notes, questions, or progress updates..."
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <Button onClick={handleSave} disabled={saving} className="w-full">
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
@@ -228,8 +348,7 @@ export default function PortalContentPlans() {
                 <KanbanBoard
                   items={platformPlans as unknown as KanbanItem[]}
                   onMoveCard={handleMoveCard}
-                  onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
-                  readOnly
+                  onCardClick={(item) => openDetailDialog(item as unknown as ContentPlan)}
                   hiddenColumns={["projects"]}
                 />
               </TabsContent>
@@ -237,8 +356,7 @@ export default function PortalContentPlans() {
                 <KanbanBoard
                   items={socialPlans as unknown as KanbanItem[]}
                   onMoveCard={handleMoveCard}
-                  onCardClick={(item) => openMediaDialog(item as unknown as ContentPlan)}
-                  readOnly
+                  onCardClick={(item) => openDetailDialog(item as unknown as ContentPlan)}
                   hiddenColumns={["projects"]}
                 />
               </TabsContent>
