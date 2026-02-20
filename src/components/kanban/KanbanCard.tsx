@@ -3,6 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Calendar, Image, X, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { LinkifyText } from "@/components/shared/LinkifyText";
 import type { KanbanItem } from "./KanbanBoard";
 
 interface KanbanCardProps {
@@ -74,7 +75,9 @@ export function KanbanCard({ item, onClick, onEdit, onDelete, isDragOverlay, dis
       <h4 className="text-sm font-medium text-foreground pr-5 line-clamp-2">{item.title}</h4>
 
       {item.description && (
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+          <LinkifyText text={item.description} />
+        </div>
       )}
 
       <div className="flex items-center gap-2 mt-2 flex-wrap">

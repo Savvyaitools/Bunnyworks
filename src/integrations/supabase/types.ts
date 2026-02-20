@@ -1302,6 +1302,7 @@ export type Database = {
           content_category: string | null
           created_at: string
           creator_id: string
+          creator_notes: string | null
           description: string | null
           id: string
           platform: string | null
@@ -1321,6 +1322,7 @@ export type Database = {
           content_category?: string | null
           created_at?: string
           creator_id: string
+          creator_notes?: string | null
           description?: string | null
           id?: string
           platform?: string | null
@@ -1340,6 +1342,7 @@ export type Database = {
           content_category?: string | null
           created_at?: string
           creator_id?: string
+          creator_notes?: string | null
           description?: string | null
           id?: string
           platform?: string | null
