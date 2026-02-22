@@ -3,15 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAgency } from "@/hooks/useAgency";
 import { toast } from "sonner";
 import { useEffect } from "react";
-
-async function invokeAction(action: string, params: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke("browserbase-session", {
-    body: { action, ...params },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
-}
+import { invokeBrowserAction as invokeAction } from "@/lib/browserbase";
 
 export interface ProfileWarmup {
   id: string;

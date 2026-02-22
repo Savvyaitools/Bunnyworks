@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAgency } from "@/hooks/useAgency";
 import { toast } from "sonner";
+import { invokeBrowserAction as invokeAction } from "@/lib/browserbase";
 
 export interface SessionLink {
   id: string;
@@ -35,15 +36,6 @@ export interface ActiveSession {
   ended_at: string | null;
   viewer_count: number;
   viewer_ids: string[];
-}
-
-async function invokeAction(action: string, params: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke("browserbase-session", {
-    body: { action, ...params },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
 }
 
 export function useBrowserSessions() {
