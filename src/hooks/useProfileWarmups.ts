@@ -131,6 +131,22 @@ export function useProfileWarmups() {
     },
   });
 
+  const extendedWarmup = useMutation({
+    mutationFn: async ({ creatorId, contextId, durationHours = 4 }: {
+      creatorId?: string; contextId?: string; durationHours?: number;
+    }) => {
+      return invokeAction("extended_warmup", { creatorId, agencyId, contextId, durationHours });
+    },
+    onSuccess: (data) => {
+      toast.success(`Extended warmup complete: ${data.sitesVisited} sites visited over ${data.durationHours}h`);
+      invalidate();
+    },
+    onError: (err: Error) => {
+      toast.error(`Extended warmup failed: ${err.message}`);
+      invalidate();
+    },
+  });
+
   const createPreWarm = useMutation({
     mutationFn: async ({ warmupType = "full", keywords }: { warmupType?: string; keywords?: string[] }) => {
       return invokeAction("create_pre_warm_profile", { agencyId, warmupType, keywords });
@@ -165,6 +181,7 @@ export function useProfileWarmups() {
     preWarmedLoading,
     warmupSingle,
     warmupBatch,
+    extendedWarmup,
     createPreWarm,
     assignPreWarm,
     getLatestWarmup,

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Flame, Play, Zap, Plus, ArrowRight, Search, Globe, BookOpen, ExternalLink } from "lucide-react";
+import { Flame, Play, Zap, Plus, ArrowRight, Search, Globe, BookOpen, ExternalLink, Timer } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ function healthBadge(latestWarmup: any) {
 export function ProfileWarmupManager() {
   const { creators } = useCreators();
   const { sessionLinks } = useBrowserSessions();
-  const { warmups, preWarmed, warmupSingle, warmupBatch, createPreWarm, assignPreWarm, getLatestWarmup } = useProfileWarmups();
+  const { warmups, preWarmed, warmupSingle, warmupBatch, extendedWarmup, createPreWarm, assignPreWarm, getLatestWarmup } = useProfileWarmups();
   const { intelligence, isLoading: intelLoading } = useWarmupIntelligence();
   const [warmupType, setWarmupType] = useState<string>("full");
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -72,6 +72,15 @@ export function ProfileWarmupManager() {
         <Button onClick={handleWarmupAll} disabled={bulkRunning || activeCreators.length === 0} className="gap-2">
           <Zap className="h-4 w-4" />
           {bulkRunning ? "Warming All..." : `Warm Up All (${activeCreators.length})`}
+        </Button>
+        <Button 
+          variant="secondary" 
+          onClick={() => extendedWarmup.mutate({ durationHours: 4 })}
+          disabled={extendedWarmup.isPending}
+          className="gap-2"
+        >
+          <Timer className="h-4 w-4" />
+          {extendedWarmup.isPending ? "Running 4hr Warmup..." : "4hr Deep Warmup"}
         </Button>
         <Button variant="outline" onClick={handleCreatePreWarm} disabled={createPreWarm.isPending} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -148,6 +157,15 @@ export function ProfileWarmupManager() {
                       >
                         <Search className="h-3.5 w-3.5" />
                         Research
+                      </Button>
+                      <Button
+                        size="sm" variant="secondary" className="gap-1.5"
+                        disabled={isRunning || extendedWarmup.isPending}
+                        onClick={() => extendedWarmup.mutate({ creatorId: creator.id, durationHours: 4 })}
+                        title="4-hour deep browsing warmup for maximum anti-detect"
+                      >
+                        <Timer className="h-3.5 w-3.5" />
+                        4hr
                       </Button>
                     </div>
                   </CardContent>
