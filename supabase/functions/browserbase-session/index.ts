@@ -249,6 +249,100 @@ const STATE_TIMEZONES: Record<string, string> = {
   CA: "America/Los_Angeles", PA: "America/New_York",
 };
 
+// ========== Advanced stealth injection script ==========
+const STEALTH_SCRIPT = `
+// === Canvas fingerprint noise ===
+const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+HTMLCanvasElement.prototype.toDataURL = function(type) {
+  const ctx = this.getContext('2d');
+  if (ctx) {
+    const imgData = ctx.getImageData(0, 0, this.width, this.height);
+    for (let i = 0; i < Math.min(imgData.data.length, 40); i += 4) {
+      imgData.data[i] = imgData.data[i] ^ (Math.random() > 0.5 ? 1 : 0);
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+  return origToDataURL.apply(this, arguments);
+};
+
+// === WebGL fingerprint ===
+const getParam = WebGLRenderingContext.prototype.getParameter;
+WebGLRenderingContext.prototype.getParameter = function(p) {
+  if (p === 37445) return 'Google Inc. (NVIDIA)';
+  if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)';
+  return getParam.call(this, p);
+};
+if (typeof WebGL2RenderingContext !== 'undefined') {
+  const getParam2 = WebGL2RenderingContext.prototype.getParameter;
+  WebGL2RenderingContext.prototype.getParameter = function(p) {
+    if (p === 37445) return 'Google Inc. (NVIDIA)';
+    if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    return getParam2.call(this, p);
+  };
+}
+
+// === AudioContext fingerprint noise ===
+if (typeof AudioContext !== 'undefined') {
+  const origCreateOscillator = AudioContext.prototype.createOscillator;
+  AudioContext.prototype.createOscillator = function() {
+    const osc = origCreateOscillator.call(this);
+    osc.frequency.value += (Math.random() - 0.5) * 0.01;
+    return osc;
+  };
+}
+
+// === Navigator overrides ===
+Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
+
+// === WebRTC IP leak prevention ===
+if (typeof RTCPeerConnection !== 'undefined') {
+  const origRTC = RTCPeerConnection;
+  window.RTCPeerConnection = function(config) {
+    if (config && config.iceServers) {
+      config.iceServers = [];
+    }
+    return new origRTC(config);
+  };
+  window.RTCPeerConnection.prototype = origRTC.prototype;
+}
+
+// === Connection info ===
+if (navigator.connection) {
+  Object.defineProperty(navigator.connection, 'effectiveType', { get: () => '4g' });
+  Object.defineProperty(navigator.connection, 'downlink', { get: () => 10 });
+  Object.defineProperty(navigator.connection, 'rtt', { get: () => 50 });
+}
+
+// === Battery API ===
+if (navigator.getBattery) {
+  navigator.getBattery = () => Promise.resolve({
+    charging: true, chargingTime: 0, dischargingTime: Infinity, level: 1,
+    onchargingchange: null, onchargingtimechange: null,
+    ondischargingtimechange: null, onlevelchange: null
+  });
+}
+
+// === Permissions API spoofing ===
+if (navigator.permissions) {
+  const origQuery = navigator.permissions.query;
+  navigator.permissions.query = function(desc) {
+    if (desc.name === 'notifications') {
+      return Promise.resolve({ state: 'prompt', onchange: null });
+    }
+    return origQuery.call(this, desc);
+  };
+}
+
+// === Plugin count (Chrome typically has 5) ===
+Object.defineProperty(navigator, 'plugins', {
+  get: () => [1,2,3,4,5].map(() => ({ name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer' }))
+});
+`;
+
 // ========== Pre-login warmup: visit innocent sites to build browsing history ==========
 async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: string): Promise<void> {
   const tz = STATE_TIMEZONES[proxyState] || "America/New_York";
@@ -263,13 +357,13 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
     const ws = new WebSocket(wsUrl);
     const timer = setTimeout(() => {
       if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve(); }
-    }, 25000);
+    }, 30000);
 
     const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
       const id = msgId++;
       const msg: any = { id, method, params };
       if (sid) msg.sessionId = sid;
-      ws.send(JSON.stringify(msg));
+      try { ws.send(JSON.stringify(msg)); } catch {}
       return id;
     };
 
@@ -277,6 +371,7 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
     let attachId: number | null = null;
     let cdpSession: string | null = null;
     let step = 0;
+    let retryCount = 0;
 
     ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
     
@@ -287,8 +382,15 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
         if (msg.id === getTargetsId) {
           const targets = msg.result?.targetInfos || [];
           const page = targets.find((t: any) => t.type === "page");
-          if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
-          else { resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve(); }
+          if (page) {
+            attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+          } else if (retryCount < 3) {
+            retryCount++;
+            console.log(`Warmup: No page target found, retrying (${retryCount}/3)...`);
+            setTimeout(() => { getTargetsId = send("Target.getTargets"); }, 2000);
+          } else {
+            resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve();
+          }
           return;
         }
 
@@ -298,35 +400,12 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
           
           // Set timezone override to match proxy location
           send("Emulation.setTimezoneOverride", { timezoneId: tz }, cdpSession);
-          // Set locale
           send("Emulation.setLocaleOverride", { locale: "en-US" }, cdpSession);
-          // Inject navigator overrides for extra realism
           send("Page.enable", {}, cdpSession);
-          send("Page.addScriptToEvaluateOnNewDocument", { source: `
-            // Override navigator.languages to match locale
-            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-            // Ensure WebGL vendor matches a real GPU
-            const getParam = WebGLRenderingContext.prototype.getParameter;
-            WebGLRenderingContext.prototype.getParameter = function(p) {
-              if (p === 37445) return 'Google Inc. (NVIDIA)';
-              if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11 vs_5_0 ps_5_0, D3D11)';
-              return getParam.call(this, p);
-            };
-            // Override connection info
-            if (navigator.connection) {
-              Object.defineProperty(navigator.connection, 'effectiveType', { get: () => '4g' });
-              Object.defineProperty(navigator.connection, 'downlink', { get: () => 10 });
-              Object.defineProperty(navigator.connection, 'rtt', { get: () => 50 });
-            }
-            // Override battery API to prevent fingerprint leaks
-            if (navigator.getBattery) {
-              navigator.getBattery = () => Promise.resolve({ charging: true, chargingTime: 0, dischargingTime: Infinity, level: 1, onchargingchange: null, onchargingtimechange: null, ondischargingtimechange: null, onlevelchange: null });
-            }
-          ` }, cdpSession);
+          // Inject full stealth script
+          send("Page.addScriptToEvaluateOnNewDocument", { source: STEALTH_SCRIPT }, cdpSession);
           
-          console.log("Warmup: Environment overrides set, navigating to Google...");
-          
-          // Navigate to Google first (builds browsing history)
+          console.log("Warmup: Stealth overrides set, navigating to Google...");
           send("Page.navigate", { url: "https://www.google.com" }, cdpSession);
           step = 1;
           return;
@@ -335,22 +414,17 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
         // Track page loads and continue warmup sequence
         if ((msg.method === "Page.loadEventFired" || msg.params?.method === "Page.loadEventFired") && cdpSession) {
           if (step === 1) {
-            // Google loaded — simulate a search after a human-like delay
             console.log("Warmup: Google loaded, simulating search...");
             setTimeout(() => {
               if (resolved) return;
-              // Type a search query and scroll
               send("Runtime.evaluate", { expression: `
                 (async () => {
-                  // Random scroll to look human
                   window.scrollTo(0, Math.floor(Math.random() * 300));
                   await new Promise(r => setTimeout(r, ${800 + Math.floor(Math.random() * 1200)}));
-                  // Click something or just idle
                   window.scrollTo(0, 0);
                 })();
               `, awaitPromise: true }, cdpSession);
               step = 2;
-              // Navigate to a second innocent site
               setTimeout(() => {
                 if (resolved) return;
                 console.log("Warmup: Navigating to YouTube...");
@@ -362,7 +436,6 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
           }
           
           if (step === 3) {
-            // YouTube loaded — brief scroll then done
             console.log("Warmup: YouTube loaded, brief interaction...");
             setTimeout(() => {
               if (resolved) return;
@@ -382,6 +455,20 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
     ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve(); } };
     ws.onclose = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve(); } };
   });
+}
+
+// ========== Wait for session to be RUNNING with retries ==========
+async function waitForSessionReady(apiKey: string, sessionId: string, maxWaitMs = 15000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const d = await bb(apiKey, `/sessions/${sessionId}`);
+      if (d.status === "RUNNING") return true;
+      if (d.status === "ERROR" || d.status === "TIMED_OUT") return false;
+    } catch {}
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  return false;
 }
 
 Deno.serve(async (req) => {
@@ -487,11 +574,15 @@ Deno.serve(async (req) => {
         return json({ error: "Failed to create browser session — no session ID returned" }, 502);
       }
       
-      // Wait for session to be fully ready (context + browser boot)
-      console.log(`Waiting for session ${sess.id} to be ready before warmup...`);
-      await new Promise(r => setTimeout(r, 5000));
+      // Wait for session to be fully RUNNING (prevents stuck sessions)
+      console.log(`Waiting for session ${sess.id} to be ready...`);
+      const isReady = await waitForSessionReady(BK, sess.id, 20000);
+      if (!isReady) {
+        console.error(`Session ${sess.id} failed to reach RUNNING state`);
+        return json({ error: "Browser session failed to start. Please try again." }, 502);
+      }
 
-      // Run pre-login warmup: visits Google & YouTube, sets timezone/locale/fingerprint overrides
+      // Run pre-login warmup: visits Google & YouTube, sets timezone/locale/fingerprint + full stealth
       try {
         await preLoginWarmup(BK, sess.id, resolvedState);
       } catch (e) {
@@ -502,10 +593,18 @@ Deno.serve(async (req) => {
       await new Promise(r => setTimeout(r, 1500 + Math.floor(Math.random() * 1500)));
 
       // Navigate to the actual platform
+      // Inject stealth script into the session before navigating to target
+      try {
+        await navigateViaCDP(BK, sess.id, "about:blank", {
+          timeout: 5000,
+          evaluate: STEALTH_SCRIPT,
+        });
+      } catch {}
+
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
         try {
-          await navigateViaCDP(BK, sess.id, startUrl, { timeout: 15000 });
+          await navigateViaCDP(BK, sess.id, startUrl, { timeout: 20000 });
         } catch (e) {
           console.warn("CDP auto-navigate failed (non-fatal):", e);
         }
@@ -711,10 +810,14 @@ Deno.serve(async (req) => {
         return json({ error: "Failed to create browser session — no session ID returned" }, 502);
       }
       
-      // Wait for context cookies to load
-      await new Promise(r => setTimeout(r, 3000));
+      // Wait for session to be fully RUNNING
+      const chatterReady = await waitForSessionReady(BK, sess.id, 20000);
+      if (!chatterReady) {
+        console.error(`Chatter session ${sess.id} failed to reach RUNNING state`);
+        return json({ error: "Browser session failed to start. Please try again." }, 502);
+      }
 
-      // Run pre-login warmup for chatter sessions too (sets timezone, locale, fingerprint overrides)
+      // Run pre-login warmup for chatter sessions too (full stealth + timezone/locale overrides)
       try {
         await preLoginWarmup(BK, sess.id, resolvedState);
       } catch (e) {
@@ -942,14 +1045,32 @@ Deno.serve(async (req) => {
       try {
         const sessBody: any = {
           projectId: BP,
-          browserSettings: { context: { id: bbContextId, persist: true }, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"] } },
-          keepAlive: false, timeout: 300,
+          browserSettings: {
+            context: { id: bbContextId, persist: true },
+            solveCaptchas: true, blockAds: true, advancedStealth: true,
+            fingerprint: {
+              browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"],
+              locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 },
+              httpVersion: "2",
+            },
+          },
+          keepAlive: false, timeout: 600,
           userMetadata: { warmup: true, agencyId, creatorId: targetCreatorId },
         };
         if (proxySettings) sessBody.proxies = proxyConf(proxySettings);
 
         const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
-        await new Promise(r => setTimeout(r, 3000));
+        if (!sess?.id) throw new Error("Session creation failed");
+
+        const sessReady = await waitForSessionReady(BK, sess.id, 15000);
+        if (!sessReady) throw new Error("Session failed to start");
+
+        // Inject stealth script
+        try {
+          await navigateViaCDP(BK, sess.id, "about:blank", { timeout: 5000, evaluate: STEALTH_SCRIPT });
+        } catch {}
+        
+        await new Promise(r => setTimeout(r, 2000));
 
         let sitesVisited = 0;
 
@@ -1159,6 +1280,196 @@ Deno.serve(async (req) => {
       }
 
       return json({ success: true, contextId: profile.browserbase_context_id });
+    }
+
+    // ========== EXTENDED WARMUP: 4-hour deep browsing session ==========
+    if (action === "extended_warmup") {
+      const { creatorId, agencyId, contextId, durationHours = 4 } = p;
+      if (!agencyId) return json({ error: "agencyId required" }, 400);
+
+      let bbContextId = contextId;
+      if (creatorId && !bbContextId) {
+        const { data: link } = await svc.from("creator_session_links")
+          .select("browserbase_context_id")
+          .eq("creator_id", creatorId)
+          .not("browserbase_context_id", "is", null)
+          .maybeSingle();
+        if (link?.browserbase_context_id) {
+          bbContextId = link.browserbase_context_id;
+        } else {
+          const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
+          bbContextId = ctx.id;
+          await svc.from("creator_session_links").upsert({
+            creator_id: creatorId, agency_id: agencyId, platform: "onlyfans",
+            created_by: uid, encrypted_session: "browserbase",
+            browserbase_context_id: bbContextId, session_status: "pending",
+            is_active: false, expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
+          }, { onConflict: "creator_id,platform" });
+        }
+      }
+      if (!bbContextId) {
+        const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
+        bbContextId = ctx.id;
+      }
+
+      const totalSites = 60;
+      const timeoutSec = Math.min(durationHours * 3600, 14400); // max 4 hours
+
+      const { data: warmupRec } = await svc.from("creator_profile_warmups").insert({
+        creator_id: creatorId || null, agency_id: agencyId,
+        browserbase_context_id: bbContextId,
+        status: "running", warmup_type: "extended",
+        total_sites: totalSites,
+        started_at: new Date().toISOString(),
+      }).select("id").single();
+      const warmupId = warmupRec!.id;
+
+      let proxySettings = null;
+      if (creatorId) {
+        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state").eq("id", creatorId).maybeSingle();
+        if (cr) proxySettings = cr;
+      }
+
+      try {
+        const sessBody: any = {
+          projectId: BP,
+          browserSettings: {
+            context: { id: bbContextId, persist: true },
+            solveCaptchas: true, blockAds: true, advancedStealth: true,
+            fingerprint: {
+              browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"],
+              locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 },
+              httpVersion: "2",
+            },
+          },
+          keepAlive: true,
+          timeout: timeoutSec,
+          userMetadata: { warmup: true, extended: true, agencyId, creatorId },
+        };
+        if (proxySettings) sessBody.proxies = proxyConf(proxySettings);
+
+        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
+        if (!sess?.id) throw new Error("Session creation failed");
+
+        const ready = await waitForSessionReady(BK, sess.id, 20000);
+        if (!ready) throw new Error("Session failed to start");
+
+        // Inject stealth script first
+        try {
+          await navigateViaCDP(BK, sess.id, "about:blank", { timeout: 5000, evaluate: STEALTH_SCRIPT });
+        } catch {}
+
+        let sitesVisited = 0;
+
+        // Extended site list for deep cookie/history building
+        const EXTENDED_SITES = [
+          // Search engines & portals
+          "https://www.google.com/search?q=best+restaurants+near+me",
+          "https://www.google.com/search?q=weather+today",
+          "https://www.google.com/search?q=latest+movies+2026",
+          "https://www.bing.com/search?q=trending+news",
+          // Social media
+          "https://www.youtube.com", "https://www.youtube.com/feed/trending",
+          "https://www.reddit.com", "https://www.reddit.com/r/popular",
+          "https://www.x.com", "https://www.instagram.com",
+          "https://www.tiktok.com", "https://www.facebook.com",
+          "https://www.linkedin.com",
+          // Shopping
+          "https://www.amazon.com/s?k=headphones",
+          "https://www.amazon.com/s?k=running+shoes",
+          "https://www.ebay.com", "https://www.walmart.com",
+          "https://www.target.com", "https://www.bestbuy.com",
+          // News
+          "https://www.cnn.com", "https://www.bbc.com/news",
+          "https://www.reuters.com", "https://news.google.com",
+          "https://www.foxnews.com", "https://www.nytimes.com",
+          // Entertainment
+          "https://www.netflix.com", "https://www.twitch.tv",
+          "https://www.spotify.com", "https://www.imdb.com",
+          "https://www.hulu.com",
+          // Utilities
+          "https://weather.com", "https://www.google.com/maps",
+          "https://www.wikipedia.org", "https://en.wikipedia.org/wiki/Main_Page",
+          "https://www.espn.com", "https://www.nba.com",
+          // Tech
+          "https://www.github.com", "https://stackoverflow.com",
+          "https://www.medium.com", "https://www.quora.com",
+          // Finance
+          "https://www.yahoo.com/finance", "https://www.coinbase.com",
+          "https://www.bankofamerica.com",
+          // Travel
+          "https://www.booking.com", "https://www.airbnb.com",
+          "https://www.expedia.com",
+          // Health & Lifestyle
+          "https://www.webmd.com", "https://www.healthline.com",
+          "https://www.yelp.com",
+          // More social/creator
+          "https://www.pinterest.com", "https://www.tumblr.com",
+          "https://www.discord.com",
+          // Adult-adjacent (builds realistic browsing for OF accounts)
+          "https://www.patreon.com", "https://ko-fi.com",
+          "https://linktr.ee",
+          // Random deep browsing
+          "https://www.craigslist.org", "https://www.etsy.com",
+          "https://www.zillow.com",
+        ];
+
+        // Shuffle sites for randomness
+        const shuffled = [...EXTENDED_SITES].sort(() => Math.random() - 0.5);
+        const sitesToVisit = shuffled.slice(0, totalSites);
+
+        // Human-like browsing simulation scripts
+        const SCROLL_SCRIPTS = [
+          `window.scrollTo({top: Math.floor(Math.random()*800)+200, behavior:'smooth'})`,
+          `window.scrollBy({top: Math.floor(Math.random()*600)+100, behavior:'smooth'})`,
+          `document.querySelectorAll('a').length`,
+          `window.scrollTo({top: document.body.scrollHeight * Math.random(), behavior:'smooth'})`,
+          `(async()=>{for(let i=0;i<3;i++){window.scrollBy({top:300,behavior:'smooth'});await new Promise(r=>setTimeout(r,800))}})()`,
+        ];
+
+        for (const siteUrl of sitesToVisit) {
+          try {
+            const scrollScript = SCROLL_SCRIPTS[Math.floor(Math.random() * SCROLL_SCRIPTS.length)];
+            await navigateViaCDP(BK, sess.id, siteUrl, {
+              timeout: 20000,
+              evaluate: scrollScript,
+            });
+
+            // Realistic delays: 5-30 seconds per site (human browsing pace)
+            const delay = 5000 + Math.floor(Math.random() * 25000);
+            await new Promise(r => setTimeout(r, delay));
+
+            sitesVisited++;
+            // Update progress every 3 sites to reduce DB writes
+            if (sitesVisited % 3 === 0 || sitesVisited === totalSites) {
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            }
+          } catch (e) {
+            console.warn(`Extended warmup nav failed for ${siteUrl}:`, e);
+          }
+        }
+
+        // Release session to persist all cookies
+        try {
+          await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) });
+        } catch {}
+
+        await svc.from("creator_profile_warmups").update({
+          status: "completed", sites_visited: sitesVisited, completed_at: new Date().toISOString(),
+        }).eq("id", warmupId);
+
+        // Update pre_warmed_profiles if this context is there
+        await svc.from("pre_warmed_profiles").update({
+          warmup_count: sitesVisited, last_warmed_at: new Date().toISOString(),
+        }).eq("browserbase_context_id", bbContextId);
+
+        return json({ success: true, warmupId, sitesVisited, status: "completed", durationHours });
+      } catch (e: any) {
+        await svc.from("creator_profile_warmups").update({
+          status: "failed", error_message: e.message, completed_at: new Date().toISOString(),
+        }).eq("id", warmupId);
+        return json({ error: e.message, warmupId, status: "failed" }, 500);
+      }
     }
 
     return json({ error: "Invalid action" }, 400);
