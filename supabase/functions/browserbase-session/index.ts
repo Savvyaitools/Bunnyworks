@@ -204,7 +204,7 @@ function sessionBody(projectId: string, contextId: string, proxies: any[], opts:
     projectId,
     browserSettings: {
       context: { id: contextId, persist: true },
-      solveCaptchas: true, blockAds: true, advancedStealth: true,
+      solveCaptchas: true, blockAds: true,
       fingerprint: browserFingerprint(),
     },
     proxies,
