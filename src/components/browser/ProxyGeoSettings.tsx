@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreators } from "@/hooks/useCreators";
 import { useProxyConfigs, type ProxyConfig } from "@/hooks/useProxyConfigs";
 import {
-  MapPin, Plus, Shield, Zap, Globe, Trash2, Pencil, Save, Users,
-  CheckCircle2, AlertCircle, HelpCircle, Server, Wifi, Smartphone
+  MapPin, Plus, Shield, Globe, Trash2, Pencil, Save, Users,
+  CheckCircle2, AlertCircle, HelpCircle, Settings2
 } from "lucide-react";
 
 const COUNTRIES = [
@@ -50,20 +50,6 @@ const US_STATES = [
   "wisconsin", "wyoming"
 ];
 
-const PROXY_TYPE_INFO = {
-  residential: { icon: Globe, label: "Residential", desc: "Real home IPs — best for anti-detect & platform trust", recommended: true },
-  isp: { icon: Wifi, label: "ISP (Static Residential)", desc: "Datacenter speed + residential trust — great for persistent sessions" },
-  mobile: { icon: Smartphone, label: "Mobile", desc: "Carrier IPs — highest trust but most expensive" },
-  datacenter: { icon: Server, label: "Datacenter", desc: "Fast & cheap but easily detected — not recommended for OnlyFans" },
-} as const;
-
-const EMPTY_FORM: Partial<ProxyConfig> = {
-  name: "", provider: "custom", proxy_type: "residential", protocol: "http",
-  host: "", port: undefined, username: "", password: "",
-  country: "", state: "", city: "", is_rotating: true,
-  sticky_session_ttl: undefined, notes: "",
-};
-
 function HealthBadge({ status }: { status: string }) {
   if (status === "healthy") return <Badge variant="default" className="gap-1"><CheckCircle2 className="h-3 w-3" />Healthy</Badge>;
   if (status === "degraded") return <Badge variant="secondary" className="gap-1"><AlertCircle className="h-3 w-3" />Degraded</Badge>;
@@ -71,46 +57,124 @@ function HealthBadge({ status }: { status: string }) {
   return <Badge variant="outline" className="gap-1"><HelpCircle className="h-3 w-3" />Unknown</Badge>;
 }
 
-function ProxyRecommendation({ onSelect }: { onSelect: (type: string) => void }) {
+/* ─── Browserbase Residential Proxy Form ─── */
+function BrowserbaseProxyForm() {
+  const { createConfig, configs } = useProxyConfigs();
+  const [country, setCountry] = useState("US");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+
+  const existingBB = configs.filter(c => c.provider === "browserbase");
+
+  const handleSave = () => {
+    createConfig.mutate({
+      name: `Browserbase ${COUNTRIES.find(c => c.code === country)?.name || country}${state ? ` / ${state.replace(/_/g, " ")}` : ""}`,
+      provider: "browserbase",
+      proxy_type: "residential",
+      protocol: "http",
+      country,
+      state: state || null,
+      city: city || null,
+      is_rotating: true,
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Zap className="h-5 w-5 text-primary" />
-          Which Proxy Type Is Right For You?
+          <Globe className="h-5 w-5 text-primary" />
+          Browserbase Residential Proxy
         </CardTitle>
         <CardDescription>
-          Select based on your platform requirements and budget. For OnlyFans, residential or ISP proxies are strongly recommended.
+          Browserbase provides built-in residential proxies. Select a geographic location and we'll automatically route your sessions through the best available proxy in that region.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(Object.entries(PROXY_TYPE_INFO) as [string, any][]).map(([key, info]) => {
-            const Icon = info.icon;
-            return (
-              <button
-                key={key}
-                onClick={() => onSelect(key)}
-                className="relative flex flex-col gap-2 p-4 rounded-lg border border-border/60 bg-card hover:border-primary/50 hover:bg-accent/30 transition-all text-left group"
-              >
-                {info.recommended && (
-                  <Badge className="absolute top-2 right-2 text-[10px]">Recommended</Badge>
-                )}
-                <div className="flex items-center gap-2">
-                  <Icon className="h-5 w-5 text-primary" />
-                  <span className="font-medium text-sm">{info.label}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{info.desc}</p>
-              </button>
-            );
-          })}
+      <CardContent className="space-y-5">
+        {/* Location selector */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Country</Label>
+            <Select value={country} onValueChange={v => { setCountry(v); setState(""); }}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {country === "US" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">State <span className="text-muted-foreground">(optional)</span></Label>
+              <Select value={state} onValueChange={setState}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Any state" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any</SelectItem>
+                  {US_STATES.map(s => (
+                    <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">City <span className="text-muted-foreground">(optional)</span></Label>
+            <Input placeholder="e.g. Dallas" value={city} onChange={e => setCity(e.target.value)} />
+          </div>
         </div>
+
+        {/* Info callout */}
+        <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-2">
+          <p className="text-sm font-medium flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" /> How it works
+          </p>
+          <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-5">
+            <li>Browserbase selects the best residential IP from its pool based on your chosen region</li>
+            <li>IPs rotate automatically per session to avoid fingerprinting</li>
+            <li>State-level pinning keeps your creator's sessions geographically consistent</li>
+            <li>No credentials needed — proxies are managed by Browserbase</li>
+          </ul>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button onClick={handleSave} disabled={createConfig.isPending} className="gap-1.5">
+            <Save className="h-4 w-4" />
+            {createConfig.isPending ? "Saving..." : "Save Proxy Config"}
+          </Button>
+        </div>
+
+        {/* Existing Browserbase configs */}
+        {existingBB.length > 0 && (
+          <div className="space-y-2 pt-2 border-t">
+            <p className="text-xs font-medium text-muted-foreground">Saved Browserbase Configs</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {existingBB.map(c => (
+                <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-card">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {c.country}{c.state ? ` / ${c.state.replace(/_/g, " ")}` : ""}{c.city ? ` · ${c.city}` : ""}
+                    </p>
+                  </div>
+                  <HealthBadge status={c.health_status} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function ProxyFormDialog({
+/* ─── Custom Proxy Form Dialog ─── */
+const EMPTY_CUSTOM: Partial<ProxyConfig> = {
+  name: "", provider: "custom", proxy_type: "residential", protocol: "http",
+  host: "", port: undefined, username: "", password: "",
+  country: "", state: "", city: "", is_rotating: true,
+  sticky_session_ttl: undefined, notes: "",
+};
+
+function CustomProxyDialog({
   open, onOpenChange, initialData, onSave, saving,
 }: {
   open: boolean;
@@ -121,14 +185,13 @@ function ProxyFormDialog({
 }) {
   const [form, setForm] = useState<Partial<ProxyConfig>>(initialData);
   const isEdit = !!initialData.id;
-
   const update = (field: string, value: any) => setForm(f => ({ ...f, [field]: value }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Proxy" : "Add Custom Proxy"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Custom Proxy" : "Add Custom Residential Proxy"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -137,13 +200,14 @@ function ProxyFormDialog({
               <Input placeholder="e.g. Bright Data US Residential" value={form.name || ""} onChange={e => update("name", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Proxy Type</Label>
-              <Select value={form.proxy_type || "residential"} onValueChange={v => update("proxy_type", v)}>
+              <Label className="text-xs">Provider</Label>
+              <Select value={form.provider || "custom"} onValueChange={v => update("provider", v)}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(PROXY_TYPE_INFO).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                  ))}
+                  <SelectItem value="bright_data">Bright Data</SelectItem>
+                  <SelectItem value="smartproxy">Smartproxy</SelectItem>
+                  <SelectItem value="oxylabs">Oxylabs</SelectItem>
+                  <SelectItem value="custom">Other Provider</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -162,42 +226,26 @@ function ProxyFormDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Provider</Label>
-              <Select value={form.provider || "custom"} onValueChange={v => update("provider", v)}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="browserbase">Browserbase (Built-in)</SelectItem>
-                  <SelectItem value="bright_data">Bright Data</SelectItem>
-                  <SelectItem value="custom">Custom / Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-xs">Port</Label>
+              <Input type="number" placeholder="8080" value={form.port ?? ""} onChange={e => update("port", e.target.value ? parseInt(e.target.value) : undefined)} />
             </div>
           </div>
 
-          {form.provider !== "browserbase" && (
-            <>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="sm:col-span-2 space-y-1.5">
-                  <Label className="text-xs">Host</Label>
-                  <Input placeholder="proxy.example.com" value={form.host || ""} onChange={e => update("host", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Port</Label>
-                  <Input type="number" placeholder="8080" value={form.port ?? ""} onChange={e => update("port", e.target.value ? parseInt(e.target.value) : undefined)} />
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Username</Label>
-                  <Input placeholder="proxy_user" value={form.username || ""} onChange={e => update("username", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Password</Label>
-                  <Input type="password" placeholder="••••••••" value={form.password || ""} onChange={e => update("password", e.target.value)} />
-                </div>
-              </div>
-            </>
-          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Host</Label>
+            <Input placeholder="proxy.example.com" value={form.host || ""} onChange={e => update("host", e.target.value)} />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Username</Label>
+              <Input placeholder="proxy_user" value={form.username || ""} onChange={e => update("username", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Password</Label>
+              <Input type="password" placeholder="••••••••" value={form.password || ""} onChange={e => update("password", e.target.value)} />
+            </div>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
@@ -223,7 +271,7 @@ function ProxyFormDialog({
               </div>
             )}
             <div className="space-y-1.5">
-              <Label className="text-xs">City (optional)</Label>
+              <Label className="text-xs">City</Label>
               <Input placeholder="e.g. Dallas" value={form.city || ""} onChange={e => update("city", e.target.value)} />
             </div>
           </div>
@@ -248,7 +296,7 @@ function ProxyFormDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => onSave(form)} disabled={saving || !form.name?.trim()}>
+          <Button onClick={() => onSave({ ...form, proxy_type: "residential" })} disabled={saving || !form.name?.trim() || !form.host?.trim()}>
             <Save className="h-4 w-4 mr-1.5" />
             {saving ? "Saving..." : isEdit ? "Update" : "Add Proxy"}
           </Button>
@@ -258,26 +306,22 @@ function ProxyFormDialog({
   );
 }
 
-function ProxyConfigCard({
+/* ─── Custom Proxy Card ─── */
+function CustomProxyCard({
   config, onEdit, onDelete, deleting,
 }: {
   config: ProxyConfig; onEdit: () => void; onDelete: () => void; deleting: boolean;
 }) {
-  const typeInfo = PROXY_TYPE_INFO[config.proxy_type as keyof typeof PROXY_TYPE_INFO] || PROXY_TYPE_INFO.residential;
-  const Icon = typeInfo.icon;
-
   return (
     <Card className="relative">
-      {config.is_default && (
-        <Badge className="absolute top-3 right-3 text-[10px]">Default</Badge>
-      )}
+      {config.is_default && <Badge className="absolute top-3 right-3 text-[10px]">Default</Badge>}
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-primary" />
+          <Globe className="h-4 w-4 text-primary" />
           <CardTitle className="text-sm">{config.name}</CardTitle>
         </div>
         <CardDescription className="text-xs">
-          {config.provider === "browserbase" ? "Built-in" : config.provider === "bright_data" ? "Bright Data" : "Custom"} · {typeInfo.label}
+          {config.provider === "bright_data" ? "Bright Data" : config.provider === "smartproxy" ? "Smartproxy" : config.provider === "oxylabs" ? "Oxylabs" : "Custom"}
           {config.country && ` · ${config.country}`}
           {config.state && ` / ${config.state.replace(/_/g, " ")}`}
         </CardDescription>
@@ -293,9 +337,7 @@ function ProxyConfigCard({
           )}
         </div>
         {config.host && (
-          <p className="text-xs text-muted-foreground font-mono truncate">
-            {config.host}:{config.port || "—"}
-          </p>
+          <p className="text-xs text-muted-foreground font-mono truncate">{config.host}:{config.port || "—"}</p>
         )}
         <div className="flex gap-2">
           <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={onEdit}>
@@ -310,6 +352,7 @@ function ProxyConfigCard({
   );
 }
 
+/* ─── Creator Proxy Assignment ─── */
 function CreatorProxyAssignment({ configs }: { configs: ProxyConfig[] }) {
   const { creators } = useCreators();
   const { assignToCreator } = useProxyConfigs();
@@ -324,7 +367,7 @@ function CreatorProxyAssignment({ configs }: { configs: ProxyConfig[] }) {
           Assign Proxies to Creators
         </CardTitle>
         <CardDescription>
-          Each creator can use a different proxy for geographic consistency. Unassigned creators use the default or Browserbase built-in proxy.
+          Each creator can use a different proxy for geographic consistency. Unassigned creators use the default Browserbase residential proxy.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -336,12 +379,6 @@ function CreatorProxyAssignment({ configs }: { configs: ProxyConfig[] }) {
                 <div className="flex-1 min-w-0">
                   <span className="font-medium text-sm">{creator.name}</span>
                   {creator.alias && <span className="text-xs text-muted-foreground ml-1">({creator.alias})</span>}
-                  {(creator as any).proxy_country && (
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      Geo: {(creator as any).proxy_country}
-                      {(creator as any).proxy_state && ` / ${(creator as any).proxy_state}`}
-                    </Badge>
-                  )}
                 </div>
                 <Select
                   value={currentConfigId}
@@ -366,21 +403,17 @@ function CreatorProxyAssignment({ configs }: { configs: ProxyConfig[] }) {
   );
 }
 
+/* ─── Main Component ─── */
 export function ProxyGeoSettings() {
   const { configs, isLoading, createConfig, updateConfig, deleteConfig } = useProxyConfigs();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editData, setEditData] = useState<Partial<ProxyConfig>>(EMPTY_FORM);
+  const [editData, setEditData] = useState<Partial<ProxyConfig>>(EMPTY_CUSTOM);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const openAdd = (proxyType?: string) => {
-    setEditData({ ...EMPTY_FORM, proxy_type: proxyType || "residential" });
-    setDialogOpen(true);
-  };
+  const customConfigs = configs.filter(c => c.provider !== "browserbase");
 
-  const openEdit = (config: ProxyConfig) => {
-    setEditData(config);
-    setDialogOpen(true);
-  };
+  const openAdd = () => { setEditData(EMPTY_CUSTOM); setDialogOpen(true); };
+  const openEdit = (config: ProxyConfig) => { setEditData(config); setDialogOpen(true); };
 
   const handleSave = (data: Partial<ProxyConfig>) => {
     if (data.id) {
@@ -390,54 +423,66 @@ export function ProxyGeoSettings() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     setDeletingId(id);
     deleteConfig.mutate(id, { onSettled: () => setDeletingId(null) });
   };
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="setup">
+      <Tabs defaultValue="browserbase">
         <TabsList>
-          <TabsTrigger value="setup" className="gap-2"><Shield className="h-4 w-4" />Proxy Setup</TabsTrigger>
+          <TabsTrigger value="browserbase" className="gap-2"><Globe className="h-4 w-4" />Browserbase Proxy</TabsTrigger>
+          <TabsTrigger value="custom" className="gap-2"><Settings2 className="h-4 w-4" />Custom Proxy</TabsTrigger>
           <TabsTrigger value="assign" className="gap-2"><Users className="h-4 w-4" />Creator Assignment</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="setup" className="space-y-4">
-          {/* Recommendation wizard */}
-          <ProxyRecommendation onSelect={openAdd} />
+        <TabsContent value="browserbase" className="space-y-4">
+          <BrowserbaseProxyForm />
+        </TabsContent>
 
-          {/* Existing configs */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Your Proxy Configurations</h3>
-            <Button size="sm" variant="outline" onClick={() => openAdd()} className="gap-1.5">
-              <Plus className="h-3.5 w-3.5" /> Add Custom Proxy
-            </Button>
-          </div>
-
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
-          ) : configs.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground text-sm">
-                No custom proxies configured yet. Sessions use Browserbase's built-in residential proxies by default.
-                <br />
-                Select a proxy type above to add your own, or add a provider like Bright Data for premium IP quality.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {configs.map(c => (
-                <ProxyConfigCard
-                  key={c.id}
-                  config={c}
-                  onEdit={() => openEdit(c)}
-                  onDelete={() => handleDelete(c.id)}
-                  deleting={deletingId === c.id}
-                />
-              ))}
-            </div>
-          )}
+        <TabsContent value="custom" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Settings2 className="h-5 w-5 text-primary" />
+                    Custom Residential Proxies
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Add your own residential proxy from providers like Bright Data, Smartproxy, or Oxylabs for premium IP quality.
+                  </CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={openAdd} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Add Proxy
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
+              ) : customConfigs.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-sm">
+                  <Globe className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p>No custom proxies configured yet.</p>
+                  <p className="text-xs mt-1">Sessions use Browserbase's built-in residential proxies by default.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {customConfigs.map(c => (
+                    <CustomProxyCard
+                      key={c.id}
+                      config={c}
+                      onEdit={() => openEdit(c)}
+                      onDelete={() => handleDelete(c.id)}
+                      deleting={deletingId === c.id}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="assign" className="space-y-4">
@@ -445,7 +490,7 @@ export function ProxyGeoSettings() {
         </TabsContent>
       </Tabs>
 
-      <ProxyFormDialog
+      <CustomProxyDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         initialData={editData}
