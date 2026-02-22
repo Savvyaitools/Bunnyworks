@@ -187,20 +187,59 @@ async function isSessionAlive(k: string, sessionId: string): Promise<boolean> {
   }
 }
 
-async function getCtx(sb: any, k: string, pid: string, cid: string, plat: string) {
+// Shared browser fingerprint settings
+function browserFingerprint() {
+  return {
+    browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"],
+    locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 },
+    httpVersion: "2",
+  };
+}
+
+// Shared session creation body builder
+function sessionBody(projectId: string, contextId: string, proxies: any[], opts: {
+  timeout?: number; keepAlive?: boolean; userMetadata?: Record<string, unknown>; extensionId?: string;
+} = {}) {
+  const body: any = {
+    projectId,
+    browserSettings: {
+      context: { id: contextId, persist: true },
+      solveCaptchas: true, blockAds: true, advancedStealth: true,
+      fingerprint: browserFingerprint(),
+    },
+    proxies,
+    keepAlive: opts.keepAlive ?? true,
+    timeout: opts.timeout ?? 1800,
+    userMetadata: opts.userMetadata || {},
+  };
+  if (opts.extensionId) body.extensionId = opts.extensionId;
+  return body;
+}
+
+// Shared context resolution: reuse existing or create new
+async function resolveContext(sb: any, bbKey: string, projectId: string, creatorId: string, platform: string, agencyId?: string, userId?: string): Promise<string> {
   const { data: ex } = await sb.from("creator_session_links")
     .select("browserbase_context_id")
-    .eq("creator_id", cid)
-    .eq("platform", plat)
+    .eq("creator_id", creatorId)
+    .eq("platform", platform)
     .not("browserbase_context_id", "is", null)
     .maybeSingle();
   if (ex?.browserbase_context_id) {
-    console.log(`Reusing existing context ${ex.browserbase_context_id} for creator ${cid}`);
+    console.log(`Reusing existing context ${ex.browserbase_context_id} for creator ${creatorId}`);
     return ex.browserbase_context_id;
   }
-  console.log(`Creating new context for creator ${cid}`);
-  const ctx = await bb(k, "/contexts", { method: "POST", body: JSON.stringify({ projectId: pid }) });
+  console.log(`Creating new context for creator ${creatorId}`);
+  const ctx = await bb(bbKey, "/contexts", { method: "POST", body: JSON.stringify({ projectId }) });
   if (!ctx?.id) throw new Error("Failed to create Browserbase context — no ID returned");
+  // Auto-persist the new context to session links
+  if (agencyId) {
+    await sb.from("creator_session_links").upsert({
+      creator_id: creatorId, agency_id: agencyId, platform,
+      created_by: userId || null, encrypted_session: "browserbase",
+      browserbase_context_id: ctx.id, session_status: "pending",
+      is_active: false, expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
+    }, { onConflict: "creator_id,platform" });
+  }
   return ctx.id;
 }
 
@@ -538,7 +577,7 @@ Deno.serve(async (req) => {
       if (!creatorId || !platform || !agencyId) return json({ error: "creatorId, platform, agencyId required" }, 400);
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", creatorId).single();
       
-      const ctxId = await getCtx(svc, BK, BP, creatorId, platform);
+      const ctxId = await resolveContext(svc, BK, BP, creatorId, platform, agencyId, uid);
       
       const { data: existingLink } = await svc.from("creator_session_links")
         .select("id, session_status, browserbase_context_id, browserbase_session_id, last_saved_at")
@@ -562,19 +601,20 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Resolve the proxy state for warmup geo-matching
       const proxies = proxyConf(cr);
       const resolvedState = proxies[0]?.geolocation?.state || "TX";
 
       // Admin sessions: 30-minute timeout
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({ projectId: BP, browserSettings: { context: { id: ctxId, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies, keepAlive: true, timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } }) });
+      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(
+        sessionBody(BP, ctxId, proxies, { timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } })
+      ) });
       
       if (!sess?.id) {
         console.error("Browserbase session creation returned no session ID", JSON.stringify(sess));
         return json({ error: "Failed to create browser session — no session ID returned" }, 502);
       }
       
-      // Wait for session to be fully RUNNING (prevents stuck sessions)
+      // Wait for session to be fully RUNNING
       console.log(`Waiting for session ${sess.id} to be ready...`);
       const isReady = await waitForSessionReady(BK, sess.id, 20000);
       if (!isReady) {
@@ -582,25 +622,14 @@ Deno.serve(async (req) => {
         return json({ error: "Browser session failed to start. Please try again." }, 502);
       }
 
-      // Run pre-login warmup: visits Google & YouTube, sets timezone/locale/fingerprint + full stealth
+      // Run pre-login warmup (sets timezone/locale/fingerprint + stealth + visits Google/YouTube)
       try {
         await preLoginWarmup(BK, sess.id, resolvedState);
       } catch (e) {
         console.warn("Pre-login warmup failed (non-fatal):", e);
       }
 
-      // Brief pause after warmup before navigating to target platform
-      await new Promise(r => setTimeout(r, 1500 + Math.floor(Math.random() * 1500)));
-
-      // Navigate to the actual platform
-      // Inject stealth script into the session before navigating to target
-      try {
-        await navigateViaCDP(BK, sess.id, "about:blank", {
-          timeout: 5000,
-          evaluate: STEALTH_SCRIPT,
-        });
-      } catch {}
-
+      // Navigate to the platform (stealth already injected via addScriptToEvaluateOnNewDocument in warmup)
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
         try {
@@ -610,8 +639,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Let the page render before grabbing debug URL
-      await new Promise(r => setTimeout(r, 2000));
+      // Get embed URL
+      await new Promise(r => setTimeout(r, 1500));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       
@@ -723,6 +752,19 @@ Deno.serve(async (req) => {
       if (new Date(link.expires_at) < new Date()) return json({ error: "Session expired" }, 400);
       if (!link.browserbase_context_id) return json({ error: "Not authenticated yet" }, 400);
 
+      // Build permission flags once (used for both join and new session paths)
+      const permFlags = {
+        can_view_chats: perm.can_view_chats ?? false,
+        can_send_messages: perm.can_send_messages ?? false,
+        can_send_mass_messages: perm.can_send_mass_messages ?? false,
+        can_view_fans: perm.can_view_fans ?? false,
+        can_view_posts: perm.can_view_posts ?? false,
+        can_create_posts: perm.can_create_posts ?? false,
+        can_view_vault: perm.can_view_vault ?? false,
+        can_view_earnings: perm.can_view_earnings ?? false,
+        can_view_notifications: perm.can_view_notifications ?? false,
+      };
+
       const { data: agency } = await svc.from("agencies").select("browser_session_mode").eq("id", link.agency_id).single();
       const sessionMode = agency?.browser_session_mode || "shared";
 
@@ -762,17 +804,6 @@ Deno.serve(async (req) => {
 
           await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "join" });
 
-          const permFlags = {
-            can_view_chats: perm.can_view_chats ?? false,
-            can_send_messages: perm.can_send_messages ?? false,
-            can_send_mass_messages: perm.can_send_mass_messages ?? false,
-            can_view_fans: perm.can_view_fans ?? false,
-            can_view_posts: perm.can_view_posts ?? false,
-            can_create_posts: perm.can_create_posts ?? false,
-            can_view_vault: perm.can_view_vault ?? false,
-            can_view_earnings: perm.can_view_earnings ?? false,
-            can_view_notifications: perm.can_view_notifications ?? false,
-          };
 
           console.log(`Chatter ${viewerId} joined existing session ${existingSession.browserbase_session_id} (viewer count: ${currentViewerIds.length})`);
           return json({ success: true, embedUrl: existingSession.embed_url, sessionId: existingSession.browserbase_session_id, platform: link.platform, permissions: permFlags, joined: true, viewerCount: currentViewerIds.length });
@@ -787,23 +818,14 @@ Deno.serve(async (req) => {
       const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
 
-      const permFlags = {
-        can_view_chats: perm.can_view_chats ?? false,
-        can_send_messages: perm.can_send_messages ?? false,
-        can_send_mass_messages: perm.can_send_mass_messages ?? false,
-        can_view_fans: perm.can_view_fans ?? false,
-        can_view_posts: perm.can_view_posts ?? false,
-        can_create_posts: perm.can_create_posts ?? false,
-        can_view_vault: perm.can_view_vault ?? false,
-        can_view_earnings: perm.can_view_earnings ?? false,
-        can_view_notifications: perm.can_view_notifications ?? false,
-      };
-
       const proxies = proxyConf(cr);
       const resolvedState = proxies[0]?.geolocation?.state || "TX";
 
-      const cfg: any = { projectId: BP, browserSettings: { context: { id: link.browserbase_context_id, persist: true }, solveCaptchas: true, blockAds: true, advancedStealth: true, fingerprint: { browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"], locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 }, httpVersion: "2" } }, proxies, keepAlive: true, timeout: 3600, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } };
-      if (extIds.length > 0) cfg.extensionId = extIds[0];
+      const cfg = sessionBody(BP, link.browserbase_context_id, proxies, {
+        timeout: 3600,
+        extensionId: extIds[0] || undefined,
+        userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" },
+      });
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       if (!sess?.id) {
         console.error("Browserbase chatter session creation returned no session ID", JSON.stringify(sess));
@@ -817,14 +839,13 @@ Deno.serve(async (req) => {
         return json({ error: "Browser session failed to start. Please try again." }, 502);
       }
 
-      // Run pre-login warmup for chatter sessions too (full stealth + timezone/locale overrides)
+      // Pre-login warmup (stealth + timezone/locale + browsing history)
       try {
         await preLoginWarmup(BK, sess.id, resolvedState);
       } catch (e) {
         console.warn("Chatter pre-login warmup failed (non-fatal):", e);
       }
 
-      await new Promise(r => setTimeout(r, 1000 + Math.floor(Math.random() * 1000)));
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
 
       // Navigate via CDP + DOM-based login verification
@@ -874,7 +895,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1500));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       const viewerId = chatterId || uid;
@@ -1002,27 +1023,10 @@ Deno.serve(async (req) => {
       if (!agencyId) return json({ error: "agencyId required" }, 400);
 
       let bbContextId = contextId;
-      let targetCreatorId = creatorId || null;
+      const targetCreatorId = creatorId || null;
 
       if (creatorId && !bbContextId) {
-        const { data: link } = await svc.from("creator_session_links")
-          .select("browserbase_context_id")
-          .eq("creator_id", creatorId)
-          .not("browserbase_context_id", "is", null)
-          .maybeSingle();
-        if (link?.browserbase_context_id) {
-          bbContextId = link.browserbase_context_id;
-        } else {
-          const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
-          bbContextId = ctx.id;
-          const { data: { user: warmupUser } } = await sb.auth.getUser();
-          await svc.from("creator_session_links").upsert({
-            creator_id: creatorId, agency_id: agencyId, platform: "onlyfans",
-            created_by: warmupUser?.id || uid, encrypted_session: "browserbase",
-            browserbase_context_id: bbContextId, session_status: "pending",
-            is_active: false, expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
-          }, { onConflict: "creator_id,platform" }).select("id").single();
-        }
+        bbContextId = await resolveContext(svc, BK, BP, creatorId, "onlyfans", agencyId, uid);
       }
 
       if (!bbContextId) return json({ error: "No context available for warmup" }, 400);
@@ -1043,34 +1047,17 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const sessBody: any = {
-          projectId: BP,
-          browserSettings: {
-            context: { id: bbContextId, persist: true },
-            solveCaptchas: true, blockAds: true, advancedStealth: true,
-            fingerprint: {
-              browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"],
-              locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 },
-              httpVersion: "2",
-            },
-          },
+        const proxies = proxySettings ? proxyConf(proxySettings) : [];
+        const sessPayload = sessionBody(BP, bbContextId, proxies, {
           keepAlive: false, timeout: 600,
           userMetadata: { warmup: true, agencyId, creatorId: targetCreatorId },
-        };
-        if (proxySettings) sessBody.proxies = proxyConf(proxySettings);
+        });
 
-        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
+        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessPayload) });
         if (!sess?.id) throw new Error("Session creation failed");
 
         const sessReady = await waitForSessionReady(BK, sess.id, 15000);
         if (!sessReady) throw new Error("Session failed to start");
-
-        // Inject stealth script
-        try {
-          await navigateViaCDP(BK, sess.id, "about:blank", { timeout: 5000, evaluate: STEALTH_SCRIPT });
-        } catch {}
-        
-        await new Promise(r => setTimeout(r, 2000));
 
         let sitesVisited = 0;
 
@@ -1289,23 +1276,7 @@ Deno.serve(async (req) => {
 
       let bbContextId = contextId;
       if (creatorId && !bbContextId) {
-        const { data: link } = await svc.from("creator_session_links")
-          .select("browserbase_context_id")
-          .eq("creator_id", creatorId)
-          .not("browserbase_context_id", "is", null)
-          .maybeSingle();
-        if (link?.browserbase_context_id) {
-          bbContextId = link.browserbase_context_id;
-        } else {
-          const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
-          bbContextId = ctx.id;
-          await svc.from("creator_session_links").upsert({
-            creator_id: creatorId, agency_id: agencyId, platform: "onlyfans",
-            created_by: uid, encrypted_session: "browserbase",
-            browserbase_context_id: bbContextId, session_status: "pending",
-            is_active: false, expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
-          }, { onConflict: "creator_id,platform" });
-        }
+        bbContextId = await resolveContext(svc, BK, BP, creatorId, "onlyfans", agencyId, uid);
       }
       if (!bbContextId) {
         const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
@@ -1313,7 +1284,7 @@ Deno.serve(async (req) => {
       }
 
       const totalSites = 60;
-      const timeoutSec = Math.min(durationHours * 3600, 14400); // max 4 hours
+      const timeoutSec = Math.min(durationHours * 3600, 14400);
 
       const { data: warmupRec } = await svc.from("creator_profile_warmups").insert({
         creator_id: creatorId || null, agency_id: agencyId,
@@ -1331,33 +1302,17 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const sessBody: any = {
-          projectId: BP,
-          browserSettings: {
-            context: { id: bbContextId, persist: true },
-            solveCaptchas: true, blockAds: true, advancedStealth: true,
-            fingerprint: {
-              browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"],
-              locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 },
-              httpVersion: "2",
-            },
-          },
-          keepAlive: true,
-          timeout: timeoutSec,
+        const proxies = proxySettings ? proxyConf(proxySettings) : [];
+        const sessPayload = sessionBody(BP, bbContextId, proxies, {
+          keepAlive: true, timeout: timeoutSec,
           userMetadata: { warmup: true, extended: true, agencyId, creatorId },
-        };
-        if (proxySettings) sessBody.proxies = proxyConf(proxySettings);
+        });
 
-        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessBody) });
+        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessPayload) });
         if (!sess?.id) throw new Error("Session creation failed");
 
         const ready = await waitForSessionReady(BK, sess.id, 20000);
         if (!ready) throw new Error("Session failed to start");
-
-        // Inject stealth script first
-        try {
-          await navigateViaCDP(BK, sess.id, "about:blank", { timeout: 5000, evaluate: STEALTH_SCRIPT });
-        } catch {}
 
         let sitesVisited = 0;
 
