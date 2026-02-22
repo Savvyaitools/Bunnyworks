@@ -172,96 +172,6 @@ export type Database = {
         }
         Relationships: []
       }
-      agency_proxy_configs: {
-        Row: {
-          agency_id: string
-          city: string | null
-          country: string | null
-          created_at: string
-          health_status: string | null
-          host: string | null
-          id: string
-          is_active: boolean
-          is_default: boolean
-          is_rotating: boolean
-          last_health_check_at: string | null
-          name: string
-          notes: string | null
-          password: string | null
-          port: number | null
-          protocol: string
-          provider: string
-          proxy_type: string
-          state: string | null
-          sticky_session_ttl: number | null
-          updated_at: string
-          username: string | null
-        }
-        Insert: {
-          agency_id: string
-          city?: string | null
-          country?: string | null
-          created_at?: string
-          health_status?: string | null
-          host?: string | null
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          is_rotating?: boolean
-          last_health_check_at?: string | null
-          name: string
-          notes?: string | null
-          password?: string | null
-          port?: number | null
-          protocol?: string
-          provider?: string
-          proxy_type?: string
-          state?: string | null
-          sticky_session_ttl?: number | null
-          updated_at?: string
-          username?: string | null
-        }
-        Update: {
-          agency_id?: string
-          city?: string | null
-          country?: string | null
-          created_at?: string
-          health_status?: string | null
-          host?: string | null
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          is_rotating?: boolean
-          last_health_check_at?: string | null
-          name?: string
-          notes?: string | null
-          password?: string | null
-          port?: number | null
-          protocol?: string
-          provider?: string
-          proxy_type?: string
-          state?: string | null
-          sticky_session_ttl?: number | null
-          updated_at?: string
-          username?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agency_proxy_configs_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agency_proxy_configs_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       agent_actions: {
         Row: {
           action_type: string
@@ -1961,7 +1871,6 @@ export type Database = {
           persona: string | null
           phone: string | null
           platform: string | null
-          proxy_config_id: string | null
           proxy_country: string | null
           proxy_state: string | null
           revenue: number
@@ -2020,7 +1929,6 @@ export type Database = {
           persona?: string | null
           phone?: string | null
           platform?: string | null
-          proxy_config_id?: string | null
           proxy_country?: string | null
           proxy_state?: string | null
           revenue?: number
@@ -2079,7 +1987,6 @@ export type Database = {
           persona?: string | null
           phone?: string | null
           platform?: string | null
-          proxy_config_id?: string | null
           proxy_country?: string | null
           proxy_state?: string | null
           revenue?: number
@@ -2113,13 +2020,6 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creators_proxy_config_id_fkey"
-            columns: ["proxy_config_id"]
-            isOneToOne: false
-            referencedRelation: "agency_proxy_configs"
             referencedColumns: ["id"]
           },
         ]
