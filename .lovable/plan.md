@@ -1,86 +1,64 @@
 
 
-# Optimization Review: Browser Session Workflow
+# Remove Left Panel, Use OnlyFans Native Sidebar with Role-Based Hiding
 
-## Current State Assessment
+## Overview
+Remove the custom left panel (BrowserSessionPanel) from the embedded browser viewer entirely. Instead, keep OnlyFans' own sidebar visible and inject CSS via CDP to hide restricted menu items (Statements, Statistics, More) for Chatters and VAs.
 
-After reviewing the full 1,674-line `browserbase-session` edge function, the earnings scraper test suite, and related UI components, here are the findings and proposed optimizations:
+## Changes
 
----
+### 1. Strip BrowserSessionPanel from EmbeddedBrowserViewer
+**File: `src/components/browser/EmbeddedBrowserViewer.tsx`**
+- Remove all imports and references to `BrowserSessionPanel`
+- Remove the `Sheet` mobile panel wrapper
+- Remove `panelOpen` state and the panel toggle button from the toolbar
+- Remove `PanelLeftClose`/`PanelLeftOpen` icons
+- The iframe becomes the only content in the main area, taking full width
 
-## Issues Found
+### 2. Inject Role-Based CSS into the Remote Browser via CDP
+**File: `supabase/functions/browserbase-session/index.ts`**
+- Add a new action: `inject_sidebar_restrictions`
+- Uses CDP `Runtime.evaluate` to inject a `<style>` tag into the OnlyFans page that hides specific sidebar links based on the employee's permissions
+- Target selectors based on OF DOM: links containing `/my/statistics`, `/my/statements`, and the "More" expandable menu item
+- Called automatically after session launch or navigation
 
-### 1. Earnings Scraper: CDP Message Routing is Fragile (Critical)
-The CDP WebSocket message handler in the `save_and_close` earnings scrape (lines 635-744) uses hard-coded message IDs (`msg.id === 1` for getTargets) and loose conditions to detect state transitions. This is brittle:
-- `msg.id === 1` assumes getTargets is always the first message sent -- if any race condition or extra message arrives, routing breaks silently.
-- The `!networkEnabled && msg.result && !msg.result.sessionId && !navigated` check (line 656) is ambiguous and could match unrelated responses.
+### 3. Auto-Inject on Session Connect
+**File: `src/components/browser/EmbeddedBrowserViewer.tsx`**
+- On iframe load, if `permissions` prop is provided and the user is not an admin (i.e., certain flags are false), call the edge function to inject the restriction CSS into the remote browser
+- This runs once on load and is resilient to OnlyFans SPA re-renders by using a `MutationObserver` in the injected script
 
-**Fix:** Track sent message IDs explicitly (like `navigateViaCDP` does) instead of relying on constants and negative checks.
+### 4. Update Chrome Extension to Stop Hiding the Full Sidebar
+**File: `chrome-extension-permissions/content.js`**
+- Remove the `hideOFSidebar()` function and its interval
+- Keep the permission-guard path blocking and overlay logic intact
+- Instead, add targeted hiding of Statements/Statistics/More links (matching the CDP injection approach)
 
-### 2. Earnings Scraper: Double-Parsing Overhead (Medium)
-When XHR interception succeeds (line 752-782), the data is serialized to JSON string with `_source: "xhr"` and then immediately parsed back from that string (lines 798-811). This serialize-then-deserialize round-trip is unnecessary.
+**File: `chrome-extension-permissions/blocked.css`**
+- Remove the sidebar-hiding CSS rules (`.b-sidebar`, `.l-sidebar`, etc.)
+- Keep the blocked overlay styles
 
-**Fix:** Pass the parsed values directly to the upsert logic instead of stringifying and re-parsing.
+## Technical Details
 
-### 3. DOM Poll Can Run Indefinitely After XHR Success (Medium)
-When the XHR JSON is captured and `finish()` is called (line 708), the DOM polling `setTimeout` chains may still be in-flight. While `done` flag prevents duplicate resolution, the pending timers waste resources.
-
-**Fix:** Add explicit `done` checks at the start of `startDomPoll`.
-
-### 4. Network.loadingFinished Handler Race Condition (Low)
-Line 692: `!pendingBodyRequests.size` check means if a body request is already pending, a second loadingFinished event for a different matching request is silently dropped.
-
-**Fix:** Always request the body for captured responses regardless of pending state.
-
-### 5. `navigateViaCDP` Timeout Resolves as Success (Design Concern)
-Line 38-41: When CDP navigation times out, it resolves with `{ success: true, result: null }`. This masks actual failures. The warmup and chatter launch flows treat `success: true` as confirmation of navigation, but the page may never have loaded.
-
-**Fix:** Resolve timeouts as `{ success: false, error: "timeout" }` or add a `timedOut: true` flag so callers can distinguish.
-
-### 6. Edge Function Size: 1,674 Lines in a Single File (Maintainability)
-The function handles 15+ distinct actions in one file. While Deno edge functions require single-file entry points, the code could benefit from extracting shared utilities (CDP helpers, parsing) into inline modules or at least clearer section organization.
-
-**Fix:** Consolidate CDP helpers and add a function-level routing map for cleaner dispatch.
-
----
-
-## Proposed Optimizations
-
-### A. Fix Earnings Scraper CDP Routing (Critical)
-Replace hard-coded `msg.id === 1` with tracked IDs:
+The injected script will look like:
 ```text
-let getTargetsId: number, attachId: number, networkEnableId: number, ...
-// on each send(), store the returned ID and match in onmessage
+// Injected via CDP Runtime.evaluate
+(function() {
+  const style = document.createElement('style');
+  style.id = 'creatoros-sidebar-restrictions';
+  style.textContent = `
+    a[href="/my/statements"] { display: none !important; }
+    a[href="/my/statistics"] { display: none !important; }
+    /* "More" menu item - hide based on OF DOM pattern */
+    [data-name="more"], a[href="/more"] { display: none !important; }
+  `;
+  document.head.appendChild(style);
+})();
 ```
 
-### B. Eliminate Double JSON Serialization
-Instead of stringifying XHR results then parsing them again, pass the earnings object directly to the upsert block:
-```text
-// Before: statsResult = { success: true, result: JSON.stringify({_source: "xhr", ...}) }
-// After:  earningsData = { total: bestTotal, tips, subs, messages, posts, referrals }
-```
-This removes ~30 lines of redundant parse logic.
+The CSS selectors will target OnlyFans sidebar links by their `href` attribute, which is stable across OF updates. The injection happens via the existing `navigate_in_session` CDP infrastructure.
 
-### C. Fix navigateViaCDP Timeout Semantics
-Change timeout resolution to include a `timedOut` flag so callers can handle it appropriately:
-```text
-resolve({ success: true, timedOut: true, result: null });
-```
-
-### D. Guard DOM Poll After XHR Capture
-Add early return in `startDomPoll` when `earningsJson` is already captured.
-
-### E. Fix Network.loadingFinished Race
-Queue body requests for all matching responses instead of skipping when another is pending.
-
----
-
-## Files to Modify
-- `supabase/functions/browserbase-session/index.ts` -- All changes are in this single file
-
-## Impact
-- More reliable earnings extraction (fixes silent failures from CDP routing bugs)
-- Cleaner code with ~30 fewer lines from removing double-parse
-- Better observability: timeout vs success is distinguishable in logs
-- No UI changes required
-
+## Files Modified
+- `src/components/browser/EmbeddedBrowserViewer.tsx` -- Remove panel, add restriction injection on load
+- `supabase/functions/browserbase-session/index.ts` -- New `inject_sidebar_restrictions` action
+- `chrome-extension-permissions/content.js` -- Stop hiding full sidebar, add targeted hiding
+- `chrome-extension-permissions/blocked.css` -- Remove sidebar-hiding rules
