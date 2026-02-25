@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { invokeBrowserAction } from "@/lib/browserbase";
+import { toast } from "sonner";
 import {
   MessageSquare,
   Users,
@@ -15,6 +17,7 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 
 interface BrowserSessionPanelProps {
@@ -24,6 +27,7 @@ interface BrowserSessionPanelProps {
   onToggle: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
   slim?: boolean;
+  browserbaseSessionId?: string;
 }
 
 // Platform URL mappings for quick actions
@@ -53,20 +57,30 @@ export function BrowserSessionPanel({
   onToggle,
   iframeRef,
   slim = false,
+  browserbaseSessionId,
 }: BrowserSessionPanelProps) {
   const platformKey = platform.toLowerCase();
   const urls = PLATFORM_URLS[platformKey] || PLATFORM_URLS.onlyfans;
+  const [navigating, setNavigating] = useState<string | null>(null);
 
-  const navigateIframe = useCallback((url: string) => {
-    if (iframeRef?.current) {
-      try {
-        iframeRef.current.src = url;
-      } catch {
-        // Cross-origin — use postMessage fallback or just open in iframe
-        window.open(url, "_blank");
-      }
+  const navigateInSession = useCallback(async (url: string, label: string) => {
+    if (!browserbaseSessionId) {
+      toast.error("No active session to navigate");
+      return;
     }
-  }, [iframeRef]);
+    setNavigating(label);
+    try {
+      await invokeBrowserAction("navigate_in_session", {
+        browserbaseSessionId,
+        command: "goto",
+        url,
+      });
+    } catch (err: any) {
+      toast.error("Navigation failed: " + (err.message || "Unknown error"));
+    } finally {
+      setNavigating(null);
+    }
+  }, [browserbaseSessionId]);
 
   if (collapsed) {
     return (
@@ -141,7 +155,8 @@ export function BrowserSessionPanel({
                 key={action.label}
                 label={action.label}
                 description={action.description}
-                onClick={() => navigateIframe(urls[action.label] || "#")}
+                loading={navigating === action.label}
+                onClick={() => navigateInSession(urls[action.label] || "#", action.label)}
               />
             ))}
           </TabsContent>
@@ -200,13 +215,17 @@ function QuickStat({
   );
 }
 
-function ActionButton({ label, description, onClick }: { label: string; description: string; onClick: () => void }) {
+function ActionButton({ label, description, onClick, loading }: { label: string; description: string; onClick: () => void; loading?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left p-2.5 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors"
+      disabled={loading}
+      className="w-full text-left p-2.5 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors disabled:opacity-50"
     >
-      <span className="text-sm font-medium">{label}</span>
+      <div className="flex items-center gap-2">
+        {loading && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
+        <span className="text-sm font-medium">{label}</span>
+      </div>
       <span className="block text-xs text-muted-foreground">{description}</span>
     </button>
   );
