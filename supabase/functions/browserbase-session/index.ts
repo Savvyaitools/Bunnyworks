@@ -580,21 +580,71 @@ Deno.serve(async (req) => {
         try {
           console.log(`Scraping earnings for creator ${sessionLink.creator_id} before close...`);
           
-          // Navigate to OF statistics page and extract earnings text
-          const statsResult = await navigateViaCDP(BK, browserbaseSessionId, "https://onlyfans.com/my/statistics", {
+          // Navigate to OF statistics page, then poll for async-rendered earnings data
+          const statsNavResult = await navigateViaCDP(BK, browserbaseSessionId, "https://onlyfans.com/my/statistics", {
             timeout: 25000,
-            evaluate: `
-              (function() {
-                // Wait a moment for dynamic content to render
-                return new Promise(resolve => {
-                  setTimeout(() => {
-                    const text = document.body.innerText;
-                    resolve(text.substring(0, 5000));
-                  }, 3000);
-                });
-              })()
-            `,
           });
+
+          let statsResult: { success: boolean; result?: unknown } = { success: false };
+
+          if (statsNavResult.success) {
+            // Poll up to ~10.5s for the page to render financial data
+            const pollWsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`;
+            let pageText = "";
+            for (let attempt = 0; attempt < 7; attempt++) {
+              await new Promise(r => setTimeout(r, 1500));
+              const pollResult = await new Promise<string>((resolve) => {
+                let done = false;
+                const ws = new WebSocket(pollWsUrl);
+                const t = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve(""); } }, 8000);
+                let mid = 1;
+                let attachMid: number | null = null;
+                let evalMid: number | null = null;
+                let cdpSid: string | null = null;
+
+                ws.onopen = () => { ws.send(JSON.stringify({ id: mid++, method: "Target.getTargets" })); };
+                ws.onmessage = (evt) => {
+                  try {
+                    const msg = JSON.parse(evt.data);
+                    if (msg.id === 1) {
+                      const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+                      if (page) { attachMid = mid; ws.send(JSON.stringify({ id: mid++, method: "Target.attachToTarget", params: { targetId: page.targetId, flatten: true } })); }
+                      else { done = true; clearTimeout(t); try { ws.close(); } catch {} resolve(""); }
+                      return;
+                    }
+                    if (msg.id === attachMid) {
+                      cdpSid = msg.result?.sessionId;
+                      if (cdpSid) { evalMid = mid; ws.send(JSON.stringify({ id: mid++, method: "Runtime.evaluate", params: { expression: "document.body.innerText.substring(0,5000)", returnByValue: true }, sessionId: cdpSid })); }
+                      else { done = true; clearTimeout(t); try { ws.close(); } catch {} resolve(""); }
+                      return;
+                    }
+                    if (msg.id === evalMid) {
+                      done = true; clearTimeout(t);
+                      const val = msg.result?.result?.value || "";
+                      try { ws.close(); } catch {}
+                      resolve(val);
+                      return;
+                    }
+                  } catch {}
+                };
+                ws.onerror = () => { if (!done) { done = true; clearTimeout(t); resolve(""); } };
+                ws.onclose = () => { if (!done) { done = true; clearTimeout(t); resolve(""); } };
+              });
+
+              pageText = pollResult;
+              console.log(`Earnings poll attempt ${attempt + 1}/7: text length=${pageText.length}`);
+              if (pageText.length > 200 && /\$[\d,]+/.test(pageText)) {
+                console.log("Earnings data detected in DOM, proceeding with extraction");
+                break;
+              }
+            }
+
+            if (pageText.length > 0) {
+              statsResult = { success: true, result: pageText };
+            } else {
+              console.warn("Earnings poll: page never rendered financial data after 7 attempts");
+            }
+          }
 
           if (statsResult.success && statsResult.result) {
             const rawText = String(statsResult.result);
