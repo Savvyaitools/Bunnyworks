@@ -9,6 +9,8 @@ import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { invokeBrowserAction } from "@/lib/browserbase";
+import { toast } from "sonner";
 
 export interface BrowserPermissions {
   can_view_chats: boolean;
@@ -35,6 +37,7 @@ interface EmbeddedBrowserViewerProps {
   viewerCount?: number;
   sessionId?: string;
   chatterId?: string;
+  browserbaseSessionId?: string;
 }
 
 export function EmbeddedBrowserViewer({
@@ -50,13 +53,21 @@ export function EmbeddedBrowserViewer({
   viewerCount = 1,
   sessionId,
   chatterId,
+  browserbaseSessionId,
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [stuckDetected, setStuckDetected] = useState(false);
+  const [navLoading, setNavLoading] = useState(false);
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isMobile = useIsMobile();
+
+  // Derive the browserbase session ID from the embed URL if not provided
+  const bbSessionId = browserbaseSessionId || (() => {
+    const match = embedUrl.match(/\/debug\/([^/]+)\//);
+    return match ? match[1] : undefined;
+  })();
 
   useEffect(() => {
     if (!loaded) {
@@ -76,6 +87,18 @@ export function EmbeddedBrowserViewer({
 
   useSessionHeartbeat(sessionId || null, chatterId);
 
+  const handleCdpNav = useCallback(async (command: "back" | "forward" | "reload") => {
+    if (!bbSessionId) return;
+    setNavLoading(true);
+    try {
+      await invokeBrowserAction("navigate_in_session", { browserbaseSessionId: bbSessionId, command });
+    } catch (err: any) {
+      toast.error("Navigation failed: " + (err.message || "Unknown error"));
+    } finally {
+      setNavLoading(false);
+    }
+  }, [bbSessionId]);
+
   // Derive display URL from platform
   const displayUrl = platform?.toLowerCase() === "fansly" 
     ? "fansly.com" 
@@ -88,6 +111,7 @@ export function EmbeddedBrowserViewer({
       collapsed={false}
       onToggle={() => setPanelOpen(!panelOpen)}
       iframeRef={iframeRef}
+      browserbaseSessionId={bbSessionId}
     />
   );
 
@@ -137,13 +161,13 @@ export function EmbeddedBrowserViewer({
       {/* Chrome-like toolbar */}
       <div className="flex items-center bg-[#292a2d] px-2 py-1.5 gap-1.5 border-b border-[#3c4043] shrink-0">
         {/* Nav buttons */}
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("back")}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("forward")}>
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" onClick={handleRetryLoad}>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("reload")}>
           <RotateCw className="h-3.5 w-3.5" />
         </Button>
 
@@ -183,6 +207,7 @@ export function EmbeddedBrowserViewer({
               onToggle={() => setPanelOpen(false)}
               iframeRef={iframeRef}
               slim
+              browserbaseSessionId={bbSessionId}
             />
           )
         )}
@@ -193,6 +218,7 @@ export function EmbeddedBrowserViewer({
             collapsed={true}
             onToggle={() => setPanelOpen(true)}
             iframeRef={iframeRef}
+            browserbaseSessionId={bbSessionId}
           />
         )}
 

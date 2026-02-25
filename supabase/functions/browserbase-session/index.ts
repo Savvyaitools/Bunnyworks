@@ -1198,6 +1198,69 @@ Deno.serve(async (req) => {
       try { return json({ success: true, downloads: await bb(BK, `/sessions/${p.browserbaseSessionId}/downloads`) }); } catch (e: any) { return json({ error: e.message }, 404); }
     }
 
+    // ========== NAVIGATE IN SESSION (CDP) ==========
+    if (action === "navigate_in_session") {
+      const { browserbaseSessionId, command, url } = p;
+      if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
+      if (!command) return json({ error: "command required (goto|back|forward|reload)" }, 400);
+
+      try {
+        const wsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`;
+        const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+          let mid = 1;
+          let resolved = false;
+          const ws = new WebSocket(wsUrl);
+          const timer = setTimeout(() => {
+            if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve({ success: true }); }
+          }, 10000);
+
+          const send = (method: string, params: Record<string, unknown> = {}) => {
+            const id = mid++;
+            ws.send(JSON.stringify({ id, method, params }));
+            return id;
+          };
+
+          let getTargetsId: number | null = null;
+          let attachId: number | null = null;
+          let commandId: number | null = null;
+
+          ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+          ws.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev.data as string);
+              if (msg.id === getTargetsId && msg.result?.targetInfos) {
+                const page = msg.result.targetInfos.find((t: any) => t.type === "page");
+                if (page) {
+                  attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+                } else {
+                  resolved = true; clearTimeout(timer); ws.close(); resolve({ success: false, error: "No page target" });
+                }
+              } else if (msg.id === attachId && msg.result?.sessionId) {
+                // Attached — send the navigation command
+                if (command === "goto" && url) {
+                  commandId = send("Page.navigate", { url });
+                } else if (command === "back") {
+                  commandId = send("Runtime.evaluate", { expression: "history.back()" });
+                } else if (command === "forward") {
+                  commandId = send("Runtime.evaluate", { expression: "history.forward()" });
+                } else if (command === "reload") {
+                  commandId = send("Page.reload");
+                } else {
+                  resolved = true; clearTimeout(timer); ws.close(); resolve({ success: false, error: "Invalid command" });
+                }
+              } else if (msg.id === commandId) {
+                resolved = true; clearTimeout(timer); ws.close(); resolve({ success: true });
+              }
+            } catch {}
+          };
+          ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve({ success: false, error: "WebSocket error" }); } };
+        });
+        return json(result);
+      } catch (e: any) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
     if (action === "check_captcha_events") {
       const { browserbaseSessionId, agencyId, sessionLinkId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
