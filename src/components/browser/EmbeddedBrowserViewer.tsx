@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Monitor, PanelRightOpen, PanelRightClose, Users, AlertTriangle, RotateCcw } from "lucide-react";
+import { X, Monitor, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, Home, Star, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { BrowserSessionPanel } from "./BrowserSessionPanel";
 import { IzzyOverlay } from "./IzzyOverlay";
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 export interface BrowserPermissions {
   can_view_chats: boolean;
@@ -36,18 +37,6 @@ interface EmbeddedBrowserViewerProps {
   chatterId?: string;
 }
 
-function getPermissionSummary(perms: BrowserPermissions): string {
-  const labels: string[] = [];
-  if (perms.can_view_chats || perms.can_send_messages) labels.push("Chats");
-  if (perms.can_view_fans) labels.push("Fans");
-  if (perms.can_view_posts || perms.can_create_posts) labels.push("Posts");
-  if (perms.can_view_vault) labels.push("Vault");
-  if (perms.can_view_earnings) labels.push("Earnings");
-  if (labels.length === 5) return "Full Access";
-  if (labels.length === 0) return "View Only";
-  return labels.join(" · ");
-}
-
 export function EmbeddedBrowserViewer({
   embedUrl,
   title = "Browser Session",
@@ -69,31 +58,28 @@ export function EmbeddedBrowserViewer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isMobile = useIsMobile();
 
-  // Detect if iframe hasn't loaded after 30 seconds (likely stuck)
   useEffect(() => {
     if (!loaded) {
-      loadTimerRef.current = setTimeout(() => {
-        setStuckDetected(true);
-      }, 30000);
+      loadTimerRef.current = setTimeout(() => setStuckDetected(true), 30000);
     } else {
       setStuckDetected(false);
       if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
     }
-    return () => {
-      if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
-    };
+    return () => { if (loadTimerRef.current) clearTimeout(loadTimerRef.current); };
   }, [loaded]);
 
   const handleRetryLoad = useCallback(() => {
     setLoaded(false);
     setStuckDetected(false);
-    if (iframeRef.current) {
-      iframeRef.current.src = embedUrl;
-    }
+    if (iframeRef.current) iframeRef.current.src = embedUrl;
   }, [embedUrl]);
 
-  // Heartbeat: keeps session alive while this viewer has the tab open
   useSessionHeartbeat(sessionId || null, chatterId);
+
+  // Derive display URL from platform
+  const displayUrl = platform?.toLowerCase() === "fansly" 
+    ? "fansly.com" 
+    : "onlyfans.com";
 
   const panelContent = (
     <BrowserSessionPanel
@@ -106,133 +92,85 @@ export function EmbeddedBrowserViewer({
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-2 sm:px-4 py-2 border-b bg-card shrink-0 gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 overflow-hidden">
-          <Monitor className="h-4 w-4 text-primary shrink-0" />
-          <span className="font-medium text-sm truncate">{title}</span>
-          {!isMobile && platform && (
-            <Badge variant="secondary" className="text-xs capitalize shrink-0">
+    <div className="fixed inset-0 z-50 bg-[#202124] flex flex-col">
+      {/* Chrome-like title bar */}
+      <div className="flex items-center bg-[#35363a] px-2 py-1 gap-1 shrink-0">
+        {/* Tab */}
+        <div className="flex items-center gap-2 bg-[#202124] rounded-t-lg px-3 py-1.5 max-w-[240px] min-w-0">
+          <Globe className="h-3.5 w-3.5 text-[#9aa0a6] shrink-0" />
+          <span className="text-xs text-[#e8eaed] truncate">{title}</span>
+          {platform && (
+            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-[#35363a] text-[#9aa0a6] border-0 shrink-0 capitalize">
               {platform}
             </Badge>
           )}
-          <Badge variant="outline" className="text-xs shrink-0">
-            <span className="h-2 w-2 rounded-full bg-green-500 mr-1.5 inline-block animate-pulse" />
+        </div>
+        <div className="flex-1" />
+        {/* Window controls */}
+        <div className="flex items-center gap-1">
+          {viewerCount > 1 && (
+            <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 h-5 shrink-0">
+              <Users className="h-3 w-3 mr-1" />
+              {viewerCount}
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-[10px] h-5 border-green-500/30 bg-green-500/10 text-green-400 shrink-0">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1 animate-pulse" />
             Live
           </Badge>
-          {!isMobile && viewerCount > 1 && (
-            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30 shrink-0">
-              <Users className="h-3 w-3 mr-1" />
-              {viewerCount} viewing
-            </Badge>
-          )}
-          {!isMobile && permissions && (
-            <Badge
-              variant="outline"
-              className="text-xs bg-primary/10 text-primary border-primary/30 shrink-0"
-            >
-              {getPermissionSummary(permissions)}
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {showSaveButton && onSaveAndClose && (
             <Button
               size="sm"
               onClick={onSaveAndClose}
               disabled={saving}
-              className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
+              className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-3"
             >
-              {saving ? "Saving..." : isMobile ? "Save" : "Save Login & Close"}
+              {saving ? "Saving..." : isMobile ? "Save" : "Save & Close"}
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setPanelOpen(!panelOpen)}
-            className="h-8 w-8"
-            title={panelOpen ? "Hide panel" : "Show panel"}
-          >
-            {panelOpen ? (
-              <PanelRightClose className="h-4 w-4" />
-            ) : (
-              <PanelRightOpen className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 text-destructive"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-[#9aa0a6] hover:text-[#e8eaed] hover:bg-[#3c4043]">
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Main content: iframe + side panel */}
-      <div className="flex-1 flex min-h-0">
-        {/* Browser iframe */}
-        <div className="flex-1 relative bg-muted">
-          {!loaded && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center space-y-3">
-                {stuckDetected ? (
-                  <>
-                    <AlertTriangle className="h-10 w-10 text-yellow-500 mx-auto" />
-                    <p className="text-sm font-medium text-foreground">
-                      Session is taking longer than expected
-                    </p>
-                    <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                      The browser may be stuck. This can happen if the platform is running a security check or CAPTCHA.
-                    </p>
-                    <div className="flex gap-2 justify-center pt-1">
-                      <Button size="sm" variant="outline" onClick={handleRetryLoad} className="gap-1.5">
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        Retry Connection
-                      </Button>
-                      {showSaveButton && onSaveAndClose && (
-                        <Button size="sm" variant="destructive" onClick={onClose}>
-                          Close Session
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Skeleton className="h-8 w-48 mx-auto" />
-                    <p className="text-sm text-muted-foreground">
-                      Loading browser session...
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-          {/* Login guidance banner */}
-          {loaded && showSaveButton && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-card/95 backdrop-blur border border-border rounded-lg px-4 py-2 shadow-lg flex items-center gap-2 max-w-md animate-in fade-in slide-in-from-top-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
-              <p className="text-xs text-muted-foreground">
-                After logging in, click <span className="font-semibold text-foreground">"Save Login & Close"</span> to save the session for your team.
-              </p>
-            </div>
-          )}
-          <iframe
-            ref={iframeRef}
-            src={embedUrl}
-            className="w-full h-full border-0"
-            allow="clipboard-read; clipboard-write"
-            onLoad={() => setLoaded(true)}
-            style={{ opacity: loaded ? 1 : 0 }}
-          />
+      {/* Chrome-like toolbar */}
+      <div className="flex items-center bg-[#292a2d] px-2 py-1.5 gap-1.5 border-b border-[#3c4043] shrink-0">
+        {/* Nav buttons */}
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" onClick={handleRetryLoad}>
+          <RotateCw className="h-3.5 w-3.5" />
+        </Button>
+
+        {/* URL bar */}
+        <div className="flex-1 flex items-center bg-[#35363a] rounded-full px-3 py-1 gap-2 min-w-0">
+          <Lock className="h-3 w-3 text-[#9aa0a6] shrink-0" />
+          <span className="text-xs text-[#e8eaed] truncate">{displayUrl}</span>
         </div>
 
-        {/* Side panel — desktop: inline, mobile: sheet */}
+        {/* Panel toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setPanelOpen(!panelOpen)}
+          className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]"
+          title={panelOpen ? "Hide panel" : "Show panel"}
+        >
+          {panelOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      {/* Main content: panel on LEFT + iframe */}
+      <div className="flex-1 flex min-h-0">
+        {/* Side panel — LEFT side, slimmer */}
         {isMobile ? (
           <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-            <SheetContent side="right" className="p-0 w-[85vw] max-w-sm">
+            <SheetContent side="left" className="p-0 w-[75vw] max-w-[260px]">
               <div className="h-full overflow-auto">{panelContent}</div>
             </SheetContent>
           </Sheet>
@@ -241,9 +179,10 @@ export function EmbeddedBrowserViewer({
             <BrowserSessionPanel
               creatorName={title}
               platform={platform || "onlyfans"}
-              collapsed={!panelOpen}
-              onToggle={() => setPanelOpen(!panelOpen)}
+              collapsed={false}
+              onToggle={() => setPanelOpen(false)}
               iframeRef={iframeRef}
+              slim
             />
           )
         )}
@@ -256,6 +195,47 @@ export function EmbeddedBrowserViewer({
             iframeRef={iframeRef}
           />
         )}
+
+        {/* Browser iframe */}
+        <div className="flex-1 relative bg-[#202124]">
+          {!loaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center space-y-3">
+                {stuckDetected ? (
+                  <>
+                    <AlertTriangle className="h-10 w-10 text-yellow-500 mx-auto" />
+                    <p className="text-sm font-medium text-[#e8eaed]">Session is taking longer than expected</p>
+                    <p className="text-xs text-[#9aa0a6] max-w-xs mx-auto">
+                      The browser may be stuck on a security check or CAPTCHA.
+                    </p>
+                    <div className="flex gap-2 justify-center pt-1">
+                      <Button size="sm" variant="outline" onClick={handleRetryLoad} className="gap-1.5 border-[#3c4043] text-[#e8eaed] hover:bg-[#3c4043]">
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Retry
+                      </Button>
+                      {showSaveButton && onSaveAndClose && (
+                        <Button size="sm" variant="destructive" onClick={onClose}>Close</Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Skeleton className="h-8 w-48 mx-auto bg-[#35363a]" />
+                    <p className="text-sm text-[#9aa0a6]">Loading browser session...</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          <iframe
+            ref={iframeRef}
+            src={embedUrl}
+            className="w-full h-full border-0"
+            allow="clipboard-read; clipboard-write"
+            onLoad={() => setLoaded(true)}
+            style={{ opacity: loaded ? 1 : 0 }}
+          />
+        </div>
       </div>
 
       {/* Jodie AI Floating Overlay */}

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +23,7 @@ interface BrowserSessionPanelProps {
   collapsed: boolean;
   onToggle: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
+  slim?: boolean;
 }
 
 // Platform URL mappings for quick actions
@@ -50,6 +52,7 @@ export function BrowserSessionPanel({
   collapsed,
   onToggle,
   iframeRef,
+  slim = false,
 }: BrowserSessionPanelProps) {
   const platformKey = platform.toLowerCase();
   const urls = PLATFORM_URLS[platformKey] || PLATFORM_URLS.onlyfans;
@@ -67,14 +70,9 @@ export function BrowserSessionPanel({
 
   if (collapsed) {
     return (
-      <div className="w-10 bg-card border-l flex flex-col items-center py-3 gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggle}
-          className="h-8 w-8"
-        >
-          <ChevronLeft className="h-4 w-4" />
+      <div className="w-10 bg-card border-r flex flex-col items-center py-3 gap-3">
+        <Button variant="ghost" size="icon" onClick={onToggle} className="h-8 w-8">
+          <ChevronRight className="h-4 w-4" />
         </Button>
         <div className="flex flex-col gap-2 items-center">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -96,15 +94,15 @@ export function BrowserSessionPanel({
   ];
 
   return (
-    <div className="w-80 bg-card border-l flex flex-col">
+    <div className={cn("bg-card border-r flex flex-col", slim ? "w-56" : "w-72")}>
       {/* Panel Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b">
-        <div>
-          <h3 className="font-semibold text-sm">{creatorName}</h3>
-          <span className="text-xs text-muted-foreground capitalize">{platform}</span>
+      <div className="flex items-center justify-between px-3 py-2.5 border-b">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-xs truncate">{creatorName}</h3>
+          <span className="text-[10px] text-muted-foreground capitalize">{platform}</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={onToggle} className="h-8 w-8">
-          <ChevronRight className="h-4 w-4" />
+        <Button variant="ghost" size="icon" onClick={onToggle} className="h-7 w-7 shrink-0">
+          <ChevronLeft className="h-3.5 w-3.5" />
         </Button>
       </div>
 
