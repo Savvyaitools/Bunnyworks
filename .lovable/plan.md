@@ -1,44 +1,37 @@
 
 
-# Fix: Earnings Scrape Timing Issue
+# Earnings Scraper — Verified & Improved
 
-## Problem
-The CDP scraper navigates to `onlyfans.com/my/statistics` and immediately reads `document.body.innerText` after `Page.loadEventFired`. But OnlyFans loads earnings data asynchronously via JavaScript/XHR -- the DOM only has ~15 characters at that point (a loading state). The regex parser finds nothing and skips the database update.
+## Status: ✅ Deployed & Tested
 
-## Solution
-Replace the single evaluate-after-load with a **polling loop** that waits for the page content to actually contain financial data before extracting.
+## Changes Made (Feb 25, 2026)
 
-## Changes
+### 1. Target URL Updated
+- Changed from `/my/statistics` → `/my/statistics/statements/earnings` for detailed breakdown
 
-### File: `supabase/functions/browserbase-session/index.ts`
+### 2. Polling Loop Extended
+- Increased from 7 attempts (10.5s) → 10 attempts (15s)
+- Added keyword detection (`subscriptions`, `tips`, `messages`) alongside `$` regex
+- Now captures 8000 chars instead of 5000
 
-In the `navigateViaCDP` function (or in the save_and_close earnings scrape block), after the page load event fires:
+### 3. Regex Patterns Overhauled
+- **Newline-separated**: `Label\n$1,234.56` (primary OF DOM format)
+- **Inline**: `Label: $1,234.56` or `Label $1,234.56` (fallback)
+- Added `posts` category parsing
+- Added fallback: finds largest `$` amount on page if no labels match
 
-1. **Add a polling loop** (up to 10 seconds, checking every 1.5s):
-   - Execute `document.body.innerText` via CDP `Runtime.evaluate`
-   - Check if the returned text contains earnings indicators (e.g., `$`, `earnings`, `tips`, `subscriptions`, or text length > 200 chars)
-   - If found, break and proceed with parsing
-   - If not found after all retries, log warning and proceed with empty result
+### 4. Enhanced Logging
+- Logs first 800 chars of raw DOM text for debugging
+- Logs all parsed values before DB upsert
+- Logs fallback amount detection
 
-2. **Replace the current single-shot evaluate** in the earnings scrape section with the polled result
+### 5. Tests
+- 6 parser tests covering all formats (newline, inline, spacing, fallback, empty page)
+- All passing ✅
 
-### Pseudocode
-```text
-// After Page.loadEventFired:
-let pageText = "";
-for (let attempt = 0; attempt < 7; attempt++) {
-  await sleep(1500);
-  pageText = await cdpEvaluate("document.body.innerText");
-  if (pageText.length > 200 && /\$[\d,]+/.test(pageText)) {
-    break; // Content loaded
-  }
-}
-// proceed with regex parsing on pageText
-```
-
-### Expected Outcome
-- The scraper will wait up to ~10.5 seconds for OnlyFans to finish rendering earnings data
-- Once dollar amounts appear in the DOM text, it extracts immediately (no unnecessary waiting)
-- If the page never loads (e.g., logged out, error), it gracefully times out and still saves cookies
-- No changes to the UI or other session logic
-
+## To Verify End-to-End
+1. Launch admin session for Weems from Browser page
+2. Log in if needed (should auto-restore from context)
+3. Click "Save Login & Close"
+4. Check edge function logs for `Earnings poll attempt` and `Earnings raw DOM text`
+5. Verify `creator_earnings` table updates with new values
