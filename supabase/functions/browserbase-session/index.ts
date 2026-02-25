@@ -188,13 +188,8 @@ async function isSessionAlive(k: string, sessionId: string): Promise<boolean> {
 }
 
 // Shared browser fingerprint settings
-function browserFingerprint() {
-  // With Advanced Stealth, Browserbase handles full fingerprint + viewport.
-  // We just hint at OS preference.
-  return {
-    operatingSystems: ["windows"],
-  };
-}
+// With Advanced Stealth, Browserbase handles full fingerprint + viewport.
+// We use the `os` field on browserSettings instead of fingerprint config.
 
 // Shared session creation body builder
 function sessionBody(projectId: string, contextId: string, proxies: any[], opts: {
@@ -204,8 +199,8 @@ function sessionBody(projectId: string, contextId: string, proxies: any[], opts:
     projectId,
     browserSettings: {
       context: { id: contextId, persist: true },
-      advancedStealth: true, // 7-day trial enabled — includes CAPTCHA solving
-      fingerprint: browserFingerprint(),
+      advancedStealth: true, // 7-day trial — includes CAPTCHA solving & full fingerprinting
+      os: "windows", // Per stealth-customization docs: sets UA + environment signals
     },
     proxies,
     keepAlive: opts.keepAlive ?? true,
