@@ -1,0 +1,1 @@
+UPDATE creators SET proxy_state = 'AZ', proxy_country = 'US' WHERE id = '0d4f17bd-35be-4a79-982d-dede7ec87786';
