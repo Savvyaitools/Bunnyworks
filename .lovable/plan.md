@@ -1,47 +1,55 @@
 
 
-# Backend Developer Briefing: Remaining Work
+# Enable Browserbase Advanced Stealth (7-Day Trial)
 
----
+Browserbase just enabled Advanced Stealth on your account. Here's the plan to turn it on and get browser sessions working properly.
 
-## Status: All Code-Level Issues RESOLVED ✅
+## What Changes
 
-The following issues from the original audit have been fixed:
+### 1. Enable `advancedStealth: true` in session config
 
-1. ✅ **`refresh_all_contexts` auth bypass** — Moved below JWT auth check + added agency ownership verification (403 if not owner)
-2. ✅ **Auth state race condition** — Added `useRef` deduplication to prevent duplicate `fetchProfile()` calls from `onAuthStateChange` + `getSession()`
-3. ✅ **Scoped error boundaries** — Employee and Creator portal routes now have individual `ErrorBoundary` wrappers so a crash in one portal doesn't take down the app
-4. ✅ **`ScrollReveal`/`GradientDivider` warnings** — Verified: no forwardRef issue exists; components use `motion.div` internally and don't receive external refs
+In the `sessionBody()` function (line 203-217), add `advancedStealth: true` to `browserSettings`. According to the docs, CAPTCHA solving is **included automatically** with Advanced Stealth -- no separate `solveCaptchas` flag needed.
 
----
+### 2. Keep proxies enabled (required)
 
-## What Remains for Backend Developer
+The Browserbase team confirmed Advanced Stealth works best with proxies. Your existing `proxyConf()` with `type: "browserbase"` residential proxies and state-level geo-pinning stays exactly as-is. This is the recommended setup.
 
-All remaining work is **browser session infrastructure development**, not bug fixes:
+### 3. Remove the custom stealth script injection
 
-### Priority 1: Bright Data Hybrid Proxy Integration
-- Add secrets: `BRIGHT_DATA_HOST`, `BRIGHT_DATA_USERNAME`, `BRIGHT_DATA_PASSWORD`
-- Update `proxyConf()` in `browserbase-session/index.ts` to use `type: "external"` with Bright Data credentials
-- Test with admin session creation against OnlyFans
+With Advanced Stealth, Browserbase handles fingerprinting at the browser level (canvas, WebGL, audio, navigator, etc.) -- far more effective than our JS-level patches. The custom `STEALTH_SCRIPT` (~80 lines of canvas noise, WebGL spoofing, AudioContext noise, etc.) should be **removed** to avoid conflicts with Browserbase's native stealth. The CDP calls that inject it via `Page.addScriptToEvaluateOnNewDocument` will be cleaned up.
 
-### Priority 2: Edge Function Refactoring
-- Split `browserbase-session/index.ts` (1,164 lines) into focused functions:
-  - `browserbase-warmup` — Profile warmup logic
-  - `browserbase-extensions` — Extension management
-  - `browserbase-monitoring` — CAPTCHA checks, session events, recordings
+### 4. Simplify `browserFingerprint()` 
 
-### Priority 3: Chrome Extension (ReachOwl-Style)
-- Build DOM scrapers for OF pages (earnings, fans, chats)
-- Add `sync_structured` action to `ingest-browser-sync` edge function
-- Implement persistent API keys (table `extension_api_keys` exists)
+The docs say: "With Advanced Stealth Mode, we handle fingerprinting and viewport configuration for you." We can simplify our fingerprint config to just specify OS preference (Windows) and let Browserbase handle the rest, or keep it minimal as a hint.
 
-### Priority 4: NSTBrowser / Desktop App
-- Evaluate NSTBrowser Cloud API or GoLogin Cloud API
-- Build Node.js VPS relay server with noVNC/WebRTC streaming
-- Add `BROWSER_BACKEND` feature flag for provider switching
+## Technical Details
 
-### Priority 5: Supporting Features
-- Push notifications: Create `public/sw.js` service worker
-- Invoice PDF generation + email sending
-- SOP signed URL downloads
-- Calendar integration with shifts/tasks
+**File changed:** `supabase/functions/browserbase-session/index.ts`
+
+**Changes:**
+
+1. **`sessionBody()` function (line 203-217):** Add `advancedStealth: true` to `browserSettings`. Remove the old comment about Enterprise plan.
+
+2. **`STEALTH_SCRIPT` constant (line 292+):** Remove the entire ~80 line stealth injection script (canvas noise, WebGL spoofing, AudioContext noise, navigator overrides, WebRTC leak prevention, battery API spoofing, plugin spoofing).
+
+3. **All CDP calls injecting `STEALTH_SCRIPT`:** Find every `Page.addScriptToEvaluateOnNewDocument` call that injects `STEALTH_SCRIPT` and remove them. The pre-login warmup browsing (Google/YouTube navigation) stays -- only the stealth injection is removed.
+
+4. **`browserFingerprint()` (line 191-197):** Simplify to just hint at OS preference since Browserbase now manages the full fingerprint.
+
+## What Does NOT Change
+
+- Proxy configuration (`proxyConf()` with state rotation) -- stays as-is
+- Session lifecycle (create, save, launch, terminate, heartbeat)
+- Context persistence
+- Warmup browsing logic (Google/YouTube pre-login navigation)
+- Session pooling
+- All frontend components
+- Database schema
+
+## Expected Result
+
+- Browser sessions will load OnlyFans successfully (no more DNS errors)
+- CAPTCHAs will be solved automatically by Browserbase
+- Browser fingerprint will be native-grade (not JS patches)
+- Existing geo-pinned residential proxies continue working
+
