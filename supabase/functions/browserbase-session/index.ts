@@ -189,10 +189,10 @@ async function isSessionAlive(k: string, sessionId: string): Promise<boolean> {
 
 // Shared browser fingerprint settings
 function browserFingerprint() {
+  // With Advanced Stealth, Browserbase handles full fingerprint + viewport.
+  // We just hint at OS preference.
   return {
-    browsers: ["chrome"], operatingSystems: ["windows"], devices: ["desktop"],
-    locales: ["en-US"], screen: { maxWidth: 1920, maxHeight: 1080, minWidth: 1280, minHeight: 720 },
-    httpVersion: "2",
+    operatingSystems: ["windows"],
   };
 }
 
@@ -204,7 +204,7 @@ function sessionBody(projectId: string, contextId: string, proxies: any[], opts:
     projectId,
     browserSettings: {
       context: { id: contextId, persist: true },
-      // Note: solveCaptchas, blockAds, and advancedStealth removed — require Enterprise plan
+      advancedStealth: true, // 7-day trial enabled — includes CAPTCHA solving
       fingerprint: browserFingerprint(),
     },
     proxies,
@@ -288,99 +288,10 @@ const STATE_TIMEZONES: Record<string, string> = {
   CA: "America/Los_Angeles", PA: "America/New_York",
 };
 
-// ========== Advanced stealth injection script ==========
-const STEALTH_SCRIPT = `
-// === Canvas fingerprint noise ===
-const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
-HTMLCanvasElement.prototype.toDataURL = function(type) {
-  const ctx = this.getContext('2d');
-  if (ctx) {
-    const imgData = ctx.getImageData(0, 0, this.width, this.height);
-    for (let i = 0; i < Math.min(imgData.data.length, 40); i += 4) {
-      imgData.data[i] = imgData.data[i] ^ (Math.random() > 0.5 ? 1 : 0);
-    }
-    ctx.putImageData(imgData, 0, 0);
-  }
-  return origToDataURL.apply(this, arguments);
-};
-
-// === WebGL fingerprint ===
-const getParam = WebGLRenderingContext.prototype.getParameter;
-WebGLRenderingContext.prototype.getParameter = function(p) {
-  if (p === 37445) return 'Google Inc. (NVIDIA)';
-  if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)';
-  return getParam.call(this, p);
-};
-if (typeof WebGL2RenderingContext !== 'undefined') {
-  const getParam2 = WebGL2RenderingContext.prototype.getParameter;
-  WebGL2RenderingContext.prototype.getParameter = function(p) {
-    if (p === 37445) return 'Google Inc. (NVIDIA)';
-    if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)';
-    return getParam2.call(this, p);
-  };
-}
-
-// === AudioContext fingerprint noise ===
-if (typeof AudioContext !== 'undefined') {
-  const origCreateOscillator = AudioContext.prototype.createOscillator;
-  AudioContext.prototype.createOscillator = function() {
-    const osc = origCreateOscillator.call(this);
-    osc.frequency.value += (Math.random() - 0.5) * 0.01;
-    return osc;
-  };
-}
-
-// === Navigator overrides ===
-Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
-Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
-
-// === WebRTC IP leak prevention ===
-if (typeof RTCPeerConnection !== 'undefined') {
-  const origRTC = RTCPeerConnection;
-  window.RTCPeerConnection = function(config) {
-    if (config && config.iceServers) {
-      config.iceServers = [];
-    }
-    return new origRTC(config);
-  };
-  window.RTCPeerConnection.prototype = origRTC.prototype;
-}
-
-// === Connection info ===
-if (navigator.connection) {
-  Object.defineProperty(navigator.connection, 'effectiveType', { get: () => '4g' });
-  Object.defineProperty(navigator.connection, 'downlink', { get: () => 10 });
-  Object.defineProperty(navigator.connection, 'rtt', { get: () => 50 });
-}
-
-// === Battery API ===
-if (navigator.getBattery) {
-  navigator.getBattery = () => Promise.resolve({
-    charging: true, chargingTime: 0, dischargingTime: Infinity, level: 1,
-    onchargingchange: null, onchargingtimechange: null,
-    ondischargingtimechange: null, onlevelchange: null
-  });
-}
-
-// === Permissions API spoofing ===
-if (navigator.permissions) {
-  const origQuery = navigator.permissions.query;
-  navigator.permissions.query = function(desc) {
-    if (desc.name === 'notifications') {
-      return Promise.resolve({ state: 'prompt', onchange: null });
-    }
-    return origQuery.call(this, desc);
-  };
-}
-
-// === Plugin count (Chrome typically has 5) ===
-Object.defineProperty(navigator, 'plugins', {
-  get: () => [1,2,3,4,5].map(() => ({ name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer' }))
-});
-`;
+// Advanced stealth is now handled natively by Browserbase (advancedStealth: true).
+// The custom JS stealth script (canvas noise, WebGL, AudioContext, navigator overrides,
+// WebRTC leak prevention, battery API, plugin spoofing) has been removed to avoid
+// conflicts with Browserbase's browser-level fingerprinting.
 
 // ========== Pre-login warmup: visit innocent sites to build browsing history ==========
 async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: string): Promise<void> {
@@ -441,10 +352,9 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
           send("Emulation.setTimezoneOverride", { timezoneId: tz }, cdpSession);
           send("Emulation.setLocaleOverride", { locale: "en-US" }, cdpSession);
           send("Page.enable", {}, cdpSession);
-          // Inject full stealth script
-          send("Page.addScriptToEvaluateOnNewDocument", { source: STEALTH_SCRIPT }, cdpSession);
+          // Stealth is now handled natively by Browserbase (advancedStealth: true)
           
-          console.log("Warmup: Stealth overrides set, navigating to Google...");
+          console.log("Warmup: Navigating to Google...");
           send("Page.navigate", { url: "https://www.google.com" }, cdpSession);
           step = 1;
           return;
@@ -629,7 +539,7 @@ Deno.serve(async (req) => {
         console.warn("Pre-login warmup failed (non-fatal):", e);
       }
 
-      // Navigate to the platform (stealth already injected via addScriptToEvaluateOnNewDocument in warmup)
+      // Navigate to the platform (stealth handled natively by Browserbase advancedStealth)
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
         try {
