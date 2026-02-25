@@ -568,7 +568,116 @@ Deno.serve(async (req) => {
 
       const alive = await isSessionAlive(BK, browserbaseSessionId);
 
-      // Update DB immediately — core job: persist cookies, mark authenticated
+      // Get creator info from session link for earnings scraping
+      const { data: sessionLink } = await svc.from("creator_session_links")
+        .select("creator_id, platform")
+        .eq("id", sessionLinkId)
+        .single();
+
+      // ===== CDP Earnings Scrape (before releasing session) =====
+      let scrapedEarnings = null;
+      if (alive && sessionLink?.platform?.toLowerCase() === "onlyfans") {
+        try {
+          console.log(`Scraping earnings for creator ${sessionLink.creator_id} before close...`);
+          
+          // Navigate to OF statistics page and extract earnings text
+          const statsResult = await navigateViaCDP(BK, browserbaseSessionId, "https://onlyfans.com/my/statistics", {
+            timeout: 25000,
+            evaluate: `
+              (function() {
+                // Wait a moment for dynamic content to render
+                return new Promise(resolve => {
+                  setTimeout(() => {
+                    const text = document.body.innerText;
+                    resolve(text.substring(0, 5000));
+                  }, 3000);
+                });
+              })()
+            `,
+          });
+
+          if (statsResult.success && statsResult.result) {
+            const rawText = String(statsResult.result);
+            console.log("Earnings raw text length:", rawText.length);
+
+            // Parse earnings from the statistics page text
+            const parseAmount = (patterns: RegExp[]): number => {
+              for (const pat of patterns) {
+                const m = rawText.match(pat);
+                if (m) {
+                  const val = parseFloat(m[1].replace(/,/g, ""));
+                  if (!isNaN(val)) return val;
+                }
+              }
+              return 0;
+            };
+
+            // OF statistics page patterns - look for labeled amounts
+            const totalEarnings = parseAmount([
+              /(?:net|total\s+earnings?|earnings?\s+total)[:\s]*\$?([\d,]+\.?\d*)/i,
+              /(?:earnings?)[:\s]*\$?([\d,]+\.?\d*)/i,
+              /\$\s*([\d,]+\.?\d{2})/,
+            ]);
+            const tips = parseAmount([
+              /(?:tips?)[:\s]*\$?([\d,]+\.?\d*)/i,
+            ]);
+            const subs = parseAmount([
+              /(?:subscriptions?|subs?)[:\s]*\$?([\d,]+\.?\d*)/i,
+            ]);
+            const messages = parseAmount([
+              /(?:messages?|messaging)[:\s]*\$?([\d,]+\.?\d*)/i,
+            ]);
+            const referrals = parseAmount([
+              /(?:referrals?)[:\s]*\$?([\d,]+\.?\d*)/i,
+            ]);
+
+            // Only upsert if we got a meaningful total
+            const bestTotal = totalEarnings || (tips + subs + messages + referrals);
+            if (bestTotal > 0) {
+              const now = new Date();
+              const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+              const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+
+              // Check for existing record this period
+              const { data: existing } = await svc.from("creator_earnings")
+                .select("id")
+                .eq("creator_id", sessionLink.creator_id)
+                .eq("period_start", periodStart)
+                .eq("period_end", periodEnd)
+                .maybeSingle();
+
+              const earningsPayload = {
+                creator_id: sessionLink.creator_id,
+                amount: bestTotal,
+                tips: tips || 0,
+                subscriptions: subs || 0,
+                messages_revenue: messages || 0,
+                referrals: referrals || 0,
+                period_start: periodStart,
+                period_end: periodEnd,
+                platform: "onlyfans",
+                notes: `Auto-scraped on ${now.toISOString().split("T")[0]}`,
+              };
+
+              if (existing) {
+                await svc.from("creator_earnings").update(earningsPayload).eq("id", existing.id);
+                console.log(`Updated earnings for creator ${sessionLink.creator_id}: $${bestTotal}`);
+              } else {
+                await svc.from("creator_earnings").insert(earningsPayload);
+                console.log(`Inserted earnings for creator ${sessionLink.creator_id}: $${bestTotal}`);
+              }
+
+              scrapedEarnings = { total: bestTotal, tips, subscriptions: subs, messages, referrals };
+            } else {
+              console.warn("Earnings scrape: no meaningful values found in page text");
+            }
+          }
+        } catch (e: any) {
+          console.warn(`Earnings scrape failed (non-fatal): ${e.message}`);
+        }
+      }
+
+      // Update DB — persist cookies, mark authenticated
       await svc.from("creator_session_links").update({ 
         session_status: "authenticated", 
         last_saved_at: new Date().toISOString(), 
@@ -589,7 +698,13 @@ Deno.serve(async (req) => {
         }
       }
       
-      return json({ success: true, message: "Login saved. Cookies and session data persisted in context." });
+      return json({ 
+        success: true, 
+        message: scrapedEarnings 
+          ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` 
+          : "Login saved. Cookies and session data persisted in context.",
+        earnings: scrapedEarnings,
+      });
     }
 
     // ========== CHECK AND RECOVER SESSIONS ==========
