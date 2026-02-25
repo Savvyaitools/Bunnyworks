@@ -1261,6 +1261,87 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ========== INJECT SIDEBAR RESTRICTIONS (CDP) ==========
+    if (action === "inject_sidebar_restrictions") {
+      const { browserbaseSessionId: bbSid, hideStatements, hideStatistics, hideMore } = p;
+      if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
+
+      const cssRules: string[] = [];
+      if (hideStatements) cssRules.push('a[href="/my/statements"] { display: none !important; }');
+      if (hideStatistics) cssRules.push('a[href="/my/statistics"] { display: none !important; }');
+      if (hideMore) cssRules.push('[data-name="more"], a[href="/more"] { display: none !important; }');
+
+      if (cssRules.length === 0) return json({ success: true, message: "No restrictions to inject" });
+
+      const injectionScript = `
+        (function() {
+          if (document.getElementById('creatoros-sidebar-restrictions')) return;
+          var style = document.createElement('style');
+          style.id = 'creatoros-sidebar-restrictions';
+          style.textContent = ${JSON.stringify(cssRules.join('\n'))};
+          (document.head || document.documentElement).appendChild(style);
+          // Re-inject on SPA navigation via MutationObserver
+          var obs = new MutationObserver(function() {
+            if (!document.getElementById('creatoros-sidebar-restrictions')) {
+              var s2 = document.createElement('style');
+              s2.id = 'creatoros-sidebar-restrictions';
+              s2.textContent = style.textContent;
+              (document.head || document.documentElement).appendChild(s2);
+            }
+          });
+          obs.observe(document.documentElement, { childList: true, subtree: true });
+        })();
+      `;
+
+      try {
+        const wsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${bbSid}`;
+        const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+          let mid = 1;
+          let resolved = false;
+          const ws = new WebSocket(wsUrl);
+          const timer = setTimeout(() => {
+            if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve({ success: true }); }
+          }, 10000);
+
+          const send = (method: string, params: Record<string, unknown> = {}) => {
+            const id = mid++;
+            ws.send(JSON.stringify({ id, method, params }));
+            return id;
+          };
+
+          let getTargetsId: number | null = null;
+          let attachId: number | null = null;
+          let evalId: number | null = null;
+
+          ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+          ws.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev.data as string);
+              if (msg.id === getTargetsId && msg.result?.targetInfos) {
+                const page = msg.result.targetInfos.find((t: any) => t.type === "page");
+                if (page) {
+                  attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+                } else {
+                  resolved = true; clearTimeout(timer); ws.close(); resolve({ success: false, error: "No page target" });
+                }
+              } else if (msg.id === attachId && msg.result?.sessionId) {
+                const sid = msg.result.sessionId;
+                const id = mid++;
+                ws.send(JSON.stringify({ id, method: "Runtime.evaluate", params: { expression: injectionScript, returnByValue: true }, sessionId: sid }));
+                evalId = id;
+              } else if (msg.id === evalId) {
+                resolved = true; clearTimeout(timer); ws.close(); resolve({ success: true });
+              }
+            } catch {}
+          };
+          ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve({ success: false, error: "WebSocket error" }); } };
+        });
+        return json(result);
+      } catch (e: any) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
     if (action === "check_captcha_events") {
       const { browserbaseSessionId, agencyId, sessionLinkId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);

@@ -1,23 +1,8 @@
-/* Hide OnlyFans native sidebar/menu so navigation is controlled via CreatorOS panel */
-.b-sidebar,
-.l-sidebar,
-nav.b-sidebar,
-div.l-sidebar__menu,
-div[class*="sidebar"],
-aside.b-sidebar {
-  display: none !important;
-  width: 0 !important;
-  min-width: 0 !important;
-  overflow: hidden !important;
-}
-
-/* Expand main content to fill the space left by hidden sidebar */
-.l-wrapper,
-.b-wrapper,
-main.l-wrapper {
-  margin-left: 0 !important;
-  padding-left: 0 !important;
-}
+/* CreatorOS Permission Guard — targeted sidebar link hiding */
+/* Hide Statements / Statistics / More for restricted employees */
+a[href="/my/statements"] { display: none !important; }
+a[href="/my/statistics"] { display: none !important; }
+[data-name="more"], a[href="/more"] { display: none !important; }
 
 #creatoros-blocked-overlay {
   position: fixed;
