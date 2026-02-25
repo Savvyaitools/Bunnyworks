@@ -580,18 +580,18 @@ Deno.serve(async (req) => {
         try {
           console.log(`Scraping earnings for creator ${sessionLink.creator_id} before close...`);
           
-          // Navigate to OF statistics page, then poll for async-rendered earnings data
-          const statsNavResult = await navigateViaCDP(BK, browserbaseSessionId, "https://onlyfans.com/my/statistics", {
+          // Navigate to OF earnings statements page for detailed breakdown
+          const statsNavResult = await navigateViaCDP(BK, browserbaseSessionId, "https://onlyfans.com/my/statistics/statements/earnings", {
             timeout: 25000,
           });
 
           let statsResult: { success: boolean; result?: unknown } = { success: false };
 
           if (statsNavResult.success) {
-            // Poll up to ~10.5s for the page to render financial data
+            // Poll up to ~15s for the page to render financial data
             const pollWsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`;
             let pageText = "";
-            for (let attempt = 0; attempt < 7; attempt++) {
+            for (let attempt = 0; attempt < 10; attempt++) {
               await new Promise(r => setTimeout(r, 1500));
               const pollResult = await new Promise<string>((resolve) => {
                 let done = false;
@@ -614,7 +614,7 @@ Deno.serve(async (req) => {
                     }
                     if (msg.id === attachMid) {
                       cdpSid = msg.result?.sessionId;
-                      if (cdpSid) { evalMid = mid; ws.send(JSON.stringify({ id: mid++, method: "Runtime.evaluate", params: { expression: "document.body.innerText.substring(0,5000)", returnByValue: true }, sessionId: cdpSid })); }
+                      if (cdpSid) { evalMid = mid; ws.send(JSON.stringify({ id: mid++, method: "Runtime.evaluate", params: { expression: "document.body.innerText.substring(0,8000)", returnByValue: true }, sessionId: cdpSid })); }
                       else { done = true; clearTimeout(t); try { ws.close(); } catch {} resolve(""); }
                       return;
                     }
@@ -632,17 +632,20 @@ Deno.serve(async (req) => {
               });
 
               pageText = pollResult;
-              console.log(`Earnings poll attempt ${attempt + 1}/7: text length=${pageText.length}`);
-              if (pageText.length > 200 && /\$[\d,]+/.test(pageText)) {
+              console.log(`Earnings poll attempt ${attempt + 1}/10: text length=${pageText.length}`);
+              // Check for dollar amounts OR OF-specific keywords indicating data loaded
+              if (pageText.length > 200 && (/\$[\d,]+/.test(pageText) || /(?:subscriptions|tips|messages|earnings)/i.test(pageText))) {
                 console.log("Earnings data detected in DOM, proceeding with extraction");
                 break;
               }
             }
 
+            // Log first portion of raw text for debugging
             if (pageText.length > 0) {
+              console.log("Earnings raw DOM text (first 800 chars):", pageText.substring(0, 800));
               statsResult = { success: true, result: pageText };
             } else {
-              console.warn("Earnings poll: page never rendered financial data after 7 attempts");
+              console.warn("Earnings poll: page never rendered financial data after 10 attempts");
             }
           }
 
@@ -651,38 +654,53 @@ Deno.serve(async (req) => {
             console.log("Earnings raw text length:", rawText.length);
 
             // Parse earnings from the statistics page text
-            const parseAmount = (patterns: RegExp[]): number => {
-              for (const pat of patterns) {
-                const m = rawText.match(pat);
-                if (m) {
-                  const val = parseFloat(m[1].replace(/,/g, ""));
-                  if (!isNaN(val)) return val;
+            // OF DOM renders labels and amounts in separate elements, so innerText has them
+            // on separate lines like: "Subscriptions\n$930.40\nTips\n$668.00" or inline "Subscriptions $930.40"
+            const parseAmount = (labels: string[]): number => {
+              for (const label of labels) {
+                // Pattern 1: "Label\n$1,234.56" or "Label\n$ 1,234.56" (newline-separated)
+                const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                const nlMatch = rawText.match(nlPat);
+                if (nlMatch) {
+                  const val = parseFloat(nlMatch[1].replace(/,/g, ""));
+                  if (!isNaN(val) && val > 0) return val;
+                }
+                // Pattern 2: "Label: $1,234.56" or "Label $1,234.56" (inline)
+                const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                const inlineMatch = rawText.match(inlinePat);
+                if (inlineMatch) {
+                  const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
+                  if (!isNaN(val) && val > 0) return val;
                 }
               }
               return 0;
             };
 
-            // OF statistics page patterns - look for labeled amounts
-            const totalEarnings = parseAmount([
-              /(?:net|total\s+earnings?|earnings?\s+total)[:\s]*\$?([\d,]+\.?\d*)/i,
-              /(?:earnings?)[:\s]*\$?([\d,]+\.?\d*)/i,
-              /\$\s*([\d,]+\.?\d{2})/,
-            ]);
-            const tips = parseAmount([
-              /(?:tips?)[:\s]*\$?([\d,]+\.?\d*)/i,
-            ]);
-            const subs = parseAmount([
-              /(?:subscriptions?|subs?)[:\s]*\$?([\d,]+\.?\d*)/i,
-            ]);
-            const messages = parseAmount([
-              /(?:messages?|messaging)[:\s]*\$?([\d,]+\.?\d*)/i,
-            ]);
-            const referrals = parseAmount([
-              /(?:referrals?)[:\s]*\$?([\d,]+\.?\d*)/i,
-            ]);
+            // OF earnings page categories
+            const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
+            const tips = parseAmount(["tips"]);
+            const subs = parseAmount(["subscriptions", "subscription"]);
+            const messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
+            const referrals = parseAmount(["referrals", "referral"]);
+            const posts = parseAmount(["posts", "post"]);
+
+            // Also try to find any dollar amount as last resort for total
+            let fallbackTotal = 0;
+            if (!totalEarnings) {
+              // Find the largest dollar amount on the page as a heuristic
+              const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
+                .map(m => parseFloat(m[1].replace(/,/g, "")))
+                .filter(v => !isNaN(v) && v > 0);
+              if (allAmounts.length > 0) {
+                fallbackTotal = Math.max(...allAmounts);
+                console.log(`Earnings fallback: found ${allAmounts.length} dollar amounts, max=$${fallbackTotal}`);
+              }
+            }
+
+            console.log(`Earnings parsed: total=${totalEarnings}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}, fallback=${fallbackTotal}`);
 
             // Only upsert if we got a meaningful total
-            const bestTotal = totalEarnings || (tips + subs + messages + referrals);
+            const bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
             if (bestTotal > 0) {
               const now = new Date();
               const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
