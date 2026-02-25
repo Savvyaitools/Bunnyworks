@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
 
 export interface ActiveBrowserSession {
   embedUrl: string;
@@ -8,6 +8,8 @@ export interface ActiveBrowserSession {
   creatorName?: string;
   platform: string;
 }
+
+const STORAGE_KEY = "active-browser-session";
 
 interface ActiveBrowserSessionContextType {
   activeSession: ActiveBrowserSession | null;
@@ -25,13 +27,31 @@ const ActiveBrowserSessionContext = createContext<ActiveBrowserSessionContextTyp
   setMinimized: () => {},
 });
 
+function loadPersistedSession(): ActiveBrowserSession | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as ActiveBrowserSession;
+  } catch {}
+  return null;
+}
+
 export function ActiveBrowserSessionProvider({ children }: { children: ReactNode }) {
-  const [activeSession, setActiveSession] = useState<ActiveBrowserSession | null>(null);
-  const [minimized, setMinimized] = useState(false);
+  const [activeSession, setActiveSessionState] = useState<ActiveBrowserSession | null>(loadPersistedSession);
+  const [minimized, setMinimized] = useState(() => !!loadPersistedSession());
+
+  const setActiveSession = useCallback((session: ActiveBrowserSession | null) => {
+    setActiveSessionState(session);
+    if (session) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
 
   const clearSession = useCallback(() => {
-    setActiveSession(null);
+    setActiveSessionState(null);
     setMinimized(false);
+    localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   return (

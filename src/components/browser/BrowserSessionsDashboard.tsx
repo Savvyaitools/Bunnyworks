@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download } from "lucide-react";
+import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { SessionRecordingViewer } from "./SessionRecordingViewer";
 import { SessionLogsViewer } from "./SessionLogsViewer";
 import { SessionDownloadsViewer } from "./SessionDownloadsViewer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
 
 function statusBadge(status: string | null) {
   switch (status) {
@@ -35,9 +36,22 @@ type ViewerPanel = {
 
 export function BrowserSessionsDashboard() {
   const { sessionLinks, activeSessions, linksLoading, terminateSession, invalidate } = useBrowserSessions();
+  const { setActiveSession, setMinimized } = useActiveBrowserSession();
   const captchaCheck = useCaptchaCheck();
   const [viewerPanel, setViewerPanel] = useState<ViewerPanel | null>(null);
   const isMobile = useIsMobile();
+
+  const handleRejoinSession = (activeSessionRow: any, link: any) => {
+    setActiveSession({
+      embedUrl: activeSessionRow.embed_url,
+      sessionId: activeSessionRow.browserbase_session_id,
+      sessionLinkId: link.id,
+      creatorId: link.creator_id,
+      creatorName: link.creator?.name,
+      platform: link.platform,
+    });
+    setMinimized(false);
+  };
 
   if (linksLoading) {
     return (
@@ -106,6 +120,7 @@ export function BrowserSessionsDashboard() {
             terminateSession={terminateSession}
             captchaCheck={captchaCheck}
             setViewerPanel={setViewerPanel}
+            onRejoinSession={handleRejoinSession}
           />
         ) : (
           <DesktopSessionTable
@@ -115,6 +130,7 @@ export function BrowserSessionsDashboard() {
             terminateSession={terminateSession}
             captchaCheck={captchaCheck}
             setViewerPanel={setViewerPanel}
+            onRejoinSession={handleRejoinSession}
           />
         )}
       </CardContent>
@@ -130,9 +146,10 @@ interface SessionListProps {
   terminateSession: (id: string) => void;
   captchaCheck: any;
   setViewerPanel: (panel: ViewerPanel | null) => void;
+  onRejoinSession: (activeSession: any, link: any) => void;
 }
 
-function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel }: SessionListProps) {
+function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession }: SessionListProps) {
   return (
     <div className="space-y-3">
       {sessionLinks.map((link) => {
@@ -192,9 +209,14 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
                 </>
               )}
               {linkActiveSessions.map((s: any) => (
-                <Button key={s.id} variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-8 text-xs gap-1">
-                  <Trash2 className="h-3.5 w-3.5" /> Kill
-                </Button>
+                <div key={s.id} className="flex items-center gap-1">
+                  <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-8 text-xs gap-1">
+                    <ExternalLink className="h-3.5 w-3.5" /> Open
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-8 text-xs gap-1">
+                    <Trash2 className="h-3.5 w-3.5" /> Kill
+                  </Button>
+                </div>
               ))}
             </div>
           </div>
@@ -204,7 +226,7 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
   );
 }
 
-function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel }: SessionListProps) {
+function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession }: SessionListProps) {
   return (
     <Table>
       <TableHeader>
@@ -269,9 +291,14 @@ function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, t
                     </>
                   )}
                   {linkActiveSessions.map((s: any) => (
-                    <Button key={s.id} variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-7 text-xs">
-                      <Trash2 className="h-3 w-3 mr-1" /> Kill
-                    </Button>
+                    <div key={s.id} className="flex items-center gap-1">
+                      <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-7 text-xs gap-1">
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-7 text-xs">
+                        <Trash2 className="h-3 w-3 mr-1" /> Kill
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </TableCell>
