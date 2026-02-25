@@ -72,17 +72,21 @@ export default function CreatorDetail() {
           Back to Creators
         </Button>
 
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue="earnings" className="space-y-6">
           <TabsList className="bg-card border border-border h-auto gap-1 p-1 overflow-x-auto flex-nowrap w-full justify-start scrollbar-hide">
+            <TabsTrigger value="earnings" className="whitespace-nowrap">Earnings</TabsTrigger>
             <TabsTrigger value="overview" className="whitespace-nowrap">Overview</TabsTrigger>
             <TabsTrigger value="platforms" className="whitespace-nowrap">Accounts</TabsTrigger>
             <TabsTrigger value="plans" className="whitespace-nowrap">Plans</TabsTrigger>
             <TabsTrigger value="vault" className="whitespace-nowrap">Vault</TabsTrigger>
             <TabsTrigger value="marketing" className="whitespace-nowrap">Marketing</TabsTrigger>
             <TabsTrigger value="requests" className="whitespace-nowrap">Requests</TabsTrigger>
-            <TabsTrigger value="earnings" className="whitespace-nowrap">Earnings</TabsTrigger>
             <TabsTrigger value="team-access" className="whitespace-nowrap">Team</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="earnings" className="bg-card rounded-lg border border-border p-6">
+            <CreatorEarnings creatorId={creator.id} creatorCommissionRate={creator.commission_rate} />
+          </TabsContent>
 
           <TabsContent value="overview" className="bg-card rounded-lg border border-border p-6">
             <CreatorOverview creator={creator} onUpdate={handleUpdate} />
@@ -108,9 +112,6 @@ export default function CreatorDetail() {
             <CreatorCustomRequests creatorId={creator.id} />
           </TabsContent>
 
-          <TabsContent value="earnings" className="bg-card rounded-lg border border-border p-6">
-            <CreatorEarnings creatorId={creator.id} creatorCommissionRate={creator.commission_rate} />
-          </TabsContent>
 
           <TabsContent value="team-access" className="bg-card rounded-lg border border-border p-6">
             <CreatorEmployeePermissions creatorId={creator.id} />
