@@ -22,37 +22,44 @@ async function navigateViaCDP(
   sessionId: string,
   url: string,
   options?: { evaluate?: string; timeout?: number }
-): Promise<{ success: boolean; result?: unknown; error?: string }> {
+): Promise<{ success: boolean; timedOut?: boolean; result?: unknown; error?: string }> {
   const timeout = options?.timeout ?? 20000;
-
-  // Use Browserbase connect URL for raw CDP access
   const wsUrl = `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`;
   console.log(`CDP: Connecting for navigation to ${url}`);
+
   return new Promise((resolve) => {
     let msgId = 1;
     let resolved = false;
     const ws = new WebSocket(wsUrl);
+
+    const cleanup = (result: { success: boolean; timedOut?: boolean; result?: unknown; error?: string }) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      try { ws.close(); } catch {}
+      resolve(result);
+    };
+
     const timer = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        console.warn(`CDP: Navigation timeout after ${timeout}ms (non-fatal)`);
-        try { ws.close(); } catch {}
-        resolve({ success: true, timedOut: true, result: null });
-      }
+      console.warn(`CDP: Navigation timeout after ${timeout}ms (non-fatal)`);
+      cleanup({ success: true, timedOut: true, result: null });
     }, timeout);
 
-    const send = (method: string, params: Record<string, unknown> = {}) => {
+    const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
       const id = msgId++;
-      ws.send(JSON.stringify({ id, method, params }));
+      const msg: any = { id, method, params };
+      if (sid) msg.sessionId = sid;
+      ws.send(JSON.stringify(msg));
       return id;
     };
 
+    // Tracked IDs for robust message routing
     let getTargetsId: number | null = null;
     let attachId: number | null = null;
-    let sessionId_cdp: string | null = null;
+    let pageEnableId: number | null = null;
     let navigateId: number | null = null;
     let evaluateId: number | null = null;
-    let pageEnableId: number | null = null;
+    let sessionId_cdp: string | null = null;
 
     ws.onopen = () => {
       console.log("CDP: WebSocket connected, getting targets");
@@ -63,7 +70,6 @@ async function navigateViaCDP(
       try {
         const msg = JSON.parse(evt.data);
 
-        // Step 1: Get targets → find page target → attach
         if (msg.id === getTargetsId) {
           const targets = msg.result?.targetInfos || [];
           const pageTarget = targets.find((t: any) => t.type === "page");
@@ -71,40 +77,28 @@ async function navigateViaCDP(
             console.log(`CDP: Found page target ${pageTarget.targetId}, attaching`);
             attachId = send("Target.attachToTarget", { targetId: pageTarget.targetId, flatten: true });
           } else {
-            console.error("CDP: No page target found, targets:", targets.map((t: any) => t.type));
-            resolved = true;
-            clearTimeout(timer);
-            try { ws.close(); } catch {}
-            resolve({ success: false, error: "No page target found" });
+            console.error("CDP: No page target found");
+            cleanup({ success: false, error: "No page target found" });
           }
           return;
         }
 
-        // Step 2: Attached → enable Page domain on the session
         if (msg.id === attachId) {
           sessionId_cdp = msg.result?.sessionId;
           console.log(`CDP: Attached to target, sessionId: ${sessionId_cdp}`);
           if (sessionId_cdp) {
-            // Send commands scoped to the session
-            const id1 = msgId++;
-            ws.send(JSON.stringify({ id: id1, method: "Page.enable", params: {}, sessionId: sessionId_cdp }));
-            pageEnableId = id1;
-            const id2 = msgId++;
-            ws.send(JSON.stringify({ id: id2, method: "Runtime.enable", params: {}, sessionId: sessionId_cdp }));
+            pageEnableId = send("Page.enable", {}, sessionId_cdp);
+            send("Runtime.enable", {}, sessionId_cdp);
           }
           return;
         }
 
-        // Step 3: Page.enable OK → navigate
         if (msg.id === pageEnableId && !navigateId && sessionId_cdp) {
           console.log(`CDP: Page.enable OK, navigating to ${url}`);
-          const id = msgId++;
-          ws.send(JSON.stringify({ id, method: "Page.navigate", params: { url }, sessionId: sessionId_cdp }));
-          navigateId = id;
+          navigateId = send("Page.navigate", { url }, sessionId_cdp);
           return;
         }
 
-        // Step 4: Navigate response
         if (msg.id === navigateId) {
           if (msg.error) {
             console.error("CDP: Page.navigate error:", msg.error);
@@ -114,30 +108,20 @@ async function navigateViaCDP(
           return;
         }
 
-        // Step 5: Load event
-        if (msg.method === "Page.loadEventFired" || (msg.params?.method === "Page.loadEventFired")) {
+        if (msg.method === "Page.loadEventFired" || msg.params?.method === "Page.loadEventFired") {
           console.log("CDP: Page load event fired");
           if (options?.evaluate && sessionId_cdp) {
-            const id = msgId++;
-            ws.send(JSON.stringify({ id, method: "Runtime.evaluate", params: { expression: options.evaluate, returnByValue: true }, sessionId: sessionId_cdp }));
-            evaluateId = id;
+            evaluateId = send("Runtime.evaluate", { expression: options.evaluate, returnByValue: true }, sessionId_cdp);
           } else {
-            clearTimeout(timer);
-            resolved = true;
-            try { ws.close(); } catch {}
-            resolve({ success: true });
+            cleanup({ success: true });
           }
           return;
         }
 
-        // Step 6: Evaluate result
         if (evaluateId && msg.id === evaluateId) {
-          clearTimeout(timer);
-          resolved = true;
           const val = msg.result?.result?.value;
           console.log("CDP: Evaluate result received");
-          try { ws.close(); } catch {}
-          resolve({ success: true, result: val });
+          cleanup({ success: true, result: val });
           return;
         }
       } catch {}
@@ -145,19 +129,11 @@ async function navigateViaCDP(
 
     ws.onerror = (err) => {
       console.error("CDP: WebSocket error:", err);
-      if (!resolved) {
-        clearTimeout(timer);
-        resolved = true;
-        resolve({ success: false, error: "WebSocket error" });
-      }
+      cleanup({ success: false, error: "WebSocket error" });
     };
 
     ws.onclose = () => {
-      if (!resolved) {
-        clearTimeout(timer);
-        resolved = true;
-        resolve({ success: false, error: "WebSocket closed before completion" });
-      }
+      cleanup({ success: false, error: "WebSocket closed before completion" });
     };
   });
 }
@@ -545,12 +521,12 @@ Deno.serve(async (req) => {
             const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({}); } }, 35000);
             let mid = 1;
             let cdpSid: string | null = null;
-            const capturedResponses: Record<string, { url: string; requestId: string }> = {};
-            let pendingBodyRequests = new Map<number, string>(); // mid -> requestId
+            const pendingBodyRequests = new Map<number, string>(); // tracked mid -> requestId
+            const domPollIds = new Set<number>(); // tracked DOM poll evaluate IDs
             let earningsJson: any = null;
             let domText = "";
-            let navigated = false;
-            let networkEnabled = false;
+            let navigationConfirmed = false; // Guard: only DOM-poll after nav confirmed
+            let xhrCaptured = false; // Guard: skip DOM polling once XHR captured
             let domPollCount = 0;
             const MAX_DOM_POLLS = 8;
 
@@ -570,15 +546,19 @@ Deno.serve(async (req) => {
             };
 
             const startDomPoll = () => {
-              if (domPollCount >= MAX_DOM_POLLS || done) {
-                if (!earningsJson && !domText) console.warn("Earnings: DOM poll exhausted, no data found");
-                finish();
+              // Guard: don't poll if XHR already captured or navigation not confirmed
+              if (xhrCaptured || !navigationConfirmed || domPollCount >= MAX_DOM_POLLS || done) {
+                if (!xhrCaptured && !earningsJson && !domText && domPollCount >= MAX_DOM_POLLS) {
+                  console.warn("Earnings: DOM poll exhausted, no data found");
+                }
+                if (domPollCount >= MAX_DOM_POLLS || (!xhrCaptured && !navigationConfirmed)) finish();
                 return;
               }
               domPollCount++;
               setTimeout(() => {
-                if (done) return;
-                send("Runtime.evaluate", { expression: "document.body.innerText.substring(0,8000)", returnByValue: true });
+                if (done || xhrCaptured) return;
+                const pollId = send("Runtime.evaluate", { expression: "document.body.innerText.substring(0,8000)", returnByValue: true });
+                domPollIds.add(pollId);
               }, 1500);
             };
 
@@ -605,95 +585,103 @@ Deno.serve(async (req) => {
                 // Step 2: Attach to page target
                 if (msg.id === attachId && msg.result?.sessionId) {
                   cdpSid = msg.result.sessionId;
-                  // Enable Network domain to intercept XHR responses
                   networkEnableId = send("Network.enable", {});
                   return;
                 }
 
-                // Step 3: Network enabled, now navigate
+                // Step 3: Network enabled → enable Page + navigate
                 if (msg.id === networkEnableId) {
-                  networkEnabled = true;
                   console.log("CDP: Network.enable done, navigating to OF earnings page");
                   pageEnableId = send("Page.enable", {});
                   navigateId = send("Page.navigate", { url: "https://onlyfans.com/my/statistics/statements/earnings" });
-                  navigated = true;
-                  // Also start DOM polling as fallback (delayed)
-                  setTimeout(() => startDomPoll(), 5000);
                   return;
                 }
 
-                // Intercept Network.responseReceived events — look for earnings API calls
+                // Step 4: Navigate response confirms navigation started
+                if (msg.id === navigateId) {
+                  if (msg.error) {
+                    console.error("CDP: Earnings navigate error:", msg.error);
+                    finish();
+                  } else {
+                    navigationConfirmed = true;
+                    console.log("CDP: Earnings navigation confirmed, starting DOM poll fallback");
+                    // Start DOM polling as fallback (delayed, guarded by xhrCaptured)
+                    setTimeout(() => startDomPoll(), 5000);
+                  }
+                  return;
+                }
+
+                // Intercept Network.responseReceived — look for earnings API calls
                 if (msg.method === "Network.responseReceived") {
                   const resp = msg.params?.response;
                   const url = resp?.url || "";
                   const reqId = msg.params?.requestId;
-                  // OF internal API patterns for earnings/statistics data
                   if (reqId && (
                     url.includes("/api2/v2/earnings") ||
                     url.includes("/api2/v2/statics") ||  
                     url.includes("/api2/v2/statistics") ||
                     url.includes("statements/earnings") ||
-                    url.includes("/chart") && url.includes("earning")
+                    (url.includes("/chart") && url.includes("earning"))
                   )) {
                     console.log(`CDP: Captured earnings API response: ${url}`);
-                    capturedResponses[reqId] = { url, requestId: reqId };
-                    // Request the response body
                     const bodyMid = send("Network.getResponseBody", { requestId: reqId });
                     pendingBodyRequests.set(bodyMid, reqId);
                   }
                   return;
                 }
 
-                // Network.loadingFinished — try to get response body for earnings requests
+                // Network.loadingFinished — request body for any tracked earnings request
                 if (msg.method === "Network.loadingFinished") {
                   const reqId = msg.params?.requestId;
-                  if (capturedResponses[reqId]) {
-                    const bodyMid = send("Network.getResponseBody", { requestId: reqId });
-                    pendingBodyRequests.set(bodyMid, reqId);
+                  // Only request body if we haven't already for this request
+                  if (reqId && !xhrCaptured) {
+                    // Check if any pending body request already covers this
+                    const alreadyRequested = [...pendingBodyRequests.values()].includes(reqId);
+                    if (!alreadyRequested) {
+                      // We don't blindly request all — only if we saw it in responseReceived
+                      // (handled above). This event is informational.
+                    }
                   }
                   return;
                 }
 
-                // Response body received
+                // Response body received (tracked by pendingBodyRequests)
                 if (pendingBodyRequests.has(msg.id)) {
+                  pendingBodyRequests.delete(msg.id);
                   const body = msg.result?.body;
                   if (body) {
                     try {
                       const parsed = JSON.parse(body);
-                      console.log("CDP: Parsed earnings API JSON response successfully");
-                      console.log("CDP: Earnings JSON keys:", Object.keys(parsed));
+                      console.log("CDP: Parsed earnings API JSON successfully, keys:", Object.keys(parsed));
                       earningsJson = parsed;
+                      xhrCaptured = true; // Guard: stop DOM polling
                       finish();
                       return;
                     } catch {
                       console.log("CDP: Response body not JSON, length:", body.length);
                     }
                   }
-                  pendingBodyRequests.delete(msg.id);
                   return;
                 }
 
-                // DOM poll result (Runtime.evaluate response)
-                if (msg.result?.result?.value && typeof msg.result.result.value === "string" && msg.result.result.value.length > 10) {
-                  const text = msg.result.result.value;
-                  console.log(`Earnings DOM poll ${domPollCount}/${MAX_DOM_POLLS}: text length=${text.length}`);
-                  if (text.length > 200 && (/\$[\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text))) {
-                    domText = text;
-                    console.log("Earnings data detected in DOM text");
-                    // If we already have JSON, we're done. Otherwise keep waiting for JSON a bit
-                    if (earningsJson) { finish(); return; }
-                    // Give JSON interception 3 more seconds before falling back to DOM
-                    setTimeout(() => { if (!done) finish(); }, 3000);
-                    return;
+                // DOM poll result (tracked by domPollIds)
+                if (domPollIds.has(msg.id)) {
+                  domPollIds.delete(msg.id);
+                  if (xhrCaptured) return; // XHR already got data, ignore DOM
+                  const text = msg.result?.result?.value;
+                  if (typeof text === "string" && text.length > 200) {
+                    console.log(`Earnings DOM poll ${domPollCount}/${MAX_DOM_POLLS}: text length=${text.length}`);
+                    if (/\$[\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text)) {
+                      domText = text;
+                      console.log("Earnings data detected in DOM text");
+                      // Give JSON interception 3 more seconds before finishing with DOM
+                      setTimeout(() => { if (!done && !xhrCaptured) finish(); }, 3000);
+                      return;
+                    }
                   }
-                  // Continue polling
+                  // Continue polling if no data yet
                   startDomPoll();
                   return;
-                }
-
-                // Continue DOM polling on empty results  
-                if (msg.result?.result && domPollCount > 0 && domPollCount < MAX_DOM_POLLS && !done) {
-                  startDomPoll();
                 }
 
               } catch (e) {
