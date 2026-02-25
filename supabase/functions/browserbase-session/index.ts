@@ -447,12 +447,17 @@ Deno.serve(async (req) => {
       }
       
       // Wait for session to be fully RUNNING
-      console.log(`Waiting for session ${sess.id} to be ready...`);
+      console.log(`Waiting for session ${sess.id} to be ready (context=${ctxId})...`);
       const isReady = await waitForSessionReady(BK, sess.id, 20000);
       if (!isReady) {
         console.error(`Session ${sess.id} failed to reach RUNNING state`);
         return json({ error: "Browser session failed to start. Please try again." }, 502);
       }
+
+      // Allow Browserbase time to fully restore persistent context (cookies, localStorage)
+      // Without this delay, CDP connections can race ahead of cookie restoration
+      console.log("Waiting 5s for context cookie restoration...");
+      await new Promise(r => setTimeout(r, 5000));
 
       // Set timezone & locale to match proxy geo (no site visits)
       try {
@@ -461,9 +466,10 @@ Deno.serve(async (req) => {
         console.warn("Pre-login setup failed (non-fatal):", e);
       }
 
-      // Navigate to the platform
+      // Navigate to the platform — cookies should already be loaded from context
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
+        console.log(`Navigating to ${startUrl} (expecting cookie-based auto-login)...`);
         try {
           await navigateViaCDP(BK, sess.id, startUrl, { timeout: 30000 });
         } catch (e) {
@@ -993,6 +999,10 @@ Deno.serve(async (req) => {
         return json({ error: "Browser session failed to start. Please try again." }, 502);
       }
 
+      // Allow Browserbase time to fully restore persistent context (cookies, localStorage)
+      console.log("Waiting 5s for context cookie restoration (chatter)...");
+      await new Promise(r => setTimeout(r, 5000));
+
       // Set timezone & locale to match proxy geo (no site visits)
       try {
         await preLoginSetup(BK, sess.id, resolvedState);
@@ -1000,14 +1010,12 @@ Deno.serve(async (req) => {
         console.warn("Chatter pre-login setup failed (non-fatal):", e);
       }
 
-      const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
-
       // Navigate via CDP + DOM-based login verification
       let loginVerified = true;
       if (chatterStartUrl) {
         try {
           const navResult = await navigateViaCDP(BK, sess.id, chatterStartUrl, {
-            timeout: 20000,
+            timeout: 25000,
             evaluate: `(function() {
               var url = window.location.href;
               var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg');
