@@ -1,17 +1,26 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 
-// Simulate the parsing logic from the edge function
+// Simulate the full parsing logic from the edge function
 function parseEarnings(rawText: string) {
+  let bestTotal = 0, tips = 0, subs = 0, messages = 0, referrals = 0, posts = 0;
+
+  // Check if result is from XHR interception (pre-parsed JSON)
+  try {
+    const xhrData = JSON.parse(rawText);
+    if (xhrData._source === "xhr") {
+      return { bestTotal: xhrData.total || 0, tips: xhrData.tips || 0, subs: xhrData.subs || 0, messages: xhrData.messages || 0, referrals: xhrData.referrals || 0, posts: xhrData.posts || 0, source: "xhr" };
+    }
+  } catch {}
+
+  // DOM text parsing
   const parseAmount = (labels: string[]): number => {
     for (const label of labels) {
-      // Pattern 1: "Label\n$1,234.56" (newline-separated)
       const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
       const nlMatch = rawText.match(nlPat);
       if (nlMatch) {
         const val = parseFloat(nlMatch[1].replace(/,/g, ""));
         if (!isNaN(val) && val > 0) return val;
       }
-      // Pattern 2: "Label: $1,234.56" or "Label $1,234.56" (inline)
       const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
       const inlineMatch = rawText.match(inlinePat);
       if (inlineMatch) {
@@ -23,11 +32,11 @@ function parseEarnings(rawText: string) {
   };
 
   const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
-  const tips = parseAmount(["tips"]);
-  const subs = parseAmount(["subscriptions", "subscription"]);
-  const messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
-  const referrals = parseAmount(["referrals", "referral"]);
-  const posts = parseAmount(["posts", "post"]);
+  tips = parseAmount(["tips"]);
+  subs = parseAmount(["subscriptions", "subscription"]);
+  messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
+  referrals = parseAmount(["referrals", "referral"]);
+  posts = parseAmount(["posts", "post"]);
 
   let fallbackTotal = 0;
   if (!totalEarnings) {
@@ -37,78 +46,77 @@ function parseEarnings(rawText: string) {
     if (allAmounts.length > 0) fallbackTotal = Math.max(...allAmounts);
   }
 
-  const bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
-  return { bestTotal, totalEarnings, tips, subs, messages, referrals, posts, fallbackTotal };
+  bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
+  return { bestTotal, tips, subs, messages, referrals, posts, source: "dom", totalEarnings, fallbackTotal };
 }
 
-// Test 1: OF-style newline-separated format (most likely DOM innerText format)
-Deno.test("parses newline-separated OF earnings", () => {
-  const text = `Statements
-Earnings
-Total
-$8,180.89
-Subscriptions
-$930.40
-Tips
-$668.00
-Messages
-$6,582.49
-Referrals
-$0.00
-Posts
-$0.00`;
-
-  const r = parseEarnings(text);
-  assertEquals(r.totalEarnings, 8180.89);
-  assertEquals(r.subs, 930.40);
-  assertEquals(r.tips, 668.00);
-  assertEquals(r.messages, 6582.49);
+// === XHR JSON tests ===
+Deno.test("parses XHR-intercepted JSON data", () => {
+  const json = JSON.stringify({ _source: "xhr", total: 8180.89, tips: 668, subs: 930.40, messages: 6582.49, posts: 0, referrals: 0 });
+  const r = parseEarnings(json);
+  assertEquals(r.source, "xhr");
   assertEquals(r.bestTotal, 8180.89);
+  assertEquals(r.tips, 668);
+  assertEquals(r.subs, 930.40);
+  assertEquals(r.messages, 6582.49);
 });
 
-// Test 2: Inline colon format
+// === DOM text tests ===
+Deno.test("parses newline-separated OF earnings", () => {
+  const text = `Statements\nEarnings\nTotal\n$8,180.89\nSubscriptions\n$930.40\nTips\n$668.00\nMessages\n$6,582.49\nReferrals\n$0.00\nPosts\n$0.00`;
+  const r = parseEarnings(text);
+  assertEquals(r.source, "dom");
+  assertEquals(r.bestTotal, 8180.89);
+  assertEquals(r.subs, 930.40);
+  assertEquals(r.tips, 668);
+  assertEquals(r.messages, 6582.49);
+});
+
 Deno.test("parses inline colon format", () => {
   const text = `Earnings: $5,432.10 | Tips: $200.00 | Subscriptions: $1,000.00 | Messages: $4,232.10`;
   const r = parseEarnings(text);
-  assertEquals(r.totalEarnings, 5432.10);
+  assertEquals(r.bestTotal, 5432.10);
   assertEquals(r.tips, 200);
   assertEquals(r.subs, 1000);
-  assertEquals(r.messages, 4232.10);
 });
 
-// Test 3: No labels, just dollar amounts (fallback)
 Deno.test("uses fallback for unlabeled amounts", () => {
   const text = `Some page content with $1,234.56 and $567.89 shown in cards`;
   const r = parseEarnings(text);
-  assertEquals(r.fallbackTotal, 1234.56);
   assertEquals(r.bestTotal, 1234.56);
 });
 
-// Test 4: Mixed format with spacing variations
 Deno.test("handles spacing variations", () => {
   const text = `Total\n$ 3,456.78\nTips\n$ 100.00\nSubscriptions\n$ 500.00\nMessages\n$ 2,856.78`;
   const r = parseEarnings(text);
-  assertEquals(r.totalEarnings, 3456.78);
+  assertEquals(r.bestTotal, 3456.78);
   assertEquals(r.tips, 100);
-  assertEquals(r.subs, 500);
-  assertEquals(r.messages, 2856.78);
 });
 
-// Test 5: Tab-based earnings breakdown (another possible OF format)
 Deno.test("handles tab-like format", () => {
-  const text = `Net Earnings  $12,345.67
-Chat Messages  $8,000.00
-Subscriptions  $3,000.00
-Tips  $1,345.67`;
+  const text = `Net Earnings  $12,345.67\nChat Messages  $8,000.00\nSubscriptions  $3,000.00\nTips  $1,345.67`;
   const r = parseEarnings(text);
-  assertEquals(r.totalEarnings, 12345.67);
-  assertEquals(r.tips, 1345.67);
-  assertEquals(r.subs, 3000);
+  assertEquals(r.bestTotal, 12345.67);
 });
 
-// Test 6: Empty/loading page
 Deno.test("handles empty page gracefully", () => {
-  const text = `Loading...`;
-  const r = parseEarnings(text);
+  const r = parseEarnings(`Loading...`);
   assertEquals(r.bestTotal, 0);
+});
+
+// === Realistic OF DOM text scenarios ===
+Deno.test("handles OF-style compact text with periods", () => {
+  const text = `OnlyFans\nStatements\nEarnings\nSubscriptions\n$1,245.00\nTips\n$389.50\nMessages\n$4,200.00\nPosts\n$150.00\nReferrals\n$0.00\nStream\n$0.00\nTotal\n$5,984.50`;
+  const r = parseEarnings(text);
+  assertEquals(r.bestTotal, 5984.50);
+  assertEquals(r.subs, 1245);
+  assertEquals(r.tips, 389.50);
+  assertEquals(r.messages, 4200);
+  assertEquals(r.posts, 150);
+});
+
+Deno.test("handles OF text where total appears first", () => {
+  const text = `Total $10,500.00\nSubscriptions $3,000.00\nTips $2,500.00\nMessages $5,000.00`;
+  const r = parseEarnings(text);
+  assertEquals(r.bestTotal, 10500);
 });

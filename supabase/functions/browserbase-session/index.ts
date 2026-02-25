@@ -580,127 +580,278 @@ Deno.serve(async (req) => {
         try {
           console.log(`Scraping earnings for creator ${sessionLink.creator_id} before close...`);
           
-          // Navigate to OF earnings statements page for detailed breakdown
-          const statsNavResult = await navigateViaCDP(BK, browserbaseSessionId, "https://onlyfans.com/my/statistics/statements/earnings", {
-            timeout: 25000,
+          // ===== STRATEGY: Intercept OF's internal XHR API response via CDP Network domain =====
+          // When navigating to /my/statistics/statements/earnings, OF makes an internal API call
+          // (e.g. /api2/v2/earnings/chart) that returns structured JSON with earnings data.
+          // We enable Network domain, navigate, and capture the JSON response — far more reliable
+          // than parsing DOM innerText. DOM polling is kept as fallback.
+
+          const scrapeWsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`;
+          
+          const scrapeResult = await new Promise<{ json?: any; domText?: string }>((resolve) => {
+            let done = false;
+            const ws = new WebSocket(scrapeWsUrl);
+            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({}); } }, 35000);
+            let mid = 1;
+            let cdpSid: string | null = null;
+            const capturedResponses: Record<string, { url: string; requestId: string }> = {};
+            let pendingBodyRequests = new Map<number, string>(); // mid -> requestId
+            let earningsJson: any = null;
+            let domText = "";
+            let navigated = false;
+            let networkEnabled = false;
+            let domPollCount = 0;
+            const MAX_DOM_POLLS = 8;
+
+            const send = (method: string, params: Record<string, unknown> = {}) => {
+              const id = mid++;
+              const msg: any = { id, method, params };
+              if (cdpSid) msg.sessionId = cdpSid;
+              try { ws.send(JSON.stringify(msg)); } catch {}
+              return id;
+            };
+
+            const finish = () => {
+              if (done) return;
+              done = true; clearTimeout(timer);
+              try { ws.close(); } catch {}
+              resolve({ json: earningsJson, domText });
+            };
+
+            const startDomPoll = () => {
+              if (domPollCount >= MAX_DOM_POLLS || done) {
+                if (!earningsJson && !domText) console.warn("Earnings: DOM poll exhausted, no data found");
+                finish();
+                return;
+              }
+              domPollCount++;
+              setTimeout(() => {
+                if (done) return;
+                send("Runtime.evaluate", { expression: "document.body.innerText.substring(0,8000)", returnByValue: true });
+              }, 1500);
+            };
+
+            ws.onopen = () => { send("Target.getTargets"); };
+            ws.onmessage = (evt) => {
+              try {
+                const msg = JSON.parse(evt.data);
+
+                // Step 1: Get page target
+                if (msg.id === 1) {
+                  const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+                  if (page) { send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+                  else { finish(); }
+                  return;
+                }
+
+                // Step 2: Attach to page target
+                if (msg.result?.sessionId && !cdpSid) {
+                  cdpSid = msg.result.sessionId;
+                  // Enable Network domain to intercept XHR responses
+                  send("Network.enable", {});
+                  return;
+                }
+
+                // Step 3: Network enabled, now navigate
+                if (!networkEnabled && msg.result && !msg.result.sessionId && !navigated) {
+                  networkEnabled = true;
+                  console.log("CDP: Network.enable done, navigating to OF earnings page");
+                  send("Page.enable", {});
+                  send("Page.navigate", { url: "https://onlyfans.com/my/statistics/statements/earnings" });
+                  navigated = true;
+                  // Also start DOM polling as fallback (delayed)
+                  setTimeout(() => startDomPoll(), 5000);
+                  return;
+                }
+
+                // Intercept Network.responseReceived events — look for earnings API calls
+                if (msg.method === "Network.responseReceived") {
+                  const resp = msg.params?.response;
+                  const url = resp?.url || "";
+                  const reqId = msg.params?.requestId;
+                  // OF internal API patterns for earnings/statistics data
+                  if (reqId && (
+                    url.includes("/api2/v2/earnings") ||
+                    url.includes("/api2/v2/statics") ||  
+                    url.includes("/api2/v2/statistics") ||
+                    url.includes("statements/earnings") ||
+                    url.includes("/chart") && url.includes("earning")
+                  )) {
+                    console.log(`CDP: Captured earnings API response: ${url}`);
+                    capturedResponses[reqId] = { url, requestId: reqId };
+                    // Request the response body
+                    const bodyMid = send("Network.getResponseBody", { requestId: reqId });
+                    pendingBodyRequests.set(bodyMid, reqId);
+                  }
+                  return;
+                }
+
+                // Network.loadingFinished — try to get response body for earnings requests
+                if (msg.method === "Network.loadingFinished") {
+                  const reqId = msg.params?.requestId;
+                  if (capturedResponses[reqId] && !pendingBodyRequests.size) {
+                    const bodyMid = send("Network.getResponseBody", { requestId: reqId });
+                    pendingBodyRequests.set(bodyMid, reqId);
+                  }
+                  return;
+                }
+
+                // Response body received
+                if (pendingBodyRequests.has(msg.id)) {
+                  const body = msg.result?.body;
+                  if (body) {
+                    try {
+                      const parsed = JSON.parse(body);
+                      console.log("CDP: Parsed earnings API JSON response successfully");
+                      console.log("CDP: Earnings JSON keys:", Object.keys(parsed));
+                      earningsJson = parsed;
+                      finish();
+                      return;
+                    } catch {
+                      console.log("CDP: Response body not JSON, length:", body.length);
+                    }
+                  }
+                  pendingBodyRequests.delete(msg.id);
+                  return;
+                }
+
+                // DOM poll result (Runtime.evaluate response)
+                if (msg.result?.result?.value && typeof msg.result.result.value === "string" && msg.result.result.value.length > 10) {
+                  const text = msg.result.result.value;
+                  console.log(`Earnings DOM poll ${domPollCount}/${MAX_DOM_POLLS}: text length=${text.length}`);
+                  if (text.length > 200 && (/\$[\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text))) {
+                    domText = text;
+                    console.log("Earnings data detected in DOM text");
+                    // If we already have JSON, we're done. Otherwise keep waiting for JSON a bit
+                    if (earningsJson) { finish(); return; }
+                    // Give JSON interception 3 more seconds before falling back to DOM
+                    setTimeout(() => { if (!done) finish(); }, 3000);
+                    return;
+                  }
+                  // Continue polling
+                  startDomPoll();
+                  return;
+                }
+
+                // Continue DOM polling on empty results  
+                if (msg.result?.result && domPollCount > 0 && domPollCount < MAX_DOM_POLLS && !done) {
+                  startDomPoll();
+                }
+
+              } catch (e) {
+                console.warn("CDP scrape message parse error:", e);
+              }
+            };
+            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({}); } };
+            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({}); } };
           });
 
+          // ===== Parse results: prefer JSON, fallback to DOM text =====
           let statsResult: { success: boolean; result?: unknown } = { success: false };
 
-          if (statsNavResult.success) {
-            // Poll up to ~15s for the page to render financial data
-            const pollWsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`;
-            let pageText = "";
-            for (let attempt = 0; attempt < 10; attempt++) {
-              await new Promise(r => setTimeout(r, 1500));
-              const pollResult = await new Promise<string>((resolve) => {
-                let done = false;
-                const ws = new WebSocket(pollWsUrl);
-                const t = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve(""); } }, 8000);
-                let mid = 1;
-                let attachMid: number | null = null;
-                let evalMid: number | null = null;
-                let cdpSid: string | null = null;
+          if (scrapeResult.json) {
+            console.log("Using XHR-intercepted JSON for earnings extraction");
+            // Parse the OF internal API JSON format
+            // Expected: { data: { total: { total: 1234.56, gross: 5678.90 } }, ... }
+            // Or: { total: ..., subscribes: ..., tips: ..., messages: ..., post: ... }
+            const d = scrapeResult.json.data || scrapeResult.json;
+            const getNet = (obj: any): number => {
+              if (typeof obj === "number") return obj;
+              if (obj?.total !== undefined) return Number(obj.total) || 0;
+              if (obj?.net !== undefined) return Number(obj.net) || 0;
+              if (obj?.total_net !== undefined) return Number(obj.total_net) || 0;
+              return 0;
+            };
 
-                ws.onopen = () => { ws.send(JSON.stringify({ id: mid++, method: "Target.getTargets" })); };
-                ws.onmessage = (evt) => {
-                  try {
-                    const msg = JSON.parse(evt.data);
-                    if (msg.id === 1) {
-                      const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
-                      if (page) { attachMid = mid; ws.send(JSON.stringify({ id: mid++, method: "Target.attachToTarget", params: { targetId: page.targetId, flatten: true } })); }
-                      else { done = true; clearTimeout(t); try { ws.close(); } catch {} resolve(""); }
-                      return;
-                    }
-                    if (msg.id === attachMid) {
-                      cdpSid = msg.result?.sessionId;
-                      if (cdpSid) { evalMid = mid; ws.send(JSON.stringify({ id: mid++, method: "Runtime.evaluate", params: { expression: "document.body.innerText.substring(0,8000)", returnByValue: true }, sessionId: cdpSid })); }
-                      else { done = true; clearTimeout(t); try { ws.close(); } catch {} resolve(""); }
-                      return;
-                    }
-                    if (msg.id === evalMid) {
-                      done = true; clearTimeout(t);
-                      const val = msg.result?.result?.value || "";
-                      try { ws.close(); } catch {}
-                      resolve(val);
-                      return;
-                    }
-                  } catch {}
-                };
-                ws.onerror = () => { if (!done) { done = true; clearTimeout(t); resolve(""); } };
-                ws.onclose = () => { if (!done) { done = true; clearTimeout(t); resolve(""); } };
-              });
+            const totalNet = getNet(d.total || d.all);
+            const tipsNet = getNet(d.tips);
+            const subsNet = getNet(d.subscribes || d.subscriptions);
+            const msgsNet = getNet(d.messages || d.chat_messages);
+            const postsNet = getNet(d.post || d.posts);
+            const refsNet = getNet(d.referrals);
+            const streamsNet = getNet(d.stream || d.streams);
 
-              pageText = pollResult;
-              console.log(`Earnings poll attempt ${attempt + 1}/10: text length=${pageText.length}`);
-              // Check for dollar amounts OR OF-specific keywords indicating data loaded
-              if (pageText.length > 200 && (/\$[\d,]+/.test(pageText) || /(?:subscriptions|tips|messages|earnings)/i.test(pageText))) {
-                console.log("Earnings data detected in DOM, proceeding with extraction");
-                break;
-              }
+            const bestTotal = totalNet || (tipsNet + subsNet + msgsNet + postsNet + refsNet + streamsNet);
+            console.log(`Earnings from JSON: total=${totalNet}, tips=${tipsNet}, subs=${subsNet}, msgs=${msgsNet}, posts=${postsNet}, refs=${refsNet}, streams=${streamsNet}, best=${bestTotal}`);
+            
+            if (bestTotal > 0) {
+              statsResult = { success: true, result: JSON.stringify({ 
+                _source: "xhr", total: bestTotal, tips: tipsNet, subs: subsNet, 
+                messages: msgsNet, posts: postsNet, referrals: refsNet 
+              })};
             }
-
-            // Log first portion of raw text for debugging
-            if (pageText.length > 0) {
-              console.log("Earnings raw DOM text (first 800 chars):", pageText.substring(0, 800));
-              statsResult = { success: true, result: pageText };
-            } else {
-              console.warn("Earnings poll: page never rendered financial data after 10 attempts");
-            }
+          }
+          
+          if (!statsResult.success && scrapeResult.domText) {
+            console.log("Falling back to DOM text parsing");
+            console.log("Earnings raw DOM text (first 800 chars):", scrapeResult.domText.substring(0, 800));
+            statsResult = { success: true, result: scrapeResult.domText };
           }
 
           if (statsResult.success && statsResult.result) {
             const rawText = String(statsResult.result);
             console.log("Earnings raw text length:", rawText.length);
 
-            // Parse earnings from the statistics page text
-            // OF DOM renders labels and amounts in separate elements, so innerText has them
-            // on separate lines like: "Subscriptions\n$930.40\nTips\n$668.00" or inline "Subscriptions $930.40"
-            const parseAmount = (labels: string[]): number => {
-              for (const label of labels) {
-                // Pattern 1: "Label\n$1,234.56" or "Label\n$ 1,234.56" (newline-separated)
-                const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
-                const nlMatch = rawText.match(nlPat);
-                if (nlMatch) {
-                  const val = parseFloat(nlMatch[1].replace(/,/g, ""));
-                  if (!isNaN(val) && val > 0) return val;
-                }
-                // Pattern 2: "Label: $1,234.56" or "Label $1,234.56" (inline)
-                const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
-                const inlineMatch = rawText.match(inlinePat);
-                if (inlineMatch) {
-                  const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
-                  if (!isNaN(val) && val > 0) return val;
-                }
-              }
-              return 0;
-            };
+            let bestTotal = 0, tips = 0, subs = 0, messages = 0, referrals = 0, posts = 0;
 
-            // OF earnings page categories
-            const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
-            const tips = parseAmount(["tips"]);
-            const subs = parseAmount(["subscriptions", "subscription"]);
-            const messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
-            const referrals = parseAmount(["referrals", "referral"]);
-            const posts = parseAmount(["posts", "post"]);
-
-            // Also try to find any dollar amount as last resort for total
-            let fallbackTotal = 0;
-            if (!totalEarnings) {
-              // Find the largest dollar amount on the page as a heuristic
-              const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
-                .map(m => parseFloat(m[1].replace(/,/g, "")))
-                .filter(v => !isNaN(v) && v > 0);
-              if (allAmounts.length > 0) {
-                fallbackTotal = Math.max(...allAmounts);
-                console.log(`Earnings fallback: found ${allAmounts.length} dollar amounts, max=$${fallbackTotal}`);
+            // Check if result is from XHR interception (pre-parsed JSON)
+            try {
+              const xhrData = JSON.parse(rawText);
+              if (xhrData._source === "xhr") {
+                bestTotal = xhrData.total || 0;
+                tips = xhrData.tips || 0;
+                subs = xhrData.subs || 0;
+                messages = xhrData.messages || 0;
+                referrals = xhrData.referrals || 0;
+                posts = xhrData.posts || 0;
+                console.log(`Using pre-parsed XHR data: total=$${bestTotal}`);
               }
+            } catch {
+              // Not JSON — fall through to DOM text parsing
             }
 
-            console.log(`Earnings parsed: total=${totalEarnings}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}, fallback=${fallbackTotal}`);
+            if (bestTotal === 0) {
+              // Parse earnings from DOM text
+              // OF DOM renders labels and amounts in separate elements
+              const parseAmount = (labels: string[]): number => {
+                for (const label of labels) {
+                  const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                  const nlMatch = rawText.match(nlPat);
+                  if (nlMatch) {
+                    const val = parseFloat(nlMatch[1].replace(/,/g, ""));
+                    if (!isNaN(val) && val > 0) return val;
+                  }
+                  const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                  const inlineMatch = rawText.match(inlinePat);
+                  if (inlineMatch) {
+                    const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
+                    if (!isNaN(val) && val > 0) return val;
+                  }
+                }
+                return 0;
+              };
 
-            // Only upsert if we got a meaningful total
-            const bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
+              const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
+              tips = parseAmount(["tips"]);
+              subs = parseAmount(["subscriptions", "subscription"]);
+              messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
+              referrals = parseAmount(["referrals", "referral"]);
+              posts = parseAmount(["posts", "post"]);
+
+              let fallbackTotal = 0;
+              if (!totalEarnings) {
+                const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
+                  .map(m => parseFloat(m[1].replace(/,/g, "")))
+                  .filter(v => !isNaN(v) && v > 0);
+                if (allAmounts.length > 0) {
+                  fallbackTotal = Math.max(...allAmounts);
+                  console.log(`Earnings fallback: found ${allAmounts.length} dollar amounts, max=$${fallbackTotal}`);
+                }
+              }
+
+              console.log(`Earnings parsed (DOM): total=${totalEarnings}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}, fallback=${fallbackTotal}`);
+              bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
+            }
             if (bestTotal > 0) {
               const now = new Date();
               const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
