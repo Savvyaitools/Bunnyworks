@@ -1,5 +1,6 @@
 // CreatorOS Permission Guard - Content Script
 // Blocks OnlyFans pages based on employee permissions injected via window.__CREATOROS_PERMISSIONS__
+// Also hides Statements/Statistics/More sidebar links for restricted employees.
 
 (function () {
   "use strict";
@@ -8,7 +9,6 @@
   const RULES = [
     {
       flags: ["can_view_chats", "can_send_messages"],
-      // Block if BOTH are false
       combineOr: true,
       paths: ["/my/chats", "/my/chat/"],
     },
@@ -40,12 +40,10 @@
 
   function getPermissions() {
     if (permissions) return permissions;
-    // Try reading from window object (injected by Browserbase startup script)
     if (window.__CREATOROS_PERMISSIONS__) {
       permissions = window.__CREATOROS_PERMISSIONS__;
       return permissions;
     }
-    // Try reading from meta tag (fallback)
     const meta = document.querySelector('meta[name="creatoros-permissions"]');
     if (meta) {
       try {
@@ -58,7 +56,7 @@
 
   function isPathBlocked(pathname) {
     const perms = getPermissions();
-    if (!perms) return false; // No permissions data = allow all (admin sessions)
+    if (!perms) return false;
 
     for (const rule of RULES) {
       const matchesPath = rule.paths.some(
@@ -67,11 +65,9 @@
       if (!matchesPath) continue;
 
       if (rule.combineOr) {
-        // Block only if ALL listed flags are false
         const allFalse = rule.flags.every((f) => perms[f] === false);
         if (allFalse) return rule;
       } else {
-        // Block if ANY listed flag is false
         const anyFalse = rule.flags.some((f) => perms[f] === false);
         if (anyFalse) return rule;
       }
@@ -101,7 +97,6 @@
     `;
     document.documentElement.appendChild(overlay);
 
-    // Hide the page content
     if (document.body) {
       document.body.style.display = "none";
     }
@@ -125,37 +120,27 @@
     }
   }
 
-  // Hide OnlyFans native sidebar to force navigation through CreatorOS panel
-  function hideOFSidebar() {
-    // Target known sidebar selectors
-    const selectors = [
-      '.b-sidebar',
-      '.l-sidebar',
-      'nav[class*="sidebar"]',
-      'aside[class*="sidebar"]',
-      'div.l-sidebar__menu',
-    ];
-    for (const sel of selectors) {
-      document.querySelectorAll(sel).forEach((el) => {
-        el.style.setProperty('display', 'none', 'important');
-        el.style.setProperty('width', '0', 'important');
-      });
+  // Targeted sidebar link hiding (Statements, Statistics, More)
+  function hideSidebarLinks() {
+    const perms = getPermissions();
+    if (!perms) return;
+
+    // Only inject once
+    if (document.getElementById("creatoros-sidebar-restrictions")) return;
+
+    const cssRules = [];
+    if (perms.can_view_earnings === false) {
+      cssRules.push('a[href="/my/statements"] { display: none !important; }');
+      cssRules.push('a[href="/my/statistics"] { display: none !important; }');
     }
-    // Fallback: find the sidebar by its content pattern (Home, Notifications, Messages links)
-    const navLinks = document.querySelectorAll('a[href="/"]');
-    for (const link of navLinks) {
-      const parent = link.closest('nav, aside, div[role="navigation"]');
-      if (parent && parent.querySelector('a[href="/my/chats"]')) {
-        parent.style.setProperty('display', 'none', 'important');
-        parent.style.setProperty('width', '0', 'important');
-        // Expand main content
-        const wrapper = document.querySelector('.l-wrapper, .b-wrapper, main');
-        if (wrapper) {
-          wrapper.style.setProperty('margin-left', '0', 'important');
-          wrapper.style.setProperty('padding-left', '0', 'important');
-        }
-        break;
-      }
+    // Always hide "More" for non-admin employees
+    cssRules.push('[data-name="more"], a[href="/more"] { display: none !important; }');
+
+    if (cssRules.length > 0) {
+      const style = document.createElement("style");
+      style.id = "creatoros-sidebar-restrictions";
+      style.textContent = cssRules.join("\n");
+      (document.head || document.documentElement).appendChild(style);
     }
   }
 
@@ -163,16 +148,12 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       checkAndBlock();
-      hideOFSidebar();
+      hideSidebarLinks();
     });
   } else {
     checkAndBlock();
-    hideOFSidebar();
+    hideSidebarLinks();
   }
-
-  // Re-hide sidebar periodically (OnlyFans SPA may re-render)
-  const sidebarInterval = setInterval(hideOFSidebar, 2000);
-  setTimeout(() => clearInterval(sidebarInterval), 30000); // Stop after 30s
 
   // Monitor SPA navigation (OnlyFans is a SPA)
   const origPush = history.pushState;
@@ -190,12 +171,13 @@
 
   window.addEventListener("popstate", () => setTimeout(checkAndBlock, 50));
 
-  // Also observe for permissions being set late
+  // Wait for permissions to be set late
   let retries = 0;
   const waitForPerms = setInterval(() => {
     if (getPermissions() || retries > 20) {
       clearInterval(waitForPerms);
       checkAndBlock();
+      hideSidebarLinks();
     }
     retries++;
   }, 500);

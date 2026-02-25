@@ -2,13 +2,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Monitor, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, Home, Star, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { BrowserSessionPanel } from "./BrowserSessionPanel";
+import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
 import { IzzyOverlay } from "./IzzyOverlay";
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
 import { invokeBrowserAction } from "@/lib/browserbase";
 import { toast } from "sonner";
 
@@ -56,12 +53,12 @@ export function EmbeddedBrowserViewer({
   browserbaseSessionId,
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(true);
   const [stuckDetected, setStuckDetected] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isMobile = useIsMobile();
+  const injectedRef = useRef(false);
 
   // Derive the browserbase session ID from the embed URL if not provided
   const bbSessionId = browserbaseSessionId || (() => {
@@ -78,6 +75,23 @@ export function EmbeddedBrowserViewer({
     }
     return () => { if (loadTimerRef.current) clearTimeout(loadTimerRef.current); };
   }, [loaded]);
+
+  // Auto-inject sidebar restrictions when iframe loads
+  useEffect(() => {
+    if (!loaded || !bbSessionId || injectedRef.current) return;
+    // Only inject if permissions indicate non-admin (at least one earning flag is false)
+    if (permissions && permissions.can_view_earnings === false) {
+      injectedRef.current = true;
+      invokeBrowserAction("inject_sidebar_restrictions", {
+        browserbaseSessionId: bbSessionId,
+        hideStatements: true,
+        hideStatistics: true,
+        hideMore: true,
+      }).catch((err) => {
+        console.warn("Failed to inject sidebar restrictions:", err);
+      });
+    }
+  }, [loaded, bbSessionId, permissions]);
 
   const handleRetryLoad = useCallback(() => {
     setLoaded(false);
@@ -103,17 +117,6 @@ export function EmbeddedBrowserViewer({
   const displayUrl = platform?.toLowerCase() === "fansly" 
     ? "fansly.com" 
     : "onlyfans.com";
-
-  const panelContent = (
-    <BrowserSessionPanel
-      creatorName={title}
-      platform={platform || "onlyfans"}
-      collapsed={false}
-      onToggle={() => setPanelOpen(!panelOpen)}
-      iframeRef={iframeRef}
-      browserbaseSessionId={bbSessionId}
-    />
-  );
 
   return (
     <div className="fixed inset-0 z-50 bg-[#202124] flex flex-col">
@@ -176,92 +179,47 @@ export function EmbeddedBrowserViewer({
           <Lock className="h-3 w-3 text-[#9aa0a6] shrink-0" />
           <span className="text-xs text-[#e8eaed] truncate">{displayUrl}</span>
         </div>
-
-        {/* Panel toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setPanelOpen(!panelOpen)}
-          className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]"
-          title={panelOpen ? "Hide panel" : "Show panel"}
-        >
-          {panelOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-        </Button>
       </div>
 
-      {/* Main content: panel on LEFT + iframe */}
-      <div className="flex-1 flex min-h-0">
-        {/* Side panel — LEFT side, slimmer */}
-        {isMobile ? (
-          <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-            <SheetContent side="left" className="p-0 w-[75vw] max-w-[260px]">
-              <div className="h-full overflow-auto">{panelContent}</div>
-            </SheetContent>
-          </Sheet>
-        ) : (
-          panelOpen && (
-            <BrowserSessionPanel
-              creatorName={title}
-              platform={platform || "onlyfans"}
-              collapsed={false}
-              onToggle={() => setPanelOpen(false)}
-              iframeRef={iframeRef}
-              slim
-              browserbaseSessionId={bbSessionId}
-            />
-          )
-        )}
-        {!isMobile && !panelOpen && (
-          <BrowserSessionPanel
-            creatorName={title}
-            platform={platform || "onlyfans"}
-            collapsed={true}
-            onToggle={() => setPanelOpen(true)}
-            iframeRef={iframeRef}
-            browserbaseSessionId={bbSessionId}
-          />
-        )}
-
-        {/* Browser iframe */}
-        <div className="flex-1 relative bg-[#202124]">
-          {!loaded && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center space-y-3">
-                {stuckDetected ? (
-                  <>
-                    <AlertTriangle className="h-10 w-10 text-yellow-500 mx-auto" />
-                    <p className="text-sm font-medium text-[#e8eaed]">Session is taking longer than expected</p>
-                    <p className="text-xs text-[#9aa0a6] max-w-xs mx-auto">
-                      The browser may be stuck on a security check or CAPTCHA.
-                    </p>
-                    <div className="flex gap-2 justify-center pt-1">
-                      <Button size="sm" variant="outline" onClick={handleRetryLoad} className="gap-1.5 border-[#3c4043] text-[#e8eaed] hover:bg-[#3c4043]">
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        Retry
-                      </Button>
-                      {showSaveButton && onSaveAndClose && (
-                        <Button size="sm" variant="destructive" onClick={onClose}>Close</Button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Skeleton className="h-8 w-48 mx-auto bg-[#35363a]" />
-                    <p className="text-sm text-[#9aa0a6]">Loading browser session...</p>
-                  </>
-                )}
-              </div>
+      {/* Main content: full-width iframe */}
+      <div className="flex-1 relative bg-[#202124]">
+        {!loaded && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center space-y-3">
+              {stuckDetected ? (
+                <>
+                  <AlertTriangle className="h-10 w-10 text-yellow-500 mx-auto" />
+                  <p className="text-sm font-medium text-[#e8eaed]">Session is taking longer than expected</p>
+                  <p className="text-xs text-[#9aa0a6] max-w-xs mx-auto">
+                    The browser may be stuck on a security check or CAPTCHA.
+                  </p>
+                  <div className="flex gap-2 justify-center pt-1">
+                    <Button size="sm" variant="outline" onClick={handleRetryLoad} className="gap-1.5 border-[#3c4043] text-[#e8eaed] hover:bg-[#3c4043]">
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Retry
+                    </Button>
+                    {showSaveButton && onSaveAndClose && (
+                      <Button size="sm" variant="destructive" onClick={onClose}>Close</Button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Skeleton className="h-8 w-48 mx-auto bg-[#35363a]" />
+                  <p className="text-sm text-[#9aa0a6]">Loading browser session...</p>
+                </>
+              )}
             </div>
-          )}
-          <iframe
-            ref={iframeRef}
-            src={embedUrl}
-            className="w-full h-full border-0"
-            allow="clipboard-read; clipboard-write"
-            onLoad={() => setLoaded(true)}
-            style={{ opacity: loaded ? 1 : 0 }}
-          />
-        </div>
+          </div>
+        )}
+        <iframe
+          ref={iframeRef}
+          src={embedUrl}
+          className="w-full h-full border-0"
+          allow="clipboard-read; clipboard-write"
+          onLoad={() => setLoaded(true)}
+          style={{ opacity: loaded ? 1 : 0 }}
+        />
       </div>
 
       {/* Jodie AI Floating Overlay */}
