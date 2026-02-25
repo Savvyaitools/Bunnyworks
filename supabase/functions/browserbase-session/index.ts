@@ -501,6 +501,78 @@ Deno.serve(async (req) => {
 
       const alive = await isSessionAlive(BK, browserbaseSessionId);
 
+      // ===== LOGIN CHECK: Verify user is logged in before persisting cookies =====
+      // If the browser is on the login page, we must NOT save (REQUEST_RELEASE) because
+      // that would overwrite valid cookies in the persistent context with blank ones.
+      let isLoggedIn = false;
+      if (alive) {
+        // Direct CDP evaluate on current page to check login state
+        try {
+          const checkResult = await new Promise<string>((resolve) => {
+            const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`);
+            let done = false;
+            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve("unknown"); } }, 8000);
+            let mid = 1;
+            let getTargetsId: number | null = null;
+            let attachId: number | null = null;
+            let evalId: number | null = null;
+
+            const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+              const id = mid++;
+              const msg: any = { id, method, params };
+              if (sid) msg.sessionId = sid;
+              ws.send(JSON.stringify(msg));
+              return id;
+            };
+
+            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+            ws.onmessage = (evt) => {
+              try {
+                const msg = JSON.parse(evt.data);
+                if (msg.id === getTargetsId) {
+                  const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve("unknown"); }
+                  return;
+                }
+                if (msg.id === attachId) {
+                  const sid = msg.result?.sessionId;
+                  if (sid) {
+                    evalId = send("Runtime.evaluate", {
+                      expression: `(function() {
+                        var url = window.location.href;
+                        var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
+                        var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
+                        var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
+                        if (hasNav && !hasLoginForm && !onLoginPage) return 'logged_in';
+                        if (hasLoginForm || onLoginPage) return 'not_logged_in';
+                        return 'likely_logged_in';
+                      })()`,
+                      returnByValue: true,
+                    }, sid);
+                  }
+                  return;
+                }
+                if (msg.id === evalId) {
+                  const val = msg.result?.result?.value || "unknown";
+                  console.log(`Login check result: ${val}`);
+                  done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve(val);
+                  return;
+                }
+              } catch {}
+            };
+            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve("unknown"); } };
+            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve("unknown"); } };
+          });
+
+          isLoggedIn = checkResult === "logged_in" || checkResult === "likely_logged_in";
+          console.log(`Save & Close: login state = ${checkResult}, will ${isLoggedIn ? "PERSIST" : "SKIP PERSIST"} cookies`);
+        } catch (e) {
+          console.warn("Login check failed, defaulting to persist:", e);
+          isLoggedIn = true; // Fail-open: persist if we can't determine
+        }
+      }
+
       // Get creator info from session link for earnings scraping
       const { data: sessionLink } = await svc.from("creator_session_links")
         .select("creator_id, platform")
@@ -817,32 +889,55 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update DB — persist cookies, mark authenticated
-      await svc.from("creator_session_links").update({ 
-        session_status: "authenticated", 
-        last_saved_at: new Date().toISOString(), 
-        browserbase_session_id: null, 
-        browserbase_live_url: null, 
-        updated_at: new Date().toISOString() 
-      }).eq("id", sessionLinkId);
+      // Update DB
+      if (isLoggedIn) {
+        // User is logged in — safe to persist cookies via REQUEST_RELEASE
+        await svc.from("creator_session_links").update({ 
+          session_status: "authenticated", 
+          last_saved_at: new Date().toISOString(), 
+          browserbase_session_id: null, 
+          browserbase_live_url: null, 
+          updated_at: new Date().toISOString() 
+        }).eq("id", sessionLinkId);
+      } else {
+        // NOT logged in — do NOT persist cookies (would overwrite valid ones)
+        // Keep existing session_status and last_saved_at unchanged
+        console.warn("Session was NOT logged in — skipping cookie persistence to protect existing context");
+        await svc.from("creator_session_links").update({ 
+          browserbase_session_id: null, 
+          browserbase_live_url: null, 
+          updated_at: new Date().toISOString() 
+        }).eq("id", sessionLinkId);
+      }
       
       await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("browserbase_session_id", browserbaseSessionId);
 
-      // Release session
+      // Release session — only persist context if logged in
       if (alive) {
-        try { 
-          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
-          console.log(`Session ${browserbaseSessionId} release requested`);
-        } catch (e) {
-          console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
+        if (isLoggedIn) {
+          try { 
+            await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); 
+            console.log(`Session ${browserbaseSessionId} released with cookie persistence ✓`);
+          } catch (e) {
+            console.warn(`Failed to release session ${browserbaseSessionId} (non-fatal):`, e);
+          }
+        } else {
+          // Close without persisting — just disconnect (session will auto-expire)
+          try {
+            await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE", persist: false }) });
+            console.log(`Session ${browserbaseSessionId} closed WITHOUT cookie persistence (not logged in)`);
+          } catch (e) {
+            console.warn(`Failed to close session ${browserbaseSessionId} (non-fatal):`, e);
+          }
         }
       }
       
       return json({ 
         success: true, 
-        message: scrapedEarnings 
-          ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` 
-          : "Login saved. Cookies and session data persisted in context.",
+        loginDetected: isLoggedIn,
+        message: isLoggedIn
+          ? (scrapedEarnings ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` : "Login saved. Cookies and session data persisted.")
+          : "Session closed. Cookies were NOT saved (not logged in) — existing login preserved.",
         earnings: scrapedEarnings,
       });
     }

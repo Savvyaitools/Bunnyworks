@@ -102,8 +102,12 @@ export function useBrowserSessions() {
 
   const saveAndClose = async (sessionLinkId: string, browserbaseSessionId: string) => {
     try {
-      await invokeAction("save_and_close", { sessionLinkId, browserbaseSessionId });
-      toast.success("Login saved successfully. Chatters can now use this account.");
+      const result = await invokeAction("save_and_close", { sessionLinkId, browserbaseSessionId });
+      if (result?.loginDetected === false) {
+        toast.warning("Session closed — login was not detected, so existing saved cookies were preserved.", { duration: 6000 });
+      } else {
+        toast.success(result?.message || "Login saved successfully. Chatters can now use this account.");
+      }
       invalidate();
     } catch (err: any) {
       toast.error("Failed to save session: " + (err.message || "Unknown error"));
