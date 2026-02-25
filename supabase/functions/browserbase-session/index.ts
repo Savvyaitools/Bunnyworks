@@ -288,51 +288,43 @@ const STATE_TIMEZONES: Record<string, string> = {
 // WebRTC leak prevention, battery API, plugin spoofing) has been removed to avoid
 // conflicts with Browserbase's browser-level fingerprinting.
 
-// ========== Pre-login warmup: visit innocent sites to build browsing history ==========
-async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: string): Promise<void> {
+// ========== Lightweight pre-login setup: timezone & locale only ==========
+// Site-visit warmup (Google/YouTube) removed — it left the browser stuck on YouTube
+// and caused CDP navigation to the platform to timeout.
+async function preLoginSetup(apiKey: string, sessionId: string, proxyState: string): Promise<void> {
   const tz = STATE_TIMEZONES[proxyState] || "America/New_York";
-  
-  // 1. Set timezone & locale overrides via CDP to match proxy geo
   const wsUrl = `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`;
-  console.log(`Warmup: Starting pre-login warmup (tz=${tz}, state=${proxyState})`);
-  
+  console.log(`Setup: Setting timezone=${tz}, locale=en-US for state=${proxyState}`);
+
   await new Promise<void>((resolve) => {
     let msgId = 1;
     let resolved = false;
     const ws = new WebSocket(wsUrl);
     const timer = setTimeout(() => {
       if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve(); }
-    }, 30000);
+    }, 10000);
 
     const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
       const id = msgId++;
       const msg: any = { id, method, params };
       if (sid) msg.sessionId = sid;
-      try { ws.send(JSON.stringify(msg)); } catch {}
+      try { ws.send(JSON.stringify(msg)); } catch {};
       return id;
     };
 
     let getTargetsId: number | null = null;
     let attachId: number | null = null;
-    let cdpSession: string | null = null;
-    let step = 0;
-    let retryCount = 0;
 
     ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
-    
+
     ws.onmessage = (evt) => {
       try {
         const msg = JSON.parse(evt.data);
-        
+
         if (msg.id === getTargetsId) {
-          const targets = msg.result?.targetInfos || [];
-          const page = targets.find((t: any) => t.type === "page");
+          const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
           if (page) {
             attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
-          } else if (retryCount < 3) {
-            retryCount++;
-            console.log(`Warmup: No page target found, retrying (${retryCount}/3)...`);
-            setTimeout(() => { getTargetsId = send("Target.getTargets"); }, 2000);
           } else {
             resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve();
           }
@@ -340,62 +332,21 @@ async function preLoginWarmup(apiKey: string, sessionId: string, proxyState: str
         }
 
         if (msg.id === attachId) {
-          cdpSession = msg.result?.sessionId;
+          const cdpSession = msg.result?.sessionId;
           if (!cdpSession) { resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve(); return; }
-          
-          // Set timezone override to match proxy location
+          // Set timezone & locale to match proxy geo, then done
           send("Emulation.setTimezoneOverride", { timezoneId: tz }, cdpSession);
           send("Emulation.setLocaleOverride", { locale: "en-US" }, cdpSession);
-          send("Page.enable", {}, cdpSession);
-          // Stealth is now handled natively by Browserbase (advancedStealth: true)
-          
-          console.log("Warmup: Navigating to Google...");
-          send("Page.navigate", { url: "https://www.google.com" }, cdpSession);
-          step = 1;
+          console.log("Setup: Timezone & locale set ✓");
+          // Give a moment for commands to process
+          setTimeout(() => {
+            if (!resolved) { resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve(); }
+          }, 500);
           return;
-        }
-
-        // Track page loads and continue warmup sequence
-        if ((msg.method === "Page.loadEventFired" || msg.params?.method === "Page.loadEventFired") && cdpSession) {
-          if (step === 1) {
-            console.log("Warmup: Google loaded, simulating search...");
-            setTimeout(() => {
-              if (resolved) return;
-              send("Runtime.evaluate", { expression: `
-                (async () => {
-                  window.scrollTo(0, Math.floor(Math.random() * 300));
-                  await new Promise(r => setTimeout(r, ${800 + Math.floor(Math.random() * 1200)}));
-                  window.scrollTo(0, 0);
-                })();
-              `, awaitPromise: true }, cdpSession);
-              step = 2;
-              setTimeout(() => {
-                if (resolved) return;
-                console.log("Warmup: Navigating to YouTube...");
-                send("Page.navigate", { url: "https://www.youtube.com" }, cdpSession);
-                step = 3;
-              }, 1500 + Math.floor(Math.random() * 1000));
-            }, 1000 + Math.floor(Math.random() * 1500));
-            return;
-          }
-          
-          if (step === 3) {
-            console.log("Warmup: YouTube loaded, brief interaction...");
-            setTimeout(() => {
-              if (resolved) return;
-              send("Runtime.evaluate", { expression: `window.scrollTo(0, ${200 + Math.floor(Math.random() * 400)})`, returnByValue: true }, cdpSession);
-              setTimeout(() => {
-                if (resolved) return;
-                console.log("Warmup: Pre-login warmup complete ✓");
-                resolved = true; clearTimeout(timer); try { ws.close(); } catch {} resolve();
-              }, 1000 + Math.floor(Math.random() * 1000));
-            }, 1500 + Math.floor(Math.random() * 1000));
-            return;
-          }
         }
       } catch {}
     };
-    
+
     ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve(); } };
     ws.onclose = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve(); } };
   });
@@ -527,18 +478,18 @@ Deno.serve(async (req) => {
         return json({ error: "Browser session failed to start. Please try again." }, 502);
       }
 
-      // Run pre-login warmup (sets timezone/locale/fingerprint + stealth + visits Google/YouTube)
+      // Set timezone & locale to match proxy geo (no site visits)
       try {
-        await preLoginWarmup(BK, sess.id, resolvedState);
+        await preLoginSetup(BK, sess.id, resolvedState);
       } catch (e) {
-        console.warn("Pre-login warmup failed (non-fatal):", e);
+        console.warn("Pre-login setup failed (non-fatal):", e);
       }
 
-      // Navigate to the platform (stealth handled natively by Browserbase advancedStealth)
+      // Navigate to the platform
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
         try {
-          await navigateViaCDP(BK, sess.id, startUrl, { timeout: 20000 });
+          await navigateViaCDP(BK, sess.id, startUrl, { timeout: 30000 });
         } catch (e) {
           console.warn("CDP auto-navigate failed (non-fatal):", e);
         }
@@ -1054,11 +1005,11 @@ Deno.serve(async (req) => {
         return json({ error: "Browser session failed to start. Please try again." }, 502);
       }
 
-      // Pre-login warmup (stealth + timezone/locale + browsing history)
+      // Set timezone & locale to match proxy geo (no site visits)
       try {
-        await preLoginWarmup(BK, sess.id, resolvedState);
+        await preLoginSetup(BK, sess.id, resolvedState);
       } catch (e) {
-        console.warn("Chatter pre-login warmup failed (non-fatal):", e);
+        console.warn("Chatter pre-login setup failed (non-fatal):", e);
       }
 
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
