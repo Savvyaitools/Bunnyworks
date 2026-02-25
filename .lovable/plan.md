@@ -1,55 +1,44 @@
 
 
-# Enable Browserbase Advanced Stealth (7-Day Trial)
+# Fix: Earnings Scrape Timing Issue
 
-Browserbase just enabled Advanced Stealth on your account. Here's the plan to turn it on and get browser sessions working properly.
+## Problem
+The CDP scraper navigates to `onlyfans.com/my/statistics` and immediately reads `document.body.innerText` after `Page.loadEventFired`. But OnlyFans loads earnings data asynchronously via JavaScript/XHR -- the DOM only has ~15 characters at that point (a loading state). The regex parser finds nothing and skips the database update.
 
-## What Changes
+## Solution
+Replace the single evaluate-after-load with a **polling loop** that waits for the page content to actually contain financial data before extracting.
 
-### 1. Enable `advancedStealth: true` in session config
+## Changes
 
-In the `sessionBody()` function (line 203-217), add `advancedStealth: true` to `browserSettings`. According to the docs, CAPTCHA solving is **included automatically** with Advanced Stealth -- no separate `solveCaptchas` flag needed.
+### File: `supabase/functions/browserbase-session/index.ts`
 
-### 2. Keep proxies enabled (required)
+In the `navigateViaCDP` function (or in the save_and_close earnings scrape block), after the page load event fires:
 
-The Browserbase team confirmed Advanced Stealth works best with proxies. Your existing `proxyConf()` with `type: "browserbase"` residential proxies and state-level geo-pinning stays exactly as-is. This is the recommended setup.
+1. **Add a polling loop** (up to 10 seconds, checking every 1.5s):
+   - Execute `document.body.innerText` via CDP `Runtime.evaluate`
+   - Check if the returned text contains earnings indicators (e.g., `$`, `earnings`, `tips`, `subscriptions`, or text length > 200 chars)
+   - If found, break and proceed with parsing
+   - If not found after all retries, log warning and proceed with empty result
 
-### 3. Remove the custom stealth script injection
+2. **Replace the current single-shot evaluate** in the earnings scrape section with the polled result
 
-With Advanced Stealth, Browserbase handles fingerprinting at the browser level (canvas, WebGL, audio, navigator, etc.) -- far more effective than our JS-level patches. The custom `STEALTH_SCRIPT` (~80 lines of canvas noise, WebGL spoofing, AudioContext noise, etc.) should be **removed** to avoid conflicts with Browserbase's native stealth. The CDP calls that inject it via `Page.addScriptToEvaluateOnNewDocument` will be cleaned up.
+### Pseudocode
+```text
+// After Page.loadEventFired:
+let pageText = "";
+for (let attempt = 0; attempt < 7; attempt++) {
+  await sleep(1500);
+  pageText = await cdpEvaluate("document.body.innerText");
+  if (pageText.length > 200 && /\$[\d,]+/.test(pageText)) {
+    break; // Content loaded
+  }
+}
+// proceed with regex parsing on pageText
+```
 
-### 4. Simplify `browserFingerprint()` 
-
-The docs say: "With Advanced Stealth Mode, we handle fingerprinting and viewport configuration for you." We can simplify our fingerprint config to just specify OS preference (Windows) and let Browserbase handle the rest, or keep it minimal as a hint.
-
-## Technical Details
-
-**File changed:** `supabase/functions/browserbase-session/index.ts`
-
-**Changes:**
-
-1. **`sessionBody()` function (line 203-217):** Add `advancedStealth: true` to `browserSettings`. Remove the old comment about Enterprise plan.
-
-2. **`STEALTH_SCRIPT` constant (line 292+):** Remove the entire ~80 line stealth injection script (canvas noise, WebGL spoofing, AudioContext noise, navigator overrides, WebRTC leak prevention, battery API spoofing, plugin spoofing).
-
-3. **All CDP calls injecting `STEALTH_SCRIPT`:** Find every `Page.addScriptToEvaluateOnNewDocument` call that injects `STEALTH_SCRIPT` and remove them. The pre-login warmup browsing (Google/YouTube navigation) stays -- only the stealth injection is removed.
-
-4. **`browserFingerprint()` (line 191-197):** Simplify to just hint at OS preference since Browserbase now manages the full fingerprint.
-
-## What Does NOT Change
-
-- Proxy configuration (`proxyConf()` with state rotation) -- stays as-is
-- Session lifecycle (create, save, launch, terminate, heartbeat)
-- Context persistence
-- Warmup browsing logic (Google/YouTube pre-login navigation)
-- Session pooling
-- All frontend components
-- Database schema
-
-## Expected Result
-
-- Browser sessions will load OnlyFans successfully (no more DNS errors)
-- CAPTCHAs will be solved automatically by Browserbase
-- Browser fingerprint will be native-grade (not JS patches)
-- Existing geo-pinned residential proxies continue working
+### Expected Outcome
+- The scraper will wait up to ~10.5 seconds for OnlyFans to finish rendering earnings data
+- Once dollar amounts appear in the DOM text, it extracts immediately (no unnecessary waiting)
+- If the page never loads (e.g., logged out, error), it gracefully times out and still saves cookies
+- No changes to the UI or other session logic
 
