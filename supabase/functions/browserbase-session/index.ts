@@ -37,7 +37,7 @@ async function navigateViaCDP(
         resolved = true;
         console.warn(`CDP: Navigation timeout after ${timeout}ms (non-fatal)`);
         try { ws.close(); } catch {}
-        resolve({ success: true, result: null });
+        resolve({ success: true, timedOut: true, result: null });
       }
     }, timeout);
 
@@ -631,33 +631,40 @@ Deno.serve(async (req) => {
               }, 1500);
             };
 
-            ws.onopen = () => { send("Target.getTargets"); };
+            // Tracked message IDs for robust response matching
+            let getTargetsId: number | null = null;
+            let attachId: number | null = null;
+            let networkEnableId: number | null = null;
+            let pageEnableId: number | null = null;
+            let navigateId: number | null = null;
+
+            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
             ws.onmessage = (evt) => {
               try {
                 const msg = JSON.parse(evt.data);
 
                 // Step 1: Get page target
-                if (msg.id === 1) {
+                if (msg.id === getTargetsId) {
                   const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
-                  if (page) { send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
                   else { finish(); }
                   return;
                 }
 
                 // Step 2: Attach to page target
-                if (msg.result?.sessionId && !cdpSid) {
+                if (msg.id === attachId && msg.result?.sessionId) {
                   cdpSid = msg.result.sessionId;
                   // Enable Network domain to intercept XHR responses
-                  send("Network.enable", {});
+                  networkEnableId = send("Network.enable", {});
                   return;
                 }
 
                 // Step 3: Network enabled, now navigate
-                if (!networkEnabled && msg.result && !msg.result.sessionId && !navigated) {
+                if (msg.id === networkEnableId) {
                   networkEnabled = true;
                   console.log("CDP: Network.enable done, navigating to OF earnings page");
-                  send("Page.enable", {});
-                  send("Page.navigate", { url: "https://onlyfans.com/my/statistics/statements/earnings" });
+                  pageEnableId = send("Page.enable", {});
+                  navigateId = send("Page.navigate", { url: "https://onlyfans.com/my/statistics/statements/earnings" });
                   navigated = true;
                   // Also start DOM polling as fallback (delayed)
                   setTimeout(() => startDomPoll(), 5000);
@@ -689,7 +696,7 @@ Deno.serve(async (req) => {
                 // Network.loadingFinished — try to get response body for earnings requests
                 if (msg.method === "Network.loadingFinished") {
                   const reqId = msg.params?.requestId;
-                  if (capturedResponses[reqId] && !pendingBodyRequests.size) {
+                  if (capturedResponses[reqId]) {
                     const bodyMid = send("Network.getResponseBody", { requestId: reqId });
                     pendingBodyRequests.set(bodyMid, reqId);
                   }
@@ -747,13 +754,11 @@ Deno.serve(async (req) => {
           });
 
           // ===== Parse results: prefer JSON, fallback to DOM text =====
-          let statsResult: { success: boolean; result?: unknown } = { success: false };
+          let bestTotal = 0, tips = 0, subs = 0, messages = 0, referrals = 0, posts = 0;
+          let earningsSource = "none";
 
           if (scrapeResult.json) {
             console.log("Using XHR-intercepted JSON for earnings extraction");
-            // Parse the OF internal API JSON format
-            // Expected: { data: { total: { total: 1234.56, gross: 5678.90 } }, ... }
-            // Or: { total: ..., subscribes: ..., tips: ..., messages: ..., post: ... }
             const d = scrapeResult.json.data || scrapeResult.json;
             const getNet = (obj: any): number => {
               if (typeof obj === "number") return obj;
@@ -771,125 +776,96 @@ Deno.serve(async (req) => {
             const refsNet = getNet(d.referrals);
             const streamsNet = getNet(d.stream || d.streams);
 
-            const bestTotal = totalNet || (tipsNet + subsNet + msgsNet + postsNet + refsNet + streamsNet);
-            console.log(`Earnings from JSON: total=${totalNet}, tips=${tipsNet}, subs=${subsNet}, msgs=${msgsNet}, posts=${postsNet}, refs=${refsNet}, streams=${streamsNet}, best=${bestTotal}`);
-            
-            if (bestTotal > 0) {
-              statsResult = { success: true, result: JSON.stringify({ 
-                _source: "xhr", total: bestTotal, tips: tipsNet, subs: subsNet, 
-                messages: msgsNet, posts: postsNet, referrals: refsNet 
-              })};
-            }
+            bestTotal = totalNet || (tipsNet + subsNet + msgsNet + postsNet + refsNet + streamsNet);
+            tips = tipsNet; subs = subsNet; messages = msgsNet; posts = postsNet; referrals = refsNet;
+            earningsSource = "xhr";
+            console.log(`Earnings from JSON: total=${totalNet}, tips=${tips}, subs=${subs}, msgs=${messages}, posts=${posts}, refs=${referrals}, streams=${streamsNet}, best=${bestTotal}`);
           }
           
-          if (!statsResult.success && scrapeResult.domText) {
+          if (bestTotal === 0 && scrapeResult.domText) {
             console.log("Falling back to DOM text parsing");
-            console.log("Earnings raw DOM text (first 800 chars):", scrapeResult.domText.substring(0, 800));
-            statsResult = { success: true, result: scrapeResult.domText };
+            const rawText = scrapeResult.domText;
+            console.log("Earnings raw DOM text (first 800 chars):", rawText.substring(0, 800));
+            earningsSource = "dom";
+
+            // Parse earnings from DOM text
+            const parseAmount = (labels: string[]): number => {
+              for (const label of labels) {
+                const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                const nlMatch = rawText.match(nlPat);
+                if (nlMatch) {
+                  const val = parseFloat(nlMatch[1].replace(/,/g, ""));
+                  if (!isNaN(val) && val > 0) return val;
+                }
+                const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                const inlineMatch = rawText.match(inlinePat);
+                if (inlineMatch) {
+                  const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
+                  if (!isNaN(val) && val > 0) return val;
+                }
+              }
+              return 0;
+            };
+
+            const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
+            tips = parseAmount(["tips"]);
+            subs = parseAmount(["subscriptions", "subscription"]);
+            messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
+            referrals = parseAmount(["referrals", "referral"]);
+            posts = parseAmount(["posts", "post"]);
+
+            let fallbackTotal = 0;
+            if (!totalEarnings) {
+              const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
+                .map(m => parseFloat(m[1].replace(/,/g, "")))
+                .filter(v => !isNaN(v) && v > 0);
+              if (allAmounts.length > 0) {
+                fallbackTotal = Math.max(...allAmounts);
+                console.log(`Earnings fallback: found ${allAmounts.length} dollar amounts, max=$${fallbackTotal}`);
+              }
+            }
+
+            console.log(`Earnings parsed (DOM): total=${totalEarnings}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}, fallback=${fallbackTotal}`);
+            bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
           }
 
-          if (statsResult.success && statsResult.result) {
-            const rawText = String(statsResult.result);
-            console.log("Earnings raw text length:", rawText.length);
+          // Upsert earnings if we got data from either path
+          if (bestTotal > 0) {
+            const now = new Date();
+            const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+            const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
-            let bestTotal = 0, tips = 0, subs = 0, messages = 0, referrals = 0, posts = 0;
+            const { data: existing } = await svc.from("creator_earnings")
+              .select("id")
+              .eq("creator_id", sessionLink.creator_id)
+              .eq("period_start", periodStart)
+              .eq("period_end", periodEnd)
+              .maybeSingle();
 
-            // Check if result is from XHR interception (pre-parsed JSON)
-            try {
-              const xhrData = JSON.parse(rawText);
-              if (xhrData._source === "xhr") {
-                bestTotal = xhrData.total || 0;
-                tips = xhrData.tips || 0;
-                subs = xhrData.subs || 0;
-                messages = xhrData.messages || 0;
-                referrals = xhrData.referrals || 0;
-                posts = xhrData.posts || 0;
-                console.log(`Using pre-parsed XHR data: total=$${bestTotal}`);
-              }
-            } catch {
-              // Not JSON — fall through to DOM text parsing
-            }
+            const earningsPayload = {
+              creator_id: sessionLink.creator_id,
+              amount: bestTotal,
+              tips: tips || 0,
+              subscriptions: subs || 0,
+              messages_revenue: messages || 0,
+              referrals: referrals || 0,
+              period_start: periodStart,
+              period_end: periodEnd,
+              platform: "onlyfans",
+              notes: `Auto-scraped (${earningsSource}) on ${now.toISOString().split("T")[0]}`,
+            };
 
-            if (bestTotal === 0) {
-              // Parse earnings from DOM text
-              // OF DOM renders labels and amounts in separate elements
-              const parseAmount = (labels: string[]): number => {
-                for (const label of labels) {
-                  const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
-                  const nlMatch = rawText.match(nlPat);
-                  if (nlMatch) {
-                    const val = parseFloat(nlMatch[1].replace(/,/g, ""));
-                    if (!isNaN(val) && val > 0) return val;
-                  }
-                  const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
-                  const inlineMatch = rawText.match(inlinePat);
-                  if (inlineMatch) {
-                    const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
-                    if (!isNaN(val) && val > 0) return val;
-                  }
-                }
-                return 0;
-              };
-
-              const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
-              tips = parseAmount(["tips"]);
-              subs = parseAmount(["subscriptions", "subscription"]);
-              messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
-              referrals = parseAmount(["referrals", "referral"]);
-              posts = parseAmount(["posts", "post"]);
-
-              let fallbackTotal = 0;
-              if (!totalEarnings) {
-                const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
-                  .map(m => parseFloat(m[1].replace(/,/g, "")))
-                  .filter(v => !isNaN(v) && v > 0);
-                if (allAmounts.length > 0) {
-                  fallbackTotal = Math.max(...allAmounts);
-                  console.log(`Earnings fallback: found ${allAmounts.length} dollar amounts, max=$${fallbackTotal}`);
-                }
-              }
-
-              console.log(`Earnings parsed (DOM): total=${totalEarnings}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}, fallback=${fallbackTotal}`);
-              bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
-            }
-            if (bestTotal > 0) {
-              const now = new Date();
-              const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-              const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-
-              // Check for existing record this period
-              const { data: existing } = await svc.from("creator_earnings")
-                .select("id")
-                .eq("creator_id", sessionLink.creator_id)
-                .eq("period_start", periodStart)
-                .eq("period_end", periodEnd)
-                .maybeSingle();
-
-              const earningsPayload = {
-                creator_id: sessionLink.creator_id,
-                amount: bestTotal,
-                tips: tips || 0,
-                subscriptions: subs || 0,
-                messages_revenue: messages || 0,
-                referrals: referrals || 0,
-                period_start: periodStart,
-                period_end: periodEnd,
-                platform: "onlyfans",
-                notes: `Auto-scraped on ${now.toISOString().split("T")[0]}`,
-              };
-
-              if (existing) {
-                await svc.from("creator_earnings").update(earningsPayload).eq("id", existing.id);
-                console.log(`Updated earnings for creator ${sessionLink.creator_id}: $${bestTotal}`);
-              } else {
-                await svc.from("creator_earnings").insert(earningsPayload);
-                console.log(`Inserted earnings for creator ${sessionLink.creator_id}: $${bestTotal}`);
-              }
-
-              scrapedEarnings = { total: bestTotal, tips, subscriptions: subs, messages, referrals };
+            if (existing) {
+              await svc.from("creator_earnings").update(earningsPayload).eq("id", existing.id);
+              console.log(`Updated earnings for creator ${sessionLink.creator_id}: $${bestTotal} (${earningsSource})`);
             } else {
-              console.warn("Earnings scrape: no meaningful values found in page text");
+              await svc.from("creator_earnings").insert(earningsPayload);
+              console.log(`Inserted earnings for creator ${sessionLink.creator_id}: $${bestTotal} (${earningsSource})`);
             }
+
+            scrapedEarnings = { total: bestTotal, tips, subscriptions: subs, messages, referrals };
+          } else {
+            console.warn("Earnings scrape: no meaningful values found");
           }
         } catch (e: any) {
           console.warn(`Earnings scrape failed (non-fatal): ${e.message}`);
