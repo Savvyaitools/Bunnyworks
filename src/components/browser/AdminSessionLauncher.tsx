@@ -150,9 +150,9 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
                   </div>
                   <div className="shrink-0">
                     {isAuthenticated ? (
-                      <Button variant="outline" size="sm" onClick={() => handleLaunch(creator.id)} disabled={isLaunchingThis} className="gap-1.5">
-                        {isLaunchingThis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                        Re-authenticate
+                      <Button size="sm" onClick={() => handleLaunch(creator.id)} disabled={isLaunchingThis} className="gap-1.5">
+                        {isLaunchingThis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+                        Open Session
                       </Button>
                     ) : (
                       <Button size="sm" onClick={() => handleLaunch(creator.id)} disabled={isLaunchingThis || isAuthenticating} className="gap-1.5">
