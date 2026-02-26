@@ -328,6 +328,141 @@ async function preLoginSetup(apiKey: string, sessionId: string, proxyState: stri
   });
 }
 
+// ========== AI-Powered Extraction via Lovable AI Gateway ==========
+const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+async function aiExtractEarnings(domText: string): Promise<{ total: number; tips: number; subscriptions: number; messages: number; referrals: number; posts: number } | null> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) { console.warn("AI extraction: LOVABLE_API_KEY not set"); return null; }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const resp = await fetch(AI_GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are an OnlyFans earnings data extractor. Given raw page text from an OnlyFans earnings/statements page, extract the financial data. All values should be numbers (USD). If a value is not found, return 0. The 'total' should be the overall net earnings amount." },
+          { role: "user", content: domText.substring(0, 8000) },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "report_earnings",
+            description: "Report extracted OnlyFans earnings data",
+            parameters: {
+              type: "object",
+              properties: {
+                total: { type: "number", description: "Total/net earnings in USD" },
+                tips: { type: "number", description: "Tips earnings in USD" },
+                subscriptions: { type: "number", description: "Subscription earnings in USD" },
+                messages: { type: "number", description: "Messages/chat earnings in USD" },
+                referrals: { type: "number", description: "Referral earnings in USD" },
+                posts: { type: "number", description: "Posts earnings in USD" },
+              },
+              required: ["total", "tips", "subscriptions", "messages", "referrals", "posts"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "report_earnings" } },
+      }),
+    });
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      console.warn(`AI extraction failed: ${resp.status}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      console.log("AI extraction result:", JSON.stringify(parsed));
+      return {
+        total: Number(parsed.total) || 0,
+        tips: Number(parsed.tips) || 0,
+        subscriptions: Number(parsed.subscriptions) || 0,
+        messages: Number(parsed.messages) || 0,
+        referrals: Number(parsed.referrals) || 0,
+        posts: Number(parsed.posts) || 0,
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn("AI extraction error:", e);
+    return null;
+  }
+}
+
+async function aiDetectLoginState(domText: string, currentUrl: string): Promise<{ logged_in: boolean; confidence: string; reason: string } | null> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) { console.warn("AI login detection: LOVABLE_API_KEY not set"); return null; }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const resp = await fetch(AI_GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are an OnlyFans login state detector. Given raw page text and the current URL, determine if the user is logged into OnlyFans. Look for indicators like: navigation menus, profile elements, earnings data, chat lists (logged in) vs login forms, signup prompts, 'Enter your email' fields (not logged in). The URL being just 'https://onlyfans.com/' or containing '/login' usually means not logged in." },
+          { role: "user", content: `URL: ${currentUrl}\n\nPage text:\n${domText.substring(0, 6000)}` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "detect_login_state",
+            description: "Report whether the user is logged into OnlyFans",
+            parameters: {
+              type: "object",
+              properties: {
+                logged_in: { type: "boolean", description: "Whether the user appears to be logged in" },
+                confidence: { type: "string", enum: ["high", "medium", "low"], description: "Confidence level of the determination" },
+                reason: { type: "string", description: "Brief explanation of why this determination was made" },
+              },
+              required: ["logged_in", "confidence", "reason"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "detect_login_state" } },
+      }),
+    });
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      console.warn(`AI login detection failed: ${resp.status}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      console.log("AI login detection result:", JSON.stringify(parsed));
+      return {
+        logged_in: Boolean(parsed.logged_in),
+        confidence: parsed.confidence || "low",
+        reason: parsed.reason || "",
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn("AI login detection error:", e);
+    return null;
+  }
+}
+
 // ========== Wait for session to be RUNNING with retries ==========
 async function waitForSessionReady(apiKey: string, sessionId: string, maxWaitMs = 15000): Promise<boolean> {
   const start = Date.now();
@@ -502,16 +637,16 @@ Deno.serve(async (req) => {
       const alive = await isSessionAlive(BK, browserbaseSessionId);
 
       // ===== LOGIN CHECK: Verify user is logged in before persisting cookies =====
-      // If the browser is on the login page, we must NOT save (REQUEST_RELEASE) because
-      // that would overwrite valid cookies in the persistent context with blank ones.
+      // Uses a two-phase approach: fast CDP selector pre-check, then AI-powered verification
+      // for ambiguous cases. This prevents overwriting valid cookies with blank ones.
       let isLoggedIn = false;
       if (alive) {
-        // Direct CDP evaluate on current page to check login state
         try {
-          const checkResult = await new Promise<string>((resolve) => {
+          // Phase 1: Fast CDP selector pre-check + capture DOM text & URL for AI
+          const loginCheckData = await new Promise<{ checkResult: string; domText: string; pageUrl: string }>((resolve) => {
             const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`);
             let done = false;
-            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve("unknown"); } }, 8000);
+            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } }, 8000);
             let mid = 1;
             let getTargetsId: number | null = null;
             let attachId: number | null = null;
@@ -532,7 +667,7 @@ Deno.serve(async (req) => {
                 if (msg.id === getTargetsId) {
                   const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
                   if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
-                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve("unknown"); }
+                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); }
                   return;
                 }
                 if (msg.id === attachId) {
@@ -544,9 +679,12 @@ Deno.serve(async (req) => {
                         var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
                         var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
                         var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
-                        if (hasNav && !hasLoginForm && !onLoginPage) return 'logged_in';
-                        if (hasLoginForm || onLoginPage) return 'not_logged_in';
-                        return 'likely_logged_in';
+                        var cssResult;
+                        if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
+                        else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
+                        else cssResult = 'ambiguous';
+                        var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
+                        return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });
                       })()`,
                       returnByValue: true,
                     }, sid);
@@ -554,19 +692,45 @@ Deno.serve(async (req) => {
                   return;
                 }
                 if (msg.id === evalId) {
-                  const val = msg.result?.result?.value || "unknown";
-                  console.log(`Login check result: ${val}`);
-                  done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve(val);
+                  const val = msg.result?.result?.value || '{"cssResult":"unknown","domText":"","pageUrl":""}';
+                  try {
+                    const parsed = JSON.parse(val);
+                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
+                    resolve({ checkResult: parsed.cssResult || "unknown", domText: parsed.domText || "", pageUrl: parsed.pageUrl || "" });
+                  } catch {
+                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
+                    resolve({ checkResult: "unknown", domText: "", pageUrl: "" });
+                  }
                   return;
                 }
               } catch {}
             };
-            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve("unknown"); } };
-            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve("unknown"); } };
+            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
+            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
           });
 
-          isLoggedIn = checkResult === "logged_in" || checkResult === "likely_logged_in";
-          console.log(`Save & Close: login state = ${checkResult}, will ${isLoggedIn ? "PERSIST" : "SKIP PERSIST"} cookies`);
+          const { checkResult, domText: loginDomText, pageUrl } = loginCheckData;
+          console.log(`Login CSS pre-check: ${checkResult} (url: ${pageUrl})`);
+
+          if (checkResult === "logged_in") {
+            isLoggedIn = true;
+          } else if (checkResult === "not_logged_in") {
+            isLoggedIn = false;
+          } else {
+            // Phase 2: Ambiguous/unknown — use AI to determine login state
+            console.log("Login state ambiguous, invoking AI detection...");
+            const aiResult = await aiDetectLoginState(loginDomText, pageUrl);
+            if (aiResult && (aiResult.confidence === "high" || aiResult.confidence === "medium")) {
+              isLoggedIn = aiResult.logged_in;
+              console.log(`AI login detection: logged_in=${aiResult.logged_in}, confidence=${aiResult.confidence}, reason=${aiResult.reason}`);
+            } else {
+              // AI inconclusive — fail-open to preserve session
+              isLoggedIn = true;
+              console.log(`AI login detection inconclusive (${aiResult?.confidence || "no result"}), defaulting to persist`);
+            }
+          }
+
+          console.log(`Save & Close: login state = ${checkResult}${checkResult === "ambiguous" ? " (AI-resolved)" : ""}, will ${isLoggedIn ? "PERSIST" : "SKIP PERSIST"} cookies`);
         } catch (e) {
           console.warn("Login check failed, defaulting to persist:", e);
           isLoggedIn = true; // Fail-open: persist if we can't determine
@@ -800,50 +964,65 @@ Deno.serve(async (req) => {
           }
           
           if (bestTotal === 0 && scrapeResult.domText) {
-            console.log("Falling back to DOM text parsing");
+            console.log("Falling back to AI-powered DOM text extraction");
             const rawText = scrapeResult.domText;
             console.log("Earnings raw DOM text (first 800 chars):", rawText.substring(0, 800));
-            earningsSource = "dom";
 
-            // Parse earnings from DOM text
-            const parseAmount = (labels: string[]): number => {
-              for (const label of labels) {
-                const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
-                const nlMatch = rawText.match(nlPat);
-                if (nlMatch) {
-                  const val = parseFloat(nlMatch[1].replace(/,/g, ""));
-                  if (!isNaN(val) && val > 0) return val;
+            // Phase 1: Try AI extraction
+            const aiEarnings = await aiExtractEarnings(rawText);
+            if (aiEarnings && aiEarnings.total > 0) {
+              earningsSource = "ai";
+              bestTotal = aiEarnings.total;
+              tips = aiEarnings.tips;
+              subs = aiEarnings.subscriptions;
+              messages = aiEarnings.messages;
+              referrals = aiEarnings.referrals;
+              posts = aiEarnings.posts;
+              console.log(`Earnings from AI: total=${bestTotal}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}`);
+            } else {
+              // Phase 2: Regex fallback if AI fails
+              console.log("AI extraction returned no data, falling back to regex parsing");
+              earningsSource = "dom";
+
+              const parseAmount = (labels: string[]): number => {
+                for (const label of labels) {
+                  const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                  const nlMatch = rawText.match(nlPat);
+                  if (nlMatch) {
+                    const val = parseFloat(nlMatch[1].replace(/,/g, ""));
+                    if (!isNaN(val) && val > 0) return val;
+                  }
+                  const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+                  const inlineMatch = rawText.match(inlinePat);
+                  if (inlineMatch) {
+                    const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
+                    if (!isNaN(val) && val > 0) return val;
+                  }
                 }
-                const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
-                const inlineMatch = rawText.match(inlinePat);
-                if (inlineMatch) {
-                  const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
-                  if (!isNaN(val) && val > 0) return val;
+                return 0;
+              };
+
+              const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
+              tips = parseAmount(["tips"]);
+              subs = parseAmount(["subscriptions", "subscription"]);
+              messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
+              referrals = parseAmount(["referrals", "referral"]);
+              posts = parseAmount(["posts", "post"]);
+
+              let fallbackTotal = 0;
+              if (!totalEarnings) {
+                const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
+                  .map(m => parseFloat(m[1].replace(/,/g, "")))
+                  .filter(v => !isNaN(v) && v > 0);
+                if (allAmounts.length > 0) {
+                  fallbackTotal = Math.max(...allAmounts);
+                  console.log(`Earnings fallback: found ${allAmounts.length} dollar amounts, max=$${fallbackTotal}`);
                 }
               }
-              return 0;
-            };
 
-            const totalEarnings = parseAmount(["total", "net", "earnings", "total earnings", "net earnings"]);
-            tips = parseAmount(["tips"]);
-            subs = parseAmount(["subscriptions", "subscription"]);
-            messages = parseAmount(["messages", "messaging", "chat messages", "chat"]);
-            referrals = parseAmount(["referrals", "referral"]);
-            posts = parseAmount(["posts", "post"]);
-
-            let fallbackTotal = 0;
-            if (!totalEarnings) {
-              const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
-                .map(m => parseFloat(m[1].replace(/,/g, "")))
-                .filter(v => !isNaN(v) && v > 0);
-              if (allAmounts.length > 0) {
-                fallbackTotal = Math.max(...allAmounts);
-                console.log(`Earnings fallback: found ${allAmounts.length} dollar amounts, max=$${fallbackTotal}`);
-              }
+              console.log(`Earnings parsed (regex): total=${totalEarnings}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}, fallback=${fallbackTotal}`);
+              bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
             }
-
-            console.log(`Earnings parsed (DOM): total=${totalEarnings}, tips=${tips}, subs=${subs}, msgs=${messages}, refs=${referrals}, posts=${posts}, fallback=${fallbackTotal}`);
-            bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
           }
 
           // Upsert earnings if we got data from either path
