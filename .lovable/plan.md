@@ -1,64 +1,128 @@
 
 
-# Remove Left Panel, Use OnlyFans Native Sidebar with Role-Based Hiding
+# AI-Powered Earnings Scraping and Login Detection
 
-## Overview
-Remove the custom left panel (BrowserSessionPanel) from the embedded browser viewer entirely. Instead, keep OnlyFans' own sidebar visible and inject CSS via CDP to hide restricted menu items (Statements, Statistics, More) for Chatters and VAs.
+## Problem
+Stagehand (the Browserbase AI automation framework) requires Playwright or Puppeteer, which depend on Node.js and cannot run in the Deno edge runtime used by this project's backend functions. Direct integration is not possible.
+
+## Solution: "Stagehand-equivalent" using Lovable AI + CDP
+Instead of importing Stagehand as a library, we build the same AI-powered intelligence by combining the existing CDP infrastructure with Lovable AI (Gemini) calls. This gives us:
+- AI-powered structured data extraction (like Stagehand's `extract()`)
+- AI-powered login detection (like Stagehand's `observe()`)
+- No Node.js dependency -- runs entirely in Deno edge functions
+
+## Architecture
+
+```text
++---------------------------+       +-------------------+
+| browserbase-session (Deno)|       | Lovable AI Gateway|
+|                           |       | (Gemini Flash)    |
+|  CDP WebSocket            |       |                   |
+|    |                      |       |                   |
+|    +-> Get DOM text ------+------>| "Extract earnings"|
+|    +-> Get page URL       |       | Returns JSON      |
+|    +-> Check elements ----|------>| "Is user logged   |
+|                           |<------+  in?"             |
++---------------------------+       +-------------------+
+```
 
 ## Changes
 
-### 1. Strip BrowserSessionPanel from EmbeddedBrowserViewer
-**File: `src/components/browser/EmbeddedBrowserViewer.tsx`**
-- Remove all imports and references to `BrowserSessionPanel`
-- Remove the `Sheet` mobile panel wrapper
-- Remove `panelOpen` state and the panel toggle button from the toolbar
-- Remove `PanelLeftClose`/`PanelLeftOpen` icons
-- The iframe becomes the only content in the main area, taking full width
+### 1. Create helper: AI extraction via Lovable AI
+Add two async functions inside `browserbase-session/index.ts`:
 
-### 2. Inject Role-Based CSS into the Remote Browser via CDP
-**File: `supabase/functions/browserbase-session/index.ts`**
-- Add a new action: `inject_sidebar_restrictions`
-- Uses CDP `Runtime.evaluate` to inject a `<style>` tag into the OnlyFans page that hides specific sidebar links based on the employee's permissions
-- Target selectors based on OF DOM: links containing `/my/statistics`, `/my/statements`, and the "More" expandable menu item
-- Called automatically after session launch or navigation
+**`aiExtractEarnings(domText: string)`**
+- Sends the raw DOM text (up to 8000 chars) to Lovable AI Gateway (`google/gemini-2.5-flash`)
+- System prompt instructs the model to extract structured earnings data
+- Uses tool calling to return a typed JSON object: `{ total, tips, subscriptions, messages, referrals, posts }`
+- Falls back gracefully to 0 values if AI can't parse
 
-### 3. Auto-Inject on Session Connect
-**File: `src/components/browser/EmbeddedBrowserViewer.tsx`**
-- On iframe load, if `permissions` prop is provided and the user is not an admin (i.e., certain flags are false), call the edge function to inject the restriction CSS into the remote browser
-- This runs once on load and is resilient to OnlyFans SPA re-renders by using a `MutationObserver` in the injected script
+**`aiDetectLoginState(domText: string, currentUrl: string)`**
+- Sends DOM text + URL to Lovable AI
+- System prompt asks: "Is this user logged into OnlyFans?"
+- Uses tool calling to return: `{ logged_in: boolean, confidence: "high" | "medium" | "low", reason: string }`
+- Only trusts "high" or "medium" confidence results
 
-### 4. Update Chrome Extension to Stop Hiding the Full Sidebar
-**File: `chrome-extension-permissions/content.js`**
-- Remove the `hideOFSidebar()` function and its interval
-- Keep the permission-guard path blocking and overlay logic intact
-- Instead, add targeted hiding of Statements/Statistics/More links (matching the CDP injection approach)
+### 2. Refactor earnings scraper in `save_and_close`
+Current flow: CDP Network interception (XHR) -> DOM text polling -> regex parsing
 
-**File: `chrome-extension-permissions/blocked.css`**
-- Remove the sidebar-hiding CSS rules (`.b-sidebar`, `.l-sidebar`, etc.)
-- Keep the blocked overlay styles
+New flow:
+1. CDP Network interception (XHR) -- kept as primary, fastest path
+2. If XHR fails, get DOM text via CDP (existing)
+3. **New**: Send DOM text to `aiExtractEarnings()` instead of regex parsing
+4. Regex parsing kept as final fallback if AI call fails
+
+This replaces ~70 lines of brittle regex parsing with a single AI call.
+
+### 3. Refactor login detection in `save_and_close`
+Current flow: CDP evaluate checks for specific CSS selectors (`.b-sidebar`, `.l-header__menu`, `form.b-loginreg`)
+
+New flow:
+1. Get DOM text + current URL via CDP (existing evaluate)
+2. **New**: Send to `aiDetectLoginState()` for AI-powered determination
+3. CSS selector check kept as fast pre-check; AI used for ambiguous cases
+
+This makes login detection resilient to OnlyFans UI changes that break CSS selectors.
+
+### 4. Configuration
+- Uses the already-configured `LOVABLE_API_KEY` secret (auto-provisioned)
+- Model: `google/gemini-2.5-flash` (fast, cheap, good for structured extraction)
+- No new secrets or dependencies needed
 
 ## Technical Details
 
-The injected script will look like:
-```text
-// Injected via CDP Runtime.evaluate
-(function() {
-  const style = document.createElement('style');
-  style.id = 'creatoros-sidebar-restrictions';
-  style.textContent = `
-    a[href="/my/statements"] { display: none !important; }
-    a[href="/my/statistics"] { display: none !important; }
-    /* "More" menu item - hide based on OF DOM pattern */
-    [data-name="more"], a[href="/more"] { display: none !important; }
-  `;
-  document.head.appendChild(style);
-})();
+### AI Extraction Function
+```
+POST https://ai.gateway.lovable.dev/v1/chat/completions
+Authorization: Bearer $LOVABLE_API_KEY
+
+{
+  model: "google/gemini-2.5-flash",
+  messages: [
+    { role: "system", content: "Extract OnlyFans earnings..." },
+    { role: "user", content: domText }
+  ],
+  tools: [{
+    type: "function",
+    function: {
+      name: "report_earnings",
+      parameters: {
+        type: "object",
+        properties: {
+          total: { type: "number" },
+          tips: { type: "number" },
+          subscriptions: { type: "number" },
+          messages: { type: "number" },
+          referrals: { type: "number" },
+          posts: { type: "number" }
+        }
+      }
+    }
+  }],
+  tool_choice: { type: "function", function: { name: "report_earnings" } }
+}
 ```
 
-The CSS selectors will target OnlyFans sidebar links by their `href` attribute, which is stable across OF updates. The injection happens via the existing `navigate_in_session` CDP infrastructure.
+### Login Detection Function
+Same pattern but with a `detect_login_state` tool returning `{ logged_in, confidence, reason }`.
+
+### Error Handling
+- AI calls wrapped in try/catch with 10-second timeout
+- If AI gateway returns 429 (rate limit) or 402 (credits), falls back to regex/CSS selector logic
+- AI failures are non-fatal -- the existing parsing code runs as fallback
+
+### Cost Impact
+- ~2 AI calls per session close (extraction + login check)
+- Using `gemini-2.5-flash` (cheapest capable model)
+- Estimated cost: negligible per session
 
 ## Files Modified
-- `src/components/browser/EmbeddedBrowserViewer.tsx` -- Remove panel, add restriction injection on load
-- `supabase/functions/browserbase-session/index.ts` -- New `inject_sidebar_restrictions` action
-- `chrome-extension-permissions/content.js` -- Stop hiding full sidebar, add targeted hiding
-- `chrome-extension-permissions/blocked.css` -- Remove sidebar-hiding rules
+- `supabase/functions/browserbase-session/index.ts` -- Add AI helper functions, refactor earnings parsing and login detection
+
+## What This Does NOT Change
+- CDP WebSocket infrastructure (unchanged)
+- Network XHR interception (kept as primary strategy)
+- Session lifecycle (create, launch, terminate)
+- Database schema (no migrations needed)
+- Frontend code (no UI changes)
+
