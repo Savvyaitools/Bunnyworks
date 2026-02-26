@@ -224,7 +224,7 @@ export function EmbeddedBrowserViewer({
 
       {/* Jodie AI Floating Overlay */}
       {creatorId && (
-        <IzzyOverlay creatorId={creatorId} creatorName={title} iframeRef={iframeRef} />
+        <IzzyOverlay creatorId={creatorId} creatorName={title} iframeRef={iframeRef} browserbaseSessionId={bbSessionId} />
       )}
     </div>
   );

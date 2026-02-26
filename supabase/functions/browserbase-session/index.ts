@@ -2044,6 +2044,181 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ========== JODIE: READ CHAT CONTEXT (CDP) ==========
+    if (action === "read_chat_context") {
+      const { browserbaseSessionId: bbSid } = p;
+      if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
+
+      const extractScript = `
+        (function() {
+          // OnlyFans chat page extraction
+          var result = { messages: [], currentUrl: window.location.href, fanName: '' };
+
+          // Get fan name from chat header
+          var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
+          if (header) result.fanName = header.innerText.trim();
+
+          // Get recent messages (last 10)
+          var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
+          var msgs = Array.from(msgEls).slice(-10);
+          msgs.forEach(function(el) {
+            var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
+            var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
+            var text = textEl ? textEl.innerText.trim() : '';
+            if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
+          });
+
+          // Get the last fan message specifically
+          var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
+          result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
+
+          return JSON.stringify(result);
+        })();
+      `;
+
+      try {
+        const wsUrl = \`wss://connect.browserbase.com?apiKey=\${BK}&sessionId=\${bbSid}\`;
+        const result = await new Promise<{ success: boolean; data?: any; error?: string }>((resolve) => {
+          let mid = 1;
+          let resolved = false;
+          const ws = new WebSocket(wsUrl);
+          const timer = setTimeout(() => {
+            if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve({ success: false, error: "Timeout" }); }
+          }, 10000);
+
+          const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+            const id = mid++;
+            const msg: any = { id, method, params };
+            if (sid) msg.sessionId = sid;
+            ws.send(JSON.stringify(msg));
+            return id;
+          };
+
+          let getTargetsId: number | null = null;
+          let attachId: number | null = null;
+          let evalId: number | null = null;
+
+          ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+          ws.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev.data as string);
+              if (msg.id === getTargetsId && msg.result?.targetInfos) {
+                const page = msg.result.targetInfos.find((t: any) => t.type === "page");
+                if (page) {
+                  attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+                } else {
+                  resolved = true; clearTimeout(timer); ws.close(); resolve({ success: false, error: "No page target" });
+                }
+              } else if (msg.id === attachId && msg.result?.sessionId) {
+                evalId = send("Runtime.evaluate", { expression: extractScript, returnByValue: true }, msg.result.sessionId);
+              } else if (msg.id === evalId) {
+                const val = msg.result?.result?.value;
+                let data = {};
+                try { data = JSON.parse(val); } catch {}
+                resolved = true; clearTimeout(timer); ws.close(); resolve({ success: true, data });
+              }
+            } catch {}
+          };
+          ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve({ success: false, error: "WebSocket error" }); } };
+        });
+        return json(result);
+      } catch (e: any) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
+    // ========== JODIE: INJECT CHAT TEXT (CDP) ==========
+    if (action === "inject_chat_text") {
+      const { browserbaseSessionId: bbSid, text } = p;
+      if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
+      if (!text) return json({ error: "text required" }, 400);
+
+      const escapedText = (text as string).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+      const injectScript = \`
+        (function() {
+          // Find the OnlyFans chat input (textarea or contenteditable)
+          var input = document.querySelector('textarea[id="new_post_text_input"], .b-chat__input textarea, [class*="chat-input"] textarea, .b-make-post__textarea textarea');
+          if (!input) {
+            // Try contenteditable divs
+            input = document.querySelector('[contenteditable="true"][class*="chat"], .b-chat__input [contenteditable="true"]');
+          }
+          if (!input) {
+            // Broader fallback
+            input = document.querySelector('.b-make-post__wrapper textarea, .b-chat-message-input textarea');
+          }
+          if (!input) return JSON.stringify({ success: false, error: 'Chat input not found' });
+
+          var text = '\${escapedText}';
+
+          if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+            // Set value via native setter to trigger React/Vue change detection
+            var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+              || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+            if (nativeSetter) nativeSetter.call(input, text);
+            else input.value = text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          } else {
+            // Contenteditable
+            input.innerText = text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          input.focus();
+          return JSON.stringify({ success: true });
+        })();
+      \`;
+
+      try {
+        const wsUrl = \`wss://connect.browserbase.com?apiKey=\${BK}&sessionId=\${bbSid}\`;
+        const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+          let mid = 1;
+          let resolved = false;
+          const ws = new WebSocket(wsUrl);
+          const timer = setTimeout(() => {
+            if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve({ success: true }); }
+          }, 10000);
+
+          const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+            const id = mid++;
+            const msg: any = { id, method, params };
+            if (sid) msg.sessionId = sid;
+            ws.send(JSON.stringify(msg));
+            return id;
+          };
+
+          let getTargetsId: number | null = null;
+          let attachId: number | null = null;
+          let evalId: number | null = null;
+
+          ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+          ws.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev.data as string);
+              if (msg.id === getTargetsId && msg.result?.targetInfos) {
+                const page = msg.result.targetInfos.find((t: any) => t.type === "page");
+                if (page) {
+                  attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+                } else {
+                  resolved = true; clearTimeout(timer); ws.close(); resolve({ success: false, error: "No page target" });
+                }
+              } else if (msg.id === attachId && msg.result?.sessionId) {
+                evalId = send("Runtime.evaluate", { expression: injectScript, returnByValue: true }, msg.result.sessionId);
+              } else if (msg.id === evalId) {
+                const val = msg.result?.result?.value;
+                let parsed = { success: true };
+                try { parsed = JSON.parse(val); } catch {}
+                resolved = true; clearTimeout(timer); ws.close(); resolve(parsed);
+              }
+            } catch {}
+          };
+          ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve({ success: false, error: "WebSocket error" }); } };
+        });
+        return json(result);
+      } catch (e: any) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
     return json({ error: "Invalid action" }, 400);
   } catch (error) {
     console.error("browserbase-session error:", error);

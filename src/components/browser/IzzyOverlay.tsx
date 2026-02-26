@@ -7,9 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Sparkles, X, Loader2, Send, ChevronUp, ChevronDown,
-  Zap, BrainCircuit, Eye, RotateCcw, MessageCircle, ShieldCheck
+  Zap, BrainCircuit, Eye, RotateCcw, MessageCircle, ShieldCheck, ScanSearch
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeBrowserAction } from "@/lib/browserbase";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -30,33 +31,108 @@ interface IzzyOverlayProps {
   creatorId: string;
   creatorName?: string;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
+  browserbaseSessionId?: string;
 }
 
-export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayProps) {
+export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSessionId }: IzzyOverlayProps) {
   const [expanded, setExpanded] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
   const [fanMessage, setFanMessage] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [reading, setReading] = useState(false);
   const [injecting, setInjecting] = useState<number | null>(null);
   const [history, setHistory] = useState<HandledMessage[]>([]);
   const [activeTab, setActiveTab] = useState<"assist" | "history">("assist");
   const [confidenceThreshold] = useState(80);
-  const pulseRef = useRef(false);
+  const [detectedFanName, setDetectedFanName] = useState<string>("");
+  const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-mode monitoring: simulated scan indicator
+  // Auto-mode: periodically read chat and generate suggestions
   useEffect(() => {
-    if (!autoMode) return;
-    const interval = setInterval(() => {
-      pulseRef.current = !pulseRef.current;
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [autoMode]);
+    if (!autoMode || !browserbaseSessionId) {
+      if (autoIntervalRef.current) {
+        clearInterval(autoIntervalRef.current);
+        autoIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const poll = async () => {
+      try {
+        const result = await invokeBrowserAction("read_chat_context", { browserbaseSessionId });
+        if (!result?.success || !result.data?.lastFanMessage) return;
+
+        const lastFan = result.data.lastFanMessage;
+        if (lastFan === fanMessage) return; // Same message, skip
+
+        setFanMessage(lastFan);
+        if (result.data.fanName) setDetectedFanName(result.data.fanName);
+
+        // Auto-generate suggestions
+        const { data, error } = await supabase.functions.invoke("ai-izzy-suggest", {
+          body: {
+            fanMessage: lastFan,
+            conversationHistory: (result.data.messages || []).map((m: any) => ({
+              role: m.role === "fan" ? "user" : "assistant",
+              content: m.text,
+            })),
+            creatorId,
+            suggestionType: "reply",
+          },
+        });
+        if (!error && data?.suggestions) {
+          setSuggestions(data.suggestions);
+          // Flash notification for high-confidence suggestions
+          const highConf = data.suggestions.find((s: Suggestion) => s.confidence >= confidenceThreshold);
+          if (highConf) {
+            toast.info("Jodie has a high-confidence reply ready", { duration: 3000 });
+          }
+        }
+      } catch (err) {
+        console.warn("Auto-assist poll error:", err);
+      }
+    };
+
+    poll(); // Run immediately
+    autoIntervalRef.current = setInterval(poll, 15000); // Every 15 seconds
+    return () => {
+      if (autoIntervalRef.current) clearInterval(autoIntervalRef.current);
+    };
+  }, [autoMode, browserbaseSessionId, creatorId, confidenceThreshold]);
+
+  // Read chat context from the live browser session via CDP
+  const readChatContext = useCallback(async () => {
+    if (!browserbaseSessionId) {
+      toast.error("No active browser session");
+      return;
+    }
+    setReading(true);
+    try {
+      const result = await invokeBrowserAction("read_chat_context", { browserbaseSessionId });
+      if (!result?.success) {
+        toast.error("Failed to read chat: " + (result?.error || "Unknown error"));
+        return;
+      }
+      const data = result.data;
+      if (data?.lastFanMessage) {
+        setFanMessage(data.lastFanMessage);
+        toast.success("Fan message captured");
+      } else {
+        toast.info("No fan messages detected on current page");
+      }
+      if (data?.fanName) setDetectedFanName(data.fanName);
+    } catch (err) {
+      toast.error("Failed to read chat context");
+    } finally {
+      setReading(false);
+    }
+  }, [browserbaseSessionId]);
 
   const getSuggestions = useCallback(async () => {
     if (!fanMessage.trim()) {
-      toast.error("Paste the fan's message first");
+      toast.error("Paste or read the fan's message first");
       return;
     }
     setLoading(true);
@@ -83,20 +159,27 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
   const injectReply = useCallback(async (text: string, idx: number) => {
     setInjecting(idx);
 
-    // Try to inject into the iframe's chat input via postMessage
-    if (iframeRef?.current?.contentWindow) {
+    let injected = false;
+
+    // Try CDP injection into the remote browser
+    if (browserbaseSessionId) {
       try {
-        iframeRef.current.contentWindow.postMessage(
-          { type: "JODIE_INJECT_REPLY", text },
-          "*"
-        );
-      } catch {
-        // Cross-origin — fallback to clipboard
+        const result = await invokeBrowserAction("inject_chat_text", {
+          browserbaseSessionId,
+          text,
+        });
+        if (result?.success) {
+          injected = true;
+        }
+      } catch (err) {
+        console.warn("CDP inject failed, falling back to clipboard:", err);
       }
     }
 
-    // Always copy to clipboard as fallback
-    await navigator.clipboard.writeText(text);
+    // Clipboard fallback
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
 
     setHistory(prev => [{
       fanMessage: fanMessage || "—",
@@ -105,16 +188,19 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
       timestamp: new Date(),
     }, ...prev]);
 
-    toast.success("Reply injected & copied to clipboard", {
-      description: "Text has been placed in the chat input",
-    });
+    toast.success(
+      injected
+        ? "Reply injected into chat input"
+        : "Reply copied to clipboard — paste it into the chat",
+      { description: injected ? "Review and hit Send in OnlyFans" : undefined }
+    );
 
     setTimeout(() => {
       setInjecting(null);
       setSuggestions([]);
       setFanMessage("");
     }, 1200);
-  }, [iframeRef, fanMessage]);
+  }, [browserbaseSessionId, fanMessage]);
 
   if (minimized) {
     return (
@@ -155,9 +241,9 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
         <div className="flex items-center gap-2">
           <BrainCircuit className={cn("h-4 w-4", autoMode ? "text-green-500" : "text-primary")} />
           <span className="text-sm font-bold tracking-tight">Jodie</span>
-          {creatorName && (
+          {(detectedFanName || creatorName) && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-              {creatorName}
+              {detectedFanName || creatorName}
             </Badge>
           )}
           {autoMode && (
@@ -190,6 +276,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
           checked={autoMode}
           onCheckedChange={setAutoMode}
           className="h-4 w-8"
+          disabled={!browserbaseSessionId}
         />
       </div>
 
@@ -234,14 +321,32 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-4 w-4 text-green-500 shrink-0" />
                 <p className="text-[11px] text-green-700 dark:text-green-400 leading-tight">
-                  Jodie is monitoring incoming messages. High-confidence replies (≥{confidenceThreshold}%) will be auto-drafted. You still approve before sending.
+                  Jodie is monitoring incoming messages every 15s. High-confidence replies (≥{confidenceThreshold}%) will be flagged for you.
                 </p>
               </div>
             )}
 
             <div className="space-y-2">
+              {/* Read Chat button — pulls fan message from live browser */}
+              {browserbaseSessionId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1.5"
+                  onClick={readChatContext}
+                  disabled={reading}
+                >
+                  {reading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ScanSearch className="h-3.5 w-3.5" />
+                  )}
+                  {reading ? "Reading chat..." : "Read Chat from Browser"}
+                </Button>
+              )}
+
               <Textarea
-                placeholder="Paste the fan's message here..."
+                placeholder="Paste the fan's message here or click Read Chat..."
                 value={fanMessage}
                 onChange={(e) => setFanMessage(e.target.value)}
                 rows={expanded ? 3 : 2}
@@ -312,7 +417,10 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef }: IzzyOverlayPr
 
             {suggestions.length === 0 && !loading && (
               <p className="text-[11px] text-muted-foreground text-center py-3">
-                Paste a fan message → get AI replies → click <strong>Use Reply</strong> to inject directly into chat
+                {browserbaseSessionId
+                  ? <>Click <strong>Read Chat</strong> to pull the fan's message, then <strong>Get Reply Suggestions</strong></>
+                  : <>Paste a fan message → get AI replies → click <strong>Use Reply</strong> to inject directly into chat</>
+                }
               </p>
             )}
           </div>
