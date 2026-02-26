@@ -2228,7 +2228,7 @@ Deno.serve(async (req) => {
       `;
 
       try {
-        const wsUrl = \`wss://connect.browserbase.com?apiKey=\${BK}&sessionId=\${bbSid}\`;
+        const wsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${bbSid}`;
         const result = await new Promise<{ success: boolean; data?: any; error?: string }>((resolve) => {
           let mid = 1;
           let resolved = false;
@@ -2285,7 +2285,7 @@ Deno.serve(async (req) => {
       if (!text) return json({ error: "text required" }, 400);
 
       const escapedText = (text as string).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-      const injectScript = \`
+      const injectScript = `
         (function() {
           // Find the OnlyFans chat input (textarea or contenteditable)
           var input = document.querySelector('textarea[id="new_post_text_input"], .b-chat__input textarea, [class*="chat-input"] textarea, .b-make-post__textarea textarea');
@@ -2299,7 +2299,7 @@ Deno.serve(async (req) => {
           }
           if (!input) return JSON.stringify({ success: false, error: 'Chat input not found' });
 
-          var text = '\${escapedText}';
+          var text = '${escapedText}';
 
           if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
             // Set value via native setter to trigger React/Vue change detection
@@ -2317,10 +2317,10 @@ Deno.serve(async (req) => {
           input.focus();
           return JSON.stringify({ success: true });
         })();
-      \`;
+      `;
 
       try {
-        const wsUrl = \`wss://connect.browserbase.com?apiKey=\${BK}&sessionId=\${bbSid}\`;
+        const wsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${bbSid}`;
         const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
           let mid = 1;
           let resolved = false;
