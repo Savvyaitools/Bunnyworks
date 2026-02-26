@@ -464,6 +464,167 @@ async function aiDetectLoginState(domText: string, currentUrl: string): Promise<
   }
 }
 
+// ========== Reusable CDP Login Check (eliminates 3x code duplication) ==========
+// Uses 2-phase approach: fast CSS selector pre-check, then AI fallback for ambiguous cases.
+// Returns { isLoggedIn, checkResult, domText, pageUrl }
+async function checkLoginViaCDP(
+  apiKey: string,
+  sessionId: string,
+  opts?: { timeout?: number; label?: string }
+): Promise<{ isLoggedIn: boolean; checkResult: string; domText: string; pageUrl: string }> {
+  const label = opts?.label || "Login check";
+  const timeout = opts?.timeout ?? 8000;
+
+  // Phase 1: CDP selector pre-check + capture DOM text & URL
+  const loginCheckData = await new Promise<{ checkResult: string; domText: string; pageUrl: string }>((resolve) => {
+    const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`);
+    let done = false;
+    const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } }, timeout);
+    let mid = 1;
+    let getTargetsId: number | null = null;
+    let attachId: number | null = null;
+    let evalId: number | null = null;
+
+    const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+      const id = mid++;
+      const msg: any = { id, method, params };
+      if (sid) msg.sessionId = sid;
+      ws.send(JSON.stringify(msg));
+      return id;
+    };
+
+    ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.id === getTargetsId) {
+          const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+          if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+          else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); }
+          return;
+        }
+        if (msg.id === attachId) {
+          const sid = msg.result?.sessionId;
+          if (sid) {
+            evalId = send("Runtime.evaluate", {
+              expression: `(function() {
+                var url = window.location.href;
+                var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
+                var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
+                var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
+                var cssResult;
+                if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
+                else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
+                else cssResult = 'ambiguous';
+                var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
+                return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });
+              })()`,
+              returnByValue: true,
+            }, sid);
+          }
+          return;
+        }
+        if (msg.id === evalId) {
+          const val = msg.result?.result?.value || '{"cssResult":"unknown","domText":"","pageUrl":""}';
+          try {
+            const parsed = JSON.parse(val);
+            done = true; clearTimeout(timer); try { ws.close(); } catch {};
+            resolve({ checkResult: parsed.cssResult || "unknown", domText: parsed.domText || "", pageUrl: parsed.pageUrl || "" });
+          } catch {
+            done = true; clearTimeout(timer); try { ws.close(); } catch {};
+            resolve({ checkResult: "unknown", domText: "", pageUrl: "" });
+          }
+          return;
+        }
+      } catch {}
+    };
+    ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
+    ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
+  });
+
+  const { checkResult, domText, pageUrl } = loginCheckData;
+  console.log(`${label}: CSS pre-check=${checkResult} (url: ${pageUrl})`);
+
+  // Phase 2: Resolve login state
+  let isLoggedIn: boolean;
+  if (!domText && !pageUrl) {
+    // CRITICAL: CDP returned empty — fail-open, preserve cookies
+    isLoggedIn = true;
+    console.log(`${label}: CDP returned empty DOM & URL — fail-open, preserving cookies`);
+  } else if (checkResult === "logged_in") {
+    isLoggedIn = true;
+  } else if (checkResult === "not_logged_in") {
+    isLoggedIn = false;
+  } else {
+    // AI fallback for ambiguous/unknown cases
+    console.log(`${label}: Ambiguous, invoking AI detection...`);
+    const aiResult = await aiDetectLoginState(domText, pageUrl);
+    if (aiResult && (aiResult.confidence === "high" || aiResult.confidence === "medium")) {
+      isLoggedIn = aiResult.logged_in;
+      console.log(`${label} AI: logged_in=${aiResult.logged_in}, confidence=${aiResult.confidence}, reason=${aiResult.reason}`);
+    } else {
+      // AI inconclusive — fail-open
+      isLoggedIn = true;
+      console.log(`${label} AI inconclusive (${aiResult?.confidence || "no result"}), defaulting to persist`);
+    }
+  }
+
+  return { isLoggedIn, checkResult, domText, pageUrl };
+}
+
+// ========== CDP Cookie Verification ==========
+// After context restoration, verify that cookies were actually loaded.
+// Returns the count of cookies for the target domain.
+async function verifyCookiesRestored(apiKey: string, sessionId: string, domain: string): Promise<{ cookieCount: number; verified: boolean }> {
+  return new Promise((resolve) => {
+    const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`);
+    let done = false;
+    const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ cookieCount: -1, verified: false }); } }, 6000);
+    let mid = 1;
+    let getTargetsId: number | null = null;
+    let attachId: number | null = null;
+    let getCookiesId: number | null = null;
+
+    const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+      const id = mid++;
+      const msg: any = { id, method, params };
+      if (sid) msg.sessionId = sid;
+      try { ws.send(JSON.stringify(msg)); } catch {}
+      return id;
+    };
+
+    ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.id === getTargetsId) {
+          const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+          if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+          else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ cookieCount: -1, verified: false }); }
+          return;
+        }
+        if (msg.id === attachId) {
+          const sid = msg.result?.sessionId;
+          if (sid) {
+            getCookiesId = send("Network.getCookies", { urls: [`https://${domain}`] }, sid);
+          }
+          return;
+        }
+        if (msg.id === getCookiesId) {
+          const cookies = msg.result?.cookies || [];
+          const count = cookies.length;
+          console.log(`Cookie verification: ${count} cookies found for ${domain}`);
+          done = true; clearTimeout(timer); try { ws.close(); } catch {};
+          resolve({ cookieCount: count, verified: count > 0 });
+          return;
+        }
+      } catch {}
+    };
+    ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ cookieCount: -1, verified: false }); } };
+    ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ cookieCount: -1, verified: false }); } };
+  });
+}
+
 // ========== Wait for session to be RUNNING with retries ==========
 async function waitForSessionReady(apiKey: string, sessionId: string, maxWaitMs = 15000): Promise<boolean> {
   const start = Date.now();
@@ -608,6 +769,29 @@ Deno.serve(async (req) => {
       console.log("Waiting 8s for context cookie restoration...");
       await new Promise(r => setTimeout(r, 8000));
 
+      // Verify cookies were actually restored (for previously authenticated sessions)
+      const wasAuthenticated = existingLink?.session_status === "authenticated" && existingLink?.browserbase_context_id;
+      if (wasAuthenticated) {
+        const platformDomain = platform.toLowerCase() === "onlyfans" ? "onlyfans.com" : platform.toLowerCase() === "fansly" ? "fansly.com" : "fanvue.com";
+        const cookieCheck = await verifyCookiesRestored(BK, sess.id, platformDomain);
+        if (cookieCheck.verified) {
+          console.log(`Cookie restoration verified: ${cookieCheck.cookieCount} cookies for ${platformDomain} ✓`);
+        } else if (cookieCheck.cookieCount === 0) {
+          console.warn(`⚠ NO cookies found for ${platformDomain} after context restoration — context may be empty`);
+          // Insert alert
+          await svc.from("browser_session_events").insert({
+            agency_id: agencyId,
+            browserbase_session_id: sess.id,
+            event_type: "cookie_restoration_failed",
+            severity: "warning",
+            title: "Cookie Restoration Warning",
+            message: `No cookies found for ${platformDomain} after context restoration. The persistent context may be empty or corrupted.`,
+          });
+        } else {
+          console.warn("Cookie verification inconclusive (CDP timeout)");
+        }
+      }
+
       // Set timezone & locale to match proxy geo (no site visits)
       try {
         await preLoginSetup(BK, sess.id, resolvedState);
@@ -627,113 +811,24 @@ Deno.serve(async (req) => {
       }
 
       // ===== POST-NAVIGATION LOGIN VERIFICATION =====
-      // For previously authenticated creators, verify cookies actually restored a logged-in state.
-      // Uses the same 2-phase approach (CSS pre-check + AI fallback) as save_and_close.
+      // Uses reusable checkLoginViaCDP helper (CSS pre-check + AI fallback)
       let adminLoginVerified = true;
-      const wasAuthenticated = existingLink?.session_status === "authenticated" && existingLink?.browserbase_context_id;
       if (wasAuthenticated && startUrl) {
         console.log("Admin session: Verifying login state after navigation...");
         await new Promise(r => setTimeout(r, 3000)); // Wait for page to fully render
         try {
-          const loginCheckData = await new Promise<{ checkResult: string; domText: string; pageUrl: string }>((resolve) => {
-            const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${BK}&sessionId=${sess.id}`);
-            let done = false;
-            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } }, 8000);
-            let mid = 1;
-            let getTargetsId: number | null = null;
-            let attachId: number | null = null;
-            let evalId: number | null = null;
-
-            const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
-              const id = mid++;
-              const msg: any = { id, method, params };
-              if (sid) msg.sessionId = sid;
-              ws.send(JSON.stringify(msg));
-              return id;
-            };
-
-            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
-            ws.onmessage = (evt) => {
-              try {
-                const msg = JSON.parse(evt.data);
-                if (msg.id === getTargetsId) {
-                  const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
-                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
-                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); }
-                  return;
-                }
-                if (msg.id === attachId) {
-                  const sid = msg.result?.sessionId;
-                  if (sid) {
-                    evalId = send("Runtime.evaluate", {
-                      expression: `(function() {
-                        var url = window.location.href;
-                        var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
-                        var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
-                        var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
-                        var cssResult;
-                        if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
-                        else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
-                        else cssResult = 'ambiguous';
-                        var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
-                        return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });
-                      })()`,
-                      returnByValue: true,
-                    }, sid);
-                  }
-                  return;
-                }
-                if (msg.id === evalId) {
-                  const val = msg.result?.result?.value || '{"cssResult":"unknown","domText":"","pageUrl":""}';
-                  try {
-                    const parsed = JSON.parse(val);
-                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
-                    resolve({ checkResult: parsed.cssResult || "unknown", domText: parsed.domText || "", pageUrl: parsed.pageUrl || "" });
-                  } catch {
-                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
-                    resolve({ checkResult: "unknown", domText: "", pageUrl: "" });
-                  }
-                  return;
-                }
-              } catch {}
-            };
-            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
-            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
-          });
-
-          const { checkResult, domText: loginDomText, pageUrl } = loginCheckData;
-          console.log(`Admin login verification: CSS pre-check=${checkResult} (url: ${pageUrl})`);
-
-          if (!loginDomText && !pageUrl) {
-            adminLoginVerified = true; // Fail-open
-            console.log("Admin login check: CDP returned empty — fail-open");
-          } else if (checkResult === "logged_in") {
-            adminLoginVerified = true;
-          } else if (checkResult === "not_logged_in") {
-            adminLoginVerified = false;
-          } else {
-            // AI fallback for ambiguous cases
-            console.log("Admin login state ambiguous, invoking AI detection...");
-            const aiResult = await aiDetectLoginState(loginDomText, pageUrl);
-            if (aiResult && (aiResult.confidence === "high" || aiResult.confidence === "medium")) {
-              adminLoginVerified = aiResult.logged_in;
-              console.log(`AI admin login: logged_in=${aiResult.logged_in}, confidence=${aiResult.confidence}`);
-            } else {
-              adminLoginVerified = true; // Fail-open
-              console.log("AI admin login inconclusive, defaulting to verified");
-            }
-          }
+          const loginResult = await checkLoginViaCDP(BK, sess.id, { label: "Admin login" });
+          adminLoginVerified = loginResult.isLoggedIn;
 
           if (!adminLoginVerified) {
             console.warn(`Admin session: Login NOT verified for creator ${creatorId} — cookies may have expired`);
-            // Create alert event
             await svc.from("browser_session_events").insert({
               agency_id: agencyId,
               browserbase_session_id: sess.id,
               event_type: "login_expired",
               severity: "warning",
               title: "Login Expired",
-              message: `Creator session cookies may have expired. Please re-authenticate. (URL: ${pageUrl})`,
+              message: `Creator session cookies may have expired. Please re-authenticate. (URL: ${loginResult.pageUrl})`,
             });
           }
         } catch (e) {
@@ -777,108 +872,32 @@ Deno.serve(async (req) => {
       const alive = await isSessionAlive(BK, browserbaseSessionId);
 
       // ===== LOGIN CHECK: Verify user is logged in before persisting cookies =====
-      // Uses a two-phase approach: fast CDP selector pre-check, then AI-powered verification
-      // for ambiguous cases. This prevents overwriting valid cookies with blank ones.
+      // Uses reusable checkLoginViaCDP helper. If session is dead, fail-open for 
+      // previously authenticated sessions (can't verify, so preserve existing cookies).
       let isLoggedIn = false;
       if (alive) {
         try {
-          // Phase 1: Fast CDP selector pre-check + capture DOM text & URL for AI
-          const loginCheckData = await new Promise<{ checkResult: string; domText: string; pageUrl: string }>((resolve) => {
-            const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${BK}&sessionId=${browserbaseSessionId}`);
-            let done = false;
-            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } }, 8000);
-            let mid = 1;
-            let getTargetsId: number | null = null;
-            let attachId: number | null = null;
-            let evalId: number | null = null;
-
-            const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
-              const id = mid++;
-              const msg: any = { id, method, params };
-              if (sid) msg.sessionId = sid;
-              ws.send(JSON.stringify(msg));
-              return id;
-            };
-
-            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
-            ws.onmessage = (evt) => {
-              try {
-                const msg = JSON.parse(evt.data);
-                if (msg.id === getTargetsId) {
-                  const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
-                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
-                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); }
-                  return;
-                }
-                if (msg.id === attachId) {
-                  const sid = msg.result?.sessionId;
-                  if (sid) {
-                    evalId = send("Runtime.evaluate", {
-                      expression: `(function() {
-                        var url = window.location.href;
-                        var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
-                        var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
-                        var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
-                        var cssResult;
-                        if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
-                        else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
-                        else cssResult = 'ambiguous';
-                        var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
-                        return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });
-                      })()`,
-                      returnByValue: true,
-                    }, sid);
-                  }
-                  return;
-                }
-                if (msg.id === evalId) {
-                  const val = msg.result?.result?.value || '{"cssResult":"unknown","domText":"","pageUrl":""}';
-                  try {
-                    const parsed = JSON.parse(val);
-                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
-                    resolve({ checkResult: parsed.cssResult || "unknown", domText: parsed.domText || "", pageUrl: parsed.pageUrl || "" });
-                  } catch {
-                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
-                    resolve({ checkResult: "unknown", domText: "", pageUrl: "" });
-                  }
-                  return;
-                }
-              } catch {}
-            };
-            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
-            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
-          });
-
-          const { checkResult, domText: loginDomText, pageUrl } = loginCheckData;
-          console.log(`Login CSS pre-check: ${checkResult} (url: ${pageUrl})`);
-
-          // CRITICAL: If CDP returned empty DOM/URL, the page wasn't readable.
-          // Always fail-open (preserve cookies) — never let empty data trigger "not logged in".
-          if (!loginDomText && !pageUrl) {
-            isLoggedIn = true;
-            console.log("Login check: CDP returned empty DOM & URL — fail-open, preserving cookies");
-          } else if (checkResult === "logged_in") {
-            isLoggedIn = true;
-          } else if (checkResult === "not_logged_in") {
-            isLoggedIn = false;
-          } else {
-            // Phase 2: Ambiguous/unknown — use AI to determine login state
-            console.log("Login state ambiguous, invoking AI detection...");
-            const aiResult = await aiDetectLoginState(loginDomText, pageUrl);
-            if (aiResult && (aiResult.confidence === "high" || aiResult.confidence === "medium")) {
-              isLoggedIn = aiResult.logged_in;
-              console.log(`AI login detection: logged_in=${aiResult.logged_in}, confidence=${aiResult.confidence}, reason=${aiResult.reason}`);
-            } else {
-              // AI inconclusive — fail-open to preserve session
-              isLoggedIn = true;
-              console.log(`AI login detection inconclusive (${aiResult?.confidence || "no result"}), defaulting to persist`);
-            }
-          }
-
-          console.log(`Save & Close: login state = ${checkResult}${checkResult === "ambiguous" ? " (AI-resolved)" : ""}, will ${isLoggedIn ? "PERSIST" : "SKIP PERSIST"} cookies`);
+          const loginResult = await checkLoginViaCDP(BK, browserbaseSessionId, { label: "Save & Close" });
+          isLoggedIn = loginResult.isLoggedIn;
+          console.log(`Save & Close: login=${loginResult.checkResult}, will ${isLoggedIn ? "PERSIST" : "SKIP PERSIST"} cookies`);
         } catch (e) {
           console.warn("Login check failed, defaulting to persist:", e);
           isLoggedIn = true; // Fail-open: persist if we can't determine
+        }
+      } else {
+        // CRITICAL: Session is dead — we can't check login state.
+        // If the session was previously authenticated, fail-open to preserve existing context.
+        // Browserbase already released cookies when the session died, but we should
+        // keep the DB status as "authenticated" rather than downgrading it.
+        const { data: prevLink } = await svc.from("creator_session_links")
+          .select("session_status")
+          .eq("id", sessionLinkId)
+          .single();
+        if (prevLink?.session_status === "authenticated") {
+          isLoggedIn = true; // Fail-open: preserve authenticated status
+          console.log("Save & Close: Session dead but was previously authenticated — preserving status");
+        } else {
+          console.log("Save & Close: Session dead and not previously authenticated — no persist");
         }
       }
 
@@ -1446,7 +1465,7 @@ Deno.serve(async (req) => {
         console.warn("Chatter pre-login setup failed (non-fatal):", e);
       }
 
-      // Navigate via CDP + 2-phase login verification (CSS pre-check + AI fallback)
+      // Navigate via CDP + login verification using reusable helper
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
       let loginVerified = true;
       if (chatterStartUrl) {
@@ -1456,95 +1475,9 @@ Deno.serve(async (req) => {
           // Wait for page to render before checking login state
           await new Promise(r => setTimeout(r, 3000));
           
-          // 2-phase login verification (same as save_and_close)
-          const loginCheckData = await new Promise<{ checkResult: string; domText: string; pageUrl: string }>((resolve) => {
-            const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${BK}&sessionId=${sess.id}`);
-            let done = false;
-            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } }, 8000);
-            let mid = 1;
-            let getTargetsId: number | null = null;
-            let attachId: number | null = null;
-            let evalId: number | null = null;
-
-            const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
-              const id = mid++;
-              const msg: any = { id, method, params };
-              if (sid) msg.sessionId = sid;
-              ws.send(JSON.stringify(msg));
-              return id;
-            };
-
-            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
-            ws.onmessage = (evt) => {
-              try {
-                const msg = JSON.parse(evt.data);
-                if (msg.id === getTargetsId) {
-                  const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
-                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
-                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); }
-                  return;
-                }
-                if (msg.id === attachId) {
-                  const sid = msg.result?.sessionId;
-                  if (sid) {
-                    evalId = send("Runtime.evaluate", {
-                      expression: `(function() {
-                        var url = window.location.href;
-                        var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
-                        var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
-                        var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
-                        var cssResult;
-                        if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
-                        else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
-                        else cssResult = 'ambiguous';
-                        var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
-                        return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });
-                      })()`,
-                      returnByValue: true,
-                    }, sid);
-                  }
-                  return;
-                }
-                if (msg.id === evalId) {
-                  const val = msg.result?.result?.value || '{"cssResult":"unknown","domText":"","pageUrl":""}';
-                  try {
-                    const parsed = JSON.parse(val);
-                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
-                    resolve({ checkResult: parsed.cssResult || "unknown", domText: parsed.domText || "", pageUrl: parsed.pageUrl || "" });
-                  } catch {
-                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
-                    resolve({ checkResult: "unknown", domText: "", pageUrl: "" });
-                  }
-                  return;
-                }
-              } catch {}
-            };
-            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
-            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
-          });
-
-          const { checkResult, domText: loginDomText, pageUrl } = loginCheckData;
-          console.log(`Chatter login verification: CSS pre-check=${checkResult} (url: ${pageUrl})`);
-
-          if (!loginDomText && !pageUrl) {
-            loginVerified = true; // Fail-open
-            console.log("Chatter login check: CDP returned empty — fail-open");
-          } else if (checkResult === "logged_in") {
-            loginVerified = true;
-          } else if (checkResult === "not_logged_in") {
-            loginVerified = false;
-          } else {
-            // AI fallback for ambiguous cases
-            console.log("Chatter login state ambiguous, invoking AI detection...");
-            const aiResult = await aiDetectLoginState(loginDomText, pageUrl);
-            if (aiResult && (aiResult.confidence === "high" || aiResult.confidence === "medium")) {
-              loginVerified = aiResult.logged_in;
-              console.log(`AI chatter login: logged_in=${aiResult.logged_in}, confidence=${aiResult.confidence}`);
-            } else {
-              loginVerified = true; // Fail-open
-              console.log("AI chatter login inconclusive, defaulting to verified");
-            }
-          }
+          // 2-phase login verification via reusable helper
+          const loginResult = await checkLoginViaCDP(BK, sess.id, { label: "Chatter login" });
+          loginVerified = loginResult.isLoggedIn;
 
           if (!loginVerified) {
             console.warn(`Chatter login verification failed for creator ${link.creator_id}`);
@@ -1560,7 +1493,7 @@ Deno.serve(async (req) => {
               event_type: "login_expired",
               severity: "warning",
               title: "Login Expired",
-              message: `Creator session needs re-authentication. Detected: ${checkResult} (url: ${pageUrl})`,
+              message: `Creator session needs re-authentication. Detected: ${loginResult.checkResult} (url: ${loginResult.pageUrl})`,
             });
           }
         } catch (e) {
@@ -1577,13 +1510,13 @@ Deno.serve(async (req) => {
       return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags, joined: false, viewerCount: 1, loginVerified });
     }
 
-    // ========== VIEWER-AWARE TERMINATE ==========
+    // ========== VIEWER-AWARE TERMINATE (with cookie-safe release) ==========
     if (action === "terminate_session") {
       const { browserbaseSessionId, chatterId: terminatingChatterId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
 
       const { data: session } = await svc.from("active_browser_sessions")
-        .select("id, viewer_count, viewer_ids")
+        .select("id, viewer_count, viewer_ids, session_link_id, session_type")
         .eq("browserbase_session_id", browserbaseSessionId)
         .eq("is_active", true)
         .maybeSingle();
@@ -1595,9 +1528,27 @@ Deno.serve(async (req) => {
         const newViewerCount = Math.max(0, updatedViewerIds.length);
 
         if (newViewerCount <= 0) {
-          try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
+          // Last viewer leaving — release session WITH cookie persistence
+          // Always persist cookies on terminate (user was actively using the session)
+          try { 
+            await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { 
+              method: "POST", headers: bbH(BK), 
+              body: JSON.stringify({ status: "REQUEST_RELEASE" }) // persist: true by default
+            }); 
+            console.log(`Last viewer left — session ${browserbaseSessionId} released with cookie persistence ✓`);
+          } catch {}
           await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", session.id);
-          console.log(`Last viewer left — session ${browserbaseSessionId} released`);
+
+          // Update last_saved_at on session link to track cookie freshness
+          if (session.session_link_id) {
+            await svc.from("creator_session_links").update({ 
+              last_saved_at: new Date().toISOString(),
+              browserbase_session_id: null,
+              browserbase_live_url: null,
+              updated_at: new Date().toISOString(),
+            }).eq("id", session.session_link_id);
+            console.log(`Updated last_saved_at for session link ${session.session_link_id}`);
+          }
         } else {
           await svc.from("active_browser_sessions").update({ viewer_count: newViewerCount, viewer_ids: updatedViewerIds }).eq("id", session.id);
           console.log(`Viewer ${viewerId} left session ${browserbaseSessionId} (${newViewerCount} remaining)`);
