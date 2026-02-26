@@ -605,8 +605,8 @@ Deno.serve(async (req) => {
 
       // Allow Browserbase time to fully restore persistent context (cookies, localStorage)
       // Without this delay, CDP connections can race ahead of cookie restoration
-      console.log("Waiting 5s for context cookie restoration...");
-      await new Promise(r => setTimeout(r, 5000));
+      console.log("Waiting 8s for context cookie restoration...");
+      await new Promise(r => setTimeout(r, 8000));
 
       // Set timezone & locale to match proxy geo (no site visits)
       try {
@@ -626,18 +626,138 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ===== POST-NAVIGATION LOGIN VERIFICATION =====
+      // For previously authenticated creators, verify cookies actually restored a logged-in state.
+      // Uses the same 2-phase approach (CSS pre-check + AI fallback) as save_and_close.
+      let adminLoginVerified = true;
+      const wasAuthenticated = existingLink?.session_status === "authenticated" && existingLink?.browserbase_context_id;
+      if (wasAuthenticated && startUrl) {
+        console.log("Admin session: Verifying login state after navigation...");
+        await new Promise(r => setTimeout(r, 3000)); // Wait for page to fully render
+        try {
+          const loginCheckData = await new Promise<{ checkResult: string; domText: string; pageUrl: string }>((resolve) => {
+            const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${BK}&sessionId=${sess.id}`);
+            let done = false;
+            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } }, 8000);
+            let mid = 1;
+            let getTargetsId: number | null = null;
+            let attachId: number | null = null;
+            let evalId: number | null = null;
+
+            const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+              const id = mid++;
+              const msg: any = { id, method, params };
+              if (sid) msg.sessionId = sid;
+              ws.send(JSON.stringify(msg));
+              return id;
+            };
+
+            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+            ws.onmessage = (evt) => {
+              try {
+                const msg = JSON.parse(evt.data);
+                if (msg.id === getTargetsId) {
+                  const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); }
+                  return;
+                }
+                if (msg.id === attachId) {
+                  const sid = msg.result?.sessionId;
+                  if (sid) {
+                    evalId = send("Runtime.evaluate", {
+                      expression: `(function() {
+                        var url = window.location.href;
+                        var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
+                        var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
+                        var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
+                        var cssResult;
+                        if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
+                        else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
+                        else cssResult = 'ambiguous';
+                        var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
+                        return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });
+                      })()`,
+                      returnByValue: true,
+                    }, sid);
+                  }
+                  return;
+                }
+                if (msg.id === evalId) {
+                  const val = msg.result?.result?.value || '{"cssResult":"unknown","domText":"","pageUrl":""}';
+                  try {
+                    const parsed = JSON.parse(val);
+                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
+                    resolve({ checkResult: parsed.cssResult || "unknown", domText: parsed.domText || "", pageUrl: parsed.pageUrl || "" });
+                  } catch {
+                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
+                    resolve({ checkResult: "unknown", domText: "", pageUrl: "" });
+                  }
+                  return;
+                }
+              } catch {}
+            };
+            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
+            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
+          });
+
+          const { checkResult, domText: loginDomText, pageUrl } = loginCheckData;
+          console.log(`Admin login verification: CSS pre-check=${checkResult} (url: ${pageUrl})`);
+
+          if (!loginDomText && !pageUrl) {
+            adminLoginVerified = true; // Fail-open
+            console.log("Admin login check: CDP returned empty — fail-open");
+          } else if (checkResult === "logged_in") {
+            adminLoginVerified = true;
+          } else if (checkResult === "not_logged_in") {
+            adminLoginVerified = false;
+          } else {
+            // AI fallback for ambiguous cases
+            console.log("Admin login state ambiguous, invoking AI detection...");
+            const aiResult = await aiDetectLoginState(loginDomText, pageUrl);
+            if (aiResult && (aiResult.confidence === "high" || aiResult.confidence === "medium")) {
+              adminLoginVerified = aiResult.logged_in;
+              console.log(`AI admin login: logged_in=${aiResult.logged_in}, confidence=${aiResult.confidence}`);
+            } else {
+              adminLoginVerified = true; // Fail-open
+              console.log("AI admin login inconclusive, defaulting to verified");
+            }
+          }
+
+          if (!adminLoginVerified) {
+            console.warn(`Admin session: Login NOT verified for creator ${creatorId} — cookies may have expired`);
+            // Create alert event
+            await svc.from("browser_session_events").insert({
+              agency_id: agencyId,
+              browserbase_session_id: sess.id,
+              event_type: "login_expired",
+              severity: "warning",
+              title: "Login Expired",
+              message: `Creator session cookies may have expired. Please re-authenticate. (URL: ${pageUrl})`,
+            });
+          }
+        } catch (e) {
+          console.warn("Admin login verification failed (non-fatal):", e);
+        }
+      }
+
       // Get embed URL
       await new Promise(r => setTimeout(r, 1500));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       
       let slId: string;
-      // If the creator is already authenticated (has saved cookies in context),
-      // keep status as "authenticated" so the owner gets a logged-in view.
-      // Only use "authenticating" for fresh/never-authenticated sessions.
-      const preserveAuth = existingLink?.session_status === "authenticated" && existingLink?.browserbase_context_id;
-      const newStatus = preserveAuth ? "authenticated" : "authenticating";
-      console.log(`Admin session: creator=${creatorId}, previousStatus=${existingLink?.session_status || "none"}, newStatus=${newStatus}, contextReused=${!!preserveAuth}`);
+      // Determine session status based on login verification
+      // If previously authenticated and login verified → keep "authenticated"
+      // If previously authenticated but login FAILED → set "pending" (needs re-auth)
+      // If new session → "authenticating"
+      let newStatus: string;
+      if (wasAuthenticated) {
+        newStatus = adminLoginVerified ? "authenticated" : "pending";
+      } else {
+        newStatus = "authenticating";
+      }
+      console.log(`Admin session: creator=${creatorId}, previousStatus=${existingLink?.session_status || "none"}, newStatus=${newStatus}, loginVerified=${adminLoginVerified}`);
       if (existingLink) {
         const { data } = await svc.from("creator_session_links").update({ browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: newStatus, is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(), updated_at: new Date().toISOString() }).eq("id", existingLink.id).select("id").single();
         slId = data!.id;
@@ -646,7 +766,7 @@ Deno.serve(async (req) => {
         slId = data!.id;
       }
       await svc.from("active_browser_sessions").insert({ session_link_id: slId, agency_id: agencyId, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "admin", viewer_count: 1, viewer_ids: [uid] });
-      return json({ success: true, sessionLinkId: slId, embedUrl: liveUrl, sessionId: sess.id, contextId: ctxId });
+      return json({ success: true, sessionLinkId: slId, embedUrl: liveUrl, sessionId: sess.id, contextId: ctxId, loginVerified: adminLoginVerified });
     }
 
     // ========== SAVE AND CLOSE ==========
@@ -1316,8 +1436,8 @@ Deno.serve(async (req) => {
       }
 
       // Allow Browserbase time to fully restore persistent context (cookies, localStorage)
-      console.log("Waiting 5s for context cookie restoration (chatter)...");
-      await new Promise(r => setTimeout(r, 5000));
+      console.log("Waiting 8s for context cookie restoration (chatter)...");
+      await new Promise(r => setTimeout(r, 8000));
 
       // Set timezone & locale to match proxy geo (no site visits)
       try {
@@ -1326,50 +1446,125 @@ Deno.serve(async (req) => {
         console.warn("Chatter pre-login setup failed (non-fatal):", e);
       }
 
-      // Navigate via CDP + DOM-based login verification
+      // Navigate via CDP + 2-phase login verification (CSS pre-check + AI fallback)
+      const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
       let loginVerified = true;
       if (chatterStartUrl) {
         try {
-          const navResult = await navigateViaCDP(BK, sess.id, chatterStartUrl, {
-            timeout: 25000,
-            evaluate: `(function() {
-              var url = window.location.href;
-              var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg');
-              var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"]');
-              var onLoginPage = url.includes('/login') || url.includes('/signup');
-              if (hasNav && !hasLoginForm && !onLoginPage) return JSON.stringify({ isLoggedIn: true, indicator: 'nav_elements_present' });
-              if (hasLoginForm || onLoginPage) return JSON.stringify({ isLoggedIn: false, indicator: hasLoginForm ? 'login_form_found' : 'login_url_detected' });
-              return JSON.stringify({ isLoggedIn: true, indicator: 'no_login_indicators' });
-            })()`,
+          await navigateViaCDP(BK, sess.id, chatterStartUrl, { timeout: 25000 });
+          
+          // Wait for page to render before checking login state
+          await new Promise(r => setTimeout(r, 3000));
+          
+          // 2-phase login verification (same as save_and_close)
+          const loginCheckData = await new Promise<{ checkResult: string; domText: string; pageUrl: string }>((resolve) => {
+            const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${BK}&sessionId=${sess.id}`);
+            let done = false;
+            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } }, 8000);
+            let mid = 1;
+            let getTargetsId: number | null = null;
+            let attachId: number | null = null;
+            let evalId: number | null = null;
+
+            const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+              const id = mid++;
+              const msg: any = { id, method, params };
+              if (sid) msg.sessionId = sid;
+              ws.send(JSON.stringify(msg));
+              return id;
+            };
+
+            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+            ws.onmessage = (evt) => {
+              try {
+                const msg = JSON.parse(evt.data);
+                if (msg.id === getTargetsId) {
+                  const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+                  else { done = true; clearTimeout(timer); try { ws.close(); } catch {} resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); }
+                  return;
+                }
+                if (msg.id === attachId) {
+                  const sid = msg.result?.sessionId;
+                  if (sid) {
+                    evalId = send("Runtime.evaluate", {
+                      expression: `(function() {
+                        var url = window.location.href;
+                        var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
+                        var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
+                        var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
+                        var cssResult;
+                        if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
+                        else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
+                        else cssResult = 'ambiguous';
+                        var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
+                        return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });
+                      })()`,
+                      returnByValue: true,
+                    }, sid);
+                  }
+                  return;
+                }
+                if (msg.id === evalId) {
+                  const val = msg.result?.result?.value || '{"cssResult":"unknown","domText":"","pageUrl":""}';
+                  try {
+                    const parsed = JSON.parse(val);
+                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
+                    resolve({ checkResult: parsed.cssResult || "unknown", domText: parsed.domText || "", pageUrl: parsed.pageUrl || "" });
+                  } catch {
+                    done = true; clearTimeout(timer); try { ws.close(); } catch {};
+                    resolve({ checkResult: "unknown", domText: "", pageUrl: "" });
+                  }
+                  return;
+                }
+              } catch {}
+            };
+            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
+            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({ checkResult: "unknown", domText: "", pageUrl: "" }); } };
           });
 
-          if (navResult.success && navResult.result) {
-            try {
-              const loginState = JSON.parse(navResult.result as string);
-              loginVerified = loginState.isLoggedIn;
-              if (!loginVerified) {
-                console.warn(`Login verification failed for creator ${link.creator_id}: ${loginState.indicator}`);
-                await svc.from("creator_session_links").update({
-                  session_status: "pending",
-                  updated_at: new Date().toISOString(),
-                }).eq("id", sessionLinkId);
+          const { checkResult, domText: loginDomText, pageUrl } = loginCheckData;
+          console.log(`Chatter login verification: CSS pre-check=${checkResult} (url: ${pageUrl})`);
 
-                await svc.from("browser_session_events").insert({
-                  agency_id: link.agency_id,
-                  session_link_id: sessionLinkId,
-                  browserbase_session_id: sess.id,
-                  event_type: "login_expired",
-                  severity: "warning",
-                  title: "Login Expired",
-                  message: `Creator session needs re-authentication. Detected: ${loginState.indicator}`,
-                });
-              }
-            } catch {
-              console.warn("Login state parse failed (non-fatal)");
+          if (!loginDomText && !pageUrl) {
+            loginVerified = true; // Fail-open
+            console.log("Chatter login check: CDP returned empty — fail-open");
+          } else if (checkResult === "logged_in") {
+            loginVerified = true;
+          } else if (checkResult === "not_logged_in") {
+            loginVerified = false;
+          } else {
+            // AI fallback for ambiguous cases
+            console.log("Chatter login state ambiguous, invoking AI detection...");
+            const aiResult = await aiDetectLoginState(loginDomText, pageUrl);
+            if (aiResult && (aiResult.confidence === "high" || aiResult.confidence === "medium")) {
+              loginVerified = aiResult.logged_in;
+              console.log(`AI chatter login: logged_in=${aiResult.logged_in}, confidence=${aiResult.confidence}`);
+            } else {
+              loginVerified = true; // Fail-open
+              console.log("AI chatter login inconclusive, defaulting to verified");
             }
           }
+
+          if (!loginVerified) {
+            console.warn(`Chatter login verification failed for creator ${link.creator_id}`);
+            await svc.from("creator_session_links").update({
+              session_status: "pending",
+              updated_at: new Date().toISOString(),
+            }).eq("id", sessionLinkId);
+
+            await svc.from("browser_session_events").insert({
+              agency_id: link.agency_id,
+              session_link_id: sessionLinkId,
+              browserbase_session_id: sess.id,
+              event_type: "login_expired",
+              severity: "warning",
+              title: "Login Expired",
+              message: `Creator session needs re-authentication. Detected: ${checkResult} (url: ${pageUrl})`,
+            });
+          }
         } catch (e) {
-          console.warn("CDP chatter nav failed (non-fatal):", e);
+          console.warn("CDP chatter nav/verification failed (non-fatal):", e);
         }
       }
 
