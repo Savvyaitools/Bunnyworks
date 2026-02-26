@@ -564,6 +564,19 @@ Deno.serve(async (req) => {
               browserbase_live_url: null,
               updated_at: new Date().toISOString(),
             }).eq("id", existingLink.id);
+            // Update local variable so preserveAuth check below sees the recovered status
+            existingLink.session_status = "authenticated";
+          } else {
+            // Session is still alive — prevent duplicate admin session launch
+            console.log(`Admin session already active for creator ${creatorId}, returning existing session`);
+            const { data: existingActive } = await svc.from("active_browser_sessions")
+              .select("embed_url")
+              .eq("browserbase_session_id", existingLink.browserbase_session_id)
+              .eq("is_active", true)
+              .maybeSingle();
+            if (existingActive) {
+              return json({ success: true, sessionLinkId: existingLink.id, embedUrl: existingActive.embed_url, sessionId: existingLink.browserbase_session_id, contextId: existingLink.browserbase_context_id, reused: true });
+            }
           }
         }
       }
