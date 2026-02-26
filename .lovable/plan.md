@@ -1,128 +1,64 @@
 
 
-# AI-Powered Earnings Scraping and Login Detection
+# Browser Session Workflow — Safety-First Architecture
 
-## Problem
-Stagehand (the Browserbase AI automation framework) requires Playwright or Puppeteer, which depend on Node.js and cannot run in the Deno edge runtime used by this project's backend functions. Direct integration is not possible.
+## Priority Order
+1. **Account Safety** — Never overwrite valid cookies; fail-open on ambiguous states
+2. **Logged-In Sessions** — Verify login state at every session boundary (launch, close, chatter join)
+3. **Analytics Import** — Auto-scrape earnings on save_and_close; periodic cron scraping
 
-## Solution: "Stagehand-equivalent" using Lovable AI + CDP
-Instead of importing Stagehand as a library, we build the same AI-powered intelligence by combining the existing CDP infrastructure with Lovable AI (Gemini) calls. This gives us:
-- AI-powered structured data extraction (like Stagehand's `extract()`)
-- AI-powered login detection (like Stagehand's `observe()`)
-- No Node.js dependency -- runs entirely in Deno edge functions
+## Session Lifecycle
 
-## Architecture
-
-```text
-+---------------------------+       +-------------------+
-| browserbase-session (Deno)|       | Lovable AI Gateway|
-|                           |       | (Gemini Flash)    |
-|  CDP WebSocket            |       |                   |
-|    |                      |       |                   |
-|    +-> Get DOM text ------+------>| "Extract earnings"|
-|    +-> Get page URL       |       | Returns JSON      |
-|    +-> Check elements ----|------>| "Is user logged   |
-|                           |<------+  in?"             |
-+---------------------------+       +-------------------+
+### Admin Session Launch (`create_admin_session`)
+```
+1. Resolve/create persistent browser context
+2. Create Browserbase session (advancedStealth, geo-matched proxy)
+3. Wait for RUNNING state (up to 20s)
+4. Wait 8s for cookie/localStorage restoration ← increased from 5s
+5. Set timezone & locale via CDP (preLoginSetup)
+6. Navigate to platform URL via CDP
+7. NEW: 2-phase login verification (CSS selectors + AI fallback)
+   - If previously authenticated but login fails → set status "pending", create alert event
+   - If ambiguous/empty CDP data → fail-open (preserve cookies)
+8. Get embed URL, persist to DB
 ```
 
-## Changes
-
-### 1. Create helper: AI extraction via Lovable AI
-Add two async functions inside `browserbase-session/index.ts`:
-
-**`aiExtractEarnings(domText: string)`**
-- Sends the raw DOM text (up to 8000 chars) to Lovable AI Gateway (`google/gemini-2.5-flash`)
-- System prompt instructs the model to extract structured earnings data
-- Uses tool calling to return a typed JSON object: `{ total, tips, subscriptions, messages, referrals, posts }`
-- Falls back gracefully to 0 values if AI can't parse
-
-**`aiDetectLoginState(domText: string, currentUrl: string)`**
-- Sends DOM text + URL to Lovable AI
-- System prompt asks: "Is this user logged into OnlyFans?"
-- Uses tool calling to return: `{ logged_in: boolean, confidence: "high" | "medium" | "low", reason: string }`
-- Only trusts "high" or "medium" confidence results
-
-### 2. Refactor earnings scraper in `save_and_close`
-Current flow: CDP Network interception (XHR) -> DOM text polling -> regex parsing
-
-New flow:
-1. CDP Network interception (XHR) -- kept as primary, fastest path
-2. If XHR fails, get DOM text via CDP (existing)
-3. **New**: Send DOM text to `aiExtractEarnings()` instead of regex parsing
-4. Regex parsing kept as final fallback if AI call fails
-
-This replaces ~70 lines of brittle regex parsing with a single AI call.
-
-### 3. Refactor login detection in `save_and_close`
-Current flow: CDP evaluate checks for specific CSS selectors (`.b-sidebar`, `.l-header__menu`, `form.b-loginreg`)
-
-New flow:
-1. Get DOM text + current URL via CDP (existing evaluate)
-2. **New**: Send to `aiDetectLoginState()` for AI-powered determination
-3. CSS selector check kept as fast pre-check; AI used for ambiguous cases
-
-This makes login detection resilient to OnlyFans UI changes that break CSS selectors.
-
-### 4. Configuration
-- Uses the already-configured `LOVABLE_API_KEY` secret (auto-provisioned)
-- Model: `google/gemini-2.5-flash` (fast, cheap, good for structured extraction)
-- No new secrets or dependencies needed
-
-## Technical Details
-
-### AI Extraction Function
+### Chatter Session Launch (`launch_chatter_session`)
 ```
-POST https://ai.gateway.lovable.dev/v1/chat/completions
-Authorization: Bearer $LOVABLE_API_KEY
-
-{
-  model: "google/gemini-2.5-flash",
-  messages: [
-    { role: "system", content: "Extract OnlyFans earnings..." },
-    { role: "user", content: domText }
-  ],
-  tools: [{
-    type: "function",
-    function: {
-      name: "report_earnings",
-      parameters: {
-        type: "object",
-        properties: {
-          total: { type: "number" },
-          tips: { type: "number" },
-          subscriptions: { type: "number" },
-          messages: { type: "number" },
-          referrals: { type: "number" },
-          posts: { type: "number" }
-        }
-      }
-    }
-  }],
-  tool_choice: { type: "function", function: { name: "report_earnings" } }
-}
+1. Verify permissions (employee_of_permissions)
+2. Check for existing active session (pooling: shared/exclusive mode)
+3. Create new Browserbase session with saved context
+4. Wait for RUNNING state (up to 20s)
+5. Wait 8s for cookie restoration ← increased from 5s
+6. Set timezone & locale via CDP
+7. Navigate to platform URL via CDP
+8. UPGRADED: 2-phase login verification (CSS + AI fallback) ← was CSS-only
+   - Fixed: chatterStartUrl was undefined → now uses PLATFORM_URLS[platform]
+   - If login fails → set status "pending", create alert event
+9. Get embed URL, persist to DB
 ```
 
-### Login Detection Function
-Same pattern but with a `detect_login_state` tool returning `{ logged_in, confidence, reason }`.
+### Save & Close (`save_and_close`)
+```
+1. 2-phase login verification (CSS pre-check + AI fallback)
+   - Empty CDP data → fail-open (preserve cookies)
+   - CSS "logged_in" → persist
+   - CSS "not_logged_in" → skip persist (protect existing cookies)
+   - CSS "ambiguous" → AI detection via Gemini-2.5-flash
+2. CDP earnings scrape (XHR interception → AI extraction → regex fallback)
+3. Upsert earnings to creator_earnings table
+4. Release session: REQUEST_RELEASE with persist=true (logged in) or persist=false (not logged in)
+```
 
-### Error Handling
-- AI calls wrapped in try/catch with 10-second timeout
-- If AI gateway returns 429 (rate limit) or 402 (credits), falls back to regex/CSS selector logic
-- AI failures are non-fatal -- the existing parsing code runs as fallback
+## AI-Powered Helpers
+- `aiDetectLoginState(domText, url)` → `{ logged_in, confidence, reason }`
+- `aiExtractEarnings(domText)` → `{ total, tips, subscriptions, messages, referrals, posts }`
+- Model: `google/gemini-2.5-flash` via Lovable AI Gateway
+- 10s timeout, graceful fallback on failure
 
-### Cost Impact
-- ~2 AI calls per session close (extraction + login check)
-- Using `gemini-2.5-flash` (cheapest capable model)
-- Estimated cost: negligible per session
-
-## Files Modified
-- `supabase/functions/browserbase-session/index.ts` -- Add AI helper functions, refactor earnings parsing and login detection
-
-## What This Does NOT Change
-- CDP WebSocket infrastructure (unchanged)
-- Network XHR interception (kept as primary strategy)
-- Session lifecycle (create, launch, terminate)
-- Database schema (no migrations needed)
-- Frontend code (no UI changes)
-
+## Key Safety Mechanisms
+1. **Fail-open on empty CDP data** — If CDP returns no DOM/URL, always preserve cookies
+2. **8-second cookie restoration wait** — Prevents racing ahead of Browserbase context restore
+3. **Login alerts** — `browser_session_events` with `login_expired` type for monitoring
+4. **No-persist guard** — save_and_close only persists cookies when login is confirmed
+5. **Stuck session recovery** — `check_and_recover_sessions` auto-heals dead sessions
