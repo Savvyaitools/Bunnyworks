@@ -139,18 +139,7 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
   });
 
   const handleSync = async () => {
-    setSyncing(true);
-    try {
-      const response = await supabase.functions.invoke("sync-onlyfans-earnings");
-      if (response.error) throw response.error;
-      toast.success("Earnings synced successfully");
-      refetch();
-    } catch (error) {
-      toast.error("Failed to sync earnings");
-      console.error(error);
-    } finally {
-      setSyncing(false);
-    }
+    toast.info("Earnings are now synced automatically via browser sessions.");
   };
 
   if (isLoading) {
