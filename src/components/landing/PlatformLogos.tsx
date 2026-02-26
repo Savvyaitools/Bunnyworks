@@ -1,15 +1,13 @@
 import { motion } from "framer-motion";
 import { Marquee } from "./AnimationPrimitives";
+import onlyfansIcon from "@/assets/platform-icons/onlyfans.png";
+import fanslyIcon from "@/assets/platform-icons/fansly.png";
+import fanvueIcon from "@/assets/platform-icons/fanvue.png";
 
 const platforms = [
-  { name: "OnlyFans", color: "#00AFF0", icon: "OF" },
-  { name: "Fansly", color: "#1DA1F2", icon: "F" },
-  { name: "Fanvue", color: "#8B5CF6", icon: "FV" },
-  { name: "Reddit", color: "#FF4500", icon: "R" },
-  { name: "Instagram", color: "#E4405F", icon: "IG" },
-  { name: "TikTok", color: "#00F2EA", icon: "TT" },
-  { name: "X / Twitter", color: "#FFFFFF", icon: "𝕏" },
-  { name: "Snapchat", color: "#FFFC00", icon: "SC" },
+  { name: "OnlyFans", color: "#00AFF0", icon: onlyfansIcon },
+  { name: "Fansly", color: "#1DA1F2", icon: fanslyIcon },
+  { name: "Fanvue", color: "#8B5CF6", icon: fanvueIcon },
 ];
 
 const trustItems = [
@@ -31,10 +29,10 @@ function PlatformBadge({ p }: { p: typeof platforms[0] }) {
       transition={{ type: "spring", stiffness: 400, damping: 20 }}
     >
       <div
-        className="w-7 h-7 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center text-[10px] sm:text-xs lg:text-sm font-bold transition-all duration-300 group-hover:shadow-lg"
-        style={{ backgroundColor: `${p.color}20`, color: p.color }}
+        className="w-7 h-7 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:shadow-lg overflow-hidden"
+        style={{ backgroundColor: `${p.color}20` }}
       >
-        {p.icon}
+        <img src={p.icon} alt={p.name} className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 object-contain" />
       </div>
       <span className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground group-hover:text-foreground transition-colors font-medium hidden sm:inline">
         {p.name}
