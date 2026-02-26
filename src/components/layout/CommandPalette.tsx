@@ -21,7 +21,7 @@ import {
   Settings,
   UserPlus,
   CalendarClock,
-  Upload,
+  
   ClipboardList,
   Globe,
   Search,
@@ -51,7 +51,7 @@ const commandItems = [
   { label: "Tatum (Social Media)", icon: Share2, path: "/coach/social-media", group: "Coach PBF" },
   { label: "Jodie (AI Chatter)", icon: MessagesSquare, path: "/coach/ai-chatter", group: "Coach PBF" },
   { label: "SOP Library", icon: BookOpen, path: "/sop", group: "Resources" },
-  { label: "Data Import", icon: Upload, path: "/data-import", group: "Resources" },
+  
   { label: "User Guide", icon: HelpCircle, path: "/guide", group: "Resources" },
   { label: "Notifications", icon: Bell, path: "/notifications", group: "Settings" },
   { label: "Settings", icon: Settings, path: "/settings", group: "Settings" },

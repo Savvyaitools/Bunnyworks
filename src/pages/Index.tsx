@@ -191,21 +191,7 @@ const Index = () => {
   const agencyEarnings = revenueData?.agencyEarnings || 0;
 
   const handleSyncNow = async () => {
-    setSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("sync-onlyfans-earnings");
-      if (error) throw error;
-      toast.success(`Sync complete: ${data.success} accounts synced`);
-      queryClient.invalidateQueries({ queryKey: ["total-revenue", agencyId] });
-      queryClient.invalidateQueries({ queryKey: ["today-ofm-stats", agencyId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", agencyId] });
-      queryClient.invalidateQueries({ queryKey: ["creators-count", agencyId] });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Sync failed";
-      toast.error(message);
-    } finally {
-      setSyncing(false);
-    }
+    toast.info("Earnings are now synced automatically via browser sessions.");
   };
 
   return (

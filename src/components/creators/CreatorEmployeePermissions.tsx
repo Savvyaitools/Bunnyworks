@@ -80,21 +80,7 @@ export function CreatorEmployeePermissions({ creatorId }: CreatorEmployeePermiss
   };
 
   const handleSync = async () => {
-    if (!ofAccount?.of_account_id) return;
-    
-    setSyncing(true);
-    try {
-      const { error } = await supabase.functions.invoke("sync-onlyfans-data", {
-        body: { accountId: ofAccount.of_account_id },
-      });
-      
-      if (error) throw error;
-      toast.success("OnlyFans data synced successfully!");
-    } catch (err: any) {
-      toast.error(`Sync failed: ${err.message}`);
-    } finally {
-      setSyncing(false);
-    }
+    toast.info("Data is now synced automatically via browser sessions.");
   };
 
   const loading = employeesLoading || permissionsLoading || accountsLoading;

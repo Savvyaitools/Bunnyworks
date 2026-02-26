@@ -25,7 +25,26 @@ import {
   ChevronUp,
   Loader2
 } from "lucide-react";
-import { useOnlyFansAPI, DiscoveredCreator } from "@/hooks/useOnlyFansAPI";
+
+interface DiscoveredCreator {
+  id: number;
+  username: string;
+  name: string;
+  avatar_url: string;
+  header_url?: string;
+  subscribe_price: number;
+  location: string;
+  about: string;
+  posts_count: number;
+  photos_count: number;
+  videos_count: number;
+  favorites_count: number;
+  is_verified: boolean;
+  instagram?: string | null;
+  twitter?: string | null;
+  tiktok?: string | null;
+  website?: string | null;
+}
 import { useRecruitingCreators } from "@/hooks/useRecruitingCreators";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -48,7 +67,7 @@ export default function CreatorDiscovery() {
   const [location, setLocation] = useState("");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
 
-  const { searchCreators, loading } = useOnlyFansAPI();
+  const [loading, setLoading] = useState(false);
   const { createRecruitingCreator } = useRecruitingCreators();
 
   const handleSearch = useCallback(async () => {
@@ -56,21 +75,11 @@ export default function CreatorDiscovery() {
       toast.error("Please enter a search query");
       return;
     }
-
-    const result = await searchCreators(searchQuery, {
-      limit: 50,
-      minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
-      maxPrice: priceRange[1] < 50 ? priceRange[1] : undefined,
-      location: location || undefined,
-      verified: verifiedOnly || undefined,
-    });
-
-    if (result) {
-      setResults(result.data || []);
-      setTotal(result.total || 0);
-      setHasSearched(true);
-    }
-  }, [searchQuery, priceRange, location, verifiedOnly, searchCreators]);
+    toast.info("Creator discovery search is coming soon. Add creators manually via the Recruiting page.");
+    setHasSearched(true);
+    setResults([]);
+    setTotal(0);
+  }, [searchQuery]);
 
   const handleAddToRecruiting = async (creator: DiscoveredCreator) => {
     setAddingIds(prev => new Set(prev).add(creator.id));

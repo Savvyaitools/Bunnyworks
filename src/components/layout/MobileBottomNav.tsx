@@ -15,7 +15,7 @@ import {
   Globe,
   ClipboardList,
   BookOpen,
-  Upload,
+  
   HelpCircle,
   Bell,
   Settings,
@@ -73,7 +73,7 @@ const menuSections = [
     title: "Resources",
     items: [
       { title: "SOP Library", url: "/sop", icon: BookOpen },
-      { title: "Data Import", url: "/data-import", icon: Upload },
+      
       { title: "User Guide", url: "/guide", icon: HelpCircle },
     ],
   },
