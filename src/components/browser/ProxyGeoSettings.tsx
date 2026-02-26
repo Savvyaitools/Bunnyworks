@@ -186,14 +186,14 @@ export function ProxyGeoSettings() {
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Country */}
                   <Select
-                    value={edit.country}
-                    onValueChange={(v) => updateEdit(creator.id, "country", v)}
+                    value={edit.country || "_none"}
+                    onValueChange={(v) => updateEdit(creator.id, "country", v === "_none" ? "" : v)}
                   >
                     <SelectTrigger className="w-[150px] h-8 text-xs">
                       <SelectValue placeholder="Country..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No proxy</SelectItem>
+                      <SelectItem value="_none">No proxy</SelectItem>
                       {COUNTRIES.map((c) => (
                         <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
                       ))}
@@ -203,14 +203,14 @@ export function ProxyGeoSettings() {
                   {/* State / Region */}
                   {edit.country && regions.length > 0 && (
                     <Select
-                      value={edit.state}
-                      onValueChange={(v) => updateEdit(creator.id, "state", v)}
+                      value={edit.state || "_none"}
+                      onValueChange={(v) => updateEdit(creator.id, "state", v === "_none" ? "" : v)}
                     >
                       <SelectTrigger className="w-[160px] h-8 text-xs">
                         <SelectValue placeholder="State/Region..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Any</SelectItem>
+                        <SelectItem value="_none">Any</SelectItem>
                         {regions.map((r) => (
                           <SelectItem key={r.value} value={r.value} className="capitalize">
                             {r.label}
