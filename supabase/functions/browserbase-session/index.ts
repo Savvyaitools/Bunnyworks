@@ -784,10 +784,15 @@ Deno.serve(async (req) => {
             let cdpSid: string | null = null;
             const pendingBodyRequests = new Map<number, string>(); // tracked mid -> requestId
             const domPollIds = new Set<number>(); // tracked DOM poll evaluate IDs
+            // OF sends separate API calls per category (tips, subscribes, messages, etc.)
+            // We accumulate all responses into one merged object before finishing
+            const earningsAccumulator: Record<string, any> = {};
             let earningsJson: any = null;
             let domText = "";
             let navigationConfirmed = false; // Guard: only DOM-poll after nav confirmed
             let xhrCaptured = false; // Guard: skip DOM polling once XHR captured
+            let xhrResponseCount = 0;
+            let xhrFinishTimer: ReturnType<typeof setTimeout> | null = null;
             let domPollCount = 0;
             const MAX_DOM_POLLS = 8;
 
@@ -913,10 +918,22 @@ Deno.serve(async (req) => {
                   if (body) {
                     try {
                       const parsed = JSON.parse(body);
-                      console.log("CDP: Parsed earnings API JSON successfully, keys:", Object.keys(parsed));
-                      earningsJson = parsed;
+                      const keys = Object.keys(parsed);
+                      console.log("CDP: Parsed earnings API JSON successfully, keys:", keys);
+                      // Accumulate: merge each category response into one object
+                      // OF sends separate responses like {"tips": {...}}, {"subscribes": {...}}, etc.
+                      for (const key of keys) {
+                        earningsAccumulator[key] = parsed[key];
+                      }
+                      xhrResponseCount++;
                       xhrCaptured = true; // Guard: stop DOM polling
-                      finish();
+                      // Wait 3s after last XHR response to collect all categories before finishing
+                      if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
+                      xhrFinishTimer = setTimeout(() => {
+                        earningsJson = earningsAccumulator;
+                        console.log(`CDP: Accumulated ${xhrResponseCount} XHR responses, merged keys: ${Object.keys(earningsAccumulator)}`);
+                        finish();
+                      }, 3000);
                       return;
                     } catch {
                       console.log("CDP: Response body not JSON, length:", body.length);
@@ -949,8 +966,8 @@ Deno.serve(async (req) => {
                 console.warn("CDP scrape message parse error:", e);
               }
             };
-            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); resolve({}); } };
-            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); resolve({}); } };
+            ws.onerror = () => { if (!done) { done = true; clearTimeout(timer); if (xhrFinishTimer) clearTimeout(xhrFinishTimer); earningsJson = Object.keys(earningsAccumulator).length > 0 ? earningsAccumulator : null; resolve({ json: earningsJson, domText }); } };
+            ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); if (xhrFinishTimer) clearTimeout(xhrFinishTimer); earningsJson = Object.keys(earningsAccumulator).length > 0 ? earningsAccumulator : null; resolve({ json: earningsJson, domText }); } };
           });
 
           // ===== Parse results: prefer JSON, fallback to DOM text =====
