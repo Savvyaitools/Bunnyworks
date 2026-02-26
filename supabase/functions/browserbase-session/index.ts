@@ -618,8 +618,14 @@ Deno.serve(async (req) => {
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       
       let slId: string;
+      // If the creator is already authenticated (has saved cookies in context),
+      // keep status as "authenticated" so the owner gets a logged-in view.
+      // Only use "authenticating" for fresh/never-authenticated sessions.
+      const preserveAuth = existingLink?.session_status === "authenticated" && existingLink?.browserbase_context_id;
+      const newStatus = preserveAuth ? "authenticated" : "authenticating";
+      console.log(`Admin session: creator=${creatorId}, previousStatus=${existingLink?.session_status || "none"}, newStatus=${newStatus}, contextReused=${!!preserveAuth}`);
       if (existingLink) {
-        const { data } = await svc.from("creator_session_links").update({ browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(), updated_at: new Date().toISOString() }).eq("id", existingLink.id).select("id").single();
+        const { data } = await svc.from("creator_session_links").update({ browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: newStatus, is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(), updated_at: new Date().toISOString() }).eq("id", existingLink.id).select("id").single();
         slId = data!.id;
       } else {
         const { data } = await svc.from("creator_session_links").insert({ creator_id: creatorId, agency_id: agencyId, platform, created_by: uid, encrypted_session: "browserbase", browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString() }).select("id").single();
