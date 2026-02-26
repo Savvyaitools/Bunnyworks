@@ -1,3 +1,8 @@
+/**
+ * @deprecated This hook calls the onlyfans-api edge function which requires
+ * direct OF API credentials. The platform now uses browser session CDP scraping
+ * instead (see browserbase-session edge function). Kept for potential future use.
+ */
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

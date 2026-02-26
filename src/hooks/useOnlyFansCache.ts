@@ -1,3 +1,8 @@
+/**
+ * @deprecated This hook provides DB-backed caching for useOnlyFansAPI which is
+ * itself deprecated. Earnings are now scraped via CDP in save_and_close.
+ * Kept for potential future use.
+ */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOnlyFansAPI } from "./useOnlyFansAPI";
