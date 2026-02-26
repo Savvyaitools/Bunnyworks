@@ -1,3 +1,7 @@
+/**
+ * @deprecated Uses useOnlyFansAPI which requires direct OF API credentials.
+ * Earnings are now scraped via CDP in save_and_close. Kept for potential future use.
+ */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

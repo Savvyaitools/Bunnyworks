@@ -233,19 +233,20 @@ const PROXY_ROTATION_STATES = ["TX", "FL", "NY", "IL", "OH", "GA", "NC", "MI", "
 function proxyConf(c: any) {
   const country = c?.proxy_country || "US";
   const rawState = c?.proxy_state;
+  const rawCity = c?.proxy_city;
   let state: string;
   if (rawState && rawState !== "CA") {
-    // Use explicit state if set and not the old default
     state = rawState.length > 2 ? (STATE_ABBREV[rawState.toLowerCase()] || "TX") : rawState.toUpperCase();
   } else {
-    // Rotate through diverse states instead of always using CA
     const idx = Math.floor(Math.random() * PROXY_ROTATION_STATES.length);
     state = PROXY_ROTATION_STATES[idx];
   }
-  console.log(`Proxy: ${country}/${state} (rotation active)`);
+  const geo: Record<string, string> = { country, state };
+  if (rawCity) geo.city = rawCity;
+  console.log(`Proxy: ${country}/${state}${rawCity ? `/${rawCity}` : ""}`);
   return [{
     type: "browserbase",
-    geolocation: { country, state },
+    geolocation: geo,
   }];
 }
 
@@ -542,7 +543,7 @@ Deno.serve(async (req) => {
     if (action === "create_admin_session") {
       const { creatorId, platform, agencyId } = p;
       if (!creatorId || !platform || !agencyId) return json({ error: "creatorId, platform, agencyId required" }, 400);
-      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", creatorId).single();
+      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city, name").eq("id", creatorId).single();
       
       const ctxId = await resolveContext(svc, BK, BP, creatorId, platform, agencyId, uid);
       
@@ -1284,7 +1285,7 @@ Deno.serve(async (req) => {
       }
 
       // Create new session
-      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, name").eq("id", link.creator_id).single();
+      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city, name").eq("id", link.creator_id).single();
       const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
 
@@ -1658,7 +1659,7 @@ Deno.serve(async (req) => {
 
       let proxySettings = null;
       if (creatorId) {
-        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state").eq("id", creatorId).maybeSingle();
+        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle();
         if (cr) proxySettings = cr;
       }
 
@@ -1913,7 +1914,7 @@ Deno.serve(async (req) => {
 
       let proxySettings = null;
       if (creatorId) {
-        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state").eq("id", creatorId).maybeSingle();
+        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle();
         if (cr) proxySettings = cr;
       }
 
