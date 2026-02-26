@@ -732,7 +732,12 @@ Deno.serve(async (req) => {
           const { checkResult, domText: loginDomText, pageUrl } = loginCheckData;
           console.log(`Login CSS pre-check: ${checkResult} (url: ${pageUrl})`);
 
-          if (checkResult === "logged_in") {
+          // CRITICAL: If CDP returned empty DOM/URL, the page wasn't readable.
+          // Always fail-open (preserve cookies) — never let empty data trigger "not logged in".
+          if (!loginDomText && !pageUrl) {
+            isLoggedIn = true;
+            console.log("Login check: CDP returned empty DOM & URL — fail-open, preserving cookies");
+          } else if (checkResult === "logged_in") {
             isLoggedIn = true;
           } else if (checkResult === "not_logged_in") {
             isLoggedIn = false;
