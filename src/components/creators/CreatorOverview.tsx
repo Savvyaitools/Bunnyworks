@@ -128,12 +128,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
   const avatarSrc = creator.avatar_url || 
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
 
-  const socialLinks = [
-    { key: "instagram_url", label: "Instagram", url: creator.instagram_url, icon: Instagram, color: "text-pink-400" },
-    { key: "twitter_url", label: "Twitter/X", url: creator.twitter_url, icon: Twitter, color: "text-sky-400" },
-    { key: "tiktok_url", label: "TikTok", url: creator.tiktok_url, icon: Globe, color: "text-cyan-400" },
-    { key: "snapchat_url", label: "Snapchat", url: creator.snapchat_url, icon: Globe, color: "text-yellow-400" },
-  ];
+  const socialLinks: { key: string; label: string; url: string | null; icon: typeof Globe; color: string }[] = [];
 
   return (
     <div className="space-y-6">
@@ -289,13 +284,11 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-pink-500/20">
-                <ExternalLink className="h-4 w-4 text-pink-400" />
+                <Tag className="h-4 w-4 text-pink-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Social Links</p>
-                <p className="font-semibold text-foreground">
-                  {socialLinks.filter(l => l.url).length} connected
-                </p>
+                <p className="text-xs text-muted-foreground">Status</p>
+                <p className="font-semibold text-foreground">{creator.status}</p>
               </div>
             </div>
           </CardContent>
@@ -435,61 +428,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Social Links Card */}
-          <Card className="glass-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <ExternalLink className="h-4 w-4 text-primary" />
-                Social Links
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isEditing ? (
-                <div className="space-y-3">
-                  <Input
-                    value={formData.instagram_url}
-                    onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
-                    placeholder="Instagram URL"
-                  />
-                  <Input
-                    value={formData.twitter_url}
-                    onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
-                    placeholder="Twitter/X URL"
-                  />
-                  <Input
-                    value={formData.tiktok_url}
-                    onChange={(e) => setFormData({ ...formData, tiktok_url: e.target.value })}
-                    placeholder="TikTok URL"
-                  />
-                  <Input
-                    value={formData.snapchat_url}
-                    onChange={(e) => setFormData({ ...formData, snapchat_url: e.target.value })}
-                    placeholder="Snapchat URL"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {socialLinks.filter(link => link.url).length > 0 ? (
-                    socialLinks.filter(link => link.url).map((link) => (
-                      <a
-                        key={link.key}
-                        href={link.url!}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
-                      >
-                        <link.icon className={cn("h-4 w-4", link.color)} />
-                        <span>{link.label}</span>
-                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                      </a>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No social links added</p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+
 
           {/* Persona / Bio Card */}
           <Card className="glass-card">
