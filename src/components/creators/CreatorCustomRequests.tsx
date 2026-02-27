@@ -65,7 +65,6 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
     description: "",
     price: "",
     due_date: "",
-    notes: "",
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -125,11 +124,10 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
         description: formData.description || undefined,
         price: formData.price ? parseFloat(formData.price) : undefined,
         due_date: formData.due_date || undefined,
-        notes: formData.notes || undefined,
         attachments,
       });
 
-      setFormData({ title: "", description: "", price: "", due_date: "", notes: "" });
+      setFormData({ title: "", description: "", price: "", due_date: "" });
       setSelectedFiles([]);
       setIsAddOpen(false);
     } finally {
@@ -167,7 +165,7 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
           setIsAddOpen(open);
           if (!open) {
             setSelectedFiles([]);
-            setFormData({ title: "", description: "", price: "", due_date: "", notes: "" });
+            setFormData({ title: "", description: "", price: "", due_date: "" });
           }
         }}>
           <DialogTrigger asChild>
@@ -181,16 +179,22 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
               <DialogTitle>Create Custom Request</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <Input
-                placeholder="Request Title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              />
-              <Textarea
-                placeholder="Description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Fan Name</label>
+                <Input
+                  placeholder="Fan Name"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Custom Instructions</label>
+                <Textarea
+                  placeholder="Custom Instructions"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Price ($)</label>
@@ -211,12 +215,6 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
                   />
                 </div>
               </div>
-              <Textarea
-                placeholder="Internal Notes (optional)"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={2}
-              />
 
               {/* File Upload Section */}
               <div>

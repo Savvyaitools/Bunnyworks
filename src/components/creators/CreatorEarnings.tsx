@@ -221,20 +221,14 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
 
   return (
     <div className="space-y-6">
-      {/* Header with sync button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">OnlyFans Earnings</h2>
-          {ofAccount?.of_last_synced_at && (
-            <p className="text-sm text-muted-foreground">
-              Last synced: {format(new Date(ofAccount.of_last_synced_at), "MMM d, yyyy h:mm a")}
-            </p>
-          )}
-        </div>
-        <Button onClick={handleSync} disabled={syncing} variant="outline" size="sm">
-          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Syncing..." : "Sync Now"}
-        </Button>
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-semibold text-foreground">OnlyFans Earnings</h2>
+        {ofAccount?.of_last_synced_at && (
+          <p className="text-sm text-muted-foreground">
+            Last synced: {format(new Date(ofAccount.of_last_synced_at), "MMM d, yyyy h:mm a")}
+          </p>
+        )}
       </div>
 
       {/* How Earnings Work - Explainer */}
@@ -315,10 +309,10 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
                   </div>
                   <span className="text-xs text-muted-foreground">Subscriptions</span>
                 </div>
-                <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.subs)}</p>
+                <p className="text-xl font-bold text-foreground">{formatCurrency(currentSubs)}</p>
                 {totalBreakdown > 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {((parsedBreakdown.subs / totalBreakdown) * 100).toFixed(0)}% of total
+                    {((currentSubs / totalBreakdown) * 100).toFixed(0)}% of total
                   </p>
                 )}
               </div>
@@ -332,10 +326,10 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
                   </div>
                   <span className="text-xs text-muted-foreground">Tips</span>
                 </div>
-                <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.tips)}</p>
+                <p className="text-xl font-bold text-foreground">{formatCurrency(currentTips)}</p>
                 {totalBreakdown > 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {((parsedBreakdown.tips / totalBreakdown) * 100).toFixed(0)}% of total
+                    {((currentTips / totalBreakdown) * 100).toFixed(0)}% of total
                   </p>
                 )}
               </div>
@@ -349,10 +343,10 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
                   </div>
                   <span className="text-xs text-muted-foreground">Messages</span>
                 </div>
-                <p className="text-xl font-bold text-foreground">{formatCurrency(parsedBreakdown.messages)}</p>
+                <p className="text-xl font-bold text-foreground">{formatCurrency(currentMessages)}</p>
                 {totalBreakdown > 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {((parsedBreakdown.messages / totalBreakdown) * 100).toFixed(0)}% of total
+                    {((currentMessages / totalBreakdown) * 100).toFixed(0)}% of total
                   </p>
                 )}
               </div>

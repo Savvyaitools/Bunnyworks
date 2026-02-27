@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle, LayoutGrid, List, Eye, FolderInput } from "lucide-react";
+import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle, LayoutGrid, List, Eye, FolderInput, Edit, Check, X, Square, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -40,6 +40,7 @@ interface ContentFile {
   creator_id: string | null;
   content_type?: string;
   signedUrl?: string;
+  created_at?: string;
 }
 
 type ContentCategory = "general" | "primary_platform" | "social";
@@ -81,13 +82,29 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [selectedContentType, setSelectedContentType] = useState<ContentCategory>("general");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [allFolders, setAllFolders] = useState<ContentFolder[]>([]);
+
+  // Bulk selection
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkMoveTarget, setBulkMoveTarget] = useState("__root__");
+
+  // Folder rename
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renameFolderValue, setRenameFolderValue] = useState("");
+
+  // Folder drag-drop
+  const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+
+  // Single file move
   const [moveFile, setMoveFile] = useState<ContentFile | null>(null);
   const [moveTargetFolder, setMoveTargetFolder] = useState<string>("__root__");
-  const [allFolders, setAllFolders] = useState<ContentFolder[]>([]);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const fetchContent = useCallback(async () => {
-    // Fetch folders
     let folderQuery = supabase
       .from("content_folders")
       .select("*")
@@ -102,11 +119,11 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     const { data: folderData } = await folderQuery;
     if (folderData) setFolders(folderData);
 
-    // Fetch files
     let fileQuery = supabase
       .from("content_files")
       .select("*")
-      .eq("creator_id", creatorId);
+      .eq("creator_id", creatorId)
+      .order("created_at", { ascending: false });
     
     if (currentFolder) {
       fileQuery = fileQuery.eq("folder_id", currentFolder);
@@ -116,7 +133,6 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
 
     const { data: fileData } = await fileQuery;
     if (fileData) {
-      // Generate signed URLs for thumbnails
       const filesWithUrls = await Promise.all(
         fileData.map(async (file) => {
           const ft = file.file_type;
@@ -131,13 +147,13 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
       );
       setFiles(filesWithUrls as ContentFile[]);
     }
+    setSelectedFiles(new Set());
   }, [creatorId, currentFolder]);
 
   useEffect(() => {
     fetchContent();
   }, [fetchContent]);
 
-  // Fetch all folders for the move dialog
   useEffect(() => {
     const fetchAllFolders = async () => {
       const { data } = await supabase
@@ -150,6 +166,148 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     fetchAllFolders();
   }, [creatorId, folders]);
 
+  // Bulk selection helpers
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles(prev => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  };
+
+  const selectAllFiles = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.id)));
+    }
+  };
+
+  const bulkDeleteFiles = async () => {
+    if (selectedFiles.size === 0) return;
+    const toDelete = files.filter(f => selectedFiles.has(f.id));
+    const paths = toDelete.map(f => f.file_path);
+    
+    const { error: storageError } = await supabase.storage
+      .from('content-vault')
+      .remove(paths);
+    if (storageError) {
+      toast.error("Failed to delete some files from storage");
+    }
+
+    const { error: dbError } = await supabase
+      .from('content_files')
+      .delete()
+      .in('id', Array.from(selectedFiles));
+    
+    if (dbError) {
+      toast.error("Failed to delete file records");
+    } else {
+      toast.success(`Deleted ${selectedFiles.size} file(s)`);
+      setSelectedFiles(new Set());
+      fetchContent();
+    }
+  };
+
+  const bulkMoveFiles = async () => {
+    if (selectedFiles.size === 0) return;
+    const targetId = bulkMoveTarget === "__root__" ? null : bulkMoveTarget;
+    
+    const { error } = await supabase
+      .from('content_files')
+      .update({ folder_id: targetId })
+      .in('id', Array.from(selectedFiles));
+    
+    if (error) {
+      toast.error("Failed to move files");
+    } else {
+      toast.success(`Moved ${selectedFiles.size} file(s)`);
+      setBulkMoveOpen(false);
+      setSelectedFiles(new Set());
+      fetchContent();
+    }
+  };
+
+  // Folder rename
+  const startRenameFolder = (folder: ContentFolder, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenamingFolderId(folder.id);
+    setRenameFolderValue(folder.name);
+  };
+
+  const saveRenameFolder = async (folderId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!renameFolderValue.trim()) return;
+    const { error } = await supabase
+      .from('content_folders')
+      .update({ name: renameFolderValue.trim() })
+      .eq('id', folderId);
+    if (error) {
+      toast.error("Failed to rename folder");
+    } else {
+      toast.success("Folder renamed");
+      setRenamingFolderId(null);
+      fetchContent();
+    }
+  };
+
+  const cancelRenameFolder = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setRenamingFolderId(null);
+  };
+
+  // Folder drag-drop into other folders
+  const handleFolderDragStart = (e: React.DragEvent, folderId: string) => {
+    e.stopPropagation();
+    setDraggingFolderId(folderId);
+    e.dataTransfer.setData("text/folder-id", folderId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleFolderDragOver = (e: React.DragEvent, targetFolderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (draggingFolderId && draggingFolderId !== targetFolderId) {
+      setDragOverFolderId(targetFolderId);
+    }
+  };
+
+  const handleFolderDragLeave = (e: React.DragEvent) => {
+    e.stopPropagation();
+    setDragOverFolderId(null);
+  };
+
+  const handleFolderDrop = async (e: React.DragEvent, targetFolderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverFolderId(null);
+    const sourceFolderId = e.dataTransfer.getData("text/folder-id");
+    if (!sourceFolderId || sourceFolderId === targetFolderId) {
+      setDraggingFolderId(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('content_folders')
+      .update({ parent_id: targetFolderId })
+      .eq('id', sourceFolderId);
+    
+    if (error) {
+      toast.error("Failed to move folder");
+    } else {
+      toast.success("Folder moved");
+      fetchContent();
+    }
+    setDraggingFolderId(null);
+  };
+
+  const handleFolderDragEnd = () => {
+    setDraggingFolderId(null);
+    setDragOverFolderId(null);
+  };
+
+  // Single file move
   const openMoveDialog = (file: ContentFile) => {
     setMoveFile(file);
     setMoveTargetFolder(file.folder_id || "__root__");
@@ -175,7 +333,6 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
 
   const createFolder = async () => {
     if (!newFolderName.trim() || !agencyId) return;
-
     const { error } = await supabase
       .from("content_folders")
       .insert({
@@ -184,7 +341,6 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
         parent_id: currentFolder,
         agency_id: agencyId,
       });
-
     if (error) {
       toast.error("Failed to create folder");
     } else {
@@ -208,6 +364,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("text/folder-id")) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
@@ -220,6 +377,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("text/folder-id")) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
@@ -230,9 +388,9 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   }, [creatorId, currentFolder]);
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (selectedFiles && selectedFiles.length > 0) {
-      uploadFiles(Array.from(selectedFiles));
+    const selected = e.target.files;
+    if (selected && selected.length > 0) {
+      uploadFiles(Array.from(selected));
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -246,8 +404,6 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     for (const file of fileList) {
       try {
         const filePath = `${creatorId}/${Date.now()}_${file.name}`;
-
-        // Simulate progress
         const progressInterval = setInterval(() => {
           setUploadProgress(prev => prev.map(p => 
             p.fileName === file.name && p.progress < 90 
@@ -303,21 +459,12 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     setUploading(false);
     toast.success("Upload complete");
     fetchContent();
-
-    // Clear progress after delay
     setTimeout(() => setUploadProgress([]), 3000);
   };
 
   const downloadFile = async (file: ContentFile) => {
-    const { data, error } = await supabase.storage
-      .from('content-vault')
-      .download(file.file_path);
-
-    if (error) {
-      toast.error("Failed to download file");
-      return;
-    }
-
+    const { data, error } = await supabase.storage.from('content-vault').download(file.file_path);
+    if (error) { toast.error("Failed to download file"); return; }
     const url = URL.createObjectURL(data);
     const a = document.createElement('a');
     a.href = url;
@@ -327,40 +474,15 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   };
 
   const deleteFile = async (file: ContentFile) => {
-    const { error: storageError } = await supabase.storage
-      .from('content-vault')
-      .remove([file.file_path]);
-
-    if (storageError) {
-      toast.error("Failed to delete file from storage");
-      return;
-    }
-
-    const { error: dbError } = await supabase
-      .from('content_files')
-      .delete()
-      .eq('id', file.id);
-
-    if (dbError) {
-      toast.error("Failed to delete file record");
-    } else {
-      toast.success("File deleted");
-      fetchContent();
-    }
+    const { error: storageError } = await supabase.storage.from('content-vault').remove([file.file_path]);
+    if (storageError) { toast.error("Failed to delete file from storage"); return; }
+    const { error: dbError } = await supabase.from('content_files').delete().eq('id', file.id);
+    if (dbError) { toast.error("Failed to delete file record"); } else { toast.success("File deleted"); fetchContent(); }
   };
 
   const deleteFolder = async (folder: ContentFolder) => {
-    const { error } = await supabase
-      .from('content_folders')
-      .delete()
-      .eq('id', folder.id);
-
-    if (error) {
-      toast.error("Failed to delete folder");
-    } else {
-      toast.success("Folder deleted");
-      fetchContent();
-    }
+    const { error } = await supabase.from('content_folders').delete().eq('id', folder.id);
+    if (error) { toast.error("Failed to delete folder"); } else { toast.success("Folder deleted"); fetchContent(); }
   };
 
   const isImage = (fileType: string) => fileType.startsWith('image/') || fileType === 'Image';
@@ -374,26 +496,17 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   };
 
   const getSignedUrl = async (filePath: string) => {
-    const { data } = await supabase.storage
-      .from('content-vault')
-      .createSignedUrl(filePath, 3600);
+    const { data } = await supabase.storage.from('content-vault').createSignedUrl(filePath, 3600);
     return data?.signedUrl || '';
   };
 
   const openPreview = async (file: ContentFile) => {
     setPreviewFile(file);
-    if (file.signedUrl) {
-      setPreviewUrl(file.signedUrl);
-    } else {
-      const url = await getSignedUrl(file.file_path);
-      setPreviewUrl(url);
-    }
+    if (file.signedUrl) { setPreviewUrl(file.signedUrl); }
+    else { const url = await getSignedUrl(file.file_path); setPreviewUrl(url); }
   };
 
-  const closePreview = () => {
-    setPreviewFile(null);
-    setPreviewUrl(null);
-  };
+  const closePreview = () => { setPreviewFile(null); setPreviewUrl(null); };
 
   const getUploadIcon = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
@@ -401,6 +514,8 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "")) return Image;
     return File;
   };
+
+  const hasSelection = selectedFiles.size > 0;
 
   return (
     <div className="space-y-4">
@@ -429,7 +544,6 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Content Type Selector */}
           <Select
             value={selectedContentType}
             onValueChange={(v: ContentCategory) => setSelectedContentType(v)}
@@ -478,6 +592,33 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
           />
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {files.length > 0 && (
+        <div className="flex items-center gap-3 p-2 rounded-lg border border-border bg-muted/30">
+          <Button variant="ghost" size="sm" onClick={selectAllFiles} className="gap-1.5">
+            {selectedFiles.size === files.length ? (
+              <CheckSquare className="h-4 w-4 text-primary" />
+            ) : (
+              <Square className="h-4 w-4" />
+            )}
+            {selectedFiles.size === files.length ? "Deselect All" : "Select All"}
+          </Button>
+          {hasSelection && (
+            <>
+              <span className="text-xs text-muted-foreground">{selectedFiles.size} selected</span>
+              <Button variant="outline" size="sm" onClick={() => { setBulkMoveTarget("__root__"); setBulkMoveOpen(true); }}>
+                <FolderInput className="h-3.5 w-3.5 mr-1.5" />
+                Move
+              </Button>
+              <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={bulkDeleteFiles}>
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Delete
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Drag & Drop Zone */}
       <div
@@ -578,53 +719,89 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
           {folders.map((folder) => (
             <div
               key={folder.id}
-              className="group relative p-4 rounded-xl border border-border bg-card hover:border-primary/50 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5"
-              onClick={() => navigateToFolder(folder)}
+              draggable
+              onDragStart={(e) => handleFolderDragStart(e, folder.id)}
+              onDragOver={(e) => handleFolderDragOver(e, folder.id)}
+              onDragLeave={handleFolderDragLeave}
+              onDrop={(e) => handleFolderDrop(e, folder.id)}
+              onDragEnd={handleFolderDragEnd}
+              className={cn(
+                "group relative p-4 rounded-xl border bg-card cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5",
+                dragOverFolderId === folder.id
+                  ? "border-primary bg-primary/10 scale-105"
+                  : "border-border hover:border-primary/50",
+                draggingFolderId === folder.id && "opacity-50"
+              )}
+              onClick={() => {
+                if (renamingFolderId === folder.id) return;
+                navigateToFolder(folder);
+              }}
             >
               <div className="flex flex-col items-center gap-2">
                 <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Folder className="h-9 w-9 text-primary" />
                 </div>
-                <span className="text-sm text-foreground text-center truncate w-full font-medium">{folder.name}</span>
+                {renamingFolderId === folder.id ? (
+                  <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={renameFolderValue}
+                      onChange={(e) => setRenameFolderValue(e.target.value)}
+                      className="h-7 text-xs"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveRenameFolder(folder.id);
+                        if (e.key === "Escape") cancelRenameFolder();
+                      }}
+                    />
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={(e) => saveRenameFolder(folder.id, e)}>
+                      <Check className="h-3 w-3 text-success" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={cancelRenameFolder}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-sm text-foreground text-center truncate w-full font-medium">{folder.name}</span>
+                )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 h-6 w-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteFolder(folder);
-                }}
-              >
-                <Trash2 className="h-3 w-3 text-destructive" />
-              </Button>
+              {renamingFolderId !== folder.id && (
+                <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100">
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => startRenameFolder(folder, e)}>
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); deleteFolder(folder); }}>
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
           {files.map((file) => (
             <div
               key={file.id}
-              className="group relative rounded-xl border border-border bg-card hover:border-primary/50 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 overflow-hidden"
+              className={cn(
+                "group relative rounded-xl border bg-card cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 overflow-hidden",
+                selectedFiles.has(file.id) ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50"
+              )}
               onClick={() => openPreview(file)}
             >
+              {/* Selection checkbox */}
+              <button
+                className="absolute top-2 left-2 z-20"
+                onClick={(e) => { e.stopPropagation(); toggleFileSelection(file.id); }}
+              >
+                {selectedFiles.has(file.id) ? (
+                  <CheckSquare className="h-5 w-5 text-primary" />
+                ) : (
+                  <Square className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </button>
               {/* Large Thumbnail */}
               <div className="aspect-[4/5] relative bg-muted/30 flex items-center justify-center overflow-hidden">
                 {isImage(file.file_type) && file.signedUrl ? (
-                  <img
-                    src={file.signedUrl}
-                    alt={file.name}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    loading="lazy"
-                    crossOrigin="anonymous"
-                  />
+                  <img src={file.signedUrl} alt={file.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" crossOrigin="anonymous" />
                 ) : isVideo(file.file_type) && file.signedUrl ? (
-                  <video
-                    src={`${file.signedUrl}#t=0.5`}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    muted
-                    preload="metadata"
-                    playsInline
-                    crossOrigin="anonymous"
-                  />
+                  <video src={`${file.signedUrl}#t=0.5`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" muted preload="metadata" playsInline crossOrigin="anonymous" />
                 ) : (
                   <div className="flex flex-col items-center gap-3 p-6">
                     <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center">
@@ -635,7 +812,6 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                     </span>
                   </div>
                 )}
-                {/* Hover overlay with preview button */}
                 {isMedia(file.file_type) && (
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
                     <div className="flex items-center gap-1 text-white text-xs font-medium">
@@ -663,38 +839,13 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
               </div>
               {/* Action Buttons */}
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 z-10 transition-opacity">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openMoveDialog(file);
-                  }}
-                  title="Move to folder"
-                >
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm" onClick={(e) => { e.stopPropagation(); openMoveDialog(file); }} title="Move to folder">
                   <FolderInput className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadFile(file);
-                  }}
-                >
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm" onClick={(e) => { e.stopPropagation(); downloadFile(file); }}>
                   <Download className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteFile(file);
-                  }}
-                >
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm" onClick={(e) => { e.stopPropagation(); deleteFile(file); }}>
                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               </div>
@@ -707,32 +858,77 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
           {folders.map((folder) => (
             <div
               key={folder.id}
-              className="group flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
-              onClick={() => navigateToFolder(folder)}
+              draggable
+              onDragStart={(e) => handleFolderDragStart(e, folder.id)}
+              onDragOver={(e) => handleFolderDragOver(e, folder.id)}
+              onDragLeave={handleFolderDragLeave}
+              onDrop={(e) => handleFolderDrop(e, folder.id)}
+              onDragEnd={handleFolderDragEnd}
+              className={cn(
+                "group flex items-center gap-3 p-3 rounded-lg border bg-card cursor-pointer transition-colors",
+                dragOverFolderId === folder.id
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-primary/50",
+                draggingFolderId === folder.id && "opacity-50"
+              )}
+              onClick={() => {
+                if (renamingFolderId === folder.id) return;
+                navigateToFolder(folder);
+              }}
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Folder className="h-5 w-5 text-primary" />
               </div>
-              <span className="text-sm font-medium text-foreground flex-1 truncate">{folder.name}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteFolder(folder);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-              </Button>
+              {renamingFolderId === folder.id ? (
+                <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
+                  <Input
+                    value={renameFolderValue}
+                    onChange={(e) => setRenameFolderValue(e.target.value)}
+                    className="h-8 text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveRenameFolder(folder.id);
+                      if (e.key === "Escape") cancelRenameFolder();
+                    }}
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={(e) => saveRenameFolder(folder.id, e)}>
+                    <Check className="h-3.5 w-3.5 text-success" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={cancelRenameFolder}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <span className="text-sm font-medium text-foreground flex-1 truncate">{folder.name}</span>
+              )}
+              {renamingFolderId !== folder.id && (
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => startRenameFolder(folder, e)}>
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); deleteFolder(folder); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
           {files.map((file) => (
             <div
               key={file.id}
-              className="group flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-colors"
+              className={cn(
+                "group flex items-center gap-3 p-3 rounded-lg border bg-card cursor-pointer transition-colors",
+                selectedFiles.has(file.id) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+              )}
               onClick={() => openPreview(file)}
             >
+              <button className="shrink-0" onClick={(e) => { e.stopPropagation(); toggleFileSelection(file.id); }}>
+                {selectedFiles.has(file.id) ? (
+                  <CheckSquare className="h-5 w-5 text-primary" />
+                ) : (
+                  <Square className="h-5 w-5 text-muted-foreground" />
+                )}
+              </button>
               <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden shrink-0 flex items-center justify-center">
                 {isImage(file.file_type) && file.signedUrl ? (
                   <img src={file.signedUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" crossOrigin="anonymous" />
@@ -787,21 +983,9 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
           {previewFile && previewUrl && (
             <div className="flex items-center justify-center overflow-hidden">
               {isImage(previewFile.file_type) ? (
-                <img
-                  src={previewUrl}
-                  alt={previewFile.name}
-                  className="max-h-[70vh] max-w-full object-contain rounded-lg"
-                  crossOrigin="anonymous"
-                />
+                <img src={previewUrl} alt={previewFile.name} className="max-h-[70vh] max-w-full object-contain rounded-lg" crossOrigin="anonymous" />
               ) : isVideo(previewFile.file_type) ? (
-                <video
-                  src={previewUrl}
-                  controls
-                  autoPlay
-                  playsInline
-                  className="max-h-[70vh] max-w-full rounded-lg"
-                  crossOrigin="anonymous"
-                />
+                <video src={previewUrl} controls autoPlay playsInline className="max-h-[70vh] max-w-full rounded-lg" crossOrigin="anonymous" />
               ) : (
                 <div className="text-center py-8">
                   <File className="h-16 w-16 mx-auto text-muted-foreground" />
@@ -847,6 +1031,40 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
             <Button onClick={moveFileToFolder} className="w-full">
               <FolderInput className="h-4 w-4 mr-2" />
               Move File
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Move Dialog */}
+      <Dialog open={bulkMoveOpen} onOpenChange={setBulkMoveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move {selectedFiles.size} file(s)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={bulkMoveTarget} onValueChange={setBulkMoveTarget}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select destination folder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__root__">
+                  <span className="flex items-center gap-2">
+                    <Folder className="h-4 w-4" /> Root
+                  </span>
+                </SelectItem>
+                {allFolders.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    <span className="flex items-center gap-2">
+                      <Folder className="h-4 w-4" /> {f.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={bulkMoveFiles} className="w-full">
+              <FolderInput className="h-4 w-4 mr-2" />
+              Move Files
             </Button>
           </div>
         </DialogContent>
