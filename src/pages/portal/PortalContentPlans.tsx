@@ -218,12 +218,12 @@ export default function PortalContentPlans() {
 
         {/* Detail + Edit Dialog */}
         <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>{selectedPlan?.title}</DialogTitle>
             </DialogHeader>
             {selectedPlan && (
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {selectedPlan.platform && (
                     <Badge variant="outline">{selectedPlan.platform}</Badge>
