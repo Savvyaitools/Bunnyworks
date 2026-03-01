@@ -40,7 +40,7 @@ export interface CreatorProfile {
 }
 
 export function useCreatorPortal() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
   const isCreator = profile?.user_type === "creator";
@@ -158,7 +158,7 @@ export function useCreatorPortal() {
     return true;
   }, [queryClient, creatorData]);
 
-  const loading = creatorLoading || tasksLoading || invoicesLoading || earningsLoading;
+  const loading = authLoading || creatorLoading || tasksLoading || invoicesLoading || earningsLoading;
 
   // Computed stats
   const totalEarnings = useMemo(() => 
