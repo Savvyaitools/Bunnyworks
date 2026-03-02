@@ -1,3 +1,4 @@
+import React from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Circle, Clock, ArrowUpRight, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -22,12 +23,12 @@ const formatDate = (dateString: string | null) => {
   return new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-function TaskRow({ task }: { task: Task }) {
+const TaskRow = React.forwardRef<HTMLDivElement, { task: Task }>(function TaskRow({ task }, ref) {
   const overdue = isOverdue(task.due_date, task.status);
   const isCompleted = task.status === "Completed";
 
   return (
-    <div className={cn(
+    <div ref={ref} className={cn(
       "flex items-start gap-3 p-3 rounded-lg transition-colors hover:bg-muted/50",
       overdue && "bg-destructive/5"
     )}>
@@ -61,7 +62,7 @@ function TaskRow({ task }: { task: Task }) {
       </div>
     </div>
   );
-}
+});
 
 export function DashboardTasks() {
   const { tasks, loading, stats } = useTasks();
