@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, Calendar, User, Globe, BarChart3, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,80 +6,41 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { EmployeeLayout } from "@/components/employee/EmployeeLayout";
 import { ClockInWidget } from "@/components/shifts/ClockInWidget";
-import { cn } from "@/lib/utils";
-
-interface EmployeeData {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  department: string | null;
-  status: string;
-  avatar_seed: string | null;
-}
-
-interface ChatterData {
-  id: string;
-  name: string;
-  skill_grade: string;
-}
+import { useQuery } from "@tanstack/react-query";
 
 export default function EmployeeDashboard() {
-  const { user, profile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [employeeData, setEmployeeData] = useState<EmployeeData | null>(null);
-  const [chatterData, setChatterData] = useState<ChatterData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [unreadMessages, setUnreadMessages] = useState(0);
 
-  const fetchEmployeeData = useCallback(async () => {
-    if (!user?.email) return;
+  const { data: employeeData, isLoading } = useQuery({
+    queryKey: ["employee-data", user?.email],
+    enabled: Boolean(user?.email),
+    queryFn: async () => {
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("*")
+        .ilike("email", user!.email!)
+        .maybeSingle();
+      return empData;
+    },
+  });
 
-    // Fetch employee record by email
-    const { data: empData, error: empError } = await supabase
-      .from("employees")
-      .select("*")
-      .ilike("email", user.email)
-      .maybeSingle();
+  const { data: chatterData } = useQuery({
+    queryKey: ["chatter-data", user?.id],
+    enabled: Boolean(user?.id && employeeData?.role === "Chatter"),
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("chatters")
+        .select("id, name, skill_grade")
+        .eq("auth_user_id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
 
-    if (empData) {
-      setEmployeeData(empData);
-
-      // If role is Chatter, also fetch chatter data
-      if (empData.role === "Chatter") {
-        const { data: chatData } = await supabase
-          .from("chatters")
-          .select("id, name, skill_grade")
-          .eq("auth_user_id", user.id)
-          .maybeSingle();
-        
-        if (chatData) {
-          setChatterData(chatData);
-        }
-      }
-
-      // Fetch unread message count
-      const { count } = await supabase
-        .from("internal_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("recipient_id", empData.id)
-        .eq("recipient_type", "employee")
-        .eq("read", false);
-      
-      setUnreadMessages(count || 0);
-    }
-
-    setLoading(false);
-  }, [user?.email, user?.id]);
-
-  useEffect(() => {
-    fetchEmployeeData();
-  }, [fetchEmployeeData]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <EmployeeLayout>
         <div className="space-y-6">
