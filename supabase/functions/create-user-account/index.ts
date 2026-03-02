@@ -28,13 +28,15 @@ Deno.serve(async (req) => {
       global: { headers: { authorization: authHeader } },
     });
 
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const caller = { id: claimsData.claims.sub as string };
 
     const { data: callerProfile } = await callerClient
       .from("profiles")

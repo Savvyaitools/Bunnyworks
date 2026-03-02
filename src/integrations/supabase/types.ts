@@ -503,6 +503,7 @@ export type Database = {
       }
       ai_knowledge_base: {
         Row: {
+          agency_id: string | null
           category: string
           content: string
           created_at: string
@@ -515,6 +516,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_id?: string | null
           category: string
           content: string
           created_at?: string
@@ -527,6 +529,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_id?: string | null
           category?: string
           content?: string
           created_at?: string
@@ -538,7 +541,22 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_knowledge_base_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_knowledge_base_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_performance_alerts: {
         Row: {
