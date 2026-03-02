@@ -8,8 +8,12 @@ interface CRUDConfig {
   select?: string;
   orderBy?: { column: string; ascending?: boolean };
   filter?: { column: string; value: unknown };
+  /** Additional filters applied via .eq() */
+  filters?: { column: string; value: unknown }[];
   /** When false, the initial SELECT query will not run. */
   enabled?: boolean;
+  /** Max rows per page (default 500). Set to 0 for no limit. */
+  pageSize?: number;
   messages?: {
     createSuccess?: string;
     createError?: string;
@@ -28,7 +32,9 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
     select = "*",
     orderBy,
     filter,
+    filters,
     enabled = true,
+    pageSize = 500,
     messages = {},
   } = config;
 
@@ -42,7 +48,7 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
     ...messages,
   };
 
-  // Fetch all items
+  // Fetch all items with pagination safety
   const { data: items = [], isLoading: loading, refetch } = useQuery({
     queryKey: [queryKey, filter?.value],
     enabled,
@@ -54,8 +60,19 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
         query = query.eq(filter.column, filter.value);
       }
 
+      if (filters) {
+        for (const f of filters) {
+          query = query.eq(f.column, f.value);
+        }
+      }
+
       if (orderBy) {
         query = query.order(orderBy.column, { ascending: orderBy.ascending ?? false });
+      }
+
+      // Apply range to prevent hitting the 1000-row default limit
+      if (pageSize > 0) {
+        query = query.range(0, pageSize - 1);
       }
 
       const { data, error } = await query;
@@ -64,7 +81,7 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
     },
   });
 
-  // Create mutation - uses Partial<T> to allow flexible input
+  // Create mutation
   const createMutation = useMutation({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutationFn: async (input: Record<string, any>) => {
@@ -143,7 +160,7 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
 
 // Simplified hook for read-only data
 export function useSupabaseRead<T>(config: Omit<CRUDConfig, "messages">) {
-  const { table, queryKey, select = "*", orderBy, filter, enabled = true } = config;
+  const { table, queryKey, select = "*", orderBy, filter, filters, enabled = true, pageSize = 500 } = config;
 
   const { data: items = [], isLoading: loading, refetch } = useQuery({
     queryKey: [queryKey, filter?.value],
@@ -156,8 +173,18 @@ export function useSupabaseRead<T>(config: Omit<CRUDConfig, "messages">) {
         query = query.eq(filter.column, filter.value);
       }
 
+      if (filters) {
+        for (const f of filters) {
+          query = query.eq(f.column, f.value);
+        }
+      }
+
       if (orderBy) {
         query = query.order(orderBy.column, { ascending: orderBy.ascending ?? false });
+      }
+
+      if (pageSize > 0) {
+        query = query.range(0, pageSize - 1);
       }
 
       const { data, error } = await query;
