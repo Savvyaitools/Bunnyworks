@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MoreVertical, DollarSign, Trash2, Mail, KeyRound, Check } from "lucide-react";
+import { MoreVertical, DollarSign, Trash2, Mail, KeyRound, Check, Heart } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
 import { Creator } from "@/hooks/useCreators";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CreatorCardProps {
   creator: Creator;
@@ -24,6 +26,18 @@ interface CreatorCardProps {
 export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: CreatorCardProps) {
   const navigate = useNavigate();
   const hasAccount = Boolean(creator.auth_user_id);
+  const [ofAccounts, setOfAccounts] = useState<{ id: string; username: string }[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("creator_social_accounts")
+      .select("id, username")
+      .eq("creator_id", creator.id)
+      .eq("platform", "OnlyFans")
+      .then(({ data }) => {
+        if (data) setOfAccounts(data);
+      });
+  }, [creator.id]);
 
   const handleCardClick = () => {
     navigate(`/creators/${creator.id}`);
@@ -115,6 +129,21 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
         )}
         {creator.followers && (
           <p className="text-xs text-muted-foreground mt-1">{creator.followers} followers</p>
+        )}
+        {/* OF Accounts */}
+        {ofAccounts.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+            {ofAccounts.map((acc) => (
+              <Badge
+                key={acc.id}
+                variant="outline"
+                className="text-xs border-blue-500/30 text-blue-400 bg-blue-500/10"
+              >
+                <Heart className="h-3 w-3 mr-1" />
+                {acc.username}
+              </Badge>
+            ))}
+          </div>
         )}
       </div>
 
