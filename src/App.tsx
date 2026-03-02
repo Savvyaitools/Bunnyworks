@@ -48,7 +48,7 @@ const PortalMessages = lazy(() => import("./pages/portal/PortalMessages"));
 const PortalInvoices = lazy(() => import("./pages/portal/PortalInvoices"));
 const PortalContent = lazy(() => import("./pages/portal/PortalContent"));
 const PortalContentPlans = lazy(() => import("./pages/portal/PortalContentPlans"));
-const PortalTasks = lazy(() => import("./pages/portal/PortalTasks"));
+
 
 
 // Employee pages
@@ -173,7 +173,7 @@ const AppRoutes = () => {
         <Route path="/portal/invoices" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalInvoices /></ProtectedRoute></ErrorBoundary>} />
         <Route path="/portal/content" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalContent /></ProtectedRoute></ErrorBoundary>} />
         <Route path="/portal/plans" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalContentPlans /></ProtectedRoute></ErrorBoundary>} />
-        <Route path="/portal/tasks" element={<ErrorBoundary fallback={<PortalErrorFallback />}><ProtectedRoute allowedUserTypes={["creator"]}><PortalTasks /></ProtectedRoute></ErrorBoundary>} />
+        
         
         
         {/* Employee Portal Routes - Scoped Error Boundary */}

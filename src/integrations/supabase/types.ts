@@ -4035,6 +4035,8 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          media_url: string | null
+          portal_visible: boolean | null
           priority: string
           request_type: string | null
           status: string
@@ -4050,6 +4052,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          media_url?: string | null
+          portal_visible?: boolean | null
           priority?: string
           request_type?: string | null
           status?: string
@@ -4065,6 +4069,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          media_url?: string | null
+          portal_visible?: boolean | null
           priority?: string
           request_type?: string | null
           status?: string

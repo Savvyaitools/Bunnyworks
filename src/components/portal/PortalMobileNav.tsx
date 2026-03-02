@@ -12,7 +12,6 @@ const portalMobileItems = [
   { icon: LayoutDashboard, label: "Home", path: "/portal" },
   { icon: FolderOpen, label: "Content", path: "/portal/content" },
   { icon: CalendarDays, label: "Plans", path: "/portal/plans" },
-  { icon: CheckSquare, label: "Tasks", path: "/portal/tasks" },
   { icon: MessageSquare, label: "Messages", path: "/portal/messages" },
 ];
 

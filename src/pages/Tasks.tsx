@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Clock, User, Calendar, Trash2, Tag, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, Plus, Clock, User, Calendar, Trash2, Tag, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardLayout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
@@ -95,6 +95,7 @@ export default function Tasks() {
       creator_id: data.creator_id === "none" ? null : data.creator_id || null,
       due_date: data.due_date || null,
       request_type: data.request_type || "general",
+      media_url: data.media_url || null,
     } as CreateTaskInput);
     setIsAddDialogOpen(false);
   };
@@ -271,6 +272,19 @@ export default function Tasks() {
                                 <p className="text-sm text-muted-foreground line-clamp-2 mb-3 whitespace-pre-wrap text-justify">
                                   {task.description}
                                 </p>
+                              )}
+
+                              {task.media_url && (
+                                <a
+                                  href={task.media_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 mb-3 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Workflow / Directions
+                                </a>
                               )}
 
                               <div className="flex flex-wrap items-center gap-2 text-xs">

@@ -14,6 +14,7 @@ export interface Task {
   request_type: string | null;
   agency_id: string | null;
   due_date: string | null;
+  media_url: string | null;
   created_at: string;
   updated_at: string;
 }
