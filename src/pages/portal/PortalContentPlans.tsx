@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare } from "lucide-react";
+import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare, CheckCircle2 } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -287,6 +287,21 @@ export default function PortalContentPlans() {
                     <MessageSquare className="h-4 w-4" />
                     Your Updates
                   </p>
+
+                  {/* Quick Complete Button */}
+                  {editColumn !== "completed" && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-green-500/30 text-green-400 hover:bg-green-500/20 hover:text-green-300"
+                      onClick={() => {
+                        setEditColumn("completed");
+                        toast.info("Status set to Completed — click Save to confirm");
+                      }}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Mark as Completed
+                    </Button>
+                  )}
 
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Status</label>
