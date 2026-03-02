@@ -183,7 +183,7 @@ export function AppSidebar() {
           }
 
           return (
-            <Collapsible key={section.label} defaultOpen={isSectionActive(section.items)}>
+            <Collapsible key={section.label} defaultOpen={true}>
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
                 {section.label}
                 <ChevronDown className="h-3 w-3 transition-transform duration-200 [&[data-state=open]]:rotate-180" />

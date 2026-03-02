@@ -95,7 +95,7 @@ export function RevenueChart() {
           <h3 className="text-lg font-semibold text-foreground">Revenue Overview</h3>
           <p className="text-sm text-muted-foreground">Agency vs Creator earnings</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-success" />
             <span className="text-sm text-muted-foreground">Creator Net</span>

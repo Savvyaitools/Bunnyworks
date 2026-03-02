@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RefreshCw, DollarSign, Users, UserCog, CheckSquare, TrendingUp, ArrowUpRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { DashboardLayout } from "@/components/layout";
 import { RevenueChart } from "@/components/dashboard";
@@ -84,7 +85,7 @@ function QuickStat({ title, value, subtext, icon: Icon, color, href }: QuickStat
 const Index = () => {
   const [syncing, setSyncing] = useState(false);
   const queryClient = useQueryClient();
-  const { agency } = useAgency();
+  const { agency, isLoading: agencyLoading } = useAgency();
   const commissionRate = agency?.commission_rate ?? 0.3;
   const agencyId = agency?.id;
 
@@ -200,8 +201,8 @@ const Index = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Welcome back. Here's your agency at a glance.</p>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Welcome back. Here's your agency at a glance.</p>
           </div>
           <Button
             onClick={handleSyncNow}
@@ -222,35 +223,49 @@ const Index = () => {
           initial="hidden"
           animate="visible"
         >
-          <QuickStat
-            title="Total Revenue"
-            value={formatCurrency(grossRevenue)}
-            subtext={`Net: ${formatCurrency(netRevenue)}`}
-            icon={DollarSign}
-            color="success"
-          />
-          <QuickStat
-            title="Agency Earnings"
-            value={formatCurrency(agencyEarnings)}
-            subtext={`${(commissionRate * 100).toFixed(0)}% commission`}
-            icon={TrendingUp}
-            color="primary"
-          />
-          <QuickStat
-            title="Active Creators"
-            value={creatorsCount || 0}
-            icon={Users}
-            color="accent"
-            href="/creators"
-          />
-          <QuickStat
-            title="Team Members"
-            value={employeesCount || 0}
-            subtext={tasksData ? `${tasksData.pending} tasks pending` : undefined}
-            icon={UserCog}
-            color="warning"
-            href="/team"
-          />
+          {!agencyId ? (
+            <>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="glass-card p-5">
+                  <Skeleton className="h-3 w-20 mb-3" />
+                  <Skeleton className="h-7 w-24 mb-2" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <QuickStat
+                title="Total Revenue"
+                value={formatCurrency(grossRevenue)}
+                subtext={`Net: ${formatCurrency(netRevenue)}`}
+                icon={DollarSign}
+                color="success"
+              />
+              <QuickStat
+                title="Agency Earnings"
+                value={formatCurrency(agencyEarnings)}
+                subtext={`${(commissionRate * 100).toFixed(0)}% commission`}
+                icon={TrendingUp}
+                color="primary"
+              />
+              <QuickStat
+                title="Active Creators"
+                value={creatorsCount || 0}
+                icon={Users}
+                color="accent"
+                href="/creators"
+              />
+              <QuickStat
+                title="Team Members"
+                value={employeesCount || 0}
+                subtext={tasksData ? `${tasksData.pending} tasks pending` : undefined}
+                icon={UserCog}
+                color="warning"
+                href="/team"
+              />
+            </>
+          )}
         </motion.div>
 
         {/* Revenue Chart + Revenue Breakdown */}

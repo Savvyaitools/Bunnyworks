@@ -178,7 +178,7 @@ export function MobileBottomNav() {
 
             const isActive =
               location.pathname === item.path ||
-              (item.path !== "/dashboard" && location.pathname.startsWith(item.path + "/"));
+              location.pathname.startsWith(item.path + "/");
 
             return (
               <button
