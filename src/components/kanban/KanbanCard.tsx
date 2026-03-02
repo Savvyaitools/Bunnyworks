@@ -75,7 +75,7 @@ export function KanbanCard({ item, onClick, onEdit, onDelete, isDragOverlay, dis
       <h4 className="text-sm font-medium text-foreground pr-5 line-clamp-2">{item.title}</h4>
 
       {item.description && (
-        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+        <div className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-pre-wrap text-justify">
           <LinkifyText text={item.description} />
         </div>
       )}
