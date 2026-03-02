@@ -491,7 +491,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
               {selectedPlan.description && (
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">Description</p>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap text-justify">
                     <LinkifyText text={selectedPlan.description} />
                   </div>
                 </div>
@@ -530,7 +530,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                     <MessageSquare className="h-3.5 w-3.5" />
                     Creator Notes
                   </p>
-                  <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 border border-border">
+                  <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 border border-border whitespace-pre-wrap text-justify">
                     <LinkifyText text={selectedPlan.creator_notes} />
                   </div>
                 </div>
