@@ -7,6 +7,7 @@ import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { DashboardTasks } from "@/components/dashboard/DashboardTasks";
 import { DashboardAIInsights } from "@/components/dashboard/DashboardAIInsights";
 import { RevenueSourceBreakdown } from "@/components/dashboard/RevenueSourceBreakdown";
+import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedChecklist";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
@@ -229,6 +230,9 @@ const Index = () => {
             </>
           )}
         </motion.div>
+
+        {/* Getting Started Checklist for new agencies */}
+        <GettingStartedChecklist />
 
         {/* Revenue Chart + Revenue Breakdown */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
