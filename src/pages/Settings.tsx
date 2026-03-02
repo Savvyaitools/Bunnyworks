@@ -134,19 +134,19 @@ export default function Settings() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar Navigation */}
           <div className="w-full lg:w-64 shrink-0 animate-fade-in" style={{ animationDelay: "100ms" }}>
-            <nav className="glass-card p-2 space-y-1">
+            <nav className="glass-card p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible scrollbar-hide">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                     activeTab === tab.id
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
-                  <tab.icon className="h-5 w-5" />
+                  <tab.icon className="h-4 w-4 lg:h-5 lg:w-5" />
                   {tab.label}
                 </button>
               ))}

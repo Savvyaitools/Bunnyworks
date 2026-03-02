@@ -189,32 +189,9 @@ export function LiveActivityFeed() {
         });
       });
 
-      // Return mock data if empty
+      // Return empty array if no real data
       if (liveActivities.length === 0) {
-        return [
-          {
-            id: "mock-1",
-            type: "tip" as const,
-            icon: Heart,
-            title: "Tip received",
-            amount: 25,
-            creatorName: "Demo Creator",
-            time: "just now",
-            iconBg: "bg-pink-500/20",
-            iconColor: "text-pink-500",
-          },
-          {
-            id: "mock-2",
-            type: "subscription" as const,
-            icon: UserPlus,
-            title: "New subscription",
-            amount: 14.99,
-            creatorName: "Demo Creator",
-            time: "2 min ago",
-            iconBg: "bg-accent/20",
-            iconColor: "text-accent",
-          },
-        ];
+        return [];
       }
 
       return liveActivities.slice(0, 8);

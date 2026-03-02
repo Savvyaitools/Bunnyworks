@@ -95,7 +95,9 @@ export function RevenueSourceBreakdown({ grossRevenue, tips = 0, subscriptions =
       <div className="flex items-center gap-2 mb-1">
         <h3 className="text-lg font-semibold text-foreground">Revenue</h3>
       </div>
-      <p className="text-xs text-muted-foreground mb-6">Overview</p>
+      <p className="text-xs text-muted-foreground mb-6">
+        {hasBreakdown ? "Breakdown" : "Estimated breakdown"}
+      </p>
 
       <div className="space-y-5">
         {sources.map((source, i) => {
