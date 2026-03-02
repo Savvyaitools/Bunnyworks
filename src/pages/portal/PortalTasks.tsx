@@ -162,7 +162,7 @@ export default function PortalTasks() {
                         </Badge>
                       </div>
                       {task.description && (
-                        <p className="text-sm text-muted-foreground mb-3 whitespace-pre-wrap">{task.description}</p>
+                        <p className="text-sm text-muted-foreground mb-3 whitespace-pre-wrap text-justify">{task.description}</p>
                       )}
                       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">

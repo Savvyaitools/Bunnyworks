@@ -471,7 +471,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                   rows={4}
                 />
               ) : (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-sm text-justify">
                   {creator.notes || "No notes added yet."}
                 </p>
               )}
