@@ -1175,6 +1175,7 @@ export type Database = {
           name: string
           status: string
           uploaded_at: string
+          used_platforms: string[] | null
         }
         Insert: {
           agency_id?: string | null
@@ -1189,6 +1190,7 @@ export type Database = {
           name: string
           status?: string
           uploaded_at?: string
+          used_platforms?: string[] | null
         }
         Update: {
           agency_id?: string | null
@@ -1203,6 +1205,7 @@ export type Database = {
           name?: string
           status?: string
           uploaded_at?: string
+          used_platforms?: string[] | null
         }
         Relationships: [
           {
