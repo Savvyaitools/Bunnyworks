@@ -1,4 +1,4 @@
-import { TrendingUp, CheckSquare, MessageSquare, FileText } from "lucide-react";
+import { TrendingUp, CalendarDays, MessageSquare, FileText } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -7,40 +7,19 @@ import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 import { useUnreadMessages } from "@/hooks/useMessages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/formatters";
-import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { StatCard } from "@/components/shared";
-
-function formatDueDate(dateString: string | null): string {
-  if (!dateString) return "No date";
-  const date = parseISO(dateString);
-  if (isToday(date)) return "Today";
-  if (isTomorrow(date)) return "Tomorrow";
-  return format(date, "MMM d");
-}
 
 export default function PortalDashboard() {
   const { 
     creatorProfile, 
-    tasks, 
     invoices, 
     loading,
     totalEarnings,
-    activeTasks,
     pendingInvoices,
     pendingInvoiceAmount
   } = useCreatorPortal();
   
   const { totalUnread } = useUnreadMessages("creator");
-
-  const upcomingTasks = tasks
-    .filter(t => t.status !== "Completed")
-    .slice(0, 3);
-
-  const tasksDueToday = tasks.filter(t => t.due_date && isToday(parseISO(t.due_date))).length;
-
-  const completedTasks = tasks.filter(t => t.status === "Completed").length;
-  const totalTasks = tasks.length;
-  const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
     <PortalLayout>
@@ -54,19 +33,12 @@ export default function PortalDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <StatCard
             title="Total Earnings"
             value={formatCurrency(totalEarnings)}
             subtitle="All time"
             icon={TrendingUp}
-            loading={loading}
-          />
-          <StatCard
-            title="Active Tasks"
-            value={activeTasks.toString()}
-            subtitle={tasksDueToday > 0 ? `${tasksDueToday} due today` : "No tasks due today"}
-            icon={CheckSquare}
             loading={loading}
           />
           <StatCard
@@ -87,43 +59,22 @@ export default function PortalDashboard() {
 
         {/* Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Upcoming Tasks */}
+          {/* Content Plans Quick Link */}
           <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Upcoming Tasks</h2>
+              <h2 className="text-lg font-semibold text-foreground">Content Plans</h2>
               <Badge variant="outline" className="border-accent/30 text-accent">
-                {activeTasks} active
+                <CalendarDays className="h-3 w-3 mr-1" />
+                View All
               </Badge>
             </div>
-            <div className="space-y-3">
-              {loading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-14 w-full rounded-lg" />
-                ))
-              ) : upcomingTasks.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">No upcoming tasks</p>
-              ) : (
-                upcomingTasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-accent" />
-                      <span className="text-sm text-foreground">{task.title}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={cn(
-                        "text-xs",
-                        task.priority === "High" && "bg-destructive/20 text-destructive",
-                        task.priority === "Medium" && "bg-warning/20 text-warning",
-                        task.priority === "Low" && "bg-muted text-muted-foreground"
-                      )}>
-                        {task.priority}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{formatDueDate(task.due_date)}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Check your content plans to see what's due, update your progress, and submit completed work.
+            </p>
+            <a href="/portal/plans" className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent/80 transition-colors font-medium">
+              <CalendarDays className="h-4 w-4" />
+              Go to Content Plans →
+            </a>
           </div>
 
           {/* Recent Invoices */}
@@ -158,20 +109,6 @@ export default function PortalDashboard() {
                   </div>
                 ))
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Task Progress */}
-        <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <h2 className="text-lg font-semibold text-foreground mb-4">Task Completion Progress</h2>
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-foreground">Tasks Completed</span>
-                <span className="text-sm text-muted-foreground">{completedTasks}/{totalTasks}</span>
-              </div>
-              <Progress value={taskProgress} className="h-2" />
             </div>
           </div>
         </div>

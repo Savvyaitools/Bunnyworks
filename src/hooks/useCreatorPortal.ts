@@ -10,6 +10,7 @@ export interface CreatorTask {
   priority: string;
   status: string;
   due_date: string | null;
+  media_url: string | null;
   created_at: string;
 }
 
@@ -64,22 +65,10 @@ export function useCreatorPortal() {
 
   const creatorId = creatorData?.id;
 
-  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
-    queryKey: ["creator-portal-tasks", creatorId],
-    queryFn: async () => {
-      if (!creatorId) return [];
-
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, description, priority, status, due_date, created_at")
-        .eq("creator_id", creatorId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as CreatorTask[];
-    },
-    enabled: !!creatorId,
-  });
+  // Tasks are internal to employees only — creators see content plans instead
+  const tasks: CreatorTask[] = [];
+  const tasksLoading = false;
+  const refetchTasks = async () => {};
 
   const { data: invoices = [], isLoading: invoicesLoading, refetch: refetchInvoices } = useQuery({
     queryKey: ["creator-portal-invoices", creatorId],
@@ -115,48 +104,10 @@ export function useCreatorPortal() {
     enabled: !!creatorId,
   });
 
-  const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
-    // Get task details first for notification
-    const { data: taskData } = await supabase
-      .from("tasks")
-      .select("title, agency_id")
-      .eq("id", taskId)
-      .single();
-
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status })
-      .eq("id", taskId);
-
-    if (error) {
-      console.error("Error updating task:", error);
-      return false;
-    }
-
-    // Create notification for agency when task is completed
-    if (status === "Completed" && creatorData && taskData) {
-      // Get agency owner profile ID
-      const { data: agencyProfiles } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("agency_id", taskData.agency_id)
-        .eq("user_type", "agency")
-        .limit(1);
-
-      if (agencyProfiles && agencyProfiles.length > 0) {
-        await supabase.from("notifications").insert({
-          user_id: agencyProfiles[0].id,
-          title: "Task Completed",
-          message: `${creatorData.name} completed task: ${taskData.title}`,
-          type: "task_completed",
-          link: `/tasks?id=${taskId}`,
-        });
-      }
-    }
-    
-    queryClient.invalidateQueries({ queryKey: ["creator-portal-tasks"] });
-    return true;
-  }, [queryClient, creatorData]);
+  const updateTaskStatus = useCallback(async (_taskId: string, _status: string) => {
+    // Tasks are internal-only — this is a no-op for creators
+    return false;
+  }, []);
 
   const loading = authLoading || creatorLoading || tasksLoading || invoicesLoading || earningsLoading;
 

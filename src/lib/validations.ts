@@ -364,6 +364,12 @@ export const taskFormSchema = z.object({
   due_date: z.string().optional().or(z.literal("")),
   assignee_id: z.string().optional().or(z.literal("none")),
   creator_id: z.string().optional().or(z.literal("none")),
+  media_url: z
+    .string()
+    .trim()
+    .max(2000, "URL must be less than 2000 characters")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type TaskFormValues = z.infer<typeof taskFormSchema>;

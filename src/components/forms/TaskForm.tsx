@@ -30,6 +30,7 @@ export function TaskForm({ onSubmit, isSubmitting, creators, employees }: TaskFo
       due_date: "",
       assignee_id: "none",
       creator_id: "none",
+      media_url: "",
     },
   });
 
@@ -108,6 +109,15 @@ export function TaskForm({ onSubmit, isSubmitting, creators, employees }: TaskFo
         label="Due Date"
         register={register}
         error={errors.due_date}
+      />
+
+      <FormField
+        type="text"
+        name="media_url"
+        label="Workflow / Directions Link (Optional)"
+        placeholder="https://docs.google.com/... or any URL"
+        register={register}
+        error={errors.media_url}
       />
 
       <FormRow>
