@@ -447,7 +447,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                   rows={4}
                 />
               ) : (
-                <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words text-justify leading-relaxed">
+                <p className="text-muted-foreground text-sm">
                   {(creator as any).persona || "No persona description added yet."}
                 </p>
               )}
@@ -471,7 +471,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                   rows={4}
                 />
               ) : (
-                <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words text-justify leading-relaxed">
+                <p className="text-muted-foreground text-sm">
                   {creator.notes || "No notes added yet."}
                 </p>
               )}
