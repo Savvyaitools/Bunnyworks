@@ -9,7 +9,7 @@ export interface CustomRequest {
   creator_id: string;
   title: string;
   description: string | null;
-  status: "pending" | "in_progress" | "completed" | "cancelled";
+  status: "pending" | "in_progress" | "incomplete" | "completed" | "cancelled";
   price: number | null;
   due_date: string | null;
   notes: string | null;
@@ -135,6 +135,7 @@ export function useCustomRequests(creatorId?: string) {
     total: requests.length,
     pending: requests.filter((r) => r.status === "pending").length,
     inProgress: requests.filter((r) => r.status === "in_progress").length,
+    incomplete: requests.filter((r) => r.status === "incomplete").length,
     completed: requests.filter((r) => r.status === "completed").length,
     totalValue: requests.reduce((sum, r) => sum + (r.price || 0), 0),
   };

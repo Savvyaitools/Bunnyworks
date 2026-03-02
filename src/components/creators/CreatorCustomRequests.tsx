@@ -32,6 +32,7 @@ interface CreatorCustomRequestsProps {
 const statusStyles: Record<string, string> = {
   pending: "bg-warning/20 text-warning border-warning/30",
   in_progress: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  incomplete: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   completed: "bg-success/20 text-success border-success/30",
   cancelled: "bg-destructive/20 text-destructive border-destructive/30",
 };
@@ -39,6 +40,7 @@ const statusStyles: Record<string, string> = {
 const statusIcons: Record<string, React.ReactNode> = {
   pending: <Clock className="h-4 w-4" />,
   in_progress: <Loader2 className="h-4 w-4 animate-spin" />,
+  incomplete: <XCircle className="h-4 w-4" />,
   completed: <CheckCircle className="h-4 w-4" />,
   cancelled: <XCircle className="h-4 w-4" />,
 };
@@ -280,7 +282,7 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <p className="text-sm text-muted-foreground">Total Requests</p>
@@ -297,6 +299,12 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
           <CardContent className="pt-4 pb-4">
             <p className="text-sm text-muted-foreground">In Progress</p>
             <p className="text-2xl font-bold text-blue-400">{stats.inProgress}</p>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Incomplete</p>
+            <p className="text-2xl font-bold text-orange-400">{stats.incomplete}</p>
           </CardContent>
         </Card>
         <Card className="glass-card">
@@ -397,9 +405,14 @@ export function CreatorCustomRequests({ creatorId }: CreatorCustomRequestsProps)
                             Start Work
                           </DropdownMenuItem>
                         )}
-                        {request.status === "in_progress" && (
+                        {(request.status === "in_progress" || request.status === "incomplete") && (
                           <DropdownMenuItem onClick={() => handleStatusUpdate(request.id, "completed")}>
                             Mark Complete
+                          </DropdownMenuItem>
+                        )}
+                        {request.status === "incomplete" && (
+                          <DropdownMenuItem onClick={() => handleStatusUpdate(request.id, "in_progress")}>
+                            Resume Work
                           </DropdownMenuItem>
                         )}
                         {request.status !== "cancelled" && request.status !== "completed" && (
