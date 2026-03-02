@@ -21,7 +21,7 @@ const quickActions = [
 
 export function FelixChat({ className, compact = false }: FelixChatProps) {
   const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { 
     messages, conversations, activeConversationId, isLoading, isLoadingHistory,
     sendQuery, startNewChat, selectConversation, deleteConversation 
@@ -29,8 +29,8 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -127,7 +127,7 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div className="flex-1 overflow-y-auto p-4" ref={scrollContainerRef}>
           {isLoadingHistory ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -217,7 +217,7 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
               )}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Input */}
         <div className="p-4 border-t border-border">
