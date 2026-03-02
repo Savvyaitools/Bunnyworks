@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { RefreshCw, DollarSign, Users, UserCog, CheckSquare, TrendingUp, ArrowUpRight } from "lucide-react";
+import { DollarSign, Users, UserCog, TrendingUp, ArrowUpRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { DashboardLayout } from "@/components/layout";
@@ -8,12 +7,10 @@ import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { DashboardTasks } from "@/components/dashboard/DashboardTasks";
 import { DashboardAIInsights } from "@/components/dashboard/DashboardAIInsights";
 import { RevenueSourceBreakdown } from "@/components/dashboard/RevenueSourceBreakdown";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { useAgency } from "@/hooks/useAgency";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
 const containerVariants = {
@@ -83,8 +80,6 @@ function QuickStat({ title, value, subtext, icon: Icon, color, href }: QuickStat
 }
 
 const Index = () => {
-  const [syncing, setSyncing] = useState(false);
-  const queryClient = useQueryClient();
   const { agency, isLoading: agencyLoading } = useAgency();
   const commissionRate = agency?.commission_rate ?? 0.3;
   const agencyId = agency?.id;
@@ -104,22 +99,6 @@ const Index = () => {
     },
   });
 
-  // Fetch tasks data
-  const { data: tasksData } = useQuery({
-    queryKey: ["tasks-stats", agencyId],
-    enabled: Boolean(agencyId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("status")
-        .eq("agency_id", agencyId);
-      if (error) throw error;
-      const completed = data?.filter((t) => t.status === "Completed").length || 0;
-      const pending = data?.filter((t) => t.status === "Pending" || t.status === "In Progress").length || 0;
-      const total = data?.length || 0;
-      return { completed, pending, total };
-    },
-  });
 
   // Fetch total revenue
   const { data: revenueData } = useQuery({
@@ -191,29 +170,13 @@ const Index = () => {
   const netRevenue = revenueData?.netTotal || 0;
   const agencyEarnings = revenueData?.agencyEarnings || 0;
 
-  const handleSyncNow = async () => {
-    toast.info("Earnings are now synced automatically via browser sessions.");
-  };
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Welcome back. Here's your agency at a glance.</p>
-          </div>
-          <Button
-            onClick={handleSyncNow}
-            disabled={syncing}
-            variant="outline"
-            size="sm"
-            className="gap-2 self-start sm:self-auto"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            <span>{syncing ? "Syncing..." : "Sync Data"}</span>
-          </Button>
+        <div className="animate-fade-in">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Welcome back. Here's your agency at a glance.</p>
         </div>
 
         {/* Key Metrics Row */}
@@ -259,7 +222,6 @@ const Index = () => {
               <QuickStat
                 title="Team Members"
                 value={employeesCount || 0}
-                subtext={tasksData ? `${tasksData.pending} tasks pending` : undefined}
                 icon={UserCog}
                 color="warning"
                 href="/team"
