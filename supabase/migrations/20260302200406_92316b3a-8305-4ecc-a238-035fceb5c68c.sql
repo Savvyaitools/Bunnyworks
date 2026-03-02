@@ -1,0 +1,1 @@
+ALTER TABLE public.content_files ADD COLUMN used_platforms text[] DEFAULT '{}'::text[];

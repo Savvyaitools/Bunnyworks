@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle, LayoutGrid, List, Eye, FolderInput, Edit, Check, X, Square, CheckSquare } from "lucide-react";
+import { Upload, FolderPlus, Folder, File, Download, Trash2, ChevronRight, ArrowLeft, Image, Video, Loader2, CheckCircle, AlertCircle, LayoutGrid, List, Eye, FolderInput, Edit, Check, X, Square, CheckSquare, Tag } from "lucide-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +12,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -41,7 +47,20 @@ interface ContentFile {
   content_type?: string;
   signedUrl?: string;
   created_at?: string;
+  used_platforms?: string[];
 }
+
+const PLATFORM_TAGS = [
+  { id: "Instagram", color: "bg-gradient-to-r from-purple-500 to-pink-500 text-white", icon: "📸" },
+  { id: "Twitter", color: "bg-sky-500 text-white", icon: "𝕏" },
+  { id: "Reddit", color: "bg-orange-600 text-white", icon: "🔴" },
+  { id: "Telegram", color: "bg-blue-500 text-white", icon: "✈️" },
+  { id: "TikTok", color: "bg-black text-white border border-border", icon: "🎵" },
+  { id: "Snapchat", color: "bg-yellow-400 text-black", icon: "👻" },
+  { id: "YouTube", color: "bg-red-600 text-white", icon: "▶️" },
+  { id: "Platform Wall", color: "bg-pink-600 text-white", icon: "🧱" },
+  { id: "Platform Vault", color: "bg-violet-600 text-white", icon: "🔒" },
+] as const;
 
 type ContentCategory = "general" | "primary_platform" | "social";
 
@@ -485,6 +504,28 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
     if (error) { toast.error("Failed to delete folder"); } else { toast.success("Folder deleted"); fetchContent(); }
   };
 
+  const toggleUsedPlatform = async (file: ContentFile, platform: string) => {
+    const current = file.used_platforms || [];
+    const updated = current.includes(platform)
+      ? current.filter(p => p !== platform)
+      : [...current, platform];
+    
+    // Optimistic update
+    setFiles(prev => prev.map(f => f.id === file.id ? { ...f, used_platforms: updated } : f));
+    
+    const { error } = await supabase
+      .from('content_files')
+      .update({ used_platforms: updated })
+      .eq('id', file.id);
+    
+    if (error) {
+      toast.error("Failed to update platforms");
+      fetchContent();
+    }
+  };
+
+  const getPlatformTag = (platformId: string) => PLATFORM_TAGS.find(p => p.id === platformId);
+
   const isImage = (fileType: string) => fileType.startsWith('image/') || fileType === 'Image';
   const isVideo = (fileType: string) => fileType.startsWith('video/') || fileType === 'Video';
   const isMedia = (fileType: string) => isImage(fileType) || isVideo(fileType);
@@ -824,7 +865,10 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
               {/* File Info */}
               <div className="p-2.5 space-y-1.5">
                 <span className="text-xs font-medium text-foreground truncate block leading-tight">{file.name}</span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-muted-foreground">
+                    {file.created_at ? format(new Date(file.created_at), "MMM d, yyyy") : ""}
+                  </span>
                   <span className="text-[10px] text-muted-foreground">
                     {file.file_size < 1024 * 1024
                       ? `${(file.file_size / 1024).toFixed(0)} KB`
@@ -835,6 +879,53 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
                       {contentTypeLabels[file.content_type as ContentCategory] || file.content_type}
                     </Badge>
                   )}
+                </div>
+                {/* Used Platform Tags */}
+                <div className="flex items-center gap-1 flex-wrap">
+                  {(file.used_platforms || []).map(p => {
+                    const tag = getPlatformTag(p);
+                    return tag ? (
+                      <span key={p} className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-medium", tag.color)}>
+                        {tag.icon} {tag.id}
+                      </span>
+                    ) : null;
+                  })}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="text-[10px] px-1.5 py-0.5 rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Tag className="h-2.5 w-2.5 inline mr-0.5" />
+                        Used
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-xs font-medium text-foreground mb-2">Posted on:</p>
+                      <div className="flex flex-col gap-1">
+                        {PLATFORM_TAGS.map(tag => (
+                          <button
+                            key={tag.id}
+                            className={cn(
+                              "flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors text-left",
+                              (file.used_platforms || []).includes(tag.id)
+                                ? "bg-primary/10 text-foreground"
+                                : "hover:bg-muted text-muted-foreground"
+                            )}
+                            onClick={() => toggleUsedPlatform(file, tag.id)}
+                          >
+                            <span className={cn("w-5 h-5 rounded-md flex items-center justify-center text-[10px]", tag.color)}>
+                              {tag.icon}
+                            </span>
+                            <span className="flex-1">{tag.id}</span>
+                            {(file.used_platforms || []).includes(tag.id) && (
+                              <Check className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               {/* Action Buttons */}
@@ -940,17 +1031,64 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium text-foreground truncate block">{file.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {file.file_size < 1024 * 1024
-                    ? `${(file.file_size / 1024).toFixed(0)} KB`
-                    : `${(file.file_size / (1024 * 1024)).toFixed(1)} MB`}
-                </span>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {file.created_at && <span>{format(new Date(file.created_at), "MMM d, yyyy")}</span>}
+                  <span>
+                    {file.file_size < 1024 * 1024
+                      ? `${(file.file_size / 1024).toFixed(0)} KB`
+                      : `${(file.file_size / (1024 * 1024)).toFixed(1)} MB`}
+                  </span>
+                </div>
+                {(file.used_platforms || []).length > 0 && (
+                  <div className="flex items-center gap-1 mt-1 flex-wrap">
+                    {(file.used_platforms || []).map(p => {
+                      const tag = getPlatformTag(p);
+                      return tag ? (
+                        <span key={p} className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-medium", tag.color)}>
+                          {tag.icon} {tag.id}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
               </div>
               {file.content_type && file.content_type !== "general" && (
                 <Badge className={cn("text-[10px] h-4 shrink-0", contentTypeColors[file.content_type as ContentCategory] || contentTypeColors.general)}>
                   {contentTypeLabels[file.content_type as ContentCategory] || file.content_type}
                 </Badge>
               )}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={(e) => e.stopPropagation()} title="Tag platforms">
+                    <Tag className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="end" onClick={(e) => e.stopPropagation()}>
+                  <p className="text-xs font-medium text-foreground mb-2">Posted on:</p>
+                  <div className="flex flex-col gap-1">
+                    {PLATFORM_TAGS.map(tag => (
+                      <button
+                        key={tag.id}
+                        className={cn(
+                          "flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors text-left",
+                          (file.used_platforms || []).includes(tag.id)
+                            ? "bg-primary/10 text-foreground"
+                            : "hover:bg-muted text-muted-foreground"
+                        )}
+                        onClick={() => toggleUsedPlatform(file, tag.id)}
+                      >
+                        <span className={cn("w-5 h-5 rounded-md flex items-center justify-center text-[10px]", tag.color)}>
+                          {tag.icon}
+                        </span>
+                        <span className="flex-1">{tag.id}</span>
+                        {(file.used_platforms || []).includes(tag.id) && (
+                          <Check className="h-3.5 w-3.5 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openMoveDialog(file); }} title="Move to folder">
                   <FolderInput className="h-3.5 w-3.5" />
