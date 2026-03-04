@@ -13,8 +13,8 @@ import {
   ChatEngagementPanel,
   MarketingLinkPerformance,
 } from "@/components/fan-analytics";
-import { useState, useMemo } from "react";
-import { BarChart3 } from "lucide-react";
+import { useState } from "react";
+import { startOfMonth } from "date-fns";
 import { startOfMonth } from "date-fns";
 
 export default function FanAnalytics() {
