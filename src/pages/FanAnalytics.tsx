@@ -15,19 +15,11 @@ import {
 } from "@/components/fan-analytics";
 import { useState } from "react";
 import { startOfMonth } from "date-fns";
-import { startOfMonth } from "date-fns";
 
 export default function FanAnalytics() {
   const { agencyId } = useAgency();
   const { creators } = useCreators();
   const [selectedCreatorId, setSelectedCreatorId] = useState<string>("all");
-
-  // Get of_account_ids for the selected creator(s)
-  const creatorAccountIds = useMemo(() => {
-    if (!creators) return [];
-    // We need to map creator IDs to of_account_ids — fans use of_account_id
-    return creators.map((c) => c.id);
-  }, [creators]);
 
   // Fetch fans
   const { data: fans = [], isLoading: fansLoading } = useQuery({
