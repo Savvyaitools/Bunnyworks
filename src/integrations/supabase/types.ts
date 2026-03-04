@@ -2729,6 +2729,60 @@ export type Database = {
           },
         ]
       }
+      fan_transactions: {
+        Row: {
+          agency_id: string | null
+          amount: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          of_account_id: string
+          of_fan_id: string
+          synced_at: string | null
+          transacted_at: string | null
+          transaction_type: string
+        }
+        Insert: {
+          agency_id?: string | null
+          amount?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          of_account_id: string
+          of_fan_id: string
+          synced_at?: string | null
+          transacted_at?: string | null
+          transaction_type: string
+        }
+        Update: {
+          agency_id?: string | null
+          amount?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          of_account_id?: string
+          of_fan_id?: string
+          synced_at?: string | null
+          transacted_at?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fan_transactions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fan_transactions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       felix_briefings: {
         Row: {
           agency_id: string

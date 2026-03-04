@@ -41,6 +41,7 @@ const BrowserSync = lazy(() => import("./pages/BrowserSync"));
 const UserGuide = lazy(() => import("./pages/UserGuide"));
 const CoachPBF = lazy(() => import("./pages/Felix"));
 const EmployeePerformance = lazy(() => import("./pages/EmployeePerformance"));
+const FanAnalytics = lazy(() => import("./pages/FanAnalytics"));
 
 // Portal pages
 const PortalDashboard = lazy(() => import("./pages/portal/PortalDashboard"));
@@ -159,6 +160,7 @@ const AppRoutes = () => {
         <Route path="/coach-pbf" element={<Navigate to="/of-ai" replace />} />
         <Route path="/of-ai/social-media" element={<ProtectedRoute allowedUserTypes={["agency"]}><SocialMediaManager /></ProtectedRoute>} />
         <Route path="/of-ai/chatter" element={<ProtectedRoute allowedUserTypes={["agency"]}><AIChatterPage /></ProtectedRoute>} />
+        <Route path="/fan-analytics" element={<ProtectedRoute allowedUserTypes={["agency"]}><FanAnalytics /></ProtectedRoute>} />
         
         {/* Legacy redirects */}
         <Route path="/felix" element={<Navigate to="/of-ai" replace />} />

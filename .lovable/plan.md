@@ -1,98 +1,99 @@
 
 
-## Fan Analytics Section -- Implementation Plan
+# Browser Session Workflow — Safety-First Architecture
 
-### What FansMetric Offers (Key Features to Replicate)
+## Priority Order
+1. **Account Safety** — Never overwrite valid cookies; fail-open on all ambiguous states
+2. **Logged-In Sessions** — Verify login state at every session boundary (launch, close, terminate)
+3. **Analytics Import** — Auto-scrape earnings on save_and_close; periodic cron scraping
 
-FansMetric provides deep fan-level analytics that your platform currently lacks as a UI section:
-- **Top Fans** ranked by total spend, with purchase counts
-- **Fan Segmentation** (smart lists by spend tier: whales, mid-spenders, low-spenders)
-- **Earning Metrics**: avg earnings per fan, visitor-to-subscriber conversion rate, new subscriber count
-- **Chat Analytics**: message volume, response times, earnings per chat
-- **Marketing Link ROI**: tracking link performance with clicks, conversions, revenue
+## Key Architectural Improvements
 
-### What You Already Have (Database)
+### 1. Reusable `checkLoginViaCDP()` Helper
+Eliminated 3x code duplication (~150 lines removed). Single function handles:
+- CDP WebSocket connection + page target attachment
+- CSS selector pre-check (`.b-tabs`, `.l-header__menu`, `form.b-loginreg`, etc.)
+- AI fallback via Gemini-2.5-flash for ambiguous cases
+- Fail-open on empty CDP data (preserves cookies)
 
-Your database is well-positioned:
-- `of_fans`: has `total_spent`, `username`, `name`, `avatar_url`, `is_active`, `subscribed_at`, `expires_at`, `renew_on`, `of_account_id`
-- `of_chats`: has `fan_username`, `last_message_at`, `unread_count`, `of_fan_id`
-- `creator_earnings`: has `tips`, `subscriptions`, `messages_revenue`, `referrals`, broken down by period
-- `tracking_links`: has `clicks`, `conversions`, `revenue`, `campaign`, `source`
+### 2. CDP Cookie Verification (`verifyCookiesRestored()`)
+After the 8-second context restoration wait, actually verifies cookies were loaded using `Network.getCookies`. Creates a `cookie_restoration_failed` alert if zero cookies found for the target domain.
 
-What's **missing**: per-fan transaction history (individual purchases/tips per fan), fan online status tracking, and message-level analytics. But you can build a powerful v1 with existing data.
+### 3. Cookie-Safe `terminate_session`
+Previously released sessions without cookie tracking. Now:
+- Explicitly releases with cookie persistence (REQUEST_RELEASE defaults to persist)
+- Updates `last_saved_at` on creator_session_links
+- Clears `browserbase_session_id` and `browserbase_live_url` from the link
 
-### Plan
+### 4. Dead Session Fail-Open in `save_and_close`
+If session is dead when save_and_close is called:
+- Previously authenticated → fail-open, preserve "authenticated" status
+- Not authenticated → no persist (correct behavior)
 
-#### 1. New Page: `/fan-analytics`
-Create `src/pages/FanAnalytics.tsx` with the following sections:
+## Session Lifecycle
 
-**Section A -- KPI Stats Bar** (top row of 4-5 stat cards)
-- Total Fans (active count from `of_fans`)
-- Average Spend Per Fan (`SUM(total_spent) / COUNT(*)`)
-- New Subscribers This Month (fans with `subscribed_at` in current month)
-- Renewal Rate (fans with `renew_on = true` / total active)
-- Avg Earnings Per Fan (total earnings / fan count)
+### Admin Session Launch (`create_admin_session`)
+```
+1. Resolve/create persistent browser context
+2. Create Browserbase session (advancedStealth, geo-matched proxy)
+3. Wait for RUNNING state (up to 20s)
+4. Wait 8s for cookie/localStorage restoration
+5. CDP cookie verification (Network.getCookies) — alert if 0 cookies
+6. Set timezone & locale via CDP (preLoginSetup)
+7. Navigate to platform URL via CDP
+8. Login verification via checkLoginViaCDP()
+   - If previously authenticated but login fails → "pending" + alert
+   - If ambiguous/empty CDP data → fail-open
+9. Get embed URL, persist to DB
+```
 
-**Section B -- Top Fans Leaderboard** (table/list)
-- Query `of_fans` ordered by `total_spent DESC`, limit 20
-- Show avatar, username, total spent, subscription status, subscribed date
-- Filter by creator (via `of_account_id` joined to creators)
+### Chatter Session Launch (`launch_chatter_session`)
+```
+1. Verify permissions (employee_of_permissions)
+2. Check for existing active session (pooling: shared/exclusive mode)
+3. Create new Browserbase session with saved context
+4. Wait for RUNNING state (up to 20s)
+5. Wait 8s for cookie restoration
+6. Set timezone & locale via CDP
+7. Navigate to platform URL via CDP
+8. Login verification via checkLoginViaCDP()
+   - If login fails → "pending" + alert
+9. Get embed URL, persist to DB
+```
 
-**Section C -- Fan Spend Distribution** (pie/bar chart)
-- Segment fans into tiers: Whales ($500+), High ($100-500), Mid ($25-100), Low (<$25)
-- Query `of_fans` and bucket by `total_spent`
+### Save & Close (`save_and_close`)
+```
+1. Login verification via checkLoginViaCDP()
+   - Dead session + previously authenticated → fail-open (preserve)
+   - Dead session + not authenticated → no persist
+   - Alive: standard 2-phase check
+2. CDP earnings scrape (XHR interception → AI extraction → regex fallback)
+3. Upsert earnings to creator_earnings table
+4. Release: REQUEST_RELEASE (logged in) or persist=false (not logged in)
+```
 
-**Section D -- Subscriber Growth Chart** (line chart)
-- Plot new fans per week/month using `subscribed_at` field
-- Show churn via `expires_at` in the past + `renew_on = false`
+### Terminate Session (`terminate_session`)
+```
+1. If last viewer leaving:
+   - Release with cookie persistence (REQUEST_RELEASE)
+   - Update last_saved_at timestamp
+   - Clear session references from session link
+2. If other viewers remain:
+   - Remove viewer from list, update count
+```
 
-**Section E -- Chat Engagement Overview**
-- Join `of_chats` with `of_fans` to show fans with most recent activity
-- Unread count distribution, last message recency
+## AI-Powered Helpers
+- `aiDetectLoginState(domText, url)` → `{ logged_in, confidence, reason }`
+- `aiExtractEarnings(domText)` → `{ total, tips, subscriptions, messages, referrals, posts }`
+- Model: `google/gemini-2.5-flash` via Lovable AI Gateway
+- 10s timeout, graceful fallback on failure
 
-**Section F -- Marketing Link Performance**
-- Query `tracking_links` grouped by campaign/source
-- Show clicks, conversions, revenue, ROI per link
-
-#### 2. Navigation Update
-- Add "Fan Analytics" to the sidebar under a new "Analytics" collapsible section (or alongside existing items)
-- Icon: `BarChart3` or `Users` variant
-
-#### 3. Database Migration
-- Add a new `fan_transactions` table for granular per-fan purchase tracking (for future Chrome extension sync):
-  ```sql
-  CREATE TABLE public.fan_transactions (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    agency_id uuid REFERENCES agencies(id),
-    of_account_id text NOT NULL,
-    of_fan_id text NOT NULL,
-    transaction_type text NOT NULL, -- 'tip', 'ppv', 'subscription', 'message'
-    amount numeric DEFAULT 0,
-    description text,
-    transacted_at timestamptz,
-    created_at timestamptz DEFAULT now(),
-    synced_at timestamptz DEFAULT now()
-  );
-  ```
-- This enables per-fan revenue attribution that FansMetric excels at
-
-#### 4. Files to Create/Edit
-- **Create** `src/pages/FanAnalytics.tsx` -- main page with all sections
-- **Create** `src/components/fan-analytics/` -- component folder:
-  - `FanStatsBar.tsx` -- KPI row
-  - `TopFansTable.tsx` -- leaderboard
-  - `FanSpendDistribution.tsx` -- chart
-  - `SubscriberGrowthChart.tsx` -- line chart
-  - `ChatEngagementPanel.tsx` -- chat stats
-  - `MarketingLinkPerformance.tsx` -- tracking link ROI
-- **Edit** `src/components/layout/AppSidebar.tsx` -- add nav item
-- **Edit** `src/components/layout/MobileBottomNav.tsx` -- add if needed
-- **Edit** `src/App.tsx` -- add route
-
-#### 5. Data Flow
-All queries use the existing `supabase` client, filtered by `agency_id` from `useAgency()`. Creator selector dropdown lets users filter analytics per creator or view aggregate. Charts use `recharts` (already installed).
-
-### Technical Notes
-- The `of_fans` table currently gets populated via the Chrome extension sync (`ingest-browser-sync`). The analytics page will show "Connect your accounts to see fan data" as an empty state when no data exists.
-- The `fan_transactions` table sets up future granular tracking but the UI will work with `of_fans.total_spent` for v1.
-
+## Key Safety Mechanisms
+1. **Fail-open on empty CDP data** — If CDP returns no DOM/URL, always preserve cookies
+2. **8-second cookie restoration wait** — Prevents racing ahead of Browserbase context restore
+3. **CDP cookie verification** — Actually checks Network.getCookies after context restore
+4. **Login alerts** — `browser_session_events` with `login_expired` / `cookie_restoration_failed`
+5. **No-persist guard** — save_and_close only persists cookies when login is confirmed
+6. **Dead session fail-open** — Previously authenticated sessions keep their status
+7. **terminate_session persistence** — Always persists cookies and updates last_saved_at
+8. **Stuck session recovery** — `check_and_recover_sessions` auto-heals dead sessions
