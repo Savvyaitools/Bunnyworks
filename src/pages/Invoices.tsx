@@ -178,7 +178,7 @@ export default function Invoices() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+        </PageHeader>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in" style={{ animationDelay: "50ms" }}>
