@@ -237,7 +237,6 @@ const Index = () => {
               <QuickStat
                 title="Agency Earnings"
                 value={formatCurrency(agencyEarnings)}
-                subtext={`${(commissionRate * 100).toFixed(0)}% commission`}
                 icon={TrendingUp}
                 color="primary"
               />
@@ -259,13 +258,15 @@ const Index = () => {
           )}
         </motion.div>
 
-        {/* Getting Started Checklist for new agencies */}
-        <GettingStartedChecklist />
-
-        {/* Revenue Chart + Revenue Breakdown */}
+        {/* Creator Earnings + Revenue Breakdown */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2">
-            <RevenueChart />
+            <CreatorEarningsBreakdown
+              creators={revenueData?.creatorSummaries || []}
+              commissionRate={commissionRate}
+              loading={revenueLoading}
+              delay={200}
+            />
           </div>
           <div>
             <RevenueSourceBreakdown
@@ -278,14 +279,6 @@ const Index = () => {
             />
           </div>
         </div>
-
-        {/* Per-Creator Earnings Breakdown */}
-        <CreatorEarningsBreakdown
-          creators={revenueData?.creatorSummaries || []}
-          commissionRate={commissionRate}
-          loading={revenueLoading}
-          delay={300}
-        />
 
         {/* Tasks + AI Insights */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
