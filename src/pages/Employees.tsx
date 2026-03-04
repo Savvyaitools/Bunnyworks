@@ -20,6 +20,7 @@ import { EmployeeForm } from "@/components/forms";
 import type { EmployeeFormValues } from "@/lib/validations";
 import { useAgency } from "@/hooks/useAgency";
 import { AccountCreationDialog } from "@/components/shared/AccountCreationDialog";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const roleColors: Record<string, string> = {
   Manager: "bg-accent/20 text-accent border-accent/30",
@@ -186,18 +187,15 @@ export default function Employees() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-[1400px]">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Team</h1>
-            <p className="text-muted-foreground mt-1">
-              {loading ? "Loading..." : `${stats.total} employees • ${stats.active} active`}
-            </p>
-          </div>
+        <PageHeader
+          title="Team"
+          subtitle={loading ? "Loading..." : `${stats.total} employees · ${stats.active} active`}
+        >
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow-sm">
+              <Button className="bg-primary hover:bg-primary/90 transition-colors shadow-glow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Employee
               </Button>
@@ -210,16 +208,16 @@ export default function Employees() {
               <EmployeeForm onSubmit={handleSubmit} />
             </DialogContent>
           </Dialog>
-        </div>
+        </PageHeader>
 
         {/* Search */}
-        <div className="relative max-w-md animate-fade-in" style={{ animationDelay: "100ms" }}>
+        <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search employees..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-card border-border focus:border-primary input-glow"
+            className="pl-10 bg-card/60 border-border focus:border-primary/50 h-9 text-sm"
           />
         </div>
 
