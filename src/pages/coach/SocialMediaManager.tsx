@@ -306,7 +306,7 @@ export default function SocialMediaManager() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/coach-pbf")} className="shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/of-ai")} className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
