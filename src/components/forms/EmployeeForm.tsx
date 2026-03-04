@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { employeeFormSchema, type EmployeeFormValues } from "@/lib/validations";
@@ -61,19 +62,18 @@ export function EmployeeForm({
 
   const roleOptions = [
     { value: "Manager", label: "Manager" },
-    { value: "Marketing", label: "Marketing" },
+    { value: "Editor", label: "Editor" },
     { value: "Quality Controller", label: "Quality Controller" },
     { value: "Chatter", label: "Chatter" },
     { value: "VA", label: "VA" },
     { value: "Recruiter", label: "Recruiter" },
-    { value: "Finance", label: "Finance" },
   ];
 
   const departmentOptions = [
-    { value: "Management", label: "Management" },
-    { value: "Production", label: "Production" },
+    { value: "Platform Management", label: "Platform Management" },
     { value: "Marketing", label: "Marketing" },
-    { value: "Strategy", label: "Strategy" },
+    { value: "Chatting", label: "Chatting" },
+    { value: "Financial", label: "Financial" },
   ];
 
   const skillGradeOptions = [
