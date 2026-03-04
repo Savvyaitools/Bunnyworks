@@ -63,11 +63,6 @@ export default function Chatters() {
           title="Chatters"
           subtitle={loading ? "Loading..." : `${stats.total} chatters · ${stats.active} active`}
         />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Add chatters from the Employees section with the "Chatter" role
-          </p>
-        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: "50ms" }}>
