@@ -94,7 +94,6 @@ export default function FanAnalytics() {
           <PageHeader
             title="Fan Analytics"
             subtitle="Deep insights into your fan base, engagement & revenue"
-            icon={BarChart3}
           />
           <Select value={selectedCreatorId} onValueChange={setSelectedCreatorId}>
             <SelectTrigger className="w-[200px]">

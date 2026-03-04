@@ -23,6 +23,7 @@ import {
   MessagesSquare,
   ChevronDown,
   Command,
+  BarChart3,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -59,6 +60,12 @@ const mainNavItems = [
 ];
 
 const collapsibleSections = [
+  {
+    label: "Analytics",
+    items: [
+      { title: "Fan Analytics", url: "/fan-analytics", icon: BarChart3 },
+    ],
+  },
   {
     label: "Operations",
     items: [
