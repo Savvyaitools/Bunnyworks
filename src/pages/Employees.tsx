@@ -277,6 +277,7 @@ export default function Employees() {
                 onSubmit={handleEditSubmit}
                 defaultValues={editDefaultValues}
                 submitLabel="Save Changes"
+                existingIdDocumentUrl={selectedEmployee?.id_document_url || undefined}
               />
             )}
           </DialogContent>
