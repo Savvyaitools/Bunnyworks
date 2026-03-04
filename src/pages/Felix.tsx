@@ -3,20 +3,9 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bot, Brain, Share2, MessagesSquare, Zap, ArrowRight, Sparkles, BarChart3, Shield, MessageCircle, TrendingUp, Calendar } from "lucide-react";
+import { Bot, Brain, Share2, MessagesSquare, ArrowRight, Sparkles, UserCog } from "lucide-react";
 import { motion } from "framer-motion";
-import { AgentStatusCard } from "@/components/agents/AgentStatusCard";
-import { AlertsFeed } from "@/components/agents/AlertsFeed";
-import { GoalProgress } from "@/components/agents/GoalProgress";
-import { DailyBriefingCard } from "@/components/agents/DailyBriefingCard";
-import { ActionLog } from "@/components/agents/ActionLog";
 import { FelixChat } from "@/components/ai/FelixChat";
-import { useAgentRuns } from "@/hooks/useAgentRuns";
-import { useAgentAlerts } from "@/hooks/useAgentAlerts";
-import { useAgentGoals } from "@/hooks/useAgentGoals";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
-import { isToday } from "date-fns";
 import { useState } from "react";
 
 const containerVariants = {
@@ -40,9 +29,7 @@ interface AgentCardProps {
   badge?: string;
 }
 
-function AgentCard({ name, role, description, icon: Icon, features, color, href, badge }: AgentCardProps) {
-  const navigate = useNavigate();
-
+function AgentCard({ name, role, description, icon: Icon, features, color, href, badge, onClick }: AgentCardProps & { onClick: () => void }) {
   const colorMap = {
     primary: {
       icon: "bg-primary/12 text-primary",
@@ -79,13 +66,11 @@ function AgentCard({ name, role, description, icon: Icon, features, color, href,
   return (
     <motion.div variants={itemVariants}>
       <Card
-        className={`relative overflow-hidden cursor-pointer group transition-all duration-300 border-border ${c.border} ${c.glow}`}
-        onClick={() => navigate(href)}
+        className={`relative overflow-hidden cursor-pointer group transition-all duration-300 border-border ${c.border} ${c.glow} h-full`}
+        onClick={onClick}
       >
-        {/* Top accent bar */}
         <div className={`absolute top-0 left-0 right-0 h-[2px] ${c.bar} opacity-50`} />
-
-        <CardContent className="p-6">
+        <CardContent className="p-6 flex flex-col h-full">
           <div className="flex items-start justify-between mb-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${c.icon} transition-transform duration-300 group-hover:scale-110`}>
               <Icon className="h-6 w-6" />
@@ -101,7 +86,7 @@ function AgentCard({ name, role, description, icon: Icon, features, color, href,
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">{role}</p>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">{description}</p>
 
-          <div className="space-y-1.5 mb-5">
+          <div className="space-y-1.5 mb-5 flex-1">
             {features.map((f, i) => (
               <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Sparkles className="h-3 w-3 shrink-0 text-primary/60" />
@@ -110,7 +95,7 @@ function AgentCard({ name, role, description, icon: Icon, features, color, href,
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground group-hover:text-primary transition-colors mt-auto">
             <span>Open</span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </div>
@@ -123,30 +108,40 @@ function AgentCard({ name, role, description, icon: Icon, features, color, href,
 const agents: AgentCardProps[] = [
   {
     name: "Coach PBF",
-    role: "AI Orchestrator",
-    description: "Your strategic AI advisor. Ask questions about revenue, performance, trends, and get data-driven recommendations.",
+    role: "Personal Coach",
+    description: "Your personal AI coach with full access to agency data. Get real-time advice on revenue, performance, and strategy. Ask anything about your agency and receive data-driven guidance.",
     icon: Brain,
-    features: ["Revenue & performance analytics", "Creator comparisons", "Strategic recommendations", "Trend forecasting"],
+    features: ["Revenue & performance insights", "Strategic recommendations", "Agency health monitoring", "Data-driven decision support"],
     color: "primary",
     href: "#chat",
-    badge: "Core",
+    badge: "Coach",
+  },
+  {
+    name: "Felix",
+    role: "Agency Manager",
+    description: "Your AI agency manager who keeps operations running smoothly. Felix ensures content plans are followed, tasks are completed on time, and creator communications stay on track.",
+    icon: UserCog,
+    features: ["Creator communication management", "Content plan enforcement", "Task completion tracking", "Operational oversight"],
+    color: "warning",
+    href: "/of-ai/manager",
+    badge: "Manager",
   },
   {
     name: "Tatum",
     role: "Social Media Manager",
-    description: "Generate platform-optimized content, analyze trends, and build content calendars to grow your creators' social presence.",
+    description: "Finds viral content tailored to each creator's persona. Tatum researches trends, suggests content plans with reference links, and builds calendars that drive growth.",
     icon: Share2,
-    features: ["Post generation & scheduling", "Trend scanning with web scraping", "Niche content research", "7-day content calendars"],
+    features: ["Viral content discovery by persona", "Content plans with reference links", "Trend & niche research", "Platform-optimized calendars"],
     color: "accent",
     href: "/of-ai/social-media",
     badge: "Growth",
   },
   {
     name: "Jodie",
-    role: "AI Chatter Assistant",
-    description: "Auto-replies to simple fan messages, flags complex ones for review, and learns your creators' tone and boundaries.",
+    role: "AI Chatter",
+    description: "Expert fan engagement specialist. Jodie chats with fans, shares content via OnlyFans messages, handles PPV sends, and maintains each creator's unique voice and boundaries.",
     icon: MessagesSquare,
-    features: ["Smart auto-replies", "Review queue for flagged messages", "Custom reply rules", "Confidence-based routing"],
+    features: ["Fan conversations & engagement", "Content sharing via messages", "PPV & upsell management", "Creator voice & tone matching"],
     color: "success",
     href: "/of-ai/chatter",
     badge: "Revenue",
@@ -156,50 +151,12 @@ const agents: AgentCardProps[] = [
 export default function Felix() {
   const navigate = useNavigate();
   const [showChat, setShowChat] = useState(false);
-  const { runs, actions, isLoading } = useAgentRuns();
-  const { alerts, dismissAlert } = useAgentAlerts();
-  const { goals, feedback, submitFeedback } = useAgentGoals();
-  const [triggering, setTriggering] = useState<string | null>(null);
-  const queryClient = useQueryClient();
 
-  const getLastRun = (type: string) => runs.find(r => r.agent_type === type);
-  const getTodayActions = (type: string) =>
-    actions.filter(a => {
-      const run = runs.find(r => r.id === a.run_id);
-      return run?.agent_type === type && isToday(new Date(a.created_at));
-    }).length;
-
-  const triggerAgent = async (agentType: string) => {
-    setTriggering(agentType);
-    try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-agent-orchestrator?agent=${agentType}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-      if (!response.ok) throw new Error("Failed to trigger agent");
-      toast.success(`${agentType} agent triggered successfully`);
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["agent-runs"] });
-        queryClient.invalidateQueries({ queryKey: ["agent-actions"] });
-        queryClient.invalidateQueries({ queryKey: ["agent-alerts"] });
-      }, 3000);
-    } catch {
-      toast.error("Failed to trigger agent");
-    } finally {
-      setTriggering(null);
-    }
-  };
-
-  const handleAgentCardClick = (href: string) => {
-    if (href === "#chat") {
+  const handleAgentClick = (agent: AgentCardProps) => {
+    if (agent.href === "#chat") {
       setShowChat(true);
     } else {
-      navigate(href);
+      navigate(agent.href);
     }
   };
 
@@ -219,32 +176,20 @@ export default function Felix() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">OF AI</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Your AI-powered toolkit for agency management</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Your AI-powered team for agency management</p>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => triggerAgent("sentinel")} disabled={triggering !== null}>
-              <Zap className="h-4 w-4 mr-1" />
-              {triggering === "sentinel" ? "Running..." : "Run Sentinel"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => triggerAgent("herald")} disabled={triggering !== null}>
-              <Zap className="h-4 w-4 mr-1" />
-              {triggering === "herald" ? "Running..." : "Run Herald"}
-            </Button>
           </div>
         </motion.div>
 
         {/* Agent Cards */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5"
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
           {agents.map((agent) => (
-            <div key={agent.name} onClick={() => handleAgentCardClick(agent.href)}>
-              <AgentCard {...agent} href={agent.href} />
-            </div>
+            <AgentCard key={agent.name} {...agent} onClick={() => handleAgentClick(agent)} />
           ))}
         </motion.div>
 
@@ -258,7 +203,7 @@ export default function Felix() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Brain className="h-5 w-5 text-primary" />
-                Coach PBF Chat
+                Coach PBF
               </h2>
               <Button variant="ghost" size="sm" onClick={() => setShowChat(false)}>
                 Close
@@ -267,35 +212,6 @@ export default function Felix() {
             <FelixChat className="h-[500px]" />
           </motion.div>
         )}
-
-        {/* Daily Briefing */}
-        <DailyBriefingCard />
-
-        {/* Background Agents Status */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Zap className="h-5 w-5 text-warning" />
-            Background Agents
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <AgentStatusCard agentType="sentinel" lastRun={getLastRun("sentinel")} actionsToday={getTodayActions("sentinel")} />
-            <AgentStatusCard agentType="herald" lastRun={getLastRun("herald")} actionsToday={getTodayActions("herald")} />
-            <AgentStatusCard agentType="scholar" lastRun={getLastRun("scholar")} actionsToday={getTodayActions("scholar")} />
-          </div>
-        </div>
-
-        {/* Alerts & Goals */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AlertsFeed alerts={alerts} onDismiss={(id) => dismissAlert.mutate(id)} />
-          <GoalProgress goals={goals} />
-        </div>
-
-        {/* Action Log */}
-        <ActionLog
-          actions={actions}
-          feedback={feedback}
-          onFeedback={(actionId, rating) => submitFeedback.mutate({ actionId, rating })}
-        />
       </div>
     </DashboardLayout>
   );
