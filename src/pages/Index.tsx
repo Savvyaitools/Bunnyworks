@@ -1,4 +1,4 @@
-import { DollarSign, Users, UserCog, TrendingUp, ArrowUpRight } from "lucide-react";
+import { DollarSign, Users, UserCog, TrendingUp, ArrowUpRight, Activity, BarChart3, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { DashboardLayout } from "@/components/layout";
@@ -19,17 +19,24 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+    transition: { staggerChildren: 0.06, delayChildren: 0.05 },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  hidden: { opacity: 0, y: 12 },
   visible: {
-    opacity: 1, y: 0, scale: 1,
-    transition: { type: "spring" as const, stiffness: 120, damping: 18 },
+    opacity: 1, y: 0,
+    transition: { type: "spring" as const, stiffness: 140, damping: 20 },
   },
 };
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 interface QuickStatProps {
   title: string;
@@ -38,36 +45,66 @@ interface QuickStatProps {
   icon: typeof DollarSign;
   color: "success" | "primary" | "accent" | "warning";
   href?: string;
+  trend?: { value: string; positive: boolean };
 }
 
-function QuickStat({ title, value, subtext, icon: Icon, color, href }: QuickStatProps) {
+function QuickStat({ title, value, subtext, icon: Icon, color, href, trend }: QuickStatProps) {
   const colorMap = {
-    success: { icon: "bg-success/15 text-success", glow: "group-hover:shadow-[0_0_24px_hsl(var(--success)/0.15)]" },
-    primary: { icon: "bg-primary/15 text-primary", glow: "group-hover:shadow-[0_0_24px_hsl(var(--primary)/0.15)]" },
-    accent: { icon: "bg-accent/15 text-accent", glow: "group-hover:shadow-[0_0_24px_hsl(var(--accent)/0.15)]" },
-    warning: { icon: "bg-warning/15 text-warning", glow: "group-hover:shadow-[0_0_24px_hsl(var(--warning)/0.15)]" },
+    success: {
+      icon: "bg-success/12 text-success",
+      border: "hover:border-success/30",
+      glow: "group-hover:shadow-[0_4px_20px_hsl(var(--success)/0.12)]",
+      bar: "bg-success",
+    },
+    primary: {
+      icon: "bg-primary/12 text-primary",
+      border: "hover:border-primary/30",
+      glow: "group-hover:shadow-[0_4px_20px_hsl(var(--primary)/0.12)]",
+      bar: "bg-primary",
+    },
+    accent: {
+      icon: "bg-accent/12 text-accent",
+      border: "hover:border-accent/30",
+      glow: "group-hover:shadow-[0_4px_20px_hsl(var(--accent)/0.12)]",
+      bar: "bg-accent",
+    },
+    warning: {
+      icon: "bg-warning/12 text-warning",
+      border: "hover:border-warning/30",
+      glow: "group-hover:shadow-[0_4px_20px_hsl(var(--warning)/0.12)]",
+      bar: "bg-warning",
+    },
   };
 
   const content = (
     <motion.div
       variants={itemVariants}
-      whileHover={{ scale: 1.02, transition: { type: "spring", stiffness: 400, damping: 25 } }}
-      className={`glass-card p-5 group cursor-default transition-all duration-300 ${colorMap[color].glow}`}
+      className={`relative overflow-hidden rounded-xl border border-border bg-card/60 backdrop-blur-sm p-5 group cursor-default transition-all duration-300 ${colorMap[color].border} ${colorMap[color].glow}`}
     >
+      {/* Top accent bar */}
+      <div className={`absolute top-0 left-0 right-0 h-[2px] ${colorMap[color].bar} opacity-40`} />
+      
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
-          <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
-          {subtext && (
-            <p className="text-xs text-muted-foreground mt-1.5">{subtext}</p>
-          )}
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">{title}</p>
+          <p className="text-2xl font-bold text-foreground tracking-tight leading-none">{value}</p>
+          <div className="flex items-center gap-2 mt-2">
+            {subtext && (
+              <p className="text-xs text-muted-foreground">{subtext}</p>
+            )}
+            {trend && (
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${trend.positive ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                {trend.positive ? "↑" : "↓"} {trend.value}
+              </span>
+            )}
+          </div>
         </div>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorMap[color].icon} transition-colors duration-300`}>
-          <Icon className="h-5 w-5" />
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorMap[color].icon} transition-all duration-300 group-hover:scale-110`}>
+          <Icon className="h-[18px] w-[18px]" />
         </div>
       </div>
       {href && (
-        <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+        <div className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
           <span>View details</span>
           <ArrowUpRight className="h-3 w-3" />
         </div>
@@ -106,7 +143,6 @@ const Index = () => {
     queryKey: ["total-revenue", agencyId],
     enabled: Boolean(agencyId),
     queryFn: async () => {
-      // Fetch ALL creators for this agency (not just active)
       const { data: creators } = await supabase
         .from("creators")
         .select("id, name, commission_rate")
@@ -120,7 +156,6 @@ const Index = () => {
       let messagesTotal = 0;
       let referralsTotal = 0;
 
-      // Per-creator accumulator
       const perCreator: Record<string, { net: number; gross: number }> = {};
       creatorList.forEach(c => {
         perCreator[c.id] = { net: 0, gross: 0 };
@@ -159,14 +194,11 @@ const Index = () => {
           return sum;
         }, 0) || 0;
 
-      // Calculate agency earnings using per-creator commission rates
       let agencyEarningsTotal = 0;
 
-      // Build per-creator summaries using each creator's own commission rate
       const creatorSummaries: CreatorEarningsSummary[] = creatorList.map(c => {
         const data = perCreator[c.id];
         const creatorCommission = Number((c as any).commission_rate) || commissionRate;
-        // Net = creator's take. Gross = Net / (1 - commission)
         const creatorGross = data.net > 0 ? data.net / (1 - creatorCommission) : 0;
         const creatorAgency = creatorGross - data.net;
         agencyEarningsTotal += creatorAgency;
@@ -180,7 +212,6 @@ const Index = () => {
         };
       });
 
-      // Use extracted gross if available, otherwise use per-creator calculated totals
       const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : agencyEarningsTotal;
       const totalGross = grossTotal > 0 ? grossTotal : creatorSummaries.reduce((s, c) => s + c.grossRevenue, 0);
 
@@ -209,16 +240,45 @@ const Index = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Welcome back. Here's your agency at a glance.</p>
-        </div>
+      <div className="space-y-6 max-w-[1400px]">
+        {/* Header with greeting */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"
+        >
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              {getGreeting()}
+              {agency?.name ? `, ${agency.name}` : ""}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5" />
+              Here's an overview of your agency performance
+            </p>
+          </div>
+          {grossRevenue > 0 && (
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5 text-success" />
+                <span>Total: <span className="text-foreground font-semibold">{formatCurrency(grossRevenue)}</span></span>
+              </div>
+              <div className="h-3 w-px bg-border" />
+              <div className="flex items-center gap-1.5">
+                <Activity className="h-3.5 w-3.5 text-primary" />
+                <span>Agency: <span className="text-foreground font-semibold">{formatCurrency(agencyEarnings)}</span></span>
+              </div>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Getting Started Checklist */}
+        <GettingStartedChecklist />
 
         {/* Key Metrics Row */}
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -226,7 +286,7 @@ const Index = () => {
           {!agencyId ? (
             <>
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="glass-card p-5">
+                <div key={i} className="rounded-xl border border-border bg-card/60 p-5">
                   <Skeleton className="h-3 w-20 mb-3" />
                   <Skeleton className="h-7 w-24 mb-2" />
                   <Skeleton className="h-3 w-16" />
@@ -267,7 +327,7 @@ const Index = () => {
         </motion.div>
 
         {/* Creator Earnings + Revenue Breakdown */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
           <div className="xl:col-span-2">
             <CreatorEarningsBreakdown
               creators={revenueData?.creatorSummaries || []}
@@ -289,7 +349,7 @@ const Index = () => {
         </div>
 
         {/* Tasks + AI Insights */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
           <DashboardTasks />
           <DashboardAIInsights />
         </div>
