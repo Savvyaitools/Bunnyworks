@@ -22,8 +22,13 @@ export function EmployeeForm({
   onSubmit, 
   isSubmitting, 
   defaultValues,
-  submitLabel = "Add Employee" 
+  submitLabel = "Add Employee",
+  existingIdDocumentUrl,
 }: EmployeeFormProps) {
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idPreview, setIdPreview] = useState<string | null>(existingIdDocumentUrl || null);
+  const [uploadingId, setUploadingId] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     register,
     handleSubmit,
