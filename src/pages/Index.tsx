@@ -109,7 +109,7 @@ const Index = () => {
       // Fetch ALL creators for this agency (not just active)
       const { data: creators } = await supabase
         .from("creators")
-        .select("id, name")
+        .select("id, name, commission_rate")
         .eq("agency_id", agencyId!);
       const creatorList = creators || [];
       const creatorIds = creatorList.map(c => c.id);
