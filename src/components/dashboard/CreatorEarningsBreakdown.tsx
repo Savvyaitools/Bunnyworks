@@ -10,6 +10,7 @@ export interface CreatorEarningsSummary {
   grossRevenue: number;
   netRevenue: number;
   agencyEarnings: number;
+  commissionRate?: number;
 }
 
 interface CreatorEarningsBreakdownProps {
