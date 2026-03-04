@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared";
 import { LogoUpload } from "@/components/shared/LogoUpload";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscriptionTiers";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
@@ -124,12 +125,8 @@ export default function Settings() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Settings</h1>
-          <p className="text-muted-foreground mt-1">Manage your account and preferences</p>
-        </div>
+      <div className="space-y-6 max-w-[1000px]">
+        <PageHeader title="Settings" subtitle="Manage your account and preferences" />
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar Navigation */}

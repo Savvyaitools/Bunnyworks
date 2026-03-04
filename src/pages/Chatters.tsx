@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useChatters, type SkillGrade } from "@/hooks/useChatters";
 import { useCreatorAssignments } from "@/hooks/useCreatorAssignments";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const gradeStyles: Record<SkillGrade, string> = {
   A: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -57,14 +58,11 @@ export default function Chatters() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Chatters</h1>
-            <p className="text-muted-foreground mt-1">
-              {loading ? "Loading..." : `${stats.total} chatters • ${stats.active} active`}
-            </p>
+      <div className="space-y-6 max-w-[1400px]">
+        <PageHeader
+          title="Chatters"
+          subtitle={loading ? "Loading..." : `${stats.total} chatters · ${stats.active} active`}
+        />
           </div>
           <p className="text-sm text-muted-foreground">
             Add chatters from the Employees section with the "Chatter" role
