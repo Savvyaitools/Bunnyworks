@@ -178,7 +178,7 @@ const Index = () => {
           agencyEarnings: creatorAgency,
           commissionRate: creatorCommission,
         };
-      }).filter(c => c.grossRevenue > 0 || c.netRevenue > 0);
+      });
 
       // Use extracted gross if available, otherwise use per-creator calculated totals
       const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : agencyEarningsTotal;
