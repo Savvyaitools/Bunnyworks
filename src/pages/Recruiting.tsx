@@ -142,12 +142,12 @@ export default function Recruiting() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-[1400px]">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Recruiting</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Recruiting</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               {loading ? "Loading..." : `${stats.total} prospects in pipeline`}
             </p>
           </div>
