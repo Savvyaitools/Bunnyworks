@@ -87,7 +87,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       .eq("creator_id", creator.id)
       .eq("account_type", "social")
       .order("created_at", { ascending: false });
-    if (data) setSocialAccounts(data as SocialAccount[]);
+    if (data) setSocialAccounts(data as unknown as SocialAccount[]);
     setLoadingSocials(false);
   }, [creator.id]);
 
