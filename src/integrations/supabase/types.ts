@@ -2588,6 +2588,7 @@ export type Database = {
           experience: string | null
           hire_date: string | null
           id: string
+          id_document_url: string | null
           is_chatter: boolean | null
           name: string
           phone: string | null
@@ -2618,6 +2619,7 @@ export type Database = {
           experience?: string | null
           hire_date?: string | null
           id?: string
+          id_document_url?: string | null
           is_chatter?: boolean | null
           name: string
           phone?: string | null
@@ -2648,6 +2650,7 @@ export type Database = {
           experience?: string | null
           hire_date?: string | null
           id?: string
+          id_document_url?: string | null
           is_chatter?: boolean | null
           name?: string
           phone?: string | null
