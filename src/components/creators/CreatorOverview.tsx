@@ -1,11 +1,13 @@
-import { useState, useRef } from "react";
-import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, FileText, User, Tag, Palette } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, FileText, User, Tag, Plus, Link2, Heart, Sparkles, Star, MessageCircle, Hash } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Creator, UpdateCreatorInput } from "@/hooks/useCreators";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,11 +19,50 @@ interface CreatorOverviewProps {
   onUpdate: (input: UpdateCreatorInput) => Promise<Creator | null>;
 }
 
+interface SocialAccount {
+  id: string;
+  platform: string;
+  username: string;
+  account_type: string;
+  profile_url: string | null;
+  follower_count: number | null;
+  creator_id: string;
+}
+
+const ALL_SOCIAL_PLATFORMS = ["Instagram", "Twitter", "TikTok", "Reddit", "Facebook", "Snapchat", "YouTube", "Threads", "LinkedIn", "Pinterest"];
+const MAX_SOCIAL_ACCOUNTS = 10;
+
+const socialPlatformConfig: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
+  Instagram: { icon: <Instagram className="h-4 w-4" />, color: "text-pink-400", bgColor: "bg-pink-500/20" },
+  Twitter: { icon: <Twitter className="h-4 w-4" />, color: "text-sky-400", bgColor: "bg-sky-500/20" },
+  TikTok: { icon: <Globe className="h-4 w-4" />, color: "text-cyan-400", bgColor: "bg-cyan-500/20" },
+  Reddit: { icon: <MessageCircle className="h-4 w-4" />, color: "text-orange-400", bgColor: "bg-orange-500/20" },
+  Facebook: { icon: <Hash className="h-4 w-4" />, color: "text-blue-500", bgColor: "bg-blue-600/20" },
+  Snapchat: { icon: <Globe className="h-4 w-4" />, color: "text-yellow-400", bgColor: "bg-yellow-500/20" },
+  YouTube: { icon: <Globe className="h-4 w-4" />, color: "text-red-400", bgColor: "bg-red-500/20" },
+  Threads: { icon: <Globe className="h-4 w-4" />, color: "text-foreground", bgColor: "bg-muted" },
+  LinkedIn: { icon: <Globe className="h-4 w-4" />, color: "text-blue-400", bgColor: "bg-blue-500/20" },
+  Pinterest: { icon: <Globe className="h-4 w-4" />, color: "text-red-500", bgColor: "bg-red-500/20" },
+};
+
+function formatFollowerCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+  return count.toString();
+}
+
 export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
   const { agency } = useAgency();
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Social accounts state
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
+  const [loadingSocials, setLoadingSocials] = useState(true);
+  const [isAddSocialOpen, setIsAddSocialOpen] = useState(false);
+  const [socialForm, setSocialForm] = useState({ platform: "", username: "", profile_url: "", follower_count: "" });
+
   const [formData, setFormData] = useState({
     name: creator.name,
     alias: creator.alias || "",
@@ -30,7 +71,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     notes: creator.notes || "",
     commission_rate: creator.commission_rate !== null ? (creator.commission_rate * 100).toString() : "",
     platform: creator.platform || "",
-    followers: creator.followers || "",
     onlyfans_url: creator.onlyfans_url || "",
     instagram_url: creator.instagram_url || "",
     twitter_url: creator.twitter_url || "",
@@ -38,6 +78,68 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     snapchat_url: creator.snapchat_url || "",
     persona: (creator as any).persona || "",
   });
+
+  const fetchSocialAccounts = useCallback(async () => {
+    setLoadingSocials(true);
+    const { data } = await supabase
+      .from("creator_social_accounts")
+      .select("*")
+      .eq("creator_id", creator.id)
+      .eq("account_type", "social")
+      .order("created_at", { ascending: false });
+    if (data) setSocialAccounts(data as SocialAccount[]);
+    setLoadingSocials(false);
+  }, [creator.id]);
+
+  useEffect(() => {
+    fetchSocialAccounts();
+  }, [fetchSocialAccounts]);
+
+  const totalFollowers = socialAccounts.reduce((sum, a) => sum + (a.follower_count || 0), 0);
+
+  const addSocialAccount = async () => {
+    if (!socialForm.platform || !socialForm.username.trim()) {
+      toast.error("Platform and username are required");
+      return;
+    }
+    if (socialAccounts.length >= MAX_SOCIAL_ACCOUNTS) {
+      toast.error(`Maximum ${MAX_SOCIAL_ACCOUNTS} social accounts allowed`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("creator_social_accounts")
+      .insert({
+        platform: socialForm.platform,
+        username: socialForm.username.trim(),
+        profile_url: socialForm.profile_url.trim() || null,
+        follower_count: socialForm.follower_count ? parseInt(socialForm.follower_count) : null,
+        creator_id: creator.id,
+        account_type: "social",
+      });
+
+    if (error) {
+      toast.error("Failed to add social account");
+    } else {
+      toast.success("Social account added");
+      setSocialForm({ platform: "", username: "", profile_url: "", follower_count: "" });
+      setIsAddSocialOpen(false);
+      fetchSocialAccounts();
+    }
+  };
+
+  const deleteSocialAccount = async (id: string) => {
+    const { error } = await supabase
+      .from("creator_social_accounts")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      toast.error("Failed to remove account");
+    } else {
+      toast.success("Account removed");
+      fetchSocialAccounts();
+    }
+  };
 
   const handleSave = async () => {
     const commissionValue = formData.commission_rate 
@@ -52,7 +154,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       notes: formData.notes || null,
       commission_rate: commissionValue,
       platform: formData.platform || null,
-      followers: formData.followers || null,
+      followers: totalFollowers > 0 ? formatFollowerCount(totalFollowers) : null,
       onlyfans_url: formData.onlyfans_url || null,
       instagram_url: formData.instagram_url || null,
       twitter_url: formData.twitter_url || null,
@@ -72,7 +174,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       notes: creator.notes || "",
       commission_rate: creator.commission_rate !== null ? (creator.commission_rate * 100).toString() : "",
       platform: creator.platform || "",
-      followers: creator.followers || "",
       onlyfans_url: creator.onlyfans_url || "",
       instagram_url: creator.instagram_url || "",
       twitter_url: creator.twitter_url || "",
@@ -86,32 +187,16 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size must be less than 5MB");
-      return;
-    }
+    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image size must be less than 5MB"); return; }
 
     setUploading(true);
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${creator.id}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("creator-avatars")
-        .upload(fileName, file, { upsert: true });
-
+      const { error: uploadError } = await supabase.storage.from("creator-avatars").upload(fileName, file, { upsert: true });
       if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("creator-avatars")
-        .getPublicUrl(fileName);
-
+      const { data: urlData } = supabase.storage.from("creator-avatars").getPublicUrl(fileName);
       await onUpdate({ avatar_url: urlData.publicUrl });
       toast.success("Photo uploaded successfully");
     } catch (error) {
@@ -119,16 +204,12 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       toast.error("Failed to upload photo");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const avatarSrc = creator.avatar_url || 
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
-
-  const socialLinks: { key: string; label: string; url: string | null; icon: typeof Globe; color: string }[] = [];
 
   return (
     <div className="space-y-6">
@@ -142,74 +223,33 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                 {creator.name.split(" ").map(n => n[0]).join("")}
               </AvatarFallback>
             </Avatar>
-            <span
-              className={cn(
-                "absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card",
-                creator.online_status ? "bg-success" : "bg-muted-foreground"
-              )}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-            >
-              {uploading ? (
-                <div className="h-6 w-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Camera className="h-6 w-6 text-white" />
-              )}
+            <span className={cn("absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card", creator.online_status ? "bg-success" : "bg-muted-foreground")} />
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              {uploading ? <div className="h-6 w-6 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="h-6 w-6 text-white" />}
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoUpload}
-              className="hidden"
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
           </div>
           <div>
             {isEditing ? (
               <div className="space-y-2">
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="text-xl font-bold"
-                  placeholder="Creator name"
-                />
-                <Input
-                  value={formData.alias}
-                  onChange={(e) => setFormData({ ...formData, alias: e.target.value })}
-                  placeholder="Alias / Stage name"
-                  className="text-sm"
-                />
+                <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="text-xl font-bold" placeholder="Creator name" />
+                <Input value={formData.alias} onChange={(e) => setFormData({ ...formData, alias: e.target.value })} placeholder="Alias / Stage name" className="text-sm" />
               </div>
             ) : (
               <>
                 <h2 className="text-2xl font-bold text-foreground">{creator.name}</h2>
-                {creator.alias && (
-                  <p className="text-muted-foreground">@{creator.alias}</p>
-                )}
+                {creator.alias && <p className="text-muted-foreground">@{creator.alias}</p>}
               </>
             )}
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant={creator.status === "Active" ? "default" : "secondary"}>
-                {creator.status}
-              </Badge>
-              <span className={cn(
-                "text-sm",
-                creator.online_status ? "text-success" : "text-muted-foreground"
-              )}>
+              <Badge variant={creator.status === "Active" ? "default" : "secondary"}>{creator.status}</Badge>
+              <span className={cn("text-sm", creator.online_status ? "text-success" : "text-muted-foreground")}>
                 {creator.online_status ? "● Online" : "○ Offline"}
               </span>
             </div>
             {!creator.avatar_url && (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
-              >
-                <Upload className="h-3 w-3" />
-                Upload photo
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="text-xs text-primary hover:underline flex items-center gap-1 mt-1">
+                <Upload className="h-3 w-3" /> Upload photo
               </button>
             )}
           </div>
@@ -217,20 +257,11 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         <div className="flex gap-2">
           {isEditing ? (
             <>
-              <Button variant="outline" size="sm" onClick={handleCancel}>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSave} className="bg-gradient-primary">
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
+              <Button variant="outline" size="sm" onClick={handleCancel}><X className="h-4 w-4 mr-2" />Cancel</Button>
+              <Button size="sm" onClick={handleSave} className="bg-gradient-primary"><Save className="h-4 w-4 mr-2" />Save</Button>
             </>
           ) : (
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Profile
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}><Edit className="h-4 w-4 mr-2" />Edit Profile</Button>
           )}
         </div>
       </div>
@@ -240,9 +271,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <Globe className="h-4 w-4 text-primary" />
-              </div>
+              <div className="p-2 rounded-lg bg-primary/20"><Globe className="h-4 w-4 text-primary" /></div>
               <div>
                 <p className="text-xs text-muted-foreground">Platform</p>
                 <p className="font-semibold text-foreground">{creator.platform || "Not set"}</p>
@@ -253,12 +282,10 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/20">
-                <Users className="h-4 w-4 text-blue-400" />
-              </div>
+              <div className="p-2 rounded-lg bg-blue-500/20"><Users className="h-4 w-4 text-blue-400" /></div>
               <div>
-                <p className="text-xs text-muted-foreground">Followers</p>
-                <p className="font-semibold text-foreground">{creator.followers || "N/A"}</p>
+                <p className="text-xs text-muted-foreground">Total Followers</p>
+                <p className="font-semibold text-foreground">{totalFollowers > 0 ? formatFollowerCount(totalFollowers) : "N/A"}</p>
               </div>
             </div>
           </CardContent>
@@ -266,9 +293,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/20">
-                <Percent className="h-4 w-4 text-success" />
-              </div>
+              <div className="p-2 rounded-lg bg-success/20"><Percent className="h-4 w-4 text-success" /></div>
               <div>
                 <p className="text-xs text-muted-foreground">Commission</p>
                 <p className="font-semibold text-foreground">
@@ -283,17 +308,82 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-pink-500/20">
-                <Tag className="h-4 w-4 text-pink-400" />
-              </div>
+              <div className="p-2 rounded-lg bg-pink-500/20"><Link2 className="h-4 w-4 text-pink-400" /></div>
               <div>
-                <p className="text-xs text-muted-foreground">Status</p>
-                <p className="font-semibold text-foreground">{creator.status}</p>
+                <p className="text-xs text-muted-foreground">Social Links</p>
+                <p className="font-semibold text-foreground">{socialAccounts.length}/{MAX_SOCIAL_ACCOUNTS}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Social Accounts Section */}
+      <Card className="glass-card">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              Social Accounts
+              <Badge variant="secondary" className="ml-1">{socialAccounts.length}/{MAX_SOCIAL_ACCOUNTS}</Badge>
+            </CardTitle>
+            {socialAccounts.length < MAX_SOCIAL_ACCOUNTS && (
+              <Button size="sm" variant="outline" onClick={() => setIsAddSocialOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingSocials ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : socialAccounts.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <Link2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No social accounts added yet</p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => setIsAddSocialOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add Social Account
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {socialAccounts.map((account) => {
+                const config = socialPlatformConfig[account.platform] || { icon: <Globe className="h-4 w-4" />, color: "text-muted-foreground", bgColor: "bg-muted" };
+                return (
+                  <div key={account.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bgColor)}>
+                        <span className={config.color}>{config.icon}</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{account.platform}</span>
+                          <span className="text-sm text-muted-foreground">@{account.username}</span>
+                        </div>
+                        {account.follower_count != null && account.follower_count > 0 && (
+                          <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {account.profile_url && (
+                        <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                          </Button>
+                        </a>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSocialAccount(account.id)}>
+                        <X className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Left Column */}
@@ -301,40 +391,21 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
           {/* Contact Info Card */}
           <Card className="glass-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Mail className="h-4 w-4 text-primary" />
-                Contact Information
-              </CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4 text-primary" />Contact Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Mail className="h-4 w-4 text-primary" />
-                </div>
+                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center"><Mail className="h-4 w-4 text-primary" /></div>
                 {isEditing ? (
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Email address"
-                    className="flex-1"
-                  />
+                  <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="Email address" className="flex-1" />
                 ) : (
                   <span className="text-foreground">{creator.email}</span>
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Phone className="h-4 w-4 text-primary" />
-                </div>
+                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center"><Phone className="h-4 w-4 text-primary" /></div>
                 {isEditing ? (
-                  <Input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="Phone number"
-                    className="flex-1"
-                  />
+                  <Input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="Phone number" className="flex-1" />
                 ) : (
                   <span className="text-foreground">{creator.phone || "No phone"}</span>
                 )}
@@ -342,78 +413,17 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
             </CardContent>
           </Card>
 
-          {/* Platform & Audience Card */}
-          <Card className="glass-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Globe className="h-4 w-4 text-primary" />
-                Platform & Audience
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Globe className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Primary Platform</p>
-                  {isEditing ? (
-                    <Input
-                      value={formData.platform}
-                      onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-                      placeholder="OnlyFans, Fansly, Fanvue"
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-foreground">{creator.platform || "Not specified"}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Followers</p>
-                  {isEditing ? (
-                    <Input
-                      value={formData.followers}
-                      onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
-                      placeholder="50K, 1.2M"
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-foreground">{creator.followers || "Not specified"}</p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Commission Rate Card */}
           <Card className="glass-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Percent className="h-4 w-4 text-primary" />
-                Commission Rate
-              </CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Percent className="h-4 w-4 text-primary" />Commission Rate</CardTitle>
             </CardHeader>
             <CardContent>
               {isEditing ? (
                 <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.commission_rate}
-                    onChange={(e) => setFormData({ ...formData, commission_rate: e.target.value })}
-                    placeholder={`Default: ${(agency?.commission_rate ?? 0.3) * 100}%`}
-                    className="w-32"
-                  />
+                  <Input type="number" min="0" max="100" value={formData.commission_rate} onChange={(e) => setFormData({ ...formData, commission_rate: e.target.value })} placeholder={`Default: ${(agency?.commission_rate ?? 0.3) * 100}%`} className="w-32" />
                   <span className="text-muted-foreground">%</span>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    Leave empty for agency default ({((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}%)
-                  </span>
+                  <span className="text-xs text-muted-foreground ml-2">Leave empty for agency default ({((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}%)</span>
                 </div>
               ) : (
                 <p className="text-foreground">
@@ -428,28 +438,16 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
 
         {/* Right Column */}
         <div className="space-y-6">
-
-
           {/* Persona / Bio Card */}
           <Card className="glass-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <User className="h-4 w-4 text-primary" />
-                Creator Persona
-              </CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4 text-primary" />Creator Persona</CardTitle>
             </CardHeader>
             <CardContent>
               {isEditing ? (
-                <Textarea
-                  value={formData.persona}
-                  onChange={(e) => setFormData({ ...formData, persona: e.target.value })}
-                  placeholder="Describe the creator's persona, style, and content focus..."
-                  rows={4}
-                />
+                <Textarea value={formData.persona} onChange={(e) => setFormData({ ...formData, persona: e.target.value })} placeholder="Describe the creator's persona, style, and content focus..." rows={4} />
               ) : (
-                <p className="text-foreground text-sm font-bold text-justify whitespace-pre-wrap">
-                  {(creator as any).persona || "No persona description added yet."}
-                </p>
+                <p className="text-foreground text-sm font-bold text-justify whitespace-pre-wrap">{(creator as any).persona || "No persona description added yet."}</p>
               )}
             </CardContent>
           </Card>
@@ -457,28 +455,49 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
           {/* Notes Card */}
           <Card className="glass-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                Internal Notes
-              </CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Internal Notes</CardTitle>
             </CardHeader>
             <CardContent>
               {isEditing ? (
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Add internal notes about this creator..."
-                  rows={4}
-                />
+                <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Add internal notes about this creator..." rows={4} />
               ) : (
-                <p className="text-muted-foreground text-sm text-justify whitespace-pre-wrap">
-                  {creator.notes || "No notes added yet."}
-                </p>
+                <p className="text-muted-foreground text-sm text-justify whitespace-pre-wrap">{creator.notes || "No notes added yet."}</p>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Add Social Account Dialog */}
+      <Dialog open={isAddSocialOpen} onOpenChange={setIsAddSocialOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Social Account</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={socialForm.platform} onValueChange={(v) => setSocialForm({ ...socialForm, platform: v })}>
+              <SelectTrigger><SelectValue placeholder="Select Platform" /></SelectTrigger>
+              <SelectContent>
+                {ALL_SOCIAL_PLATFORMS.map((platform) => {
+                  const config = socialPlatformConfig[platform];
+                  return (
+                    <SelectItem key={platform} value={platform}>
+                      <span className="flex items-center gap-2">
+                        <span className={config?.color}>{config?.icon}</span>
+                        {platform}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Username" value={socialForm.username} onChange={(e) => setSocialForm({ ...socialForm, username: e.target.value })} />
+            <Input placeholder="Profile URL (optional)" value={socialForm.profile_url} onChange={(e) => setSocialForm({ ...socialForm, profile_url: e.target.value })} />
+            <Input type="number" placeholder="Follower count (optional)" value={socialForm.follower_count} onChange={(e) => setSocialForm({ ...socialForm, follower_count: e.target.value })} />
+            <Button onClick={addSocialAccount} className="w-full bg-gradient-primary">Add Account</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
