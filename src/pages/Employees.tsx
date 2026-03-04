@@ -54,7 +54,7 @@ export default function Employees() {
     employee.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSubmit = async (data: EmployeeFormValues) => {
+  const handleSubmit = async (data: EmployeeFormValues, idDocumentUrl?: string) => {
     const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
     const certs = data.certifications?.split(",").map(s => s.trim()).filter(Boolean) || [];
     const isChatter = data.role === "Chatter";
@@ -84,12 +84,13 @@ export default function Employees() {
       daily_target_messages: data.daily_target_messages || 100,
       daily_target_ppv: data.daily_target_ppv || 20,
       timezone: data.timezone || null,
+      id_document_url: idDocumentUrl || null,
     });
 
     setIsAddDialogOpen(false);
   };
 
-  const handleEditSubmit = async (data: EmployeeFormValues) => {
+  const handleEditSubmit = async (data: EmployeeFormValues, idDocumentUrl?: string) => {
     if (!selectedEmployee) return;
 
     const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
@@ -116,6 +117,7 @@ export default function Employees() {
       daily_target_messages: data.daily_target_messages || 100,
       daily_target_ppv: data.daily_target_ppv || 20,
       timezone: data.timezone || null,
+      ...(idDocumentUrl !== undefined ? { id_document_url: idDocumentUrl } : {}),
     });
 
     setIsEditDialogOpen(false);
