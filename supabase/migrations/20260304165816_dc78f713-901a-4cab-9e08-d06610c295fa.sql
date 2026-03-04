@@ -1,0 +1,1 @@
+ALTER TABLE public.creator_social_accounts ADD COLUMN IF NOT EXISTS follower_count integer DEFAULT 0;

@@ -1733,6 +1733,7 @@ export type Database = {
           account_type: string
           created_at: string
           creator_id: string
+          follower_count: number | null
           id: string
           of_account_id: string | null
           of_connected_at: string | null
@@ -1751,6 +1752,7 @@ export type Database = {
           account_type?: string
           created_at?: string
           creator_id: string
+          follower_count?: number | null
           id?: string
           of_account_id?: string | null
           of_connected_at?: string | null
@@ -1769,6 +1771,7 @@ export type Database = {
           account_type?: string
           created_at?: string
           creator_id?: string
+          follower_count?: number | null
           id?: string
           of_account_id?: string | null
           of_connected_at?: string | null
