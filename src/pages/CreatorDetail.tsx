@@ -15,7 +15,7 @@ import {
   CreatorEarnings,
   CreatorEmployeePermissions,
 } from "@/components/creators";
-
+import { motion } from "framer-motion";
 
 export default function CreatorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -66,57 +66,61 @@ export default function CreatorDetail() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <Button variant="ghost" onClick={() => navigate("/creators")} className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Creators
-        </Button>
+      <div className="space-y-5 max-w-[1400px]">
+        <motion.div
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <Button variant="ghost" size="sm" onClick={() => navigate("/creators")} className="text-muted-foreground hover:text-foreground -ml-2">
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back to Creators
+          </Button>
+        </motion.div>
 
-        <Tabs defaultValue="earnings" className="space-y-6">
-          <TabsList className="bg-card border border-border h-auto gap-1 p-1 overflow-x-auto flex-nowrap w-full justify-start scrollbar-hide">
-            <TabsTrigger value="earnings" className="whitespace-nowrap">Earnings</TabsTrigger>
-            <TabsTrigger value="overview" className="whitespace-nowrap">Overview</TabsTrigger>
-            <TabsTrigger value="platforms" className="whitespace-nowrap">Accounts</TabsTrigger>
-            <TabsTrigger value="plans" className="whitespace-nowrap">Plans</TabsTrigger>
-            <TabsTrigger value="vault" className="whitespace-nowrap">Vault</TabsTrigger>
-            <TabsTrigger value="marketing" className="whitespace-nowrap">Marketing</TabsTrigger>
-            <TabsTrigger value="requests" className="whitespace-nowrap">Requests</TabsTrigger>
-            <TabsTrigger value="team-access" className="whitespace-nowrap">Team</TabsTrigger>
+        <Tabs defaultValue="earnings" className="space-y-5">
+          <TabsList className="bg-card/60 border border-border h-auto gap-0.5 p-1 overflow-x-auto flex-nowrap w-full justify-start scrollbar-hide">
+            <TabsTrigger value="earnings" className="whitespace-nowrap text-sm px-3 py-1.5">Earnings</TabsTrigger>
+            <TabsTrigger value="overview" className="whitespace-nowrap text-sm px-3 py-1.5">Overview</TabsTrigger>
+            <TabsTrigger value="platforms" className="whitespace-nowrap text-sm px-3 py-1.5">Accounts</TabsTrigger>
+            <TabsTrigger value="plans" className="whitespace-nowrap text-sm px-3 py-1.5">Plans</TabsTrigger>
+            <TabsTrigger value="vault" className="whitespace-nowrap text-sm px-3 py-1.5">Vault</TabsTrigger>
+            <TabsTrigger value="marketing" className="whitespace-nowrap text-sm px-3 py-1.5">Marketing</TabsTrigger>
+            <TabsTrigger value="requests" className="whitespace-nowrap text-sm px-3 py-1.5">Requests</TabsTrigger>
+            <TabsTrigger value="team-access" className="whitespace-nowrap text-sm px-3 py-1.5">Team</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="earnings" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="earnings" className="glass-card p-6">
             <CreatorEarnings creatorId={creator.id} creatorCommissionRate={creator.commission_rate} />
           </TabsContent>
 
-          <TabsContent value="overview" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="overview" className="glass-card p-6">
             <CreatorOverview creator={creator} onUpdate={handleUpdate} />
           </TabsContent>
 
-          <TabsContent value="platforms" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="platforms" className="glass-card p-6">
             <CreatorPlatformAccounts creatorId={creator.id} />
           </TabsContent>
 
-          <TabsContent value="plans" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="plans" className="glass-card p-6">
             <CreatorContentPlans creatorId={creator.id} />
           </TabsContent>
 
-          <TabsContent value="vault" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="vault" className="glass-card p-6">
             <CreatorContentVault creatorId={creator.id} />
           </TabsContent>
 
-          <TabsContent value="marketing" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="marketing" className="glass-card p-6">
             <CreatorMarketing creatorId={creator.id} />
           </TabsContent>
 
-          <TabsContent value="requests" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="requests" className="glass-card p-6">
             <CreatorCustomRequests creatorId={creator.id} />
           </TabsContent>
 
-
-          <TabsContent value="team-access" className="bg-card rounded-lg border border-border p-6">
+          <TabsContent value="team-access" className="glass-card p-6">
             <CreatorEmployeePermissions creatorId={creator.id} />
           </TabsContent>
-
         </Tabs>
       </div>
     </DashboardLayout>
