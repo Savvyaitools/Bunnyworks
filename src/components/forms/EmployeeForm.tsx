@@ -64,10 +64,48 @@ export function EmployeeForm({
   const selectedRole = useWatch({ control, name: "role" });
   const isChatterRole = selectedRole === "Chatter";
 
+  const handleIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be under 10MB");
+        return;
+      }
+      setIdFile(file);
+      setIdPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeIdFile = () => {
+    setIdFile(null);
+    setIdPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const uploadIdDocument = async (): Promise<string | undefined> => {
+    if (!idFile) return existingIdDocumentUrl || undefined;
+    setUploadingId(true);
+    try {
+      const ext = idFile.name.split(".").pop();
+      const path = `id-documents/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("employee-documents").upload(path, idFile);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("employee-documents").getPublicUrl(path);
+      return urlData.publicUrl;
+    } catch (err) {
+      toast.error("Failed to upload ID document");
+      return undefined;
+    } finally {
+      setUploadingId(false);
+    }
+  };
+
   const handleFormSubmit = async (data: EmployeeFormValues) => {
-    await onSubmit(data);
+    const idUrl = await uploadIdDocument();
+    await onSubmit(data, idUrl);
     if (!defaultValues) {
       reset();
+      removeIdFile();
     }
   };
 
