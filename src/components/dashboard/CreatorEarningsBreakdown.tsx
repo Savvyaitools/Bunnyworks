@@ -10,6 +10,7 @@ export interface CreatorEarningsSummary {
   grossRevenue: number;
   netRevenue: number;
   agencyEarnings: number;
+  commissionRate?: number;
 }
 
 interface CreatorEarningsBreakdownProps {
@@ -97,6 +98,12 @@ export function CreatorEarningsBreakdown({ creators, commissionRate, loading, de
                         <span>Gross: {formatCurrency(creator.grossRevenue)}</span>
                         <span className="text-muted-foreground/40">•</span>
                         <span>Net: {formatCurrency(creator.netRevenue)}</span>
+                        {creator.commissionRate && (
+                          <>
+                            <span className="text-muted-foreground/40">•</span>
+                            <span>{(creator.commissionRate * 100).toFixed(0)}% rate</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

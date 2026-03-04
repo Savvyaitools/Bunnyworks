@@ -109,7 +109,7 @@ const Index = () => {
       // Fetch ALL creators for this agency (not just active)
       const { data: creators } = await supabase
         .from("creators")
-        .select("id, name")
+        .select("id, name, commission_rate")
         .eq("agency_id", agencyId!);
       const creatorList = creators || [];
       const creatorIds = creatorList.map(c => c.id);
@@ -159,23 +159,32 @@ const Index = () => {
           return sum;
         }, 0) || 0;
 
-      const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : netTotal * commissionRate;
+      // Calculate agency earnings using per-creator commission rates
+      let agencyEarningsTotal = 0;
 
-      // Build per-creator summaries
+      // Build per-creator summaries using each creator's own commission rate
       const creatorSummaries: CreatorEarningsSummary[] = creatorList.map(c => {
         const data = perCreator[c.id];
-        const creatorGross = data.net > 0 ? data.net / (1 - commissionRate) : 0;
+        const creatorCommission = Number((c as any).commission_rate) || commissionRate;
+        // Net = creator's take. Gross = Net / (1 - commission)
+        const creatorGross = data.net > 0 ? data.net / (1 - creatorCommission) : 0;
         const creatorAgency = creatorGross - data.net;
+        agencyEarningsTotal += creatorAgency;
         return {
           creatorId: c.id,
           name: c.name,
           grossRevenue: creatorGross,
           netRevenue: data.net,
           agencyEarnings: creatorAgency,
+          commissionRate: creatorCommission,
         };
-      }).filter(c => c.grossRevenue > 0 || c.netRevenue > 0);
+      });
 
-      return { netTotal, grossTotal, agencyEarnings, tipsTotal, subsTotal, messagesTotal, referralsTotal, creatorSummaries };
+      // Use extracted gross if available, otherwise use per-creator calculated totals
+      const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : agencyEarningsTotal;
+      const totalGross = grossTotal > 0 ? grossTotal : creatorSummaries.reduce((s, c) => s + c.grossRevenue, 0);
+
+      return { netTotal, grossTotal: totalGross, agencyEarnings, tipsTotal, subsTotal, messagesTotal, referralsTotal, creatorSummaries };
     },
   });
 
