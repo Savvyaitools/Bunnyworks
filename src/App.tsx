@@ -134,7 +134,7 @@ const AppRoutes = () => {
         
         {/* Agency Routes - Protected */}
         <Route path="/dashboard" element={<ProtectedRoute allowedUserTypes={["agency"]}><Index /></ProtectedRoute>} />
-        <Route path="/coach-pbf" element={<ProtectedRoute allowedUserTypes={["agency"]}><CoachPBF /></ProtectedRoute>} />
+        <Route path="/of-ai" element={<ProtectedRoute allowedUserTypes={["agency"]}><CoachPBF /></ProtectedRoute>} />
         <Route path="/creators" element={<ProtectedRoute allowedUserTypes={["agency"]}><Creators /></ProtectedRoute>} />
         <Route path="/creators/:id" element={<ProtectedRoute allowedUserTypes={["agency"]}><CreatorDetail /></ProtectedRoute>} />
         <Route path="/team" element={<ProtectedRoute allowedUserTypes={["agency"]}><Employees /></ProtectedRoute>} />
@@ -155,12 +155,15 @@ const AppRoutes = () => {
         <Route path="/tools/creator-discovery" element={<ProtectedRoute allowedUserTypes={["agency"]}><CreatorDiscovery /></ProtectedRoute>} />
         <Route path="/browser-sync" element={<ProtectedRoute allowedUserTypes={["agency"]}><BrowserSync /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute allowedUserTypes={["agency"]}><UserGuide /></ProtectedRoute>} />
-        <Route path="/agent-hub" element={<Navigate to="/coach-pbf" replace />} />
-        <Route path="/coach/social-media" element={<ProtectedRoute allowedUserTypes={["agency"]}><SocialMediaManager /></ProtectedRoute>} />
-        <Route path="/coach/ai-chatter" element={<ProtectedRoute allowedUserTypes={["agency"]}><AIChatterPage /></ProtectedRoute>} />
+        <Route path="/agent-hub" element={<Navigate to="/of-ai" replace />} />
+        <Route path="/coach-pbf" element={<Navigate to="/of-ai" replace />} />
+        <Route path="/of-ai/social-media" element={<ProtectedRoute allowedUserTypes={["agency"]}><SocialMediaManager /></ProtectedRoute>} />
+        <Route path="/of-ai/chatter" element={<ProtectedRoute allowedUserTypes={["agency"]}><AIChatterPage /></ProtectedRoute>} />
         
         {/* Legacy redirects */}
-        <Route path="/felix" element={<Navigate to="/coach-pbf" replace />} />
+        <Route path="/felix" element={<Navigate to="/of-ai" replace />} />
+        <Route path="/coach/social-media" element={<Navigate to="/of-ai/social-media" replace />} />
+        <Route path="/coach/ai-chatter" element={<Navigate to="/of-ai/chatter" replace />} />
         <Route path="/employees" element={<Navigate to="/team" replace />} />
         <Route path="/employees/performance" element={<Navigate to="/team/performance" replace />} />
         <Route path="/chatters" element={<Navigate to="/team/chatters" replace />} />

@@ -34,8 +34,7 @@ import {
 
 const commandItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard", group: "Main" },
-  { label: "Coach PBF", icon: Bot, path: "/coach-pbf", group: "Main" },
-  { label: "Agent Hub", icon: BrainCircuit, path: "/agent-hub", group: "Main" },
+  { label: "OF AI", icon: Bot, path: "/of-ai", group: "Main" },
   { label: "Creators", icon: Users, path: "/creators", group: "Main" },
   { label: "Creator Messages", icon: MessageSquare, path: "/messages", group: "Main" },
   { label: "Team", icon: UserCog, path: "/team", group: "Main" },
