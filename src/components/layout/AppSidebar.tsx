@@ -49,7 +49,7 @@ import bunnyWorksLogo from "@/assets/bunnyworks-logo.png";
 
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Coach PBF", url: "/coach-pbf", icon: Bot },
+  { title: "OF AI", url: "/of-ai", icon: Bot },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Messages", url: "/messages", icon: MessageSquare },
   { title: "Team", url: "/team", icon: UserCog },
