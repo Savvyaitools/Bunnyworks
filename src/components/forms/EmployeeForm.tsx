@@ -1,22 +1,34 @@
+import { useState, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { employeeFormSchema, type EmployeeFormValues } from "@/lib/validations";
 import { FormField, FormRow } from "./FormField";
 import { FormSubmitButton } from "./FormSubmitButton";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Upload, X, FileImage } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface EmployeeFormProps {
-  onSubmit: (data: EmployeeFormValues) => Promise<void>;
+  onSubmit: (data: EmployeeFormValues, idDocumentUrl?: string) => Promise<void>;
   isSubmitting?: boolean;
   defaultValues?: Partial<EmployeeFormValues>;
   submitLabel?: string;
+  existingIdDocumentUrl?: string;
 }
 
 export function EmployeeForm({ 
   onSubmit, 
   isSubmitting, 
   defaultValues,
-  submitLabel = "Add Employee" 
+  submitLabel = "Add Employee",
+  existingIdDocumentUrl,
 }: EmployeeFormProps) {
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idPreview, setIdPreview] = useState<string | null>(existingIdDocumentUrl || null);
+  const [uploadingId, setUploadingId] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     register,
     handleSubmit,
@@ -52,28 +64,65 @@ export function EmployeeForm({
   const selectedRole = useWatch({ control, name: "role" });
   const isChatterRole = selectedRole === "Chatter";
 
+  const handleIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be under 10MB");
+        return;
+      }
+      setIdFile(file);
+      setIdPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeIdFile = () => {
+    setIdFile(null);
+    setIdPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const uploadIdDocument = async (): Promise<string | undefined> => {
+    if (!idFile) return existingIdDocumentUrl || undefined;
+    setUploadingId(true);
+    try {
+      const ext = idFile.name.split(".").pop();
+      const path = `id-documents/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("employee-documents").upload(path, idFile);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("employee-documents").getPublicUrl(path);
+      return urlData.publicUrl;
+    } catch (err) {
+      toast.error("Failed to upload ID document");
+      return undefined;
+    } finally {
+      setUploadingId(false);
+    }
+  };
+
   const handleFormSubmit = async (data: EmployeeFormValues) => {
-    await onSubmit(data);
+    const idUrl = await uploadIdDocument();
+    await onSubmit(data, idUrl);
     if (!defaultValues) {
       reset();
+      removeIdFile();
     }
   };
 
   const roleOptions = [
     { value: "Manager", label: "Manager" },
-    { value: "Marketing", label: "Marketing" },
+    { value: "Editor", label: "Editor" },
     { value: "Quality Controller", label: "Quality Controller" },
     { value: "Chatter", label: "Chatter" },
     { value: "VA", label: "VA" },
     { value: "Recruiter", label: "Recruiter" },
-    { value: "Finance", label: "Finance" },
   ];
 
   const departmentOptions = [
-    { value: "Management", label: "Management" },
-    { value: "Production", label: "Production" },
+    { value: "Platform Management", label: "Platform Management" },
     { value: "Marketing", label: "Marketing" },
-    { value: "Strategy", label: "Strategy" },
+    { value: "Chatting", label: "Chatting" },
+    { value: "Financial", label: "Financial" },
   ];
 
   const skillGradeOptions = [
@@ -261,10 +310,54 @@ export function EmployeeForm({
         error={errors.emergency_contact}
       />
 
+      {/* ID Document Upload */}
+      <div className="space-y-2 border-t border-border pt-4 mt-4">
+        <Label>ID Document</Label>
+        <p className="text-xs text-muted-foreground">Upload a photo of their government-issued ID</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.pdf"
+          onChange={handleIdFileChange}
+          className="hidden"
+        />
+        {idPreview ? (
+          <div className="relative inline-block">
+            {idPreview.endsWith(".pdf") ? (
+              <div className="flex items-center gap-2 bg-muted rounded-lg p-3">
+                <FileImage className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm truncate max-w-[200px]">{idFile?.name || "ID Document"}</span>
+              </div>
+            ) : (
+              <img src={idPreview} alt="ID preview" className="h-32 rounded-lg object-cover border border-border" />
+            )}
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+              onClick={removeIdFile}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full h-20 border-dashed"
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            Upload ID
+          </Button>
+        )}
+      </div>
+
       <FormSubmitButton
-        isSubmitting={isSubmitting}
+        isSubmitting={isSubmitting || uploadingId}
         label={submitLabel}
-        loadingLabel="Saving..."
+        loadingLabel={uploadingId ? "Uploading..." : "Saving..."}
       />
     </form>
   );
