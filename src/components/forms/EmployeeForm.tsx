@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { employeeFormSchema, type EmployeeFormValues } from "@/lib/validations";
 import { FormField, FormRow } from "./FormField";
 import { FormSubmitButton } from "./FormSubmitButton";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Upload, X, FileImage } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface EmployeeFormProps {
-  onSubmit: (data: EmployeeFormValues) => Promise<void>;
+  onSubmit: (data: EmployeeFormValues, idDocumentUrl?: string) => Promise<void>;
   isSubmitting?: boolean;
   defaultValues?: Partial<EmployeeFormValues>;
   submitLabel?: string;
+  existingIdDocumentUrl?: string;
 }
 
 export function EmployeeForm({ 
