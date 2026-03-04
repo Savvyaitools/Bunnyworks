@@ -290,24 +290,22 @@ export function LiveActivityFeed() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25, type: "spring" as const, stiffness: 100, damping: 15 }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      <div className="section-header">
+        <div className="flex items-center gap-2.5">
           <div className="relative">
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <Zap className="h-5 w-5 text-warning" />
-            </motion.div>
+            <Zap className="h-4 w-4 text-warning" />
             <motion.span 
-              className="absolute -top-1 -right-1 w-2 h-2 bg-success rounded-full"
+              className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-success rounded-full"
               animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
           </div>
-          <h3 className="text-lg font-semibold text-foreground">Live Activity</h3>
+          <div>
+            <h3 className="section-title">Live Activity</h3>
+            <p className="section-subtitle">Real-time events today</p>
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground">Today</span>
+        <span className="text-[11px] text-muted-foreground/60">Auto-refreshing</span>
       </div>
 
       {isLoading ? (

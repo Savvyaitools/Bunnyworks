@@ -90,11 +90,14 @@ export function DashboardTasks() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-foreground">Tasks</h3>
+      <div className="section-header">
+        <div>
+          <h3 className="section-title">Tasks</h3>
+          <p className="section-subtitle">{activeTasks.length} active</p>
+        </div>
         <Link
           to="/tasks"
-          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+          className="text-[11px] text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors"
         >
           View all <ArrowUpRight className="h-3 w-3" />
         </Link>
