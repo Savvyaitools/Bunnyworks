@@ -7,12 +7,14 @@ import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { DashboardTasks } from "@/components/dashboard/DashboardTasks";
 import { DashboardAIInsights } from "@/components/dashboard/DashboardAIInsights";
 import { RevenueSourceBreakdown } from "@/components/dashboard/RevenueSourceBreakdown";
+import { CreatorEarningsBreakdown } from "@/components/dashboard/CreatorEarningsBreakdown";
 import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedChecklist";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { useAgency } from "@/hooks/useAgency";
 import { Link } from "react-router-dom";
+import type { CreatorEarningsSummary } from "@/components/dashboard/CreatorEarningsBreakdown";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -100,35 +102,47 @@ const Index = () => {
     },
   });
 
-
-  // Fetch total revenue
-  const { data: revenueData } = useQuery({
+  // Fetch total revenue with per-creator breakdown
+  const { data: revenueData, isLoading: revenueLoading } = useQuery({
     queryKey: ["total-revenue", agencyId],
     enabled: Boolean(agencyId),
     queryFn: async () => {
+      // Fetch ALL creators for this agency (not just active)
       const { data: creators } = await supabase
         .from("creators")
-        .select("id")
-        .eq("agency_id", agencyId);
-      const creatorIds = creators?.map(c => c.id) || [];
+        .select("id, name")
+        .eq("agency_id", agencyId!);
+      const creatorList = creators || [];
+      const creatorIds = creatorList.map(c => c.id);
 
       let netTotal = 0;
       let tipsTotal = 0;
       let subsTotal = 0;
       let messagesTotal = 0;
       let referralsTotal = 0;
+
+      // Per-creator accumulator
+      const perCreator: Record<string, { net: number; gross: number }> = {};
+      creatorList.forEach(c => {
+        perCreator[c.id] = { net: 0, gross: 0 };
+      });
+
       if (creatorIds.length > 0) {
         const { data: earningsData, error: earningsError } = await supabase
           .from("creator_earnings")
-          .select("amount, tips, subscriptions, messages_revenue, referrals")
+          .select("creator_id, amount, tips, subscriptions, messages_revenue, referrals")
           .in("creator_id", creatorIds);
         if (earningsError) throw earningsError;
         earningsData?.forEach(e => {
-          netTotal += Number(e.amount) || 0;
+          const amt = Number(e.amount) || 0;
+          netTotal += amt;
           tipsTotal += Number(e.tips) || 0;
           subsTotal += Number(e.subscriptions) || 0;
           messagesTotal += Number(e.messages_revenue) || 0;
           referralsTotal += Number(e.referrals) || 0;
+          if (perCreator[e.creator_id]) {
+            perCreator[e.creator_id].net += amt;
+          }
         });
       }
 
@@ -148,7 +162,21 @@ const Index = () => {
 
       const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : netTotal * commissionRate;
 
-      return { netTotal, grossTotal, agencyEarnings, tipsTotal, subsTotal, messagesTotal, referralsTotal };
+      // Build per-creator summaries
+      const creatorSummaries: CreatorEarningsSummary[] = creatorList.map(c => {
+        const data = perCreator[c.id];
+        const creatorGross = data.net > 0 ? data.net / (1 - commissionRate) : 0;
+        const creatorAgency = creatorGross - data.net;
+        return {
+          creatorId: c.id,
+          name: c.name,
+          grossRevenue: creatorGross,
+          netRevenue: data.net,
+          agencyEarnings: creatorAgency,
+        };
+      }).filter(c => c.grossRevenue > 0 || c.netRevenue > 0);
+
+      return { netTotal, grossTotal, agencyEarnings, tipsTotal, subsTotal, messagesTotal, referralsTotal, creatorSummaries };
     },
   });
 
@@ -250,6 +278,14 @@ const Index = () => {
             />
           </div>
         </div>
+
+        {/* Per-Creator Earnings Breakdown */}
+        <CreatorEarningsBreakdown
+          creators={revenueData?.creatorSummaries || []}
+          commissionRate={commissionRate}
+          loading={revenueLoading}
+          delay={300}
+        />
 
         {/* Tasks + AI Insights */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
