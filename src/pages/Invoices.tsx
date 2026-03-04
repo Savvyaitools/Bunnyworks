@@ -33,6 +33,7 @@ import { useCreators } from "@/hooks/useCreators";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, addDays } from "date-fns";
 import { formatCurrency } from "@/lib/formatters";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 type InvoiceStatus = "Paid" | "Pending" | "Overdue" | "Draft";
 
@@ -93,13 +94,8 @@ export default function Invoices() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Invoices</h1>
-            <p className="text-muted-foreground mt-1">Create and manage creator invoices</p>
-          </div>
+      <div className="space-y-6 max-w-[1400px]">
+        <PageHeader title="Invoices" subtitle="Create and manage creator invoices">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow-sm">
@@ -182,7 +178,7 @@ export default function Invoices() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+        </PageHeader>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in" style={{ animationDelay: "50ms" }}>

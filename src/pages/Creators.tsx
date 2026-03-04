@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { useCreators, Creator } from "@/hooks/useCreators";
 import { useAgency } from "@/hooks/useAgency";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,18 +101,15 @@ export default function Creators() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-[1400px]">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Creators</h1>
-            <p className="text-muted-foreground mt-1">
-              {loading ? "Loading..." : `${stats.total} creators • ${formatCurrency(stats.totalRevenue)} total revenue`}
-            </p>
-          </div>
+        <PageHeader
+          title="Creators"
+          subtitle={loading ? "Loading..." : `${stats.total} creators · ${formatCurrency(stats.totalRevenue)} total revenue`}
+        >
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow-sm">
+              <Button className="bg-primary hover:bg-primary/90 transition-colors shadow-glow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Creator
               </Button>
@@ -123,19 +121,17 @@ export default function Creators() {
               <CreatorForm onSubmit={handleSubmit} />
             </DialogContent>
           </Dialog>
-        </div>
+        </PageHeader>
 
         {/* Search */}
-        <div className="animate-fade-in" style={{ animationDelay: "100ms" }}>
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search creators by name or alias..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card border-border focus:border-primary input-glow"
-            />
-          </div>
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search creators..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-card/60 border-border focus:border-primary/50 h-9 text-sm"
+          />
         </div>
 
         {/* Creator Cards Grid */}

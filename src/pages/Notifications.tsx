@@ -40,17 +40,17 @@ export default function Notifications() {
     <DashboardLayout>
       <div className="space-y-6 max-w-3xl">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">Notifications</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Notifications</h1>
               {unreadCount > 0 && (
-                <Badge className="bg-primary text-primary-foreground">
+                <Badge className="bg-primary text-primary-foreground text-xs">
                   {unreadCount} new
                 </Badge>
               )}
             </div>
-            <p className="text-muted-foreground mt-1">Stay updated on all activity</p>
+            <p className="text-sm text-muted-foreground mt-1">Stay updated on all activity</p>
           </div>
           {unreadCount > 0 && (
             <Button 
