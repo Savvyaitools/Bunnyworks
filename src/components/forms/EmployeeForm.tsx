@@ -310,10 +310,54 @@ export function EmployeeForm({
         error={errors.emergency_contact}
       />
 
+      {/* ID Document Upload */}
+      <div className="space-y-2 border-t border-border pt-4 mt-4">
+        <Label>ID Document</Label>
+        <p className="text-xs text-muted-foreground">Upload a photo of their government-issued ID</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.pdf"
+          onChange={handleIdFileChange}
+          className="hidden"
+        />
+        {idPreview ? (
+          <div className="relative inline-block">
+            {idPreview.endsWith(".pdf") ? (
+              <div className="flex items-center gap-2 bg-muted rounded-lg p-3">
+                <FileImage className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm truncate max-w-[200px]">{idFile?.name || "ID Document"}</span>
+              </div>
+            ) : (
+              <img src={idPreview} alt="ID preview" className="h-32 rounded-lg object-cover border border-border" />
+            )}
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+              onClick={removeIdFile}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full h-20 border-dashed"
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            Upload ID
+          </Button>
+        )}
+      </div>
+
       <FormSubmitButton
-        isSubmitting={isSubmitting}
+        isSubmitting={isSubmitting || uploadingId}
         label={submitLabel}
-        loadingLabel="Saving..."
+        loadingLabel={uploadingId ? "Uploading..." : "Saving..."}
       />
     </form>
   );
