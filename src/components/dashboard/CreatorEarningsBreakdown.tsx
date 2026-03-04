@@ -39,17 +39,21 @@ export function CreatorEarningsBreakdown({ creators, commissionRate, loading, de
   return (
     <motion.div
       ref={ref}
-      className="glass-card p-6"
-      initial={{ opacity: 0, y: 30 }}
+      className="glass-card p-6 h-full"
+      initial={{ opacity: 0, y: 20 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ delay: delay / 1000, type: "spring", stiffness: 100, damping: 15 }}
+      transition={{ delay: delay / 1000, type: "spring", stiffness: 120, damping: 18 }}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <h3 className="text-lg font-semibold text-foreground">Earnings by Creator</h3>
+      <div className="section-header">
+        <div>
+          <h3 className="section-title">Earnings by Creator</h3>
+          <p className="section-subtitle">Revenue breakdown per creator</p>
+        </div>
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+          <DollarSign className="h-3 w-3" />
+          <span>Agency cut</span>
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground mb-6">
-        Revenue breakdown per creator
-      </p>
 
       {loading ? (
         <div className="space-y-4">
