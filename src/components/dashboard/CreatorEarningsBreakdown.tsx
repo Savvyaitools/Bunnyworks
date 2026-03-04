@@ -47,7 +47,7 @@ export function CreatorEarningsBreakdown({ creators, commissionRate, loading, de
         <h3 className="text-lg font-semibold text-foreground">Earnings by Creator</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-6">
-        Revenue breakdown per creator ({(commissionRate * 100).toFixed(0)}% commission)
+        Revenue breakdown per creator
       </p>
 
       {loading ? (
