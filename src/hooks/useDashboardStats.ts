@@ -32,7 +32,7 @@ export function useDashboardStats() {
         .from("agency_dashboard_stats" as any)
         .select("*")
         .eq("agency_id", agencyId!)
-        .maybeSingle();
+        .maybeSingle() as { data: any; error: any };
 
       if (!mvError && mvData) {
         return {
