@@ -1,7 +1,5 @@
-import { useSupabaseCRUD } from "./useSupabaseCRUD";
-import { useAgency } from "./useAgency";
-import { useMemo, useCallback } from "react";
-import { toast } from "sonner";
+import { useAgencyScopedCRUD } from "./useAgencyScopedCRUD";
+import { useMemo } from "react";
 
 export type SkillGrade = "A" | "B" | "C";
 
@@ -29,7 +27,6 @@ export interface Employee {
   certifications: string[] | null;
   emergency_contact: string | null;
   address: string | null;
-  // Chatter-specific fields
   skill_grade: SkillGrade;
   is_chatter: boolean;
   daily_target_messages: number;
@@ -42,14 +39,11 @@ export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_
 export type UpdateEmployeeInput = Partial<Omit<Employee, "id" | "created_at" | "updated_at" | "agency_id">>;
 
 export function useEmployees() {
-  const { agencyId, limits, invalidateLimits } = useAgency();
-
-  const crud = useSupabaseCRUD<Employee>({
+  const crud = useAgencyScopedCRUD<Employee>({
     table: "employees",
     queryKey: "employees",
-    enabled: Boolean(agencyId),
-    filter: agencyId ? { column: "agency_id", value: agencyId } : undefined,
     orderBy: { column: "created_at", ascending: false },
+    limitType: "employee",
     messages: {
       createSuccess: "Employee added successfully",
       updateSuccess: "Employee updated successfully",
@@ -63,9 +57,8 @@ export function useEmployees() {
     onLeave: crud.items.filter((e) => e.status === "On Leave").length,
   }), [crud.items]);
 
-  // Chatter-specific helpers
-  const chatters = useMemo(() => 
-    crud.items.filter((e) => e.is_chatter), 
+  const chatters = useMemo(() =>
+    crud.items.filter((e) => e.is_chatter),
     [crud.items]
   );
 
@@ -77,41 +70,15 @@ export function useEmployees() {
     gradeC: chatters.filter((c) => c.skill_grade === "C").length,
   }), [chatters]);
 
-  // Wrapper that adds agency_id and checks limits
-  const createEmployee = useCallback(async (input: CreateEmployeeInput) => {
-    if (!agencyId) {
-      toast.error("Agency not found. Please log in again.");
-      throw new Error("Agency ID not found");
-    }
-
-    // Check limit before creating
-    if (limits && !limits.canAddEmployee) {
-      toast.error(`Employee limit reached (${limits.currentEmployees}/${limits.maxEmployees}). Upgrade your plan to add more employees.`);
-      throw new Error("Employee limit reached");
-    }
-
-    const result = await crud.create({ ...input, agency_id: agencyId });
-    invalidateLimits();
-    return result;
-  }, [crud, agencyId, limits, invalidateLimits]);
-
-  // Wrapper for delete to update limits
-  const deleteEmployee = useCallback(async (id: string) => {
-    const result = await crud.remove(id);
-    invalidateLimits();
-    return result;
-  }, [crud, invalidateLimits]);
-
   return {
     employees: crud.items,
     loading: crud.loading,
     stats,
-    limits,
-    createEmployee,
+    limits: crud.limits,
+    createEmployee: crud.create,
     updateEmployee: crud.update,
-    deleteEmployee,
+    deleteEmployee: crud.remove,
     refetch: crud.refetch,
-    // Chatter-specific exports
     chatters,
     chatterStats,
   };
