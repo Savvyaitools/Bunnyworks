@@ -29,6 +29,8 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    const { action, topic, platform, creatorName, creatorNiche, creatorPersona, days, agencyId, creatorId, ofAccountId, nicheQuery, existingSocialContent } = await req.json();
+
     // Load agency data + Tatum memories + creator performance + live OF data in parallel
     let dataContext = "";
     let memoryContext = "";

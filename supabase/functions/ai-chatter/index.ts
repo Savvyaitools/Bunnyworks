@@ -28,6 +28,8 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    const { action, fanMessage, creatorName, creatorPersona, creatorBoundaries, confidenceThreshold, agencyId, creatorId } = await req.json();
     if (action !== "generate_reply") throw new Error("Invalid action");
 
     // Load Jodie's memories + fan context + creator earnings data in parallel
