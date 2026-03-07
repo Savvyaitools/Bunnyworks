@@ -32,7 +32,7 @@ export class AppError extends Error {
   ) {
     super(message);
     if (options?.cause) {
-      this.cause = options.cause;
+      this.originalCause = options.cause;
     }
     this.name = "AppError";
     this.code = code;
