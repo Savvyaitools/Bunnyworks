@@ -81,7 +81,7 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
     },
   });
 
-  // Create mutation
+  // Create mutation with optimistic update
   const createMutation = useMutation({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutationFn: async (input: Record<string, any>) => {
@@ -96,16 +96,27 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
       if (error) throw error;
       return data as unknown as T;
     },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: [queryKey] });
+      const previous = queryClient.getQueryData([queryKey, filter?.value]);
+      // Optimistic: add temp item with a placeholder id
+      const optimistic = { id: `temp-${Date.now()}`, ...input } as unknown as T;
+      queryClient.setQueryData([queryKey, filter?.value], (old: T[] | undefined) => [...(old || []), optimistic]);
+      return { previous };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] });
       toast.success(defaultMessages.createSuccess);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData([queryKey, filter?.value], context.previous);
+      }
       toast.error(`${defaultMessages.createError}: ${error.message}`);
     },
   });
 
-  // Update mutation
+  // Update mutation with optimistic update
   const updateMutation = useMutation({
     mutationFn: async ({ id, input }: { id: string; input: Partial<T> }) => {
       const { data, error } = await supabase
@@ -120,27 +131,49 @@ export function useSupabaseCRUD<T extends { id: string }>(config: CRUDConfig) {
       if (error) throw error;
       return data as unknown as T;
     },
+    onMutate: async ({ id, input }) => {
+      await queryClient.cancelQueries({ queryKey: [queryKey] });
+      const previous = queryClient.getQueryData([queryKey, filter?.value]);
+      queryClient.setQueryData([queryKey, filter?.value], (old: T[] | undefined) =>
+        (old || []).map(item => item.id === id ? { ...item, ...input } : item)
+      );
+      return { previous };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] });
       toast.success(defaultMessages.updateSuccess);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData([queryKey, filter?.value], context.previous);
+      }
       toast.error(`${defaultMessages.updateError}: ${error.message}`);
     },
   });
 
-  // Delete mutation
+  // Delete mutation with optimistic update
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase.from(table as any).delete().eq("id", id);
       if (error) throw error;
     },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: [queryKey] });
+      const previous = queryClient.getQueryData([queryKey, filter?.value]);
+      queryClient.setQueryData([queryKey, filter?.value], (old: T[] | undefined) =>
+        (old || []).filter(item => item.id !== id)
+      );
+      return { previous };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] });
       toast.success(defaultMessages.deleteSuccess);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData([queryKey, filter?.value], context.previous);
+      }
       toast.error(`${defaultMessages.deleteError}: ${error.message}`);
     },
   });
