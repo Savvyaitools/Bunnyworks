@@ -1,5 +1,4 @@
-import { useSupabaseCRUD } from "./useSupabaseCRUD";
-import { useAgency } from "./useAgency";
+import { useAgencyScopedCRUD } from "./useAgencyScopedCRUD";
 import { useCallback, useMemo } from "react";
 
 export interface TrackingLink {
@@ -30,13 +29,11 @@ export type UpdateTrackingLinkInput = Partial<
 >;
 
 export function useTrackingLinks(creatorId?: string) {
-  const { agencyId } = useAgency();
-
-  const crud = useSupabaseCRUD<TrackingLink>({
+  const crud = useAgencyScopedCRUD<TrackingLink>({
     table: "tracking_links",
     queryKey: `tracking-links-${creatorId || "all"}`,
     orderBy: { column: "created_at", ascending: false },
-    filter: creatorId ? { column: "creator_id", value: creatorId } : undefined,
+    extraFilter: creatorId ? { column: "creator_id", value: creatorId } : undefined,
     messages: {
       createSuccess: "Tracking link created",
       updateSuccess: "Tracking link updated",
@@ -44,28 +41,17 @@ export function useTrackingLinks(creatorId?: string) {
     },
   });
 
-  const createTrackingLink = useCallback(
-    async (input: CreateTrackingLinkInput) => {
-      if (!agencyId) throw new Error("Agency ID not found");
-      return crud.create({ ...input, agency_id: agencyId });
-    },
-    [crud, agencyId]
-  );
-
   const stats = useMemo(() => {
     const links = crud.items;
+    const totalClicks = links.reduce((sum, l) => sum + l.clicks, 0);
+    const totalConversions = links.reduce((sum, l) => sum + l.conversions, 0);
     return {
       total: links.length,
       active: links.filter((l) => l.is_active).length,
-      totalClicks: links.reduce((sum, l) => sum + l.clicks, 0),
-      totalConversions: links.reduce((sum, l) => sum + l.conversions, 0),
+      totalClicks,
+      totalConversions,
       totalRevenue: links.reduce((sum, l) => sum + Number(l.revenue), 0),
-      conversionRate:
-        links.reduce((sum, l) => sum + l.clicks, 0) > 0
-          ? (links.reduce((sum, l) => sum + l.conversions, 0) /
-              links.reduce((sum, l) => sum + l.clicks, 0)) *
-            100
-          : 0,
+      conversionRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
     };
   }, [crud.items]);
 
@@ -73,7 +59,7 @@ export function useTrackingLinks(creatorId?: string) {
     trackingLinks: crud.items,
     loading: crud.loading,
     stats,
-    createTrackingLink,
+    createTrackingLink: crud.create,
     updateTrackingLink: crud.update,
     deleteTrackingLink: crud.remove,
     refetch: crud.refetch,

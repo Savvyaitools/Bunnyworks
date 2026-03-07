@@ -1,8 +1,6 @@
-import { useSupabaseCRUD } from "./useSupabaseCRUD";
-import { useAgency } from "./useAgency";
+import { useAgencyScopedCRUD } from "./useAgencyScopedCRUD";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo, useCallback } from "react";
-import { toast } from "sonner";
 
 export interface Creator {
   id: string;
@@ -36,14 +34,11 @@ export type CreateCreatorInput = Omit<Creator, "id" | "created_at" | "updated_at
 export type UpdateCreatorInput = Partial<CreateCreatorInput>;
 
 export function useCreators() {
-  const { agencyId, limits, invalidateLimits } = useAgency();
-
-  const crud = useSupabaseCRUD<Creator>({
+  const crud = useAgencyScopedCRUD<Creator>({
     table: "creators",
     queryKey: "creators",
-    enabled: Boolean(agencyId),
-    filter: agencyId ? { column: "agency_id", value: agencyId } : undefined,
     orderBy: { column: "created_at", ascending: false },
+    limitType: "creator",
     messages: {
       createSuccess: "Creator added successfully",
       updateSuccess: "Creator updated successfully",
@@ -53,13 +48,13 @@ export function useCreators() {
 
   const getCreatorById = useCallback(
     async (id: string): Promise<Creator | null> => {
-      if (!agencyId) return null;
+      if (!crud.agencyId) return null;
 
       const { data, error } = await supabase
         .from("creators")
         .select("*")
         .eq("id", id)
-        .eq("agency_id", agencyId)
+        .eq("agency_id", crud.agencyId)
         .single();
 
       if (error) {
@@ -68,7 +63,7 @@ export function useCreators() {
       }
       return data as Creator;
     },
-    [agencyId]
+    [crud.agencyId]
   );
 
   const stats = useMemo(() => ({
@@ -79,39 +74,14 @@ export function useCreators() {
     totalRevenue: crud.items.reduce((sum, c) => sum + Number(c.revenue), 0),
   }), [crud.items]);
 
-  // Wrapper that adds agency_id and checks limits
-  const createCreator = useCallback(async (input: CreateCreatorInput) => {
-    if (!agencyId) {
-      toast.error("Agency not found. Please log in again.");
-      throw new Error("Agency ID not found");
-    }
-
-    // Check limit before creating
-    if (limits && !limits.canAddCreator) {
-      toast.error(`Creator limit reached (${limits.currentCreators}/${limits.maxCreators}). Upgrade your plan to add more creators.`);
-      throw new Error("Creator limit reached");
-    }
-
-    const result = await crud.create({ ...input, agency_id: agencyId });
-    invalidateLimits();
-    return result;
-  }, [crud, agencyId, limits, invalidateLimits]);
-
-  // Wrapper for delete to update limits
-  const deleteCreator = useCallback(async (id: string) => {
-    const result = await crud.remove(id);
-    invalidateLimits();
-    return result;
-  }, [crud, invalidateLimits]);
-
   return {
     creators: crud.items,
     loading: crud.loading,
     stats,
-    limits,
+    limits: crud.limits,
     getCreatorById,
-    createCreator,
+    createCreator: crud.create,
     updateCreator: crud.update,
-    deleteCreator,
+    deleteCreator: crud.remove,
   };
 }
