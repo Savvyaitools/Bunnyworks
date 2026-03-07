@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Brain, MessageSquare, Sparkles, ArrowUpRight, Bot, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -17,142 +18,88 @@ interface AgentInsight {
   badge?: string;
 }
 
-export function DashboardAIInsights() {
+// Single consolidated query instead of 4 separate ones
+function useAIInsightsData(agencyId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard-ai-insights-consolidated", agencyId],
+    enabled: Boolean(agencyId),
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const [coachRes, tatumRes, jodieRes, runsRes] = await Promise.all([
+        // Coach PBF
+        Promise.all([
+          supabase.from("coach_pbf_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
+          supabase.from("coach_pbf_conversations").select("updated_at, title").eq("agency_id", agencyId!).order("updated_at", { ascending: false }).limit(1),
+        ]),
+        // Tatum
+        Promise.all([
+          supabase.from("tatum_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
+          supabase.from("tatum_conversations").select("updated_at, title").eq("agency_id", agencyId!).order("updated_at", { ascending: false }).limit(1),
+        ]),
+        // Jodie
+        Promise.all([
+          supabase.from("ai_suggestions_log").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
+          supabase.from("ai_suggestions_log").select("created_at, resulted_in_sale, sale_amount").eq("agency_id", agencyId!).order("created_at", { ascending: false }).limit(10),
+        ]),
+        // Agent runs
+        Promise.all([
+          supabase.from("agent_runs").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).eq("status", "completed"),
+          supabase.from("agent_runs").select("agent_type, completed_at, actions_taken").eq("agency_id", agencyId!).eq("status", "completed").order("completed_at", { ascending: false }).limit(1),
+        ]),
+      ]);
+
+      const jodieSuggestions = jodieRes[1].data || [];
+      const sales = jodieSuggestions.filter((r: any) => r.resulted_in_sale);
+
+      return {
+        coach: { count: coachRes[0].count || 0, lastActivity: coachRes[1].data?.[0]?.updated_at || null, lastTitle: coachRes[1].data?.[0]?.title || null },
+        tatum: { count: tatumRes[0].count || 0, lastActivity: tatumRes[1].data?.[0]?.updated_at || null, lastTitle: tatumRes[1].data?.[0]?.title || null },
+        jodie: { count: jodieRes[0].count || 0, lastActivity: jodieSuggestions[0]?.created_at || null, recentSales: sales.length },
+        runs: { completedRuns: runsRes[0].count || 0, lastRun: runsRes[1].data?.[0] || null },
+      };
+    },
+  });
+}
+
+export const DashboardAIInsights = memo(function DashboardAIInsights() {
   const { agency } = useAgency();
   const agencyId = agency?.id;
-
-  // Coach PBF conversations
-  const { data: coachData } = useQuery({
-    queryKey: ["dashboard-coach-insights", agencyId],
-    enabled: Boolean(agencyId),
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("coach_pbf_conversations")
-        .select("*", { count: "exact", head: true })
-        .eq("agency_id", agencyId!);
-      const { data: recent } = await supabase
-        .from("coach_pbf_conversations")
-        .select("updated_at, title")
-        .eq("agency_id", agencyId!)
-        .order("updated_at", { ascending: false })
-        .limit(1);
-      return {
-        count: count || 0,
-        lastActivity: recent?.[0]?.updated_at || null,
-        lastTitle: recent?.[0]?.title || null,
-      };
-    },
-  });
-
-  // Tatum conversations
-  const { data: tatumData } = useQuery({
-    queryKey: ["dashboard-tatum-insights", agencyId],
-    enabled: Boolean(agencyId),
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("tatum_conversations")
-        .select("*", { count: "exact", head: true })
-        .eq("agency_id", agencyId!);
-      const { data: recent } = await supabase
-        .from("tatum_conversations")
-        .select("updated_at, title")
-        .eq("agency_id", agencyId!)
-        .order("updated_at", { ascending: false })
-        .limit(1);
-      return {
-        count: count || 0,
-        lastActivity: recent?.[0]?.updated_at || null,
-        lastTitle: recent?.[0]?.title || null,
-      };
-    },
-  });
-
-  // Jodie suggestions log
-  const { data: jodieData } = useQuery({
-    queryKey: ["dashboard-jodie-insights", agencyId],
-    enabled: Boolean(agencyId),
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("ai_suggestions_log")
-        .select("*", { count: "exact", head: true })
-        .eq("agency_id", agencyId!);
-      const { data: recent } = await supabase
-        .from("ai_suggestions_log")
-        .select("created_at, suggestion_type, resulted_in_sale, sale_amount")
-        .eq("agency_id", agencyId!)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      const sales = recent?.filter(r => r.resulted_in_sale) || [];
-      const totalSales = sales.reduce((sum, s) => sum + (Number(s.sale_amount) || 0), 0);
-
-      return {
-        count: count || 0,
-        lastActivity: recent?.[0]?.created_at || null,
-        recentSales: sales.length,
-        totalSalesAmount: totalSales,
-      };
-    },
-  });
-
-  // Agent runs
-  const { data: agentRunsData } = useQuery({
-    queryKey: ["dashboard-agent-runs", agencyId],
-    enabled: Boolean(agencyId),
-    queryFn: async () => {
-      const { count } = await supabase
-        .from("agent_runs")
-        .select("*", { count: "exact", head: true })
-        .eq("agency_id", agencyId!)
-        .eq("status", "completed");
-      const { data: recent } = await supabase
-        .from("agent_runs")
-        .select("agent_type, completed_at, actions_taken")
-        .eq("agency_id", agencyId!)
-        .eq("status", "completed")
-        .order("completed_at", { ascending: false })
-        .limit(1);
-      return {
-        completedRuns: count || 0,
-        lastRun: recent?.[0] || null,
-      };
-    },
-  });
+  const { data } = useAIInsightsData(agencyId);
 
   const agents: AgentInsight[] = [
     {
       name: "Coach PBF",
       icon: Brain,
       color: "text-primary",
-      conversations: coachData?.count || 0,
-      recentActivity: coachData?.lastActivity
-        ? formatDistanceToNow(new Date(coachData.lastActivity), { addSuffix: true })
+      conversations: data?.coach.count || 0,
+      recentActivity: data?.coach.lastActivity
+        ? formatDistanceToNow(new Date(data.coach.lastActivity), { addSuffix: true })
         : null,
       href: "/coach-pbf",
-      badge: coachData?.lastTitle || undefined,
+      badge: data?.coach.lastTitle || undefined,
     },
     {
       name: "Tatum · Social",
       icon: Sparkles,
       color: "text-accent",
-      conversations: tatumData?.count || 0,
-      recentActivity: tatumData?.lastActivity
-        ? formatDistanceToNow(new Date(tatumData.lastActivity), { addSuffix: true })
+      conversations: data?.tatum.count || 0,
+      recentActivity: data?.tatum.lastActivity
+        ? formatDistanceToNow(new Date(data.tatum.lastActivity), { addSuffix: true })
         : null,
       href: "/coach-pbf",
-      badge: tatumData?.lastTitle || undefined,
+      badge: data?.tatum.lastTitle || undefined,
     },
     {
       name: "Jodie · Chatter",
       icon: MessageSquare,
       color: "text-success",
-      conversations: jodieData?.count || 0,
-      recentActivity: jodieData?.lastActivity
-        ? formatDistanceToNow(new Date(jodieData.lastActivity), { addSuffix: true })
+      conversations: data?.jodie.count || 0,
+      recentActivity: data?.jodie.lastActivity
+        ? formatDistanceToNow(new Date(data.jodie.lastActivity), { addSuffix: true })
         : null,
       href: "/coach-pbf",
-      badge: jodieData?.recentSales
-        ? `${jodieData.recentSales} recent sales`
+      badge: data?.jodie.recentSales
+        ? `${data.jodie.recentSales} recent sales`
         : undefined,
     },
   ];
@@ -177,17 +124,16 @@ export function DashboardAIInsights() {
       </div>
 
       <div className="glass-card p-4 space-y-4">
-        {/* Agent run summary */}
-        {agentRunsData && agentRunsData.completedRuns > 0 && (
+        {data?.runs && data.runs.completedRuns > 0 && (
           <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-primary/5 border border-primary/10">
             <Bot className="h-4 w-4 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-xs text-foreground font-medium">
-                {agentRunsData.completedRuns} autonomous runs completed
+                {data.runs.completedRuns} autonomous runs completed
               </p>
-              {agentRunsData.lastRun?.completed_at && (
+              {data.runs.lastRun?.completed_at && (
                 <p className="text-[11px] text-muted-foreground">
-                  Last: {agentRunsData.lastRun.agent_type} · {formatDistanceToNow(new Date(agentRunsData.lastRun.completed_at), { addSuffix: true })}
+                  Last: {data.runs.lastRun.agent_type} · {formatDistanceToNow(new Date(data.runs.lastRun.completed_at), { addSuffix: true })}
                 </p>
               )}
             </div>
@@ -195,7 +141,6 @@ export function DashboardAIInsights() {
           </div>
         )}
 
-        {/* Agent cards */}
         <div className="space-y-2">
           {agents.map((agent) => (
             <Link
@@ -233,4 +178,4 @@ export function DashboardAIInsights() {
       </div>
     </motion.div>
   );
-}
+});
