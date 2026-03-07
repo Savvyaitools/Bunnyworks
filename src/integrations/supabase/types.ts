@@ -3949,6 +3949,72 @@ export type Database = {
           },
         ]
       }
+      scrape_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          error_message: string | null
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          result: Json | null
+          scheduled_for: string
+          session_link_id: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          error_message?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          result?: Json | null
+          scheduled_for?: string
+          session_link_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          error_message?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          result?: Json | null
+          scheduled_for?: string
+          session_link_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scrape_jobs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scrape_jobs_session_link_id_fkey"
+            columns: ["session_link_id"]
+            isOneToOne: false
+            referencedRelation: "creator_session_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_access_logs: {
         Row: {
           action: string
@@ -4464,7 +4530,43 @@ export type Database = {
     Functions: {
       check_agency_creator_limit: { Args: never; Returns: boolean }
       check_agency_employee_limit: { Args: never; Returns: boolean }
+      claim_scrape_jobs: {
+        Args: { batch_size?: number; worker_id: string }
+        Returns: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          error_message: string | null
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          result: Json | null
+          scheduled_for: string
+          session_link_id: string | null
+          started_at: string | null
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "scrape_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_expired_of_cache: { Args: never; Returns: undefined }
+      cleanup_old_activity_logs: { Args: never; Returns: number }
+      cleanup_old_scrape_jobs: { Args: never; Returns: number }
+      complete_scrape_job: {
+        Args: { job_id: string; job_result?: Json }
+        Returns: undefined
+      }
+      enqueue_scrape_jobs: { Args: never; Returns: number }
+      fail_scrape_job: {
+        Args: { err_msg?: string; job_id: string }
+        Returns: undefined
+      }
       get_agency_creator_count: {
         Args: { p_agency_id: string }
         Returns: number
@@ -4485,6 +4587,7 @@ export type Database = {
         Args: { recruiting_id: string }
         Returns: string
       }
+      recover_stale_scrape_jobs: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"

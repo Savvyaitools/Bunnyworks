@@ -110,12 +110,11 @@ function proxyConf(c: any) {
 }
 
 // ===== CDP Earnings Scraper (headless) =====
-async function scrapeEarningsForSession(
+async function scrapeEarningsForCreator(
   bbKey: string, projectId: string, contextId: string, proxies: any[], creatorId: string, svc: any
 ): Promise<{ success: boolean; total?: number; error?: string }> {
   console.log(`[${creatorId}] Launching headless scrape session (context=${contextId})`);
 
-  // Create a short-lived headless session
   const sess = await bb(bbKey, "/sessions", {
     method: "POST",
     body: JSON.stringify({
@@ -127,7 +126,7 @@ async function scrapeEarningsForSession(
       },
       proxies,
       keepAlive: false,
-      timeout: 120, // 2-minute max
+      timeout: 120,
       userMetadata: { cronScrape: true, creatorId },
     }),
   });
@@ -136,15 +135,12 @@ async function scrapeEarningsForSession(
 
   const ready = await waitForSessionReady(bbKey, sess.id, 20000);
   if (!ready) {
-    // Clean up
     try { await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(bbKey), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch { }
     throw new Error("Session failed to reach RUNNING state");
   }
 
-  // Wait for context cookie restoration
   await new Promise(r => setTimeout(r, 5000));
 
-  // CDP scrape
   const wsUrl = `wss://connect.browserbase.com?apiKey=${bbKey}&sessionId=${sess.id}`;
 
   const scrapeResult = await new Promise<{ json?: any; domText?: string }>((resolve) => {
@@ -224,12 +220,11 @@ async function scrapeEarningsForSession(
         }
 
         if (msg.id === navigateId) {
-          if (msg.error) { console.error(`[${creatorId}] CDP nav error:`, msg.error); finish(); }
+          if (msg.error) { console.error(`[CDP] nav error:`, msg.error); finish(); }
           else { navigationConfirmed = true; setTimeout(() => startDomPoll(), 5000); }
           return;
         }
 
-        // XHR interception
         if (msg.method === "Network.responseReceived") {
           const url = msg.params?.response?.url || "";
           const reqId = msg.params?.requestId;
@@ -238,7 +233,6 @@ async function scrapeEarningsForSession(
             url.includes("/api2/v2/statistics") || url.includes("statements/earnings") ||
             (url.includes("/chart") && url.includes("earning"))
           )) {
-            console.log(`[${creatorId}] Captured earnings API: ${url}`);
             const bodyMid = send("Network.getResponseBody", { requestId: reqId });
             pendingBodyRequests.set(bodyMid, reqId);
           }
@@ -257,7 +251,6 @@ async function scrapeEarningsForSession(
               if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
               xhrFinishTimer = setTimeout(() => {
                 earningsJson = earningsAccumulator;
-                console.log(`[${creatorId}] Accumulated ${xhrResponseCount} XHR responses`);
                 finish();
               }, 3000);
             } catch { }
@@ -270,7 +263,7 @@ async function scrapeEarningsForSession(
           if (xhrCaptured) return;
           const text = msg.result?.result?.value;
           if (typeof text === "string" && text.length > 200) {
-            if (/\$[\\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text)) {
+            if (/\$[\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text)) {
               domText = text;
               setTimeout(() => { if (!done && !xhrCaptured) finish(); }, 3000);
               return;
@@ -285,7 +278,6 @@ async function scrapeEarningsForSession(
     ws.onclose = () => { if (!done) { done = true; clearTimeout(timer); if (xhrFinishTimer) clearTimeout(xhrFinishTimer); resolve({ json: Object.keys(earningsAccumulator).length > 0 ? earningsAccumulator : null, domText }); } };
   });
 
-  // Release session (persist context to keep cookies fresh)
   try {
     await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(bbKey), body: JSON.stringify({ status: "REQUEST_RELEASE" }) });
   } catch { }
@@ -322,7 +314,6 @@ async function scrapeEarningsForSession(
       bestTotal = aiEarnings.total; tips = aiEarnings.tips; subs = aiEarnings.subscriptions;
       messages = aiEarnings.messages; referrals = aiEarnings.referrals; posts = aiEarnings.posts;
     } else {
-      // Regex fallback
       earningsSource = "dom";
       const rawText = scrapeResult.domText;
       const parseAmount = (labels: string[]): number => {
@@ -345,7 +336,6 @@ async function scrapeEarningsForSession(
     }
   }
 
-  // Upsert earnings
   if (bestTotal > 0) {
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
@@ -358,7 +348,7 @@ async function scrapeEarningsForSession(
       creator_id: creatorId, amount: bestTotal, tips: tips || 0, subscriptions: subs || 0,
       messages_revenue: messages || 0, referrals: referrals || 0,
       period_start: periodStart, period_end: periodEnd, platform: "onlyfans",
-      notes: `Auto-scraped (cron/${earningsSource}) on ${now.toISOString().split("T")[0]}`,
+      notes: `Auto-scraped (queue/${earningsSource}) on ${now.toISOString().split("T")[0]}`,
     };
 
     if (existing) {
@@ -374,11 +364,12 @@ async function scrapeEarningsForSession(
   return { success: true, total: 0 };
 }
 
-// ===== Main handler =====
+// ===== Main handler: Queue-based worker =====
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  console.log("=== Cron Earnings Scrape Started ===");
+  const workerId = `worker-${crypto.randomUUID().slice(0, 8)}`;
+  console.log(`=== Scrape Worker ${workerId} Started ===`);
 
   try {
     const BK = Deno.env.get("BROWSERBASE_API_KEY");
@@ -389,58 +380,110 @@ Deno.serve(async (req) => {
     const sKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const svc = createClient(sUrl, sKey);
 
-    // Find all authenticated OnlyFans session links with a saved context
-    const { data: links, error: fetchErr } = await svc.from("creator_session_links")
-      .select("id, creator_id, browserbase_context_id, platform, agency_id")
-      .eq("session_status", "authenticated")
-      .eq("platform", "onlyfans")
-      .not("browserbase_context_id", "is", null)
-      .eq("is_active", true);
+    // Parse mode from request body
+    let mode = "work"; // "enqueue" | "work" | "full" (enqueue + work) | "cleanup"
+    try {
+      const body = await req.json();
+      if (body?.mode) mode = body.mode;
+    } catch { }
 
-    if (fetchErr) throw fetchErr;
-
-    console.log(`Found ${links?.length || 0} authenticated OnlyFans accounts to scrape`);
-
-    const results: { creatorId: string; success: boolean; total?: number; error?: string }[] = [];
-
-    // Process sequentially to avoid overwhelming Browserbase
-    for (const link of links || []) {
-      try {
-        // Get creator proxy settings
-        const { data: creator } = await svc.from("creators")
-          .select("proxy_country, proxy_state, proxy_city")
-          .eq("id", link.creator_id).single();
-
-        const proxies = proxyConf(creator);
-
-        const result = await scrapeEarningsForSession(
-          BK, BP, link.browserbase_context_id, proxies, link.creator_id, svc
+    // --- ENQUEUE MODE: populate the queue ---
+    if (mode === "enqueue" || mode === "full") {
+      const { data: enqueueResult } = await svc.rpc("enqueue_scrape_jobs");
+      console.log(`Enqueued ${enqueueResult ?? 0} new scrape jobs`);
+      
+      // Also recover stale jobs
+      const { data: recovered } = await svc.rpc("recover_stale_scrape_jobs");
+      if (recovered && recovered > 0) console.log(`Recovered ${recovered} stale jobs`);
+      
+      if (mode === "enqueue") {
+        return new Response(
+          JSON.stringify({ message: "Jobs enqueued", count: enqueueResult }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
-
-        results.push({ creatorId: link.creator_id, ...result });
-
-        // Delay between creators to avoid rate limits
-        if ((links?.length || 0) > 1) {
-          await new Promise(r => setTimeout(r, 5000));
-        }
-      } catch (err: any) {
-        const msg = err.message || "Unknown error";
-        console.error(`[${link.creator_id}] Scrape failed:`, msg);
-        results.push({ creatorId: link.creator_id, success: false, error: msg });
       }
     }
 
-    const successCount = results.filter(r => r.success && (r.total || 0) > 0).length;
-    const failCount = results.filter(r => !r.success).length;
+    // --- CLEANUP MODE: run retention policies ---
+    if (mode === "cleanup") {
+      const { data: logsDeleted } = await svc.rpc("cleanup_old_activity_logs");
+      const { data: jobsDeleted } = await svc.rpc("cleanup_old_scrape_jobs");
+      console.log(`Cleanup: ${logsDeleted ?? 0} activity logs, ${jobsDeleted ?? 0} scrape jobs deleted`);
+      return new Response(
+        JSON.stringify({ message: "Cleanup complete", logsDeleted, jobsDeleted }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    console.log(`=== Cron Scrape Complete: ${successCount} with data, ${failCount} failed, ${results.length} total ===`);
+    // --- WORK MODE: claim and process jobs ---
+    const BATCH_SIZE = 3; // Process up to 3 creators in parallel
+    const { data: jobs, error: claimErr } = await svc.rpc("claim_scrape_jobs", {
+      worker_id: workerId,
+      batch_size: BATCH_SIZE,
+    });
+
+    if (claimErr) throw claimErr;
+    if (!jobs || jobs.length === 0) {
+      console.log("No pending jobs to process");
+      return new Response(
+        JSON.stringify({ message: "No jobs to process", workerId }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Claimed ${jobs.length} jobs: ${jobs.map((j: any) => j.creator_id).join(", ")}`);
+
+    // Process claimed jobs in parallel
+    const results = await Promise.allSettled(
+      jobs.map(async (job: any) => {
+        try {
+          // Get session link context
+          const { data: link } = await svc.from("creator_session_links")
+            .select("browserbase_context_id")
+            .eq("id", job.session_link_id)
+            .single();
+
+          if (!link?.browserbase_context_id) {
+            throw new Error("No context ID for session link");
+          }
+
+          // Get creator proxy settings
+          const { data: creator } = await svc.from("creators")
+            .select("proxy_country, proxy_state, proxy_city")
+            .eq("id", job.creator_id).single();
+
+          const proxies = proxyConf(creator);
+          const result = await scrapeEarningsForCreator(
+            BK, BP, link.browserbase_context_id, proxies, job.creator_id, svc
+          );
+
+          // Mark job complete
+          await svc.rpc("complete_scrape_job", {
+            job_id: job.id,
+            job_result: { total: result.total, source: "scrape" },
+          });
+
+          return { jobId: job.id, creatorId: job.creator_id, ...result };
+        } catch (err: any) {
+          const msg = err.message || "Unknown error";
+          console.error(`[${job.creator_id}] Job ${job.id} failed:`, msg);
+          await svc.rpc("fail_scrape_job", { job_id: job.id, err_msg: msg });
+          return { jobId: job.id, creatorId: job.creator_id, success: false, error: msg };
+        }
+      })
+    );
+
+    const processed = results.map(r => r.status === "fulfilled" ? r.value : { success: false, error: "Promise rejected" });
+    const successCount = processed.filter((r: any) => r?.success && (r?.total || 0) > 0).length;
+
+    console.log(`=== Worker ${workerId} Complete: ${successCount}/${processed.length} with data ===`);
 
     return new Response(
-      JSON.stringify({ message: "Cron scrape complete", total: results.length, withData: successCount, failed: failCount, results }),
+      JSON.stringify({ message: "Worker complete", workerId, processed: processed.length, withData: successCount, results: processed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("Cron scrape error:", error);
+    console.error("Worker error:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
