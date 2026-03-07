@@ -180,19 +180,26 @@ const Index = () => {
         });
       }
 
-      const { data: extractedData, error: extractedError } = await supabase
-        .from("extracted_data")
-        .select("value, raw_text, import_id")
-        .eq("data_type", "earnings");
-      if (extractedError) throw extractedError;
+      // Scope extracted_data to this agency's creators only
+      let grossData: { value: number; raw_text: string | null }[] = [];
+      if (creatorIds.length > 0) {
+        const extractedQuery = supabase
+          .from("extracted_data" as any)
+          .select("value, raw_text, import_id")
+          .eq("data_type", "earnings")
+          .in("creator_id", creatorIds);
+        const { data: extractedData, error: extractedError } = await extractedQuery;
+        if (extractedError) throw extractedError;
+        grossData = (extractedData || []) as any[];
+      }
 
       const grossTotal =
-        extractedData?.reduce((sum, item) => {
+        grossData.reduce((sum, item) => {
           if (item.raw_text?.toLowerCase().includes("gross")) {
             return sum + Number(item.value);
           }
           return sum;
-        }, 0) || 0;
+        }, 0);
 
       let agencyEarningsTotal = 0;
 
