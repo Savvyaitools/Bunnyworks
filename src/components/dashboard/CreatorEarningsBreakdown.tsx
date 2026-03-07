@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Users, DollarSign } from "lucide-react";
@@ -20,7 +21,7 @@ interface CreatorEarningsBreakdownProps {
   delay?: number;
 }
 
-export function CreatorEarningsBreakdown({ creators, commissionRate, loading, delay = 0 }: CreatorEarningsBreakdownProps) {
+export const CreatorEarningsBreakdown = memo(function CreatorEarningsBreakdown({ creators, commissionRate, loading, delay = 0 }: CreatorEarningsBreakdownProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
 
@@ -142,4 +143,4 @@ export function CreatorEarningsBreakdown({ creators, commissionRate, loading, de
       )}
     </motion.div>
   );
-}
+});

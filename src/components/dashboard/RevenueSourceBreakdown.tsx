@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { DollarSign, CreditCard, MessageSquare, Gift, Share2 } from "lucide-react";
@@ -20,7 +21,7 @@ interface RevenueSourceBreakdownProps {
   delay?: number;
 }
 
-export function RevenueSourceBreakdown({ grossRevenue, tips = 0, subscriptions = 0, messagesRevenue = 0, referrals = 0, delay = 0 }: RevenueSourceBreakdownProps) {
+export const RevenueSourceBreakdown = memo(function RevenueSourceBreakdown({ grossRevenue, tips = 0, subscriptions = 0, messagesRevenue = 0, referrals = 0, delay = 0 }: RevenueSourceBreakdownProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
 
@@ -150,4 +151,4 @@ export function RevenueSourceBreakdown({ grossRevenue, tips = 0, subscriptions =
       </div>
     </motion.div>
   );
-}
+});
