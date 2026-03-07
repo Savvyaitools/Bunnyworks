@@ -47,7 +47,7 @@ export function LiveActivityFeed() {
       const { data: eventCreators } = await supabase
         .from("creators")
         .select("id, name, alias")
-        .in("id", eventCreatorIds.length > 0 ? eventCreatorIds : ["none"]);
+        .in("id", eventCreatorIds.length > 0 ? eventCreatorIds : [agencyId!]);
       
       const eventCreatorMap = new Map(eventCreators?.map(c => [c.id, c.alias || c.name]) || []);
 
@@ -138,7 +138,7 @@ export function LiveActivityFeed() {
       const { data: creators } = await supabase
         .from("creators")
         .select("id, name, alias")
-        .in("id", creatorIds.length > 0 ? creatorIds : ["none"]);
+        .in("id", creatorIds.length > 0 ? creatorIds : [agencyId!]);
 
       const creatorMap = new Map(creators?.map(c => [c.id, c.alias || c.name]) || []);
 

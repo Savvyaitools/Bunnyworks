@@ -31,11 +31,20 @@ export function RevenueChart() {
       
       if (netError) throw netError;
       
-      // Get GROSS from extracted_data
-      const { data: grossData, error: grossError } = await supabase
-        .from("extracted_data")
-        .select("value, period_start, raw_text")
-        .eq("data_type", "earnings");
+      // Get GROSS from extracted_data - scoped to agency creators
+      type GrossRow = { value: number; period_start: string; raw_text: string | null };
+      let grossData: GrossRow[] = [];
+      let grossError: unknown = null;
+      if (creatorIds.length > 0) {
+        const query = supabase
+          .from("extracted_data")
+          .select("value, period_start, raw_text")
+          .eq("data_type", "earnings");
+        // Filter by creator_id using raw filter to avoid deep type inference
+        const res = await query.filter("creator_id", "in", `(${creatorIds.join(",")})`);
+        grossData = (res.data as GrossRow[]) || [];
+        grossError = res.error;
+      }
       
       if (grossError) throw grossError;
       
