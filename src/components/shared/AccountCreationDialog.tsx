@@ -56,9 +56,11 @@ export function AccountCreationDialog({
     );
   };
 
+  const loginUrl = `${window.location.origin}/auth`;
+
   const handleCopyCredentials = async () => {
     if (!entity) return;
-    const credentials = `Email: ${entity.email}\nPassword: ${password}`;
+    const credentials = `Login URL: ${loginUrl}\nEmail: ${entity.email}\nPassword: ${password}`;
     const success = await copyToClipboard(credentials);
     toast[success ? "success" : "error"](
       success ? "Credentials copied to clipboard" : "Failed to copy credentials"
