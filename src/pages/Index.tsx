@@ -193,12 +193,12 @@ const Index = () => {
       }
 
       const grossTotal =
-        extractedData?.reduce((sum, item) => {
+        grossData.reduce((sum, item) => {
           if (item.raw_text?.toLowerCase().includes("gross")) {
             return sum + Number(item.value);
           }
           return sum;
-        }, 0) || 0;
+        }, 0);
 
       let agencyEarningsTotal = 0;
 
