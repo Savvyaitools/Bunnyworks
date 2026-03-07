@@ -180,11 +180,17 @@ const Index = () => {
         });
       }
 
-      const { data: extractedData, error: extractedError } = await supabase
-        .from("extracted_data")
-        .select("value, raw_text, import_id")
-        .eq("data_type", "earnings");
-      if (extractedError) throw extractedError;
+      // Scope extracted_data to this agency's creators only
+      let grossData: { value: number; raw_text: string | null }[] = [];
+      if (creatorIds.length > 0) {
+        const { data: extractedData, error: extractedError } = await supabase
+          .from("extracted_data")
+          .select("value, raw_text, import_id")
+          .eq("data_type", "earnings")
+          .in("creator_id", creatorIds);
+        if (extractedError) throw extractedError;
+        grossData = (extractedData || []) as any[];
+      }
 
       const grossTotal =
         extractedData?.reduce((sum, item) => {
