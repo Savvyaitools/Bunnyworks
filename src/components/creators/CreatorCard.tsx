@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MoreVertical, DollarSign, Trash2, Mail, KeyRound, Check, Heart } from "lucide-react";
+import { MoreVertical, DollarSign, Trash2, Mail, KeyRound, Check, Heart, Copy } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import { Creator } from "@/hooks/useCreators";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatters";
 import { supabase } from "@/integrations/supabase/client";
+import { copyToClipboard } from "@/lib/passwordUtils";
+import { toast } from "sonner";
 
 interface CreatorCardProps {
   creator: Creator;
@@ -43,7 +45,17 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
     navigate(`/creators/${creator.id}`);
   };
 
-  // Use uploaded photo if available, otherwise fall back to generated avatar
+  const loginUrl = `${window.location.origin}/auth`;
+
+  const handleCopyLoginInfo = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const credentials = `Login URL: ${loginUrl}\nEmail: ${creator.email}\nPassword: (set during account creation)`;
+    const success = await copyToClipboard(credentials);
+    toast[success ? "success" : "error"](
+      success ? "Login info copied!" : "Failed to copy"
+    );
+  };
+
   const avatarImageUrl = creator.avatar_url || 
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`;
 
@@ -63,14 +75,12 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
             </AvatarFallback>
           </Avatar>
         </div>
-        {/* Online status indicator */}
         <span
           className={cn(
             "absolute bottom-2 left-1/2 translate-x-4 h-4 w-4 rounded-full border-2 border-card",
             creator.online_status ? "bg-success" : "bg-muted-foreground"
           )}
         />
-        {/* Login badge */}
         {hasAccount && (
           <Badge 
             variant="secondary" 
@@ -80,7 +90,6 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
             Login Active
           </Badge>
         )}
-        {/* Dropdown menu */}
         <div className="absolute top-2 right-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -89,14 +98,18 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover border-border">
+              {hasAccount && (
+                <>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCopyLoginInfo(e); }}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Login Info
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {!hasAccount && onCreateAccount && (
                 <>
-                  <DropdownMenuItem 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCreateAccount(creator);
-                    }}
-                  >
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCreateAccount(creator); }}>
                     <KeyRound className="h-4 w-4 mr-2" />
                     Create Login
                   </DropdownMenuItem>
@@ -105,10 +118,7 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
               )}
               <DropdownMenuItem 
                 className="text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(creator.id);
-                }}
+                onClick={(e) => { e.stopPropagation(); onDelete(creator.id); }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove Creator
@@ -121,24 +131,13 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
       {/* Creator Info */}
       <div className="text-center mb-3">
         <h3 className="font-semibold text-foreground">{creator.name}</h3>
-        {creator.alias && (
-          <p className="text-sm text-muted-foreground">@{creator.alias}</p>
-        )}
-        {!creator.alias && creator.platform && (
-          <p className="text-sm text-muted-foreground">{creator.platform}</p>
-        )}
-        {creator.followers && (
-          <p className="text-xs text-muted-foreground mt-1">{creator.followers} followers</p>
-        )}
-        {/* OF Accounts */}
+        {creator.alias && <p className="text-sm text-muted-foreground">@{creator.alias}</p>}
+        {!creator.alias && creator.platform && <p className="text-sm text-muted-foreground">{creator.platform}</p>}
+        {creator.followers && <p className="text-xs text-muted-foreground mt-1">{creator.followers} followers</p>}
         {ofAccounts.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
             {ofAccounts.map((acc) => (
-              <Badge
-                key={acc.id}
-                variant="outline"
-                className="text-xs border-blue-500/30 text-blue-400 bg-blue-500/10"
-              >
+              <Badge key={acc.id} variant="outline" className="text-xs border-blue-500/30 text-blue-400 bg-blue-500/10">
                 <Heart className="h-3 w-3 mr-1" />
                 {acc.username}
               </Badge>
@@ -146,6 +145,20 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
           </div>
         )}
       </div>
+
+      {/* Portal Login Info */}
+      {hasAccount && (
+        <div className="mb-3 p-2.5 rounded-lg bg-muted/50 border border-border/50" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Portal Login</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyLoginInfo} title="Copy login info">
+              <Copy className="h-3 w-3" />
+            </Button>
+          </div>
+          <p className="text-xs text-foreground truncate">{creator.email}</p>
+          <p className="text-xs text-muted-foreground truncate">{loginUrl}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
         <div className="flex items-center gap-2">
