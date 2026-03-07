@@ -29,7 +29,10 @@ export class AppError extends Error {
       cause?: Error;
     }
   ) {
-    super(message, { cause: options?.cause });
+    super(message);
+    if (options?.cause) {
+      this.cause = options.cause;
+    }
     this.name = "AppError";
     this.code = code;
     this.statusCode = options?.statusCode;
