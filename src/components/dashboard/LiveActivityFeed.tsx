@@ -28,31 +28,35 @@ export function LiveActivityFeed() {
   const { data: activities, isLoading } = useQuery({
     queryKey: ["live-activity-feed", agencyId],
     enabled: Boolean(agencyId),
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       const liveActivities: LiveActivity[] = [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
 
-      // Fetch OnlyFans webhook events first
-      const { data: ofEvents } = await supabase
-        .from("onlyfans_events")
-        .select("id, event_type, payload, created_at, creator_id")
-        .eq("agency_id", agencyId!)
-        .gte("created_at", today.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(10);
+      // Parallel fetch: OF events + agency creators (eliminates waterfall)
+      const [ofEventsRes, agencyCreatorsRes] = await Promise.all([
+        supabase
+          .from("onlyfans_events")
+          .select("id, event_type, payload, created_at, creator_id")
+          .eq("agency_id", agencyId!)
+          .gte("created_at", todayISO)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("creators")
+          .select("id, name, alias")
+          .eq("agency_id", agencyId!),
+      ]);
 
-      // Get creator names for OF events
-      const eventCreatorIds = [...new Set(ofEvents?.map(e => e.creator_id).filter(Boolean) || [])];
-      const { data: eventCreators } = await supabase
-        .from("creators")
-        .select("id, name, alias")
-        .in("id", eventCreatorIds.length > 0 ? eventCreatorIds : [agencyId!]);
-      
-      const eventCreatorMap = new Map(eventCreators?.map(c => [c.id, c.alias || c.name]) || []);
+      const ofEvents = ofEventsRes.data || [];
+      const agencyCreators = agencyCreatorsRes.data || [];
+      const creatorMap = new Map(agencyCreators.map(c => [c.id, (c as any).alias || c.name]));
+      const agencyCreatorIds = agencyCreators.map(c => c.id);
 
       // Convert OF events to activities
-      ofEvents?.forEach((event) => {
+      ofEvents.forEach((event) => {
         let type: LiveActivity["type"] = "tip";
         let icon = DollarSign;
         let title = event.event_type;
@@ -62,141 +66,79 @@ export function LiveActivityFeed() {
 
         switch (event.event_type) {
           case "tip_received":
-            type = "tip";
-            icon = Heart;
-            title = "Tip received";
-            iconBg = "bg-pink-500/20";
-            iconColor = "text-pink-500";
+            type = "tip"; icon = Heart; title = "Tip received";
+            iconBg = "bg-pink-500/20"; iconColor = "text-pink-500";
             amount = (event.payload as { amount?: number })?.amount;
             break;
           case "new_subscription":
-            type = "subscription";
-            icon = UserPlus;
-            title = "New subscription";
-            iconBg = "bg-accent/20";
-            iconColor = "text-accent";
+            type = "subscription"; icon = UserPlus; title = "New subscription";
+            iconBg = "bg-accent/20"; iconColor = "text-accent";
             amount = (event.payload as { price?: number })?.price;
             break;
           case "purchase":
-            type = "ppv";
-            icon = Gift;
-            title = "PPV purchased";
-            iconBg = "bg-primary/20";
-            iconColor = "text-primary";
+            type = "ppv"; icon = Gift; title = "PPV purchased";
+            iconBg = "bg-primary/20"; iconColor = "text-primary";
             amount = (event.payload as { amount?: number })?.amount;
             break;
           case "subscription_expired":
-            type = "renewal";
-            icon = MessageSquare;
-            title = "Sub expired";
-            iconBg = "bg-muted";
-            iconColor = "text-muted-foreground";
+            type = "renewal"; icon = MessageSquare; title = "Sub expired";
+            iconBg = "bg-muted"; iconColor = "text-muted-foreground";
             break;
           case "new_message":
-            type = "message";
-            icon = MessageSquare;
-            title = "New message";
-            iconBg = "bg-primary/20";
-            iconColor = "text-primary";
+            type = "message"; icon = MessageSquare; title = "New message";
+            iconBg = "bg-primary/20"; iconColor = "text-primary";
             break;
-          default:
-            return; // Skip unknown event types
+          default: return;
         }
 
         liveActivities.push({
-          id: event.id,
-          type,
-          icon,
-          title,
-          amount,
-          creatorName: event.creator_id ? eventCreatorMap.get(event.creator_id) || "Unknown" : "Unknown",
+          id: event.id, type, icon, title, amount,
+          creatorName: event.creator_id ? creatorMap.get(event.creator_id) || "Unknown" : "Unknown",
           time: formatDistanceToNow(new Date(event.created_at), { addSuffix: true }),
-          iconBg,
-          iconColor,
+          iconBg, iconColor,
         });
       });
 
-      // Also fetch recent earnings as fallback - scoped to agency creators
-      const { data: agencyCreators } = await supabase
-        .from("creators")
-        .select("id")
-        .eq("agency_id", agencyId!);
-      const agencyCreatorIds = agencyCreators?.map(c => c.id) || [];
+      // Fetch recent earnings only if we need to supplement (single query using pre-fetched creator IDs)
+      if (liveActivities.length < 8 && agencyCreatorIds.length > 0) {
+        const { data: earnings } = await supabase
+          .from("creator_earnings")
+          .select("id, amount, created_at, creator_id, notes, platform")
+          .in("creator_id", agencyCreatorIds)
+          .gte("created_at", todayISO)
+          .order("created_at", { ascending: false })
+          .limit(5);
 
-      const { data: earnings } = agencyCreatorIds.length > 0
-        ? await supabase
-            .from("creator_earnings")
-            .select("id, amount, created_at, creator_id, notes, platform")
-            .in("creator_id", agencyCreatorIds)
-            .gte("created_at", today.toISOString())
-            .order("created_at", { ascending: false })
-            .limit(5)
-        : { data: [] as any[] };
+        earnings?.forEach((earning) => {
+          if (liveActivities.some(a => a.amount === Number(earning.amount))) return;
 
-      // Get creator names
-      const creatorIds = [...new Set(earnings?.map(e => e.creator_id) || [])];
-      const { data: creators } = await supabase
-        .from("creators")
-        .select("id, name, alias")
-        .in("id", creatorIds.length > 0 ? creatorIds : [agencyId!]);
+          const isPPV = earning.notes?.toLowerCase().includes("ppv");
+          const isTip = earning.notes?.toLowerCase().includes("tip");
+          const isSub = earning.notes?.toLowerCase().includes("sub");
 
-      const creatorMap = new Map(creators?.map(c => [c.id, c.alias || c.name]) || []);
+          let type: LiveActivity["type"] = "tip";
+          let icon = DollarSign;
+          let title = "Tip received";
+          let iconBg = "bg-success/20";
+          let iconColor = "text-success";
 
-      earnings?.forEach((earning) => {
-        // Skip if we already have this from OF events
-        if (liveActivities.some(a => a.amount === Number(earning.amount))) return;
+          if (isPPV) { type = "ppv"; icon = Gift; title = "PPV purchased"; iconBg = "bg-primary/20"; iconColor = "text-primary"; }
+          else if (isSub) { type = "subscription"; icon = UserPlus; title = "New subscription"; iconBg = "bg-accent/20"; iconColor = "text-accent"; }
+          else if (isTip) { type = "tip"; icon = Heart; title = "Tip received"; iconBg = "bg-pink-500/20"; iconColor = "text-pink-500"; }
 
-        const isPPV = earning.notes?.toLowerCase().includes("ppv");
-        const isTip = earning.notes?.toLowerCase().includes("tip");
-        const isSub = earning.notes?.toLowerCase().includes("sub");
-        
-        let type: LiveActivity["type"] = "tip";
-        let icon = DollarSign;
-        let title = "Tip received";
-        let iconBg = "bg-success/20";
-        let iconColor = "text-success";
-
-        if (isPPV) {
-          type = "ppv";
-          icon = Gift;
-          title = "PPV purchased";
-          iconBg = "bg-primary/20";
-          iconColor = "text-primary";
-        } else if (isSub) {
-          type = "subscription";
-          icon = UserPlus;
-          title = "New subscription";
-          iconBg = "bg-accent/20";
-          iconColor = "text-accent";
-        } else if (isTip) {
-          type = "tip";
-          icon = Heart;
-          title = "Tip received";
-          iconBg = "bg-pink-500/20";
-          iconColor = "text-pink-500";
-        }
-
-        liveActivities.push({
-          id: earning.id,
-          type,
-          icon,
-          title,
-          amount: Number(earning.amount),
-          creatorName: creatorMap.get(earning.creator_id) || "Unknown",
-          time: formatDistanceToNow(new Date(earning.created_at), { addSuffix: true }),
-          iconBg,
-          iconColor,
+          liveActivities.push({
+            id: earning.id, type, icon, title,
+            amount: Number(earning.amount),
+            creatorName: creatorMap.get(earning.creator_id) || "Unknown",
+            time: formatDistanceToNow(new Date(earning.created_at), { addSuffix: true }),
+            iconBg, iconColor,
+          });
         });
-      });
-
-      // Return empty array if no real data
-      if (liveActivities.length === 0) {
-        return [];
       }
 
-      return liveActivities.slice(0, 8);
+      return liveActivities.length === 0 ? [] : liveActivities.slice(0, 8);
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 60000, // 60s instead of 30s — realtime subscription handles instant updates
   });
 
   // Subscribe to realtime OnlyFans events
