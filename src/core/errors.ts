@@ -18,7 +18,7 @@ export class AppError extends Error {
   public readonly statusCode?: number;
   public readonly isRetryable: boolean;
   public readonly context?: Record<string, unknown>;
-  public override readonly cause?: Error;
+  public readonly originalCause?: Error;
 
   constructor(
     message: string,
