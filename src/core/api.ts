@@ -85,39 +85,3 @@ export async function invokeFunction<T = unknown>(
 
   return withRetry(execute, retryOpts);
 }
-
-/**
- * Typed wrapper for common data fetching patterns from the database.
- */
-export async function queryTable<T>(
-  table: string,
-  options: {
-    select?: string;
-    filters?: { column: string; value: unknown }[];
-    orderBy?: { column: string; ascending?: boolean };
-    limit?: number;
-  } = {}
-): Promise<T[]> {
-  const { select = "*", filters, orderBy, limit = config.pagination.defaultPageSize } = options;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = supabase.from(table as any).select(select);
-
-  if (filters) {
-    for (const f of filters) {
-      query = query.eq(f.column, f.value);
-    }
-  }
-
-  if (orderBy) {
-    query = query.order(orderBy.column, { ascending: orderBy.ascending ?? false });
-  }
-
-  if (limit > 0) {
-    query = query.range(0, limit - 1);
-  }
-
-  const { data, error } = await query;
-  if (error) throw normalizeError(error);
-  return (data ?? []) as unknown as T[];
-}
