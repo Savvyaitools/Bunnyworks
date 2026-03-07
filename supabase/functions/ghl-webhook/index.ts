@@ -12,6 +12,37 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // HMAC signature verification for webhook security
+    const GHL_WEBHOOK_SECRET = Deno.env.get("GHL_WEBHOOK_SECRET");
+    if (GHL_WEBHOOK_SECRET) {
+      const signature = req.headers.get("x-ghl-signature") || req.headers.get("x-webhook-signature");
+      if (!signature) {
+        console.warn("Missing webhook signature header");
+        return new Response(JSON.stringify({ error: "Missing signature" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Clone body for verification before consuming
+      const rawBody = await req.clone().text();
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        "raw", encoder.encode(GHL_WEBHOOK_SECRET),
+        { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+      );
+      const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
+      const expectedSig = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+      if (signature !== expectedSig) {
+        console.warn("Invalid webhook signature");
+        return new Response(JSON.stringify({ error: "Invalid signature" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      console.warn("GHL_WEBHOOK_SECRET not configured — webhook signature verification disabled");
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
