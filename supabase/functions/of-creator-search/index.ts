@@ -39,95 +39,113 @@ function parseMarkdownResults(markdown: string): { creators: ParsedCreator[]; to
   const totalMatch = markdown.match(/About ([\d,]+) results/);
   const total = totalMatch ? parseNumber(totalMatch[1]) : 0;
 
-  // Split by creator avatar image blocks - each creator card starts with an image link
-  // Pattern: [![Name username OnlyFans](avatar_url)](profile_link)
-  const creatorBlocks = markdown.split(/\n\[!\[/);
+  // Split by creator avatar image blocks
+  // Each creator starts with [![Name username OnlyFans](avatar)](profile_link)
+  const creatorBlocks = markdown.split(/\n\[!\[(?=[^\]]*OnlyFans\])/);
 
   for (let i = 1; i < creatorBlocks.length; i++) {
-    const block = '[!' + creatorBlocks[i];
-    // Get next block boundary to limit our search
-    const blockText = block.substring(0, 2000); // Limit block size
+    try {
+      const block = creatorBlocks[i];
+      const blockText = block.substring(0, 3000);
 
-    // Extract avatar URL
-    const avatarMatch = blockText.match(/\[!\[.*?\]\((https:\/\/(?:media\.onlyfinder\.com|thumbs\.onlyfans\.com)[^\)]+)\)/);
-    if (!avatarMatch) continue;
+      // Extract avatar URL from the first image
+      const avatarMatch = blockText.match(/\]\((https:\/\/(?:media\.onlyfinder\.com|thumbs\.onlyfans\.com)[^\)]+)\)/);
+      const avatarUrl = avatarMatch ? avatarMatch[1] : '';
 
-    const avatarUrl = avatarMatch[1];
+      // Extract name from [**Name**]
+      const nameMatch = blockText.match(/\[\*\*(.+?)\*\*\]/);
+      if (!nameMatch) continue;
+      const name = nameMatch[1].replace(/\\/g, '');
 
-    // Extract name - look for [**Name**]
-    const nameMatch = blockText.match(/\[\*\*(.+?)\*\*\]/);
-    if (!nameMatch) continue;
-
-    const name = nameMatch[1].replace(/\\/g, '');
-
-    // Extract username from "> username" pattern
-    const usernameMatch = blockText.match(/> ([a-zA-Z0-9_-]+)\]/);
-    if (!usernameMatch) continue;
-
-    const username = usernameMatch[1];
-
-    // Extract favorites count
-    const favMatch = blockText.match(/heart\.svg\)\n([\d,]+)/);
-    const favorites_count = favMatch ? parseNumber(favMatch[1]) : 0;
-
-    // Extract photos count
-    const photoMatch = blockText.match(/photo-count\.svg\)\n([\d,]+)/);
-    const photos_count = photoMatch ? parseNumber(photoMatch[1]) : 0;
-
-    // Extract videos count
-    const videoMatch = blockText.match(/video-count\.svg\)\n([\d,]+)/);
-    const videos_count = videoMatch ? parseNumber(videoMatch[1]) : 0;
-
-    // Extract price
-    const priceMatch = blockText.match(/price-tag\.svg\)\*\*(.+?)\*\*/);
-    const subscribe_price = priceMatch ? parsePrice(priceMatch[1]) : 0;
-
-    // Extract bio - text after the price line, before the next creator or social links
-    let about = '';
-    const priceIdx = blockText.indexOf('price-tag.svg');
-    if (priceIdx !== -1) {
-      const afterPrice = blockText.substring(priceIdx);
-      const bioMatch = afterPrice.match(/\*\*\n\n(.+?)(\n\n|\[!\[)/s);
-      if (bioMatch) {
-        about = bioMatch[1].trim();
+      // Extract username - multiple patterns:
+      // 1. "| onlyfans.com > username" (unescaped)
+      // 2. "\|  \> username" (escaped)
+      // 3. "\| > username" (partial escape)
+      // Also handles escaped underscores like nicoool\_xoxo
+      let username = '';
+      const usernameMatch = blockText.match(/\\?[|]\s*(?:onlyfans\.com\s*)?\\?>\s*([a-zA-Z0-9_\\-]+)\]/);
+      if (usernameMatch) {
+        username = usernameMatch[1].replace(/\\/g, '');
       }
+
+      // Fallback: extract from avatar alt text "Name username OnlyFans"
+      if (!username) {
+        const altMatch = block.match(/^([^\]]+)OnlyFans\]/);
+        if (altMatch) {
+          const parts = altMatch[1].trim().split(/\s+/);
+          if (parts.length >= 2) {
+            username = parts[parts.length - 1];
+          }
+        }
+      }
+
+      if (!username) continue;
+
+      // Extract favorites count
+      const favMatch = blockText.match(/heart\.svg\)\n([\d,]+)/);
+      const favorites_count = favMatch ? parseNumber(favMatch[1]) : 0;
+
+      // Extract photos count
+      const photoMatch = blockText.match(/photo-count\.svg\)\n([\d,]+)/);
+      const photos_count = photoMatch ? parseNumber(photoMatch[1]) : 0;
+
+      // Extract videos count
+      const videoMatch = blockText.match(/video-count\.svg\)\n([\d,]+)/);
+      const videos_count = videoMatch ? parseNumber(videoMatch[1]) : 0;
+
+      // Extract price
+      const priceMatch = blockText.match(/price-tag\.svg\)\*\*(.+?)\*\*/);
+      const subscribe_price = priceMatch ? parsePrice(priceMatch[1]) : 0;
+
+      // Extract bio - text after price line, before next image link or social icons
+      let about = '';
+      const priceIdx = blockText.indexOf('price-tag.svg');
+      if (priceIdx !== -1) {
+        const afterPrice = blockText.substring(priceIdx);
+        const bioMatch = afterPrice.match(/\*\*\n\n(.+?)(?:\n\n\[|$)/s);
+        if (bioMatch) {
+          about = bioMatch[1].trim().replace(/\\/g, '');
+        }
+      }
+
+      // Extract social links
+      let instagram: string | null = null;
+      let tiktok: string | null = null;
+      let twitter: string | null = null;
+
+      const igMatch = blockText.match(/instagram\.com\/([a-zA-Z0-9_.]+)/);
+      if (igMatch) instagram = igMatch[1];
+
+      const ttMatch = blockText.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/);
+      if (ttMatch) tiktok = ttMatch[1];
+
+      const twMatch = blockText.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/);
+      if (twMatch) twitter = twMatch[1];
+
+      const is_verified = blockText.toLowerCase().includes('verified');
+
+      creators.push({
+        id: i,
+        username,
+        name,
+        avatar_url: avatarUrl,
+        subscribe_price,
+        location: '',
+        about,
+        posts_count: photos_count + videos_count,
+        photos_count,
+        videos_count,
+        favorites_count,
+        is_verified,
+        instagram,
+        twitter,
+        tiktok,
+        website: null,
+      });
+    } catch (e) {
+      console.error(`Failed to parse block ${i}:`, e);
+      continue;
     }
-
-    // Extract social links
-    let instagram: string | null = null;
-    let tiktok: string | null = null;
-    let twitter: string | null = null;
-
-    const igMatch = blockText.match(/instagram\.com\/([a-zA-Z0-9_.]+)/);
-    if (igMatch) instagram = igMatch[1];
-
-    const ttMatch = blockText.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/);
-    if (ttMatch) tiktok = ttMatch[1];
-
-    const twMatch = blockText.match(/twitter\.com\/([a-zA-Z0-9_]+)/);
-    if (twMatch) twitter = twMatch[1];
-
-    // Check if verified (has verified icon)
-    const is_verified = blockText.includes('verified') || blockText.includes('Verified');
-
-    creators.push({
-      id: i,
-      username,
-      name,
-      avatar_url: avatarUrl,
-      subscribe_price,
-      location: '',
-      about,
-      posts_count: photos_count + videos_count,
-      photos_count,
-      videos_count,
-      favorites_count,
-      is_verified,
-      instagram,
-      twitter,
-      tiktok,
-      website: null,
-    });
   }
 
   return { creators, total };
