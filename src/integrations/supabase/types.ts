@@ -2739,6 +2739,60 @@ export type Database = {
           },
         ]
       }
+      expenditures: {
+        Row: {
+          agency_id: string
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string
+          frequency: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          amount?: number
+          category?: string
+          created_at?: string
+          date: string
+          description: string
+          frequency?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          frequency?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenditures_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenditures_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       extracted_data: {
         Row: {
           confidence: number | null
