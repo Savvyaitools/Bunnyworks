@@ -171,6 +171,17 @@ export function EmbeddedBrowserViewer({
           </div>
 
           {/* Actions */}
+          {sessionLinkId && (
+            <Button
+              size="sm"
+              onClick={handleAutoLogin}
+              disabled={autoLoginLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] h-7 px-2"
+            >
+              <LogIn className="h-3 w-3 mr-1" />
+              {autoLoginLoading ? "..." : "Login"}
+            </Button>
+          )}
           <Badge variant="outline" className="text-[9px] h-5 border-green-500/30 bg-green-500/10 text-green-400 shrink-0 px-1.5">
             Live
           </Badge>
