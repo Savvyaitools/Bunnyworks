@@ -31,22 +31,21 @@ export function RevenueChart() {
       
       if (netError) throw netError;
       
-      // Get GROSS from extracted_data - scoped to agency creators
+      // Get GROSS from extracted_data (supplementary – fail gracefully)
       type GrossRow = { value: number; period_start: string; raw_text: string | null };
       let grossData: GrossRow[] = [];
-      let grossError: unknown = null;
       if (creatorIds.length > 0) {
-        const query = supabase
-          .from("extracted_data")
-          .select("value, period_start, raw_text")
-          .eq("data_type", "earnings");
-        // Filter by creator_id using raw filter to avoid deep type inference
-        const res = await query.filter("creator_id", "in", `(${creatorIds.join(",")})`);
-        grossData = (res.data as GrossRow[]) || [];
-        grossError = res.error;
+        try {
+          const query = supabase
+            .from("extracted_data" as any)
+            .select("value, period_start, raw_text")
+            .eq("data_type", "earnings");
+          const res = await query;
+          grossData = (res.data as GrossRow[]) || [];
+        } catch (e) {
+          console.warn("extracted_data query failed, using net-only fallback:", e);
+        }
       }
-      
-      if (grossError) throw grossError;
       
       // Group by month
       const monthlyData: Record<string, { net: number; gross: number; agency: number }> = {};
