@@ -33,6 +33,7 @@ interface EmbeddedBrowserViewerProps {
   creatorId?: string;
   viewerCount?: number;
   sessionId?: string;
+  sessionLinkId?: string;
   chatterId?: string;
   browserbaseSessionId?: string;
 }
