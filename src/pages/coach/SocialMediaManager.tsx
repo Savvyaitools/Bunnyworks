@@ -273,12 +273,35 @@ export default function SocialMediaManager() {
     setResearchingNiche(true);
     setNicheContentPlan([]);
     try {
-      // Step 1: Scrape niche-specific content with Firecrawl
-      const searchQuery = `${nicheQuery} trending content examples ${platform !== "all" ? platform : ""} creator inspiration 2026`;
-      const searchResult = await firecrawlApi.search(searchQuery, {
-        limit: 10,
-        scrapeOptions: { formats: ["markdown"] },
-      });
+      // Step 1: Multi-query niche search for viral content with engagement data
+      const nicheSearchQueries = [
+        `${nicheQuery} viral video millions views ${platform !== "all" ? platform : "TikTok Instagram"}`,
+        `${nicheQuery} most popular content creator high engagement likes views`,
+        `site:tiktok.com OR site:instagram.com ${nicheQuery} viral trending`,
+      ];
+      
+      const nicheResults = await Promise.all(
+        nicheSearchQueries.map(q => firecrawlApi.search(q, {
+          limit: 5,
+          scrapeOptions: { formats: ["markdown"] },
+        }))
+      );
+      
+      // Merge and deduplicate
+      const allNicheResults: any[] = [];
+      const seenNicheUrls = new Set<string>();
+      for (const result of nicheResults) {
+        if (result.success && result.data) {
+          for (const item of result.data as any[]) {
+            if (item.url && !seenNicheUrls.has(item.url)) {
+              seenNicheUrls.add(item.url);
+              allNicheResults.push(item);
+            }
+          }
+        }
+      }
+      
+      const searchResult = { success: allNicheResults.length > 0, data: allNicheResults, error: allNicheResults.length === 0 ? "Niche search failed" : undefined };
 
       if (!searchResult.success || !searchResult.data) {
         throw new Error(searchResult.error || "Niche search failed");
