@@ -56,7 +56,7 @@ const mainNavItems = [
   { title: "Team", url: "/team", icon: UserCog },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: Calendar },
-  { title: "Invoices", url: "/invoices", icon: FileText },
+  { title: "Financials", url: "/invoices", icon: FileText },
 ];
 
 const collapsibleSections = [
