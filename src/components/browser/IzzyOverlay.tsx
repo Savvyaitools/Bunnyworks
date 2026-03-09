@@ -240,7 +240,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
       )}>
         <div className="flex items-center gap-2">
           <BrainCircuit className={cn("h-4 w-4", autoMode ? "text-green-500" : "text-primary")} />
-          <span className="text-sm font-bold tracking-tight">Jodie</span>
+          <span className="text-sm font-bold tracking-tight">Marylin</span>
           {(detectedFanName || creatorName) && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
               {detectedFanName || creatorName}
