@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import { Bot, Send, Loader2, Sparkles, BarChart3, TrendingUp, AlertTriangle, Trash2, Plus, MessageSquare, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,7 +189,11 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
                         : "bg-muted/50 border border-border"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    {message.role === "assistant" ? (
+                      <MarkdownRenderer content={message.content} />
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-xs opacity-70">
                         {format(message.timestamp, "h:mm a")}
