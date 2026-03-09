@@ -1,99 +1,116 @@
 
 
-# Browser Session Workflow — Safety-First Architecture
+# Production Launch Readiness Review
 
-## Priority Order
-1. **Account Safety** — Never overwrite valid cookies; fail-open on all ambiguous states
-2. **Logged-In Sessions** — Verify login state at every session boundary (launch, close, terminate)
-3. **Analytics Import** — Auto-scrape earnings on save_and_close; periodic cron scraping
+## Executive Summary
 
-## Key Architectural Improvements
+The application has strong architectural foundations (declarative routing, centralized error handling, multi-tenant RLS, structured logging) but has several **blockers** and **high-priority gaps** that must be addressed before a production launch.
 
-### 1. Reusable `checkLoginViaCDP()` Helper
-Eliminated 3x code duplication (~150 lines removed). Single function handles:
-- CDP WebSocket connection + page target attachment
-- CSS selector pre-check (`.b-tabs`, `.l-header__menu`, `form.b-loginreg`, etc.)
-- AI fallback via Gemini-2.5-flash for ambiguous cases
-- Fail-open on empty CDP data (preserves cookies)
+---
 
-### 2. CDP Cookie Verification (`verifyCookiesRestored()`)
-After the 8-second context restoration wait, actually verifies cookies were loaded using `Network.getCookies`. Creates a `cookie_restoration_failed` alert if zero cookies found for the target domain.
+## BLOCKERS (Must Fix Before Launch)
 
-### 3. Cookie-Safe `terminate_session`
-Previously released sessions without cookie tracking. Now:
-- Explicitly releases with cookie persistence (REQUEST_RELEASE defaults to persist)
-- Updates `last_saved_at` on creator_session_links
-- Clears `browserbase_session_id` and `browserbase_live_url` from the link
+### 1. No Password Reset Flow
+There is no "Forgot Password" link on either login page (`Auth.tsx`, `EmployeeAuth.tsx`), and no `/reset-password` page exists. Users who forget their password are locked out permanently. The only password reset mechanism is an admin edge function (`admin-reset-password`).
 
-### 4. Dead Session Fail-Open in `save_and_close`
-If session is dead when save_and_close is called:
-- Previously authenticated → fail-open, preserve "authenticated" status
-- Not authenticated → no persist (correct behavior)
+**Fix:** Add a "Forgot Password?" link to both auth pages, implement `supabase.auth.resetPasswordForEmail()`, and create a `/reset-password` page that handles the recovery token and calls `updateUser({ password })`.
 
-## Session Lifecycle
+### 2. No Email Verification Resend
+After signup, the verification screen has no "Resend email" button. If the email is delayed or lost, the user is stuck.
 
-### Admin Session Launch (`create_admin_session`)
-```
-1. Resolve/create persistent browser context
-2. Create Browserbase session (advancedStealth, geo-matched proxy)
-3. Wait for RUNNING state (up to 20s)
-4. Wait 8s for cookie/localStorage restoration
-5. CDP cookie verification (Network.getCookies) — alert if 0 cookies
-6. Set timezone & locale via CDP (preLoginSetup)
-7. Navigate to platform URL via CDP
-8. Login verification via checkLoginViaCDP()
-   - If previously authenticated but login fails → "pending" + alert
-   - If ambiguous/empty CDP data → fail-open
-9. Get embed URL, persist to DB
-```
+**Fix:** Add a resend button calling `supabase.auth.resend({ type: 'signup', email })` with a 60-second cooldown timer.
 
-### Chatter Session Launch (`launch_chatter_session`)
-```
-1. Verify permissions (employee_of_permissions)
-2. Check for existing active session (pooling: shared/exclusive mode)
-3. Create new Browserbase session with saved context
-4. Wait for RUNNING state (up to 20s)
-5. Wait 8s for cookie restoration
-6. Set timezone & locale via CDP
-7. Navigate to platform URL via CDP
-8. Login verification via checkLoginViaCDP()
-   - If login fails → "pending" + alert
-9. Get embed URL, persist to DB
-```
+### 3. Security Vulnerabilities (from scan)
 
-### Save & Close (`save_and_close`)
-```
-1. Login verification via checkLoginViaCDP()
-   - Dead session + previously authenticated → fail-open (preserve)
-   - Dead session + not authenticated → no persist
-   - Alive: standard 2-phase check
-2. CDP earnings scrape (XHR interception → AI extraction → regex fallback)
-3. Upsert earnings to creator_earnings table
-4. Release: REQUEST_RELEASE (logged in) or persist=false (not logged in)
-```
+| Finding | Severity | Summary |
+|---|---|---|
+| `of_cache` table fully public | **Critical** | `USING(true)` RLS — any user can read/write all cached OnlyFans data across agencies |
+| GHL webhook no signature check | **Critical** | Attackers can forge payment events to upgrade subscriptions for free |
+| Session access logs unrestricted inserts | **Warn** | Any authenticated user can forge audit trail entries |
+| AI query resource exhaustion | **Warn** | No rate limiting on expensive AI edge function calls |
 
-### Terminate Session (`terminate_session`)
-```
-1. If last viewer leaving:
-   - Release with cookie persistence (REQUEST_RELEASE)
-   - Update last_saved_at timestamp
-   - Clear session references from session link
-2. If other viewers remain:
-   - Remove viewer from list, update count
-```
+**Fix:** Tighten `of_cache` RLS to service_role only, add HMAC signature verification to `ghl-webhook`, restrict `session_access_logs` inserts, add rate limiting to AI functions.
 
-## AI-Powered Helpers
-- `aiDetectLoginState(domText, url)` → `{ logged_in, confidence, reason }`
-- `aiExtractEarnings(domText)` → `{ total, tips, subscriptions, messages, referrals, posts }`
-- Model: `google/gemini-2.5-flash` via Lovable AI Gateway
-- 10s timeout, graceful fallback on failure
+### 4. Notification Settings Are Non-Functional
+The Settings > Notifications tab renders Switch toggles with hardcoded `defaultChecked` values but doesn't persist preferences anywhere. Users toggle them and nothing happens.
 
-## Key Safety Mechanisms
-1. **Fail-open on empty CDP data** — If CDP returns no DOM/URL, always preserve cookies
-2. **8-second cookie restoration wait** — Prevents racing ahead of Browserbase context restore
-3. **CDP cookie verification** — Actually checks Network.getCookies after context restore
-4. **Login alerts** — `browser_session_events` with `login_expired` / `cookie_restoration_failed`
-5. **No-persist guard** — save_and_close only persists cookies when login is confirmed
-6. **Dead session fail-open** — Previously authenticated sessions keep their status
-7. **terminate_session persistence** — Always persists cookies and updates last_saved_at
-8. **Stuck session recovery** — `check_and_recover_sessions` auto-heals dead sessions
+**Fix:** Either connect to a `notification_preferences` table or remove the tab to avoid misleading users.
+
+---
+
+## HIGH PRIORITY (Should Fix Before Launch)
+
+### 5. Landing Page Stats Are Fabricated
+The hero section claims "500+ Agencies", "10,000+ Creators Managed", "$50M+ Revenue Tracked". These are hardcoded marketing numbers. If they are not accurate, this could damage trust or create legal issues.
+
+**Fix:** Either verify these numbers are accurate, replace with softer language ("Trusted by growing agencies"), or pull real aggregate stats.
+
+### 6. Testimonials Are Likely Fictional
+Three testimonials with first-name-last-initial format ("Marcus T.", "Elena R.", "David K.") with specific metrics. If these are not real customers, this is a significant trust/legal risk.
+
+**Fix:** Use real testimonials or remove the section. At minimum, add a disclaimer.
+
+### 7. Footer Links Are Dead
+The footer "Use Cases" links all point to `href="#"` (OnlyFans Agencies, Fansly Management, Multi-Platform). The Privacy Policy link also points to `#` instead of `/privacy`.
+
+**Fix:** Either create the target pages or remove the dead links.
+
+### 8. SEO Canonical URL Points to Lovable Subdomain
+`index.html` has `<link rel="canonical" href="https://creatorss.lovable.app" />` and all OG/Twitter meta tags reference this URL. For a production launch with a custom domain, these must be updated.
+
+**Fix:** Update canonical URL, OG URLs, and structured data to the production domain.
+
+---
+
+## MEDIUM PRIORITY (Polish for Launch Quality)
+
+### 9. Console Logging in Production
+85+ `console.log/error/warn` calls across page components. These leak internal state and error details to end users who open DevTools.
+
+**Fix:** Replace with the existing `createLogger()` utility which respects the `IS_DEV` flag.
+
+### 10. `window.__logoUploadHandler` Global Mutation
+Both `Settings.tsx` and `AgencyOnboardingWizard.tsx` attach upload handlers to `window` as a global. This is fragile and can cause conflicts.
+
+**Fix:** Use React context or a callback prop instead.
+
+### 11. Pricing Inconsistency
+Landing page says "$100 per creator" as the base unit, but the Core plan is $69/mo for 1 creator. The "Save 31%" badge implies $100 is the full price, but no standalone $100/creator option exists in-app.
+
+**Fix:** Clarify messaging — either offer a true $100/creator a-la-carte option or reframe the discount language.
+
+### 12. `googleLoading` State Shared Between Google and Apple Buttons
+In `Auth.tsx`, the Apple sign-in button reuses `googleLoading` state, meaning clicking Apple disables the Google button and vice versa with the wrong spinner.
+
+**Fix:** Add a separate `appleLoading` state or use a generic `oauthProvider` state.
+
+---
+
+## LOW PRIORITY (Nice to Have)
+
+### 13. No Loading State on Landing Page
+The landing page eagerly loads all sections (Hero, Pain Points, Features, AI Tools, Comparison, How It Works, Testimonials, Pricing, CTA). For slower connections, consider lazy loading below-the-fold sections.
+
+### 14. Structured Data `highPrice` Mismatch
+`index.html` schema.org has `"highPrice": "399"` but the highest priced plan is $249 (Pro). Enterprise is "Custom".
+
+### 15. Missing `apple-touch-icon` Proper Sizes
+The same `favicon.png` is used for both regular and 180x180 apple touch icon. Consider providing proper sized icons.
+
+---
+
+## Recommended Implementation Order
+
+1. **Security fixes** (of_cache RLS, GHL webhook signature) — database migrations + edge function edit
+2. **Password reset flow** — new page + auth page updates
+3. **Email resend button** — small Auth.tsx update
+4. **Fix dead footer links** — point to real routes
+5. **Remove/fix notification settings** — either build or remove
+6. **Update SEO meta for production domain** — index.html edit
+7. **Fix OAuth loading state bug** — Auth.tsx
+8. **Replace console.log with logger** — across pages
+9. **Review marketing claims** — business decision
+10. **Remove window global hack** — refactor LogoUpload
+
+Would you like me to implement these fixes? I recommend starting with the security blockers and auth flow gaps.
+
