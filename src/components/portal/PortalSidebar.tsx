@@ -32,7 +32,7 @@ import { toast } from "sonner";
 const portalNavItems = [
   { title: "Overview", url: "/portal", icon: LayoutDashboard },
   { title: "Content Plans", url: "/portal/plans", icon: CalendarDays },
-  { title: "Messages", url: "/portal/messages", icon: MessageSquare, hasBadge: true },
+  { title: "Messages", url: "/portal/messages", icon: MessageSquare },
   { title: "Invoices", url: "/portal/invoices", icon: FileText },
   { title: "Content Vault", url: "/portal/content", icon: FolderOpen },
 ];
