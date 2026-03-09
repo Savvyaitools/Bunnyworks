@@ -49,6 +49,7 @@ interface TrendItem {
 interface NicheContentPlan {
   reference_url: string;
   reference_title: string;
+  reference_video_url?: string;
   platform: string;
   what_works: string;
   recreation_prompt: string;
