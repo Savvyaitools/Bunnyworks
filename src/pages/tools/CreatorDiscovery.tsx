@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -75,11 +76,40 @@ export default function CreatorDiscovery() {
       toast.error("Please enter a search query");
       return;
     }
-    toast.info("Creator discovery search is coming soon. Add creators manually via the Recruiting page.");
+    setLoading(true);
     setHasSearched(true);
     setResults([]);
     setTotal(0);
-  }, [searchQuery]);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('of-creator-search', {
+        body: {
+          query: searchQuery.trim(),
+          location: location.trim() || undefined,
+          minPrice: priceRange[0],
+          maxPrice: priceRange[1],
+          verifiedOnly,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Search failed');
+
+      setResults(data.data || []);
+      setTotal(data.total || 0);
+
+      if ((data.data || []).length === 0) {
+        toast.info("No creators found. Try different keywords.");
+      } else {
+        toast.success(`Found ${data.data.length} creators`);
+      }
+    } catch (err: any) {
+      console.error('Search error:', err);
+      toast.error(err.message || "Search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, location, priceRange, verifiedOnly]);
 
   const handleAddToRecruiting = async (creator: DiscoveredCreator) => {
     setAddingIds(prev => new Set(prev).add(creator.id));
