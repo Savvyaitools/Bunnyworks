@@ -211,7 +211,7 @@ export default function Tasks() {
           </div>
         ) : (
           <div className={cn(
-            isMobile ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-4 gap-6"
+            isMobile ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-2 gap-6"
           )}>
             {(Object.keys(groupedTasks) as TaskStatus[]).map((status, colIndex) => {
               const isCollapsed = isMobile && collapsedStatuses[status];
