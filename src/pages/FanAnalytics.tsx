@@ -27,8 +27,7 @@ export default function FanAnalytics() {
     queryFn: async () => {
       let query = supabase.from("of_fans").select("*").eq("agency_id", agencyId!);
       if (selectedCreatorId !== "all") {
-        // Filter by of_account_id matching the creator's linked accounts
-        query = query.eq("of_account_id", selectedCreatorId);
+        query = query.eq("creator_id", selectedCreatorId);
       }
       const { data, error } = await query.order("total_spent", { ascending: false }).limit(500);
       if (error) throw error;
@@ -43,7 +42,7 @@ export default function FanAnalytics() {
     queryFn: async () => {
       let query = supabase.from("of_chats").select("*").eq("agency_id", agencyId!);
       if (selectedCreatorId !== "all") {
-        query = query.eq("of_account_id", selectedCreatorId);
+        query = query.eq("creator_id", selectedCreatorId);
       }
       const { data, error } = await query.order("last_message_at", { ascending: false }).limit(500);
       if (error) throw error;
