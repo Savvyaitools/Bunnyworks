@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Bot, Brain, Share2, MessagesSquare, ArrowRight, Sparkles, UserCog,
   CheckCircle2, Clock, ListTodo, TrendingUp, MessageCircle, FileText,
-  Activity, CircleDot, AlertCircle
+  Activity, CircleDot, AlertCircle, ImageIcon
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { FelixChat } from "@/components/ai/FelixChat";
@@ -107,6 +107,12 @@ const agents: AgentCardProps[] = [
     description: "Expert fan engagement specialist. Chats with fans, shares content via OnlyFans messages, and handles PPV sends.",
     icon: MessagesSquare, features: ["Fan conversations & engagement", "Content sharing via messages", "PPV & upsell management", "Creator voice matching"],
     color: "success", href: "/of-ai/chatter", badge: "Revenue",
+  },
+  {
+    name: "AI Image Generator", role: "Image Creation & Editing",
+    description: "Generate and edit images using AI. Create stunning visuals, edit existing images, and produce content-ready media.",
+    icon: ImageIcon, features: ["AI image generation", "Image editing & enhancement", "Multiple style options", "Quick content creation"],
+    color: "warning", href: "/of-ai/image-generator", badge: "Creative",
   },
 ];
 

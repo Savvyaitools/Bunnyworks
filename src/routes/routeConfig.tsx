@@ -59,6 +59,7 @@ const CreatorDiscovery = lazy(() => import("@/pages/tools/CreatorDiscovery"));
 // Coach pages
 const SocialMediaManager = lazy(() => import("@/pages/coach/SocialMediaManager"));
 const AIChatterPage = lazy(() => import("@/pages/coach/AIChatter"));
+const AIImageGenerator = lazy(() => import("@/pages/coach/AIImageGenerator"));
 
 // Application pages
 const CreatorApplication = lazy(() => import("@/pages/apply/CreatorApplication"));
@@ -111,6 +112,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/guide", element: <UserGuide />, auth: ["agency"] },
   { path: "/of-ai/social-media", element: <SocialMediaManager />, auth: ["agency"] },
   { path: "/of-ai/chatter", element: <AIChatterPage />, auth: ["agency"] },
+  { path: "/of-ai/image-generator", element: <AIImageGenerator />, auth: ["agency"] },
   { path: "/fan-analytics", element: <FanAnalytics />, auth: ["agency"] },
 ];
 
