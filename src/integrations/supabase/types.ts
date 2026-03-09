@@ -172,6 +172,63 @@ export type Database = {
         }
         Relationships: []
       }
+      agency_api_credentials: {
+        Row: {
+          access_token: string | null
+          additional_config: Json | null
+          agency_id: string
+          api_key: string
+          api_secret: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_verified_at: string | null
+          platform: string
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          additional_config?: Json | null
+          agency_id: string
+          api_key?: string
+          api_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          platform: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          additional_config?: Json | null
+          agency_id?: string
+          api_key?: string
+          api_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          platform?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agency_api_credentials_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agency_api_credentials_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_actions: {
         Row: {
           action_type: string
