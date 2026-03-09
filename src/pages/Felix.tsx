@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Bot, Brain, Share2, MessagesSquare, ArrowRight, Sparkles, UserCog,
   CheckCircle2, Clock, ListTodo, TrendingUp, MessageCircle, FileText,
-  Activity, CircleDot, AlertCircle
+  Activity, CircleDot, AlertCircle, ImageIcon
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { FelixChat } from "@/components/ai/FelixChat";
