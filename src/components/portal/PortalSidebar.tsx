@@ -103,14 +103,6 @@ export function PortalSidebar() {
                         {!isCollapsed && (
                           <>
                             <span className="flex-1">{item.title}</span>
-                            {item.hasBadge && totalUnread > 0 && (
-                              <Badge 
-                                variant="default" 
-                                className="h-5 min-w-5 px-1.5 text-xs bg-accent text-accent-foreground"
-                              >
-                                {totalUnread > 99 ? "99+" : totalUnread}
-                              </Badge>
-                            )}
                           </>
                         )}
                       </NavLink>
