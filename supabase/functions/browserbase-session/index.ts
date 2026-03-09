@@ -173,15 +173,21 @@ Deno.serve(async (req) => {
       if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
       const alive = await isSessionAlive(BK, browserbaseSessionId);
 
+      const { data: prevLink } = await svc.from("creator_session_links")
+        .select("session_status, browserbase_context_id, last_saved_at")
+        .eq("id", sessionLinkId)
+        .single();
+
+      const hadSavedContext = Boolean(prevLink?.browserbase_context_id && prevLink?.last_saved_at);
+
       let isLoggedIn = false;
       if (alive) {
         try {
           const loginResult = await checkLoginViaCDP(BK, browserbaseSessionId, { label: "Save & Close" });
           isLoggedIn = loginResult.isLoggedIn;
         } catch (e) { console.warn("Login check failed, defaulting to persist:", e); isLoggedIn = true; }
-      } else {
-        const { data: prevLink } = await svc.from("creator_session_links").select("session_status").eq("id", sessionLinkId).single();
-        if (prevLink?.session_status === "authenticated") { isLoggedIn = true; }
+      } else if (prevLink?.session_status === "authenticated" || hadSavedContext) {
+        isLoggedIn = true;
       }
 
       const { data: sessionLink } = await svc.from("creator_session_links").select("creator_id, platform").eq("id", sessionLinkId).single();
