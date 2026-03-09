@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
 
 const mobileNavItems = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
