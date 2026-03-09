@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
+import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn } from "lucide-react";
 import { IzzyOverlay } from "./IzzyOverlay";
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -33,6 +33,7 @@ interface EmbeddedBrowserViewerProps {
   creatorId?: string;
   viewerCount?: number;
   sessionId?: string;
+  sessionLinkId?: string;
   chatterId?: string;
   browserbaseSessionId?: string;
 }
@@ -49,12 +50,14 @@ export function EmbeddedBrowserViewer({
   creatorId,
   viewerCount = 1,
   sessionId,
+  sessionLinkId,
   chatterId,
   browserbaseSessionId,
 }: EmbeddedBrowserViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [stuckDetected, setStuckDetected] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
+  const [autoLoginLoading, setAutoLoginLoading] = useState(false);
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isMobile = useIsMobile();
@@ -113,6 +116,35 @@ export function EmbeddedBrowserViewer({
     }
   }, [bbSessionId]);
 
+  const handleAutoLogin = useCallback(async () => {
+    if (!bbSessionId || !sessionLinkId) {
+      toast.error("Session info missing for auto-login");
+      return;
+    }
+    setAutoLoginLoading(true);
+    try {
+      const result = await invokeBrowserAction("auto_login", {
+        browserbaseSessionId: bbSessionId,
+        sessionLinkId,
+      });
+      if (result.success) {
+        if (result.step === "already_logged_in") {
+          toast.success("Already logged in!");
+        } else if (result.loginVerified) {
+          toast.success("Login successful! ✓");
+        } else {
+          toast.info("Credentials entered — check for 2FA or CAPTCHA in the browser.");
+        }
+      } else {
+        toast.error("Auto-login failed: " + (result.error || "Unknown error"));
+      }
+    } catch (err: any) {
+      toast.error("Auto-login failed: " + (err.message || "Unknown error"));
+    } finally {
+      setAutoLoginLoading(false);
+    }
+  }, [bbSessionId, sessionLinkId]);
+
   // Derive display URL from platform
   const displayUrl = platform?.toLowerCase() === "fansly" 
     ? "fansly.com" 
@@ -139,6 +171,17 @@ export function EmbeddedBrowserViewer({
           </div>
 
           {/* Actions */}
+          {sessionLinkId && (
+            <Button
+              size="sm"
+              onClick={handleAutoLogin}
+              disabled={autoLoginLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] h-7 px-2"
+            >
+              <LogIn className="h-3 w-3 mr-1" />
+              {autoLoginLoading ? "..." : "Login"}
+            </Button>
+          )}
           <Badge variant="outline" className="text-[9px] h-5 border-green-500/30 bg-green-500/10 text-green-400 shrink-0 px-1.5">
             Live
           </Badge>
@@ -171,6 +214,17 @@ export function EmbeddedBrowserViewer({
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-1">
+              {sessionLinkId && (
+                <Button
+                  size="sm"
+                  onClick={handleAutoLogin}
+                  disabled={autoLoginLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-3 gap-1.5"
+                >
+                  <LogIn className="h-3 w-3" />
+                  {autoLoginLoading ? "Logging in..." : "Auto Login"}
+                </Button>
+              )}
               {viewerCount > 1 && (
                 <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 h-5 shrink-0">
                   <Users className="h-3 w-3 mr-1" />

@@ -4,6 +4,7 @@ import {
   PLATFORM_URLS, navigateViaCDP, checkLoginViaCDP, verifyCookiesRestored,
   executeCDPScript, aiExtractEarnings, aiDetectLoginState,
   proxyConf, sessionBody, resolveContext, preLoginSetup, STATE_TIMEZONES,
+  autoLoginViaCDP,
 } from "../_shared/cdp-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
@@ -768,6 +769,66 @@ Deno.serve(async (req) => {
       const escapedText = (text as string).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
       const injectScript = `(function() { var input = document.querySelector('textarea[id="new_post_text_input"], .b-chat__input textarea, [class*="chat-input"] textarea, .b-make-post__textarea textarea'); if (!input) { input = document.querySelector('[contenteditable="true"][class*="chat"], .b-chat__input [contenteditable="true"]'); } if (!input) { input = document.querySelector('.b-make-post__wrapper textarea, .b-chat-message-input textarea'); } if (!input) return JSON.stringify({ success: false, error: 'Chat input not found' }); var text = '${escapedText}'; if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') { var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set; if (nativeSetter) nativeSetter.call(input, text); else input.value = text; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); } else { input.innerText = text; input.dispatchEvent(new Event('input', { bubbles: true })); } input.focus(); return JSON.stringify({ success: true }); })()`;
       const result = await executeCDPScript(BK, bbSid, injectScript);
+      return json(result);
+    }
+
+    // ========== AUTO-LOGIN VIA CDP ==========
+    if (action === "auto_login") {
+      const { browserbaseSessionId: bbSid, sessionLinkId } = p;
+      if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
+      if (!sessionLinkId) return json({ error: "sessionLinkId required" }, 400);
+
+      // Get session link to find creator_id
+      const { data: link } = await svc.from("creator_session_links")
+        .select("creator_id, platform, agency_id")
+        .eq("id", sessionLinkId).single();
+      if (!link) return json({ error: "Session link not found" }, 404);
+
+      // Verify caller belongs to this agency
+      const { data: profile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
+      if (!profile || profile.agency_id !== link.agency_id) return json({ error: "Unauthorized" }, 403);
+
+      // Get credentials from creator_credential_submissions
+      const { data: creds } = await svc.from("creator_credential_submissions")
+        .select("username, encrypted_password")
+        .eq("creator_id", link.creator_id)
+        .eq("platform", link.platform)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!creds) return json({ error: "No approved credentials found for this creator. Please submit credentials first." }, 404);
+
+      // The password is stored as base64-encoded (simple obfuscation)
+      let password: string;
+      try {
+        password = atob(creds.encrypted_password);
+      } catch {
+        password = creds.encrypted_password;
+      }
+
+      console.log(`Auto-login: Starting for creator ${link.creator_id} on ${link.platform}`);
+      const result = await autoLoginViaCDP(BK, bbSid, creds.username, password);
+      console.log(`Auto-login result:`, JSON.stringify(result));
+
+      if (result.success && result.step === "login_clicked") {
+        // Wait a moment then check login status
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const loginCheck = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login verify" });
+          if (loginCheck.isLoggedIn) {
+            await svc.from("creator_session_links").update({
+              session_status: "authenticated",
+              updated_at: new Date().toISOString(),
+            }).eq("id", sessionLinkId);
+          }
+          return json({ ...result, loginVerified: loginCheck.isLoggedIn });
+        } catch (e) {
+          console.warn("Post-login verification failed:", e);
+        }
+      }
+
       return json(result);
     }
 

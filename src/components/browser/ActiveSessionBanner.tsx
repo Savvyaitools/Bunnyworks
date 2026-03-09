@@ -82,6 +82,8 @@ export function ActiveSessionBanner() {
         showSaveButton
         saving={saving}
         creatorId={activeSession.creatorId}
+        sessionLinkId={activeSession.sessionLinkId}
+        browserbaseSessionId={activeSession.sessionId}
       />
     );
   }
