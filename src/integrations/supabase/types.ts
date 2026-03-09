@@ -3403,6 +3403,7 @@ export type Database = {
         Row: {
           agency_id: string | null
           created_at: string | null
+          creator_id: string | null
           fan_avatar: string | null
           fan_name: string | null
           fan_username: string | null
@@ -3420,6 +3421,7 @@ export type Database = {
         Insert: {
           agency_id?: string | null
           created_at?: string | null
+          creator_id?: string | null
           fan_avatar?: string | null
           fan_name?: string | null
           fan_username?: string | null
@@ -3437,6 +3439,7 @@ export type Database = {
         Update: {
           agency_id?: string | null
           created_at?: string | null
+          creator_id?: string | null
           fan_avatar?: string | null
           fan_name?: string | null
           fan_username?: string | null
@@ -3466,6 +3469,13 @@ export type Database = {
             referencedRelation: "agencies_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "of_chats_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
         ]
       }
       of_fans: {
@@ -3473,6 +3483,7 @@ export type Database = {
           agency_id: string | null
           avatar_url: string | null
           created_at: string | null
+          creator_id: string | null
           expires_at: string | null
           id: string
           is_active: boolean | null
@@ -3490,6 +3501,7 @@ export type Database = {
           agency_id?: string | null
           avatar_url?: string | null
           created_at?: string | null
+          creator_id?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -3507,6 +3519,7 @@ export type Database = {
           agency_id?: string | null
           avatar_url?: string | null
           created_at?: string | null
+          creator_id?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -3533,6 +3546,13 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "of_fans_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
             referencedColumns: ["id"]
           },
         ]
