@@ -814,6 +814,21 @@ Deno.serve(async (req) => {
       const { data: profile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
       if (!profile || profile.agency_id !== link.agency_id) return json({ error: "Unauthorized" }, 403);
 
+      // First try to reuse existing authenticated context in the live session
+      try {
+        const contextLogin = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login precheck" });
+        if (contextLogin.isLoggedIn) {
+          await svc.from("creator_session_links").update({
+            session_status: "authenticated",
+            last_saved_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", sessionLinkId);
+          return json({ success: true, step: "already_logged_in_context", loginVerified: true });
+        }
+      } catch (e) {
+        console.warn("Auto-login precheck failed (continuing to credentials):", e);
+      }
+
       // Get credentials from creator_credential_submissions
       const { data: creds } = await svc.from("creator_credential_submissions")
         .select("username, encrypted_password")
