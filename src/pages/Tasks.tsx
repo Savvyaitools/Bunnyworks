@@ -80,9 +80,7 @@ export default function Tasks() {
   ];
 
   const groupedTasks = {
-    "To Do": filteredTasks.filter(t => t.status === "To Do"),
-    "In Progress": filteredTasks.filter(t => t.status === "In Progress"),
-    "Review": filteredTasks.filter(t => t.status === "Review"),
+    "To Do": filteredTasks.filter(t => t.status === "To Do" || t.status === "In Progress" || t.status === "Review"),
     "Completed": filteredTasks.filter(t => t.status === "Completed"),
   };
 
