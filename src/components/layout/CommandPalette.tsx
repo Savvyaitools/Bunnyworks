@@ -49,6 +49,7 @@ const commandItems = [
   { label: "Applications", icon: ClipboardList, path: "/applications", group: "Recruiting" },
   { label: "Tatum (Social Media)", icon: Share2, path: "/coach/social-media", group: "Coach PBF" },
   { label: "Jodie (AI Chatter)", icon: MessagesSquare, path: "/coach/ai-chatter", group: "Coach PBF" },
+  { label: "AI Image Generator", icon: BrainCircuit, path: "/of-ai/image-generator", group: "Coach PBF" },
   { label: "SOP Library", icon: BookOpen, path: "/sop", group: "Resources" },
   
   { label: "User Guide", icon: HelpCircle, path: "/guide", group: "Resources" },

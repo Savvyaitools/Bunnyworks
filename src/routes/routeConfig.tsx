@@ -112,6 +112,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/guide", element: <UserGuide />, auth: ["agency"] },
   { path: "/of-ai/social-media", element: <SocialMediaManager />, auth: ["agency"] },
   { path: "/of-ai/chatter", element: <AIChatterPage />, auth: ["agency"] },
+  { path: "/of-ai/image-generator", element: <AIImageGenerator />, auth: ["agency"] },
   { path: "/fan-analytics", element: <FanAnalytics />, auth: ["agency"] },
 ];
 
