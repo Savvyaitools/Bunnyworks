@@ -131,7 +131,7 @@ export default function Tasks() {
         {/* Header */}
         <PageHeader
           title="Tasks"
-          subtitle={loading ? "Loading..." : `${stats.total} tasks · ${stats.inProgress} in progress`}
+          subtitle={loading ? "Loading..." : `${stats.total} tasks · ${stats.completed} completed`}
         >
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>

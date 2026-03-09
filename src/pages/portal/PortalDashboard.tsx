@@ -19,7 +19,7 @@ export default function PortalDashboard() {
     pendingInvoiceAmount
   } = useCreatorPortal();
   
-  const { totalUnread } = useUnreadMessages("creator");
+  
 
   return (
     <PortalLayout>
