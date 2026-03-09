@@ -91,7 +91,7 @@ const agents: AgentCardProps[] = [
     color: "primary", href: "#chat", badge: "Coach",
   },
   {
-    name: "Felix", role: "Agency Manager",
+    name: "Flick", role: "Agency Manager",
     description: "Your AI agency manager who keeps operations running. Ensures content plans are followed, tasks completed, and creator comms stay on track.",
     icon: UserCog, features: ["Creator communication management", "Content plan enforcement", "Task completion tracking", "Operational oversight"],
     color: "warning", href: "/of-ai/manager", badge: "Manager",
