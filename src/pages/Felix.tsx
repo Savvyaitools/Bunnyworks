@@ -103,7 +103,7 @@ const agents: AgentCardProps[] = [
     color: "accent", href: "/of-ai/social-media", badge: "Growth",
   },
   {
-    name: "Jodie", role: "AI Chatter",
+    name: "Marylin Monroe", role: "AI Chatter",
     description: "Expert fan engagement specialist. Chats with fans, shares content via OnlyFans messages, and handles PPV sends.",
     icon: MessagesSquare, features: ["Fan conversations & engagement", "Content sharing via messages", "PPV & upsell management", "Creator voice matching"],
     color: "success", href: "/of-ai/chatter", badge: "Revenue",
