@@ -571,14 +571,24 @@ export default function SocialMediaManager() {
                           </div>
                           <h4 className="font-semibold text-sm">{item.reference_title}</h4>
                         </div>
-                        {item.reference_url && (
-                          <Button size="sm" variant="outline" className="gap-1.5 shrink-0 text-xs" asChild>
-                            <a href={item.reference_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3 w-3" />
-                              View Reference
-                            </a>
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {item.reference_video_url && (
+                            <Button size="sm" variant="default" className="gap-1.5 text-xs" asChild>
+                              <a href={item.reference_video_url} target="_blank" rel="noopener noreferrer">
+                                <Play className="h-3 w-3" />
+                                Watch Video
+                              </a>
+                            </Button>
+                          )}
+                          {item.reference_url && (
+                            <Button size="sm" variant="outline" className="gap-1.5 text-xs" asChild>
+                              <a href={item.reference_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-3 w-3" />
+                                View Reference
+                              </a>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <div>
