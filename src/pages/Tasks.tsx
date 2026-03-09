@@ -72,7 +72,7 @@ export default function Tasks() {
     return matchesSearch && matchesStatus && matchesRequestType;
   });
 
-  const statuses: (TaskStatus | "All")[] = ["All", "To Do", "In Progress", "Review", "Completed"];
+  const statuses: (TaskStatus | "All")[] = ["All", "To Do", "Completed"];
   const requestTypes: { value: RequestType | "all"; label: string }[] = [
     { value: "all", label: "All Types" },
     { value: "general", label: "General" },
@@ -80,9 +80,7 @@ export default function Tasks() {
   ];
 
   const groupedTasks = {
-    "To Do": filteredTasks.filter(t => t.status === "To Do"),
-    "In Progress": filteredTasks.filter(t => t.status === "In Progress"),
-    "Review": filteredTasks.filter(t => t.status === "Review"),
+    "To Do": filteredTasks.filter(t => t.status === "To Do" || t.status === "In Progress" || t.status === "Review"),
     "Completed": filteredTasks.filter(t => t.status === "Completed"),
   };
 
@@ -133,7 +131,7 @@ export default function Tasks() {
         {/* Header */}
         <PageHeader
           title="Tasks"
-          subtitle={loading ? "Loading..." : `${stats.total} tasks · ${stats.inProgress} in progress`}
+          subtitle={loading ? "Loading..." : `${stats.total} tasks · ${stats.completed} completed`}
         >
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -201,8 +199,8 @@ export default function Tasks() {
 
         {/* Task Columns */}
         {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((col) => (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2].map((col) => (
               <div key={col} className="space-y-4">
                 <Skeleton className="h-8 w-32" />
                 {[1, 2].map((i) => (
@@ -213,7 +211,7 @@ export default function Tasks() {
           </div>
         ) : (
           <div className={cn(
-            isMobile ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-4 gap-6"
+            isMobile ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-2 gap-6"
           )}>
             {(Object.keys(groupedTasks) as TaskStatus[]).map((status, colIndex) => {
               const isCollapsed = isMobile && collapsedStatuses[status];

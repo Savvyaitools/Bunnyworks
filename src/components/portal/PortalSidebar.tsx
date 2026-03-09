@@ -26,13 +26,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useUnreadMessages } from "@/hooks/useMessages";
+
 import { toast } from "sonner";
 
 const portalNavItems = [
   { title: "Overview", url: "/portal", icon: LayoutDashboard },
   { title: "Content Plans", url: "/portal/plans", icon: CalendarDays },
-  { title: "Messages", url: "/portal/messages", icon: MessageSquare, hasBadge: true },
+  { title: "Messages", url: "/portal/messages", icon: MessageSquare },
   { title: "Invoices", url: "/portal/invoices", icon: FileText },
   { title: "Content Vault", url: "/portal/content", icon: FolderOpen },
 ];
@@ -42,7 +42,7 @@ export function PortalSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const { profile, signOut } = useAuth();
-  const { totalUnread } = useUnreadMessages("creator");
+  
   const isCollapsed = state === "collapsed";
 
   const handleSignOut = async () => {
@@ -103,14 +103,6 @@ export function PortalSidebar() {
                         {!isCollapsed && (
                           <>
                             <span className="flex-1">{item.title}</span>
-                            {item.hasBadge && totalUnread > 0 && (
-                              <Badge 
-                                variant="default" 
-                                className="h-5 min-w-5 px-1.5 text-xs bg-accent text-accent-foreground"
-                              >
-                                {totalUnread > 99 ? "99+" : totalUnread}
-                              </Badge>
-                            )}
                           </>
                         )}
                       </NavLink>

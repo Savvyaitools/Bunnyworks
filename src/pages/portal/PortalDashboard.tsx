@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
-import { useUnreadMessages } from "@/hooks/useMessages";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/formatters";
 import { StatCard } from "@/components/shared";
@@ -19,7 +19,7 @@ export default function PortalDashboard() {
     pendingInvoiceAmount
   } = useCreatorPortal();
   
-  const { totalUnread } = useUnreadMessages("creator");
+  
 
   return (
     <PortalLayout>
@@ -42,8 +42,8 @@ export default function PortalDashboard() {
             loading={loading}
           />
           <StatCard
-            title="Unread Messages"
-            value={totalUnread.toString()}
+            title="Messages"
+            value="0"
             subtitle="From agency team"
             icon={MessageSquare}
             loading={loading}
