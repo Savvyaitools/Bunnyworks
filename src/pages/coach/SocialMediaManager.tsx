@@ -180,28 +180,66 @@ export default function SocialMediaManager() {
     setScanningTrends(true);
     setTrends([]);
     try {
-      const platformQueries: Record<string, string> = {
-        instagram: "trending Instagram Reels content ideas for OnlyFans creators 2026",
-        twitter: "trending Twitter X content strategies adult creators 2026",
-        tiktok: "trending TikTok content ideas for adult content creators 2026",
-        reddit: "trending Reddit NSFW subreddit promotion strategies creators 2026",
-        all: "trending social media content strategies for OnlyFans creators 2026",
+      // Multi-query strategy: search for viral videos + platform-specific trends + engagement data
+      const platformVideoQueries: Record<string, string[]> = {
+        instagram: [
+          "site:instagram.com OR site:tiktok.com viral reels millions views creator",
+          "most viral Instagram Reels this week millions views likes",
+          "Instagram growth hacks viral content strategy high engagement rate",
+        ],
+        twitter: [
+          "viral tweets millions impressions engagement creator promotion",
+          "Twitter X viral content strategy high engagement retweets",
+          "most viral X posts this month creator marketing",
+        ],
+        tiktok: [
+          "site:tiktok.com viral videos millions views trending sounds",
+          "most viral TikTok videos this week creator niche millions views",
+          "TikTok algorithm viral content strategy high view count",
+        ],
+        reddit: [
+          "site:reddit.com top posts this week creator promotion thousands upvotes",
+          "Reddit viral posts high engagement upvotes comments creator marketing",
+          "most successful Reddit promotion strategies creators high karma",
+        ],
+        all: [
+          "most viral social media videos this week millions views engagement",
+          "viral content creator strategies high engagement views 2026",
+          "trending viral videos TikTok Instagram Reels millions views",
+        ],
       };
 
-      const query = platformQueries[platform] || platformQueries.all;
-      const searchResult = await firecrawlApi.search(query, {
-        limit: 8,
-        scrapeOptions: { formats: ["markdown"] },
-      });
+      const queries = platformVideoQueries[platform] || platformVideoQueries.all;
+      
+      // Run multiple searches in parallel for richer results
+      const searchResults = await Promise.all(
+        queries.map(q => firecrawlApi.search(q, {
+          limit: 5,
+          scrapeOptions: { formats: ["markdown"] },
+        }))
+      );
 
-      if (!searchResult.success || !searchResult.data) {
-        throw new Error(searchResult.error || "Search failed");
+      // Merge and deduplicate results
+      const allResults: any[] = [];
+      const seenUrls = new Set<string>();
+      for (const result of searchResults) {
+        if (result.success && result.data) {
+          for (const item of result.data as any[]) {
+            if (item.url && !seenUrls.has(item.url)) {
+              seenUrls.add(item.url);
+              allResults.push(item);
+            }
+          }
+        }
       }
 
-      const searchData = searchResult.data as any[];
-      const scrapedContent = searchData
-        .slice(0, 6)
-        .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 500)}`)
+      if (allResults.length === 0) {
+        throw new Error("No search results found");
+      }
+
+      const scrapedContent = allResults
+        .slice(0, 10)
+        .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
         .join("\n\n---\n\n");
 
       const creator = creators?.find(c => c.id === selectedCreator);
