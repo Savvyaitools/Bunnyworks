@@ -47,7 +47,7 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
       .eq("creator_id", creatorId)
       .in("account_type", ["creator_managed"])
       .order("created_at", { ascending: false });
-    if (data) setAccounts(data as unknown as PlatformAccount[]);
+    if (data) setAccounts(data as any as PlatformAccount[]);
     setLoading(false);
   }, [creatorId]);
 
