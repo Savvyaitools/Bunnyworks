@@ -146,19 +146,6 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
         )}
       </div>
 
-      {/* Portal Login Info */}
-      {hasAccount && (
-        <div className="mb-3 p-2.5 rounded-lg bg-muted/50 border border-border/50" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Portal Login</span>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyLoginInfo} title="Copy login info">
-              <Copy className="h-3 w-3" />
-            </Button>
-          </div>
-          <p className="text-xs text-foreground truncate">{creator.email}</p>
-          <p className="text-xs text-muted-foreground truncate">{loginUrl}</p>
-        </div>
-      )}
 
       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
         <div className="flex items-center gap-2">
