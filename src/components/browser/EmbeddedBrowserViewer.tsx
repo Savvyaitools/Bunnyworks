@@ -55,6 +55,7 @@ export function EmbeddedBrowserViewer({
   const [loaded, setLoaded] = useState(false);
   const [stuckDetected, setStuckDetected] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
+  const [autoLoginLoading, setAutoLoginLoading] = useState(false);
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isMobile = useIsMobile();
