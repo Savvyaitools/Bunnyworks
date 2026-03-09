@@ -61,6 +61,3 @@ verify_jwt = false
 
 [functions.cron-scrape-earnings]
 verify_jwt = false
-
-[functions.stagehand-proxy]
-verify_jwt = false
