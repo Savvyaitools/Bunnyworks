@@ -78,22 +78,9 @@ export function useSubscription() {
   const initiateCheckout = useCallback(async (tier: string) => {
     setCheckoutLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ghl-create-checkout", {
-        body: { tier },
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        toast.success(`${tier.charAt(0).toUpperCase() + tier.slice(1)} plan checkout initiated! Your account has been synced.`);
-        // If GHL returns a payment link, redirect
-        if (data.paymentUrl) {
-          window.open(data.paymentUrl, "_blank");
-        }
-        return data;
-      } else {
-        throw new Error(data?.error || "Checkout failed");
-      }
+      // TODO: Replace with Stripe checkout session
+      toast.info("Stripe checkout coming soon. Contact sales@bunnyworksos.com to upgrade.");
+      return null;
     } catch (err: any) {
       console.error("Checkout error:", err);
       toast.error(err.message || "Failed to start checkout");
