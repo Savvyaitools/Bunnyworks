@@ -50,6 +50,7 @@ export function EmbeddedBrowserViewer({
   creatorId,
   viewerCount = 1,
   sessionId,
+  sessionLinkId,
   chatterId,
   browserbaseSessionId,
 }: EmbeddedBrowserViewerProps) {
