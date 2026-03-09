@@ -105,7 +105,11 @@ Deno.serve(async (req) => {
       console.log("Waiting 8s for context cookie restoration...");
       await new Promise(r => setTimeout(r, 8000));
 
-      const wasAuthenticated = existingLink?.session_status === "authenticated" && existingLink?.browserbase_context_id;
+      const hasSavedContext = Boolean(existingLink?.browserbase_context_id && existingLink?.last_saved_at);
+      const wasAuthenticated = Boolean(
+        existingLink?.browserbase_context_id &&
+        (existingLink?.session_status === "authenticated" || hasSavedContext)
+      );
       if (wasAuthenticated) {
         const platformDomain = platform.toLowerCase() === "onlyfans" ? "onlyfans.com" : platform.toLowerCase() === "fansly" ? "fansly.com" : "fanvue.com";
         const cookieCheck = await verifyCookiesRestored(BK, sess.id, platformDomain);
@@ -169,15 +173,21 @@ Deno.serve(async (req) => {
       if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
       const alive = await isSessionAlive(BK, browserbaseSessionId);
 
+      const { data: prevLink } = await svc.from("creator_session_links")
+        .select("session_status, browserbase_context_id, last_saved_at")
+        .eq("id", sessionLinkId)
+        .single();
+
+      const hadSavedContext = Boolean(prevLink?.browserbase_context_id && prevLink?.last_saved_at);
+
       let isLoggedIn = false;
       if (alive) {
         try {
           const loginResult = await checkLoginViaCDP(BK, browserbaseSessionId, { label: "Save & Close" });
           isLoggedIn = loginResult.isLoggedIn;
         } catch (e) { console.warn("Login check failed, defaulting to persist:", e); isLoggedIn = true; }
-      } else {
-        const { data: prevLink } = await svc.from("creator_session_links").select("session_status").eq("id", sessionLinkId).single();
-        if (prevLink?.session_status === "authenticated") { isLoggedIn = true; }
+      } else if (prevLink?.session_status === "authenticated" || hadSavedContext) {
+        isLoggedIn = true;
       }
 
       const { data: sessionLink } = await svc.from("creator_session_links").select("creator_id, platform").eq("id", sessionLinkId).single();
@@ -379,6 +389,9 @@ Deno.serve(async (req) => {
       // Update DB
       if (isLoggedIn) {
         await svc.from("creator_session_links").update({ session_status: "authenticated", last_saved_at: new Date().toISOString(), browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
+      } else if (hadSavedContext) {
+        // Keep previously saved context as authenticated when a live check is inconclusive.
+        await svc.from("creator_session_links").update({ session_status: "authenticated", browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
       } else {
         await svc.from("creator_session_links").update({ browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
       }
@@ -386,10 +399,23 @@ Deno.serve(async (req) => {
 
       if (alive) {
         try {
-          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify(isLoggedIn ? { status: "REQUEST_RELEASE" } : { status: "REQUEST_RELEASE", persist: false }) });
+          const releasePayload = !isLoggedIn && !hadSavedContext
+            ? { status: "REQUEST_RELEASE", persist: false }
+            : { status: "REQUEST_RELEASE" };
+          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify(releasePayload) });
         } catch {}
       }
-      return json({ success: true, loginDetected: isLoggedIn, message: isLoggedIn ? (scrapedEarnings ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` : "Login saved.") : "Session closed. Cookies were NOT saved.", earnings: scrapedEarnings });
+
+      const contextPreserved = isLoggedIn || hadSavedContext;
+      return json({
+        success: true,
+        loginDetected: isLoggedIn,
+        contextPreserved,
+        message: contextPreserved
+          ? (scrapedEarnings ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` : "Login saved.")
+          : "Session closed. Cookies were NOT saved.",
+        earnings: scrapedEarnings,
+      });
     }
 
     // ========== CHECK AND RECOVER SESSIONS ==========
@@ -787,6 +813,21 @@ Deno.serve(async (req) => {
       // Verify caller belongs to this agency
       const { data: profile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
       if (!profile || profile.agency_id !== link.agency_id) return json({ error: "Unauthorized" }, 403);
+
+      // First try to reuse existing authenticated context in the live session
+      try {
+        const contextLogin = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login precheck" });
+        if (contextLogin.isLoggedIn) {
+          await svc.from("creator_session_links").update({
+            session_status: "authenticated",
+            last_saved_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", sessionLinkId);
+          return json({ success: true, step: "already_logged_in_context", loginVerified: true });
+        }
+      } catch (e) {
+        console.warn("Auto-login precheck failed (continuing to credentials):", e);
+      }
 
       // Get credentials from creator_credential_submissions
       const { data: creds } = await svc.from("creator_credential_submissions")
