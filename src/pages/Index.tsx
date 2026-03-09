@@ -180,17 +180,19 @@ const Index = () => {
         });
       }
 
-      // Scope extracted_data to this agency's creators only
+      // Scope extracted_data to this agency's creators only (supplementary – fail gracefully)
       let grossData: { value: number; raw_text: string | null }[] = [];
       if (creatorIds.length > 0) {
-        const extractedQuery = supabase
-          .from("extracted_data" as any)
-          .select("value, raw_text, import_id")
-          .eq("data_type", "earnings")
-          .in("creator_id", creatorIds);
-        const { data: extractedData, error: extractedError } = await extractedQuery;
-        if (extractedError) throw extractedError;
-        grossData = (extractedData || []) as any[];
+        try {
+          const extractedQuery = supabase
+            .from("extracted_data" as any)
+            .select("value, raw_text, import_id")
+            .eq("data_type", "earnings");
+          const { data: extractedData } = await extractedQuery;
+          grossData = (extractedData || []) as any[];
+        } catch (e) {
+          console.warn("extracted_data query failed, using net-only fallback:", e);
+        }
       }
 
       const grossTotal =
