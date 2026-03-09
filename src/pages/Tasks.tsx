@@ -199,8 +199,8 @@ export default function Tasks() {
 
         {/* Task Columns */}
         {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((col) => (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2].map((col) => (
               <div key={col} className="space-y-4">
                 <Skeleton className="h-8 w-32" />
                 {[1, 2].map((i) => (
