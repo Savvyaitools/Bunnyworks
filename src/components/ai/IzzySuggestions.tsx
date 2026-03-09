@@ -45,7 +45,7 @@ export function IzzySuggestions({
           <Loader2 className="h-4 w-4 animate-spin" />
           <Sparkles className="h-4 w-4" />
         </div>
-        <span className="text-sm text-muted-foreground">JODIE is thinking...</span>
+        <span className="text-sm text-muted-foreground">MARYLIN is thinking...</span>
       </div>
     );
   }
