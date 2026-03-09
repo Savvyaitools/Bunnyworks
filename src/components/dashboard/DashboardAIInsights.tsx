@@ -90,7 +90,7 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
       badge: data?.tatum.lastTitle || undefined,
     },
     {
-      name: "Jodie · Chatter",
+      name: "Marylin · Chatter",
       icon: MessageSquare,
       color: "text-success",
       conversations: data?.jodie.count || 0,

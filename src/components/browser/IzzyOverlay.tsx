@@ -87,7 +87,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
           // Flash notification for high-confidence suggestions
           const highConf = data.suggestions.find((s: Suggestion) => s.confidence >= confidenceThreshold);
           if (highConf) {
-            toast.info("Jodie has a high-confidence reply ready", { duration: 3000 });
+            toast.info("Marylin has a high-confidence reply ready", { duration: 3000 });
           }
         }
       } catch (err) {
@@ -212,7 +212,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
             ? "bg-green-500 text-white animate-pulse"
             : "bg-primary text-primary-foreground hover:scale-105"
         )}
-        title="Open Jodie AI"
+        title="Open Marylin AI"
       >
         <BrainCircuit className="h-6 w-6" />
         {history.length > 0 && (
@@ -240,7 +240,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
       )}>
         <div className="flex items-center gap-2">
           <BrainCircuit className={cn("h-4 w-4", autoMode ? "text-green-500" : "text-primary")} />
-          <span className="text-sm font-bold tracking-tight">Jodie</span>
+          <span className="text-sm font-bold tracking-tight">Marylin</span>
           {(detectedFanName || creatorName) && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
               {detectedFanName || creatorName}
@@ -321,7 +321,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-4 w-4 text-green-500 shrink-0" />
                 <p className="text-[11px] text-green-700 dark:text-green-400 leading-tight">
-                  Jodie is monitoring incoming messages every 15s. High-confidence replies (≥{confidenceThreshold}%) will be flagged for you.
+                  Marylin is monitoring incoming messages every 15s. High-confidence replies (≥{confidenceThreshold}%) will be flagged for you.
                 </p>
               </div>
             )}

@@ -91,7 +91,7 @@ const agents: AgentCardProps[] = [
     color: "primary", href: "#chat", badge: "Coach",
   },
   {
-    name: "Felix", role: "Agency Manager",
+    name: "Flick", role: "Agency Manager",
     description: "Your AI agency manager who keeps operations running. Ensures content plans are followed, tasks completed, and creator comms stay on track.",
     icon: UserCog, features: ["Creator communication management", "Content plan enforcement", "Task completion tracking", "Operational oversight"],
     color: "warning", href: "/of-ai/manager", badge: "Manager",
@@ -103,7 +103,7 @@ const agents: AgentCardProps[] = [
     color: "accent", href: "/of-ai/social-media", badge: "Growth",
   },
   {
-    name: "Jodie", role: "AI Chatter",
+    name: "Marylin Monroe", role: "AI Chatter",
     description: "Expert fan engagement specialist. Chats with fans, shares content via OnlyFans messages, and handles PPV sends.",
     icon: MessagesSquare, features: ["Fan conversations & engagement", "Content sharing via messages", "PPV & upsell management", "Creator voice matching"],
     color: "success", href: "/of-ai/chatter", badge: "Revenue",
@@ -181,7 +181,7 @@ function TaskOverview({ tasks }: { tasks: any[] }) {
       <div className="flex items-center gap-2 mb-3">
         <UserCog className="h-5 w-5 text-warning" />
         <h2 className="text-lg font-semibold text-foreground">Task Overview</h2>
-        <Badge variant="outline" className="text-[10px] ml-1">Felix</Badge>
+        <Badge variant="outline" className="text-[10px] ml-1">Flick</Badge>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {sections.map((section) => (
