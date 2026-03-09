@@ -116,6 +116,35 @@ export function EmbeddedBrowserViewer({
     }
   }, [bbSessionId]);
 
+  const handleAutoLogin = useCallback(async () => {
+    if (!bbSessionId || !sessionLinkId) {
+      toast.error("Session info missing for auto-login");
+      return;
+    }
+    setAutoLoginLoading(true);
+    try {
+      const result = await invokeBrowserAction("auto_login", {
+        browserbaseSessionId: bbSessionId,
+        sessionLinkId,
+      });
+      if (result.success) {
+        if (result.step === "already_logged_in") {
+          toast.success("Already logged in!");
+        } else if (result.loginVerified) {
+          toast.success("Login successful! ✓");
+        } else {
+          toast.info("Credentials entered — check for 2FA or CAPTCHA in the browser.");
+        }
+      } else {
+        toast.error("Auto-login failed: " + (result.error || "Unknown error"));
+      }
+    } catch (err: any) {
+      toast.error("Auto-login failed: " + (err.message || "Unknown error"));
+    } finally {
+      setAutoLoginLoading(false);
+    }
+  }, [bbSessionId, sessionLinkId]);
+
   // Derive display URL from platform
   const displayUrl = platform?.toLowerCase() === "fansly" 
     ? "fansly.com" 
