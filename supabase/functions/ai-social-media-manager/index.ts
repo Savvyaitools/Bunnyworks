@@ -126,7 +126,7 @@ ${earningsInfo ? `Creator Earnings: ${earningsInfo}` : ''}
 Use this data to create more targeted, performance-informed content suggestions.`;
     }
 
-    // Fetch warmup intelligence for richer context (now includes structured Stagehand data)
+    // Fetch warmup intelligence for richer context
     let intelligenceContext = "";
     if (agencyId) {
       const { data: intelData } = await supabase.from("warmup_intelligence")
