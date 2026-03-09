@@ -212,7 +212,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
             ? "bg-green-500 text-white animate-pulse"
             : "bg-primary text-primary-foreground hover:scale-105"
         )}
-        title="Open Jodie AI"
+        title="Open Marylin AI"
       >
         <BrainCircuit className="h-6 w-6" />
         {history.length > 0 && (
