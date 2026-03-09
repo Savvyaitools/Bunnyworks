@@ -321,7 +321,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-4 w-4 text-green-500 shrink-0" />
                 <p className="text-[11px] text-green-700 dark:text-green-400 leading-tight">
-                  Jodie is monitoring incoming messages every 15s. High-confidence replies (≥{confidenceThreshold}%) will be flagged for you.
+                  Marylin is monitoring incoming messages every 15s. High-confidence replies (≥{confidenceThreshold}%) will be flagged for you.
                 </p>
               </div>
             )}

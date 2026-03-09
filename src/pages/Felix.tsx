@@ -181,7 +181,7 @@ function TaskOverview({ tasks }: { tasks: any[] }) {
       <div className="flex items-center gap-2 mb-3">
         <UserCog className="h-5 w-5 text-warning" />
         <h2 className="text-lg font-semibold text-foreground">Task Overview</h2>
-        <Badge variant="outline" className="text-[10px] ml-1">Felix</Badge>
+        <Badge variant="outline" className="text-[10px] ml-1">Flick</Badge>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {sections.map((section) => (

@@ -62,7 +62,7 @@ export function IzzySuggestions({
             <Sparkles className="h-4 w-4" />
             <Zap className="h-3 w-3" />
           </div>
-          <span className="text-sm font-medium">JODIE Suggestions</span>
+          <span className="text-sm font-medium">MARYLIN Suggestions</span>
         </div>
         {onRefresh && (
           <Button variant="ghost" size="sm" onClick={onRefresh} className="h-7 px-2 text-xs">
