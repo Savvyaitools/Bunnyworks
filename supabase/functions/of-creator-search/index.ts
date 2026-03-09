@@ -1,13 +1,13 @@
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-interface OnlyFinderCreator {
+interface ParsedCreator {
+  id: number;
   username: string;
   name: string;
   avatar_url: string;
-  header_url?: string;
   subscribe_price: number;
   location: string;
   about: string;
@@ -16,10 +16,139 @@ interface OnlyFinderCreator {
   videos_count: number;
   favorites_count: number;
   is_verified: boolean;
-  instagram?: string;
-  twitter?: string;
-  tiktok?: string;
-  website?: string;
+  instagram: string | null;
+  twitter: string | null;
+  tiktok: string | null;
+  website: string | null;
+}
+
+function parseNumber(str: string): number {
+  return parseInt(str.replace(/,/g, ''), 10) || 0;
+}
+
+function parsePrice(str: string): number {
+  if (str.toUpperCase() === 'FREE') return 0;
+  const match = str.match(/\$?([\d.]+)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+function parseMarkdownResults(markdown: string): { creators: ParsedCreator[]; total: number } {
+  const creators: ParsedCreator[] = [];
+
+  // Extract total results count
+  const totalMatch = markdown.match(/About ([\d,]+) results/);
+  const total = totalMatch ? parseNumber(totalMatch[1]) : 0;
+
+  // Split by creator avatar image blocks
+  // Each creator starts with [![Name username OnlyFans](avatar)](profile_link)
+  const creatorBlocks = markdown.split(/\n\[!\[(?=[^\]]*OnlyFans\])/);
+
+  for (let i = 1; i < creatorBlocks.length; i++) {
+    try {
+      const block = creatorBlocks[i];
+      const blockText = block.substring(0, 3000);
+
+      // Extract avatar URL from the first image
+      const avatarMatch = blockText.match(/\]\((https:\/\/(?:media\.onlyfinder\.com|thumbs\.onlyfans\.com)[^\)]+)\)/);
+      const avatarUrl = avatarMatch ? avatarMatch[1] : '';
+
+      // Extract name from [**Name**]
+      const nameMatch = blockText.match(/\[\*\*(.+?)\*\*\]/);
+      if (!nameMatch) continue;
+      const name = nameMatch[1].replace(/\\/g, '');
+
+      // Extract username - multiple patterns:
+      // 1. "| onlyfans.com > username" (unescaped)
+      // 2. "\|  \> username" (escaped)
+      // 3. "\| > username" (partial escape)
+      // Also handles escaped underscores like nicoool\_xoxo
+      let username = '';
+      const usernameMatch = blockText.match(/\\?[|]\s*(?:onlyfans\.com\s*)?\\?>\s*([a-zA-Z0-9_\\-]+)\]/);
+      if (usernameMatch) {
+        username = usernameMatch[1].replace(/\\/g, '');
+      }
+
+      // Fallback: extract from avatar alt text "Name username OnlyFans"
+      if (!username) {
+        const altMatch = block.match(/^([^\]]+)OnlyFans\]/);
+        if (altMatch) {
+          const parts = altMatch[1].trim().split(/\s+/);
+          if (parts.length >= 2) {
+            username = parts[parts.length - 1];
+          }
+        }
+      }
+
+      if (!username) continue;
+
+      // Extract favorites count
+      const favMatch = blockText.match(/heart\.svg\)\n([\d,]+)/);
+      const favorites_count = favMatch ? parseNumber(favMatch[1]) : 0;
+
+      // Extract photos count
+      const photoMatch = blockText.match(/photo-count\.svg\)\n([\d,]+)/);
+      const photos_count = photoMatch ? parseNumber(photoMatch[1]) : 0;
+
+      // Extract videos count
+      const videoMatch = blockText.match(/video-count\.svg\)\n([\d,]+)/);
+      const videos_count = videoMatch ? parseNumber(videoMatch[1]) : 0;
+
+      // Extract price
+      const priceMatch = blockText.match(/price-tag\.svg\)\*\*(.+?)\*\*/);
+      const subscribe_price = priceMatch ? parsePrice(priceMatch[1]) : 0;
+
+      // Extract bio - text after price line, before next image link or social icons
+      let about = '';
+      const priceIdx = blockText.indexOf('price-tag.svg');
+      if (priceIdx !== -1) {
+        const afterPrice = blockText.substring(priceIdx);
+        const bioMatch = afterPrice.match(/\*\*\n\n(.+?)(?:\n\n\[|$)/s);
+        if (bioMatch) {
+          about = bioMatch[1].trim().replace(/\\/g, '');
+        }
+      }
+
+      // Extract social links
+      let instagram: string | null = null;
+      let tiktok: string | null = null;
+      let twitter: string | null = null;
+
+      const igMatch = blockText.match(/instagram\.com\/([a-zA-Z0-9_.]+)/);
+      if (igMatch) instagram = igMatch[1];
+
+      const ttMatch = blockText.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/);
+      if (ttMatch) tiktok = ttMatch[1];
+
+      const twMatch = blockText.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/);
+      if (twMatch) twitter = twMatch[1];
+
+      const is_verified = blockText.toLowerCase().includes('verified');
+
+      creators.push({
+        id: i,
+        username,
+        name,
+        avatar_url: avatarUrl,
+        subscribe_price,
+        location: '',
+        about,
+        posts_count: photos_count + videos_count,
+        photos_count,
+        videos_count,
+        favorites_count,
+        is_verified,
+        instagram,
+        twitter,
+        tiktok,
+        website: null,
+      });
+    } catch (e) {
+      console.error(`Failed to parse block ${i}:`, e);
+      continue;
+    }
+  }
+
+  return { creators, total };
 }
 
 Deno.serve(async (req) => {
@@ -28,7 +157,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, location, minPrice, maxPrice, verifiedOnly, offset } = await req.json();
+    const { query, location, minPrice, maxPrice, verifiedOnly } = await req.json();
 
     if (!query) {
       return new Response(
@@ -45,16 +174,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build OnlyFinder search URL
-    const params = new URLSearchParams();
-    params.set('query', query);
-    if (location) params.set('loc', location);
-    if (offset) params.set('offset', String(offset));
-    
-    const searchUrl = `https://onlyfinder.com/?${params.toString()}`;
+    // Build OnlyFinder URL - path-based format: onlyfinder.com/{keyword}
+    const keyword = query.trim().toLowerCase().replace(/\s+/g, '-');
+    let searchUrl = `https://onlyfinder.com/${encodeURIComponent(keyword)}`;
+    if (location) {
+      searchUrl += `?loc=${encodeURIComponent(location.trim())}`;
+    }
+
     console.log('Scraping OnlyFinder:', searchUrl);
 
-    // Use Firecrawl to scrape with JSON extraction
+    // Use Firecrawl to scrape with markdown format
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -63,83 +192,35 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         url: searchUrl,
-        formats: ['extract'],
-        extract: {
-          prompt: `Extract ALL creator/model profile cards from this OnlyFinder search results page. For each creator card found, extract:
-- username (the OnlyFans username / handle, without @)
-- name (display name)
-- avatar_url (profile image URL)
-- subscribe_price (monthly subscription price in USD as a number, 0 if free)
-- location (city/country if shown)
-- about (bio/description text)
-- photos_count (number of photos, 0 if not shown)
-- videos_count (number of videos, 0 if not shown)
-- favorites_count (number of likes/favorites, 0 if not shown)
-- is_verified (true if verified badge shown)
-
-Return ALL creators visible on the page. If a field is not available, use reasonable defaults (empty string for text, 0 for numbers, false for booleans).`,
-          schema: {
-            type: 'object',
-            properties: {
-              total_results: { type: 'number', description: 'Total number of results shown on page or estimated total' },
-              creators: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    username: { type: 'string' },
-                    name: { type: 'string' },
-                    avatar_url: { type: 'string' },
-                    subscribe_price: { type: 'number' },
-                    location: { type: 'string' },
-                    about: { type: 'string' },
-                    photos_count: { type: 'number' },
-                    videos_count: { type: 'number' },
-                    favorites_count: { type: 'number' },
-                    is_verified: { type: 'boolean' },
-                  },
-                  required: ['username', 'name'],
-                },
-              },
-            },
-            required: ['creators'],
-          },
-        },
-        waitFor: 3000,
+        formats: ['markdown'],
+        waitFor: 5000,
       }),
     });
 
     const scrapeData = await scrapeResponse.json();
 
     if (!scrapeResponse.ok) {
-      console.error('Firecrawl error:', scrapeData);
+      console.error('Firecrawl error:', JSON.stringify(scrapeData));
       return new Response(
         JSON.stringify({ success: false, error: scrapeData.error || `Scrape failed (${scrapeResponse.status})` }),
         { status: scrapeResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Parse extracted data
-    const extracted = scrapeData?.data?.extract || scrapeData?.extract || {};
-    let creators: OnlyFinderCreator[] = (extracted.creators || []).map((c: any, i: number) => ({
-      id: i + 1 + (offset || 0),
-      username: c.username || '',
-      name: c.name || c.username || '',
-      avatar_url: c.avatar_url || '',
-      header_url: c.header_url || '',
-      subscribe_price: Number(c.subscribe_price) || 0,
-      location: c.location || '',
-      about: c.about || '',
-      posts_count: (Number(c.photos_count) || 0) + (Number(c.videos_count) || 0),
-      photos_count: Number(c.photos_count) || 0,
-      videos_count: Number(c.videos_count) || 0,
-      favorites_count: Number(c.favorites_count) || 0,
-      is_verified: Boolean(c.is_verified),
-      instagram: c.instagram || null,
-      twitter: c.twitter || null,
-      tiktok: c.tiktok || null,
-      website: c.website || null,
-    }));
+    // Get markdown content
+    const markdown = scrapeData?.data?.markdown || scrapeData?.markdown || '';
+    console.log('Markdown length:', markdown.length);
+
+    if (!markdown || markdown.length < 100) {
+      console.log('No meaningful markdown content returned');
+      return new Response(
+        JSON.stringify({ success: true, data: [], total: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse the markdown into structured creator data
+    let { creators, total } = parseMarkdownResults(markdown);
 
     // Apply client-side filters
     if (verifiedOnly) {
@@ -147,16 +228,13 @@ Return ALL creators visible on the page. If a field is not available, use reason
     }
     if (minPrice !== undefined || maxPrice !== undefined) {
       creators = creators.filter(c => {
-        const price = c.subscribe_price;
-        if (minPrice !== undefined && price < minPrice) return false;
-        if (maxPrice !== undefined && maxPrice < 50 && price > maxPrice) return false;
+        if (minPrice !== undefined && c.subscribe_price < minPrice) return false;
+        if (maxPrice !== undefined && maxPrice < 50 && c.subscribe_price > maxPrice) return false;
         return true;
       });
     }
 
-    const total = extracted.total_results || creators.length;
-
-    console.log(`Found ${creators.length} creators (total: ${total})`);
+    console.log(`Parsed ${creators.length} creators (total: ${total})`);
 
     return new Response(
       JSON.stringify({ success: true, data: creators, total }),
