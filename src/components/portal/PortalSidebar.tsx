@@ -42,7 +42,7 @@ export function PortalSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const { profile, signOut } = useAuth();
-  const { totalUnread } = useUnreadMessages("creator");
+  
   const isCollapsed = state === "collapsed";
 
   const handleSignOut = async () => {
