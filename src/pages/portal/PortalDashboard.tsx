@@ -42,8 +42,8 @@ export default function PortalDashboard() {
             loading={loading}
           />
           <StatCard
-            title="Unread Messages"
-            value={totalUnread.toString()}
+            title="Messages"
+            value="0"
             subtitle="From agency team"
             icon={MessageSquare}
             loading={loading}
