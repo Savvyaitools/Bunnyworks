@@ -1089,3 +1089,227 @@ export async function preLoginSetup(
     };
   });
 }
+
+// ========== CDP Auto-Login (type credentials into OnlyFans login form) ==========
+export async function autoLoginViaCDP(
+  apiKey: string,
+  sessionId: string,
+  username: string,
+  password: string,
+  opts?: { timeout?: number }
+): Promise<{ success: boolean; error?: string; step?: string }> {
+  const timeout = opts?.timeout ?? 30000;
+
+  return new Promise((resolve) => {
+    let mid = 1;
+    let resolved = false;
+    const ws = new WebSocket(
+      `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`
+    );
+
+    const done = (result: { success: boolean; error?: string; step?: string }) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      try { ws.close(); } catch {}
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => {
+      done({ success: false, error: "Timeout waiting for login flow", step: "timeout" });
+    }, timeout);
+
+    const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+      const id = mid++;
+      const msg: any = { id, method, params };
+      if (sid) msg.sessionId = sid;
+      ws.send(JSON.stringify(msg));
+      return id;
+    };
+
+    let getTargetsId: number | null = null;
+    let attachId: number | null = null;
+    let cdpSessionId: string | null = null;
+    let stepIds: Record<string, number> = {};
+    let currentStep = "init";
+
+    const escapeForJS = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+
+    const runStep = async (step: string, script: string) => {
+      currentStep = step;
+      console.log(`AutoLogin CDP: step=${step}`);
+      stepIds[step] = send("Runtime.evaluate", {
+        expression: script,
+        returnByValue: true,
+        awaitPromise: true,
+      }, cdpSessionId!);
+    };
+
+    ws.onopen = () => {
+      getTargetsId = send("Target.getTargets");
+    };
+
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+
+        if (msg.id === getTargetsId) {
+          const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+          if (page) {
+            attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+          } else {
+            done({ success: false, error: "No page target found", step: "attach" });
+          }
+          return;
+        }
+
+        if (msg.id === attachId) {
+          cdpSessionId = msg.result?.sessionId;
+          if (!cdpSessionId) { done({ success: false, error: "No CDP session", step: "attach" }); return; }
+          send("Page.enable", {}, cdpSessionId);
+          send("Runtime.enable", {}, cdpSessionId);
+          // Step 1: Check if we're on the login page, if not navigate there
+          runStep("check_page", `(function() {
+            var url = window.location.href;
+            if (url.includes('onlyfans.com')) {
+              // Check if login form exists
+              var emailInput = document.querySelector('input[name="email"], input[type="email"], input[id="email-field"]');
+              if (emailInput) return JSON.stringify({ onLoginPage: true });
+              // Check if already logged in
+              var sidebar = document.querySelector('.b-sidebar, [class*="sidebar"]');
+              if (sidebar) return JSON.stringify({ alreadyLoggedIn: true });
+              return JSON.stringify({ onLoginPage: false, needsNav: true });
+            }
+            return JSON.stringify({ onLoginPage: false, needsNav: true });
+          })()`);
+          return;
+        }
+
+        // Handle step results
+        for (const [step, stepId] of Object.entries(stepIds)) {
+          if (msg.id === stepId) {
+            const raw = msg.result?.result?.value;
+            let data: any = {};
+            try { data = JSON.parse(raw); } catch {}
+
+            if (step === "check_page") {
+              if (data.alreadyLoggedIn) {
+                done({ success: true, step: "already_logged_in" });
+                return;
+              }
+              if (data.onLoginPage) {
+                // Step 2: Type email
+                runStep("type_email", `(function() {
+                  return new Promise(function(resolve) {
+                    var input = document.querySelector('input[name="email"], input[type="email"], input[id="email-field"]');
+                    if (!input) { resolve(JSON.stringify({ success: false, error: 'Email input not found' })); return; }
+                    input.focus();
+                    input.value = '';
+                    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    nativeSetter.call(input, '${escapeForJS(username)}');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    setTimeout(function() { resolve(JSON.stringify({ success: true })); }, 500);
+                  });
+                })()`);
+              } else {
+                // Navigate to OnlyFans first
+                runStep("navigate", `(function() {
+                  window.location.href = 'https://onlyfans.com';
+                  return JSON.stringify({ navigating: true });
+                })()`);
+                // After navigation, wait and retry
+                setTimeout(() => {
+                  runStep("wait_for_login_page", `(function() {
+                    return new Promise(function(resolve) {
+                      var attempts = 0;
+                      var check = function() {
+                        attempts++;
+                        var emailInput = document.querySelector('input[name="email"], input[type="email"], input[id="email-field"]');
+                        if (emailInput) { resolve(JSON.stringify({ found: true })); return; }
+                        if (attempts > 15) { resolve(JSON.stringify({ found: false })); return; }
+                        setTimeout(check, 1000);
+                      };
+                      setTimeout(check, 2000);
+                    });
+                  })()`);
+                }, 3000);
+              }
+              return;
+            }
+
+            if (step === "wait_for_login_page") {
+              if (data.found) {
+                runStep("type_email", `(function() {
+                  return new Promise(function(resolve) {
+                    var input = document.querySelector('input[name="email"], input[type="email"], input[id="email-field"]');
+                    if (!input) { resolve(JSON.stringify({ success: false, error: 'Email input not found after wait' })); return; }
+                    input.focus();
+                    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    nativeSetter.call(input, '${escapeForJS(username)}');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    setTimeout(function() { resolve(JSON.stringify({ success: true })); }, 500);
+                  });
+                })()`);
+              } else {
+                done({ success: false, error: "Login form not found after navigation", step: "wait_for_login_page" });
+              }
+              return;
+            }
+
+            if (step === "type_email") {
+              if (!data.success) { done({ success: false, error: data.error || "Failed to type email", step }); return; }
+              // Step 3: Type password
+              runStep("type_password", `(function() {
+                return new Promise(function(resolve) {
+                  var input = document.querySelector('input[name="password"], input[type="password"]');
+                  if (!input) { resolve(JSON.stringify({ success: false, error: 'Password input not found' })); return; }
+                  input.focus();
+                  var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                  nativeSetter.call(input, '${escapeForJS(password)}');
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                  input.dispatchEvent(new Event('change', { bubbles: true }));
+                  setTimeout(function() { resolve(JSON.stringify({ success: true })); }, 500);
+                });
+              })()`);
+              return;
+            }
+
+            if (step === "type_password") {
+              if (!data.success) { done({ success: false, error: data.error || "Failed to type password", step }); return; }
+              // Step 4: Click login button
+              runStep("click_login", `(function() {
+                return new Promise(function(resolve) {
+                  var btn = document.querySelector('button[type="submit"], button.g-btn.m-rounded.m-block, button[at-attr="login_btn"]');
+                  if (!btn) {
+                    var buttons = Array.from(document.querySelectorAll('button'));
+                    btn = buttons.find(function(b) { return b.textContent.trim().toLowerCase() === 'log in' || b.textContent.trim().toLowerCase() === 'login'; });
+                  }
+                  if (!btn) { resolve(JSON.stringify({ success: false, error: 'Login button not found' })); return; }
+                  btn.click();
+                  setTimeout(function() { resolve(JSON.stringify({ success: true })); }, 2000);
+                });
+              })()`);
+              return;
+            }
+
+            if (step === "click_login") {
+              done({ success: data.success, error: data.error, step: "login_clicked" });
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("AutoLogin CDP message error:", e);
+      }
+    };
+
+    ws.onerror = (err) => {
+      done({ success: false, error: "WebSocket error", step: currentStep });
+    };
+    ws.onclose = () => {
+      done({ success: false, error: "WebSocket closed", step: currentStep });
+    };
+  });
+}
