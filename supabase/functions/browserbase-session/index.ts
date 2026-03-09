@@ -389,6 +389,9 @@ Deno.serve(async (req) => {
       // Update DB
       if (isLoggedIn) {
         await svc.from("creator_session_links").update({ session_status: "authenticated", last_saved_at: new Date().toISOString(), browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
+      } else if (hadSavedContext) {
+        // Keep previously saved context as authenticated when a live check is inconclusive.
+        await svc.from("creator_session_links").update({ session_status: "authenticated", browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
       } else {
         await svc.from("creator_session_links").update({ browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
       }
@@ -396,10 +399,23 @@ Deno.serve(async (req) => {
 
       if (alive) {
         try {
-          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify(isLoggedIn ? { status: "REQUEST_RELEASE" } : { status: "REQUEST_RELEASE", persist: false }) });
+          const releasePayload = !isLoggedIn && !hadSavedContext
+            ? { status: "REQUEST_RELEASE", persist: false }
+            : { status: "REQUEST_RELEASE" };
+          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify(releasePayload) });
         } catch {}
       }
-      return json({ success: true, loginDetected: isLoggedIn, message: isLoggedIn ? (scrapedEarnings ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` : "Login saved.") : "Session closed. Cookies were NOT saved.", earnings: scrapedEarnings });
+
+      const contextPreserved = isLoggedIn || hadSavedContext;
+      return json({
+        success: true,
+        loginDetected: isLoggedIn,
+        contextPreserved,
+        message: contextPreserved
+          ? (scrapedEarnings ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` : "Login saved.")
+          : "Session closed. Cookies were NOT saved.",
+        earnings: scrapedEarnings,
+      });
     }
 
     // ========== CHECK AND RECOVER SESSIONS ==========
