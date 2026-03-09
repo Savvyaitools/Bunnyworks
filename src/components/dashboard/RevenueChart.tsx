@@ -41,7 +41,7 @@ export function RevenueChart() {
             .select("value, period_start, raw_text")
             .eq("data_type", "earnings");
           const res = await query;
-          grossData = (res.data as GrossRow[]) || [];
+          grossData = (res.data as unknown as GrossRow[]) || [];
         } catch (e) {
           console.warn("extracted_data query failed, using net-only fallback:", e);
         }
