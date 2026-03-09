@@ -4,6 +4,7 @@ import {
   PLATFORM_URLS, navigateViaCDP, checkLoginViaCDP, verifyCookiesRestored,
   executeCDPScript, aiExtractEarnings, aiDetectLoginState,
   proxyConf, sessionBody, resolveContext, preLoginSetup, STATE_TIMEZONES,
+  autoLoginViaCDP,
 } from "../_shared/cdp-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
