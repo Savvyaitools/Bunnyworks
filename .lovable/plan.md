@@ -126,7 +126,153 @@ All references to `creatorss.lovable.app` → `bunnyworks.io`:
 
 ---
 
-## Implementation Order
+## Phase 7 — Tatum AI Social Media Agent Enhancement
+
+### 7a. Trending Sounds & Hashtags Discovery (All Platforms)
+
+**New edge function actions in `ai-social-media-manager`:**
+
+#### TikTok Trends
+- Scrape TikTok Creative Center (`ads.tiktok.com/business/creativecenter`) via Firecrawl for:
+  - Trending hashtags with view counts
+  - Trending sounds/audio with usage counts
+  - Top-performing content formats
+- Action: `discover_tiktok_trends`
+
+#### Instagram Trends
+- **Instagram Graph API** (native) for connected Business/Creator accounts:
+  - Post insights (reach, impressions, saves, shares)
+  - Story/Reel metrics
+  - Follower demographics
+  - Hashtag search volume
+- Firecrawl fallback for public profile scraping when accounts aren't connected
+- Action: `discover_instagram_trends`
+- **Requires**: Meta App ID + App Secret, creator OAuth consent
+
+#### Twitter/X Trends
+- **X API v2** (native):
+  - Trending topics by location
+  - Tweet engagement metrics (likes, retweets, quotes, impressions)
+  - User growth metrics
+- Action: `discover_twitter_trends`
+- **Requires**: `TWITTER_CONSUMER_KEY`, `TWITTER_CONSUMER_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`
+
+#### Reddit Trends
+- **Reddit Data API** (native):
+  - Subreddit trending posts (hot/rising)
+  - Post engagement (upvotes, comments, awards)
+  - Cross-post performance tracking
+  - Niche community discovery for creator promotion
+- Action: `discover_reddit_trends`
+- **Requires**: `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`
+
+### 7b. Creator Social Media Analytics
+
+**New DB table: `social_analytics_snapshots`**
+```sql
+CREATE TABLE social_analytics_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id UUID REFERENCES agencies(id) NOT NULL,
+  creator_id UUID REFERENCES creators(id) NOT NULL,
+  platform TEXT NOT NULL, -- 'tiktok', 'instagram', 'twitter', 'reddit'
+  followers INTEGER,
+  following INTEGER,
+  total_posts INTEGER,
+  avg_engagement_rate NUMERIC(5,2),
+  avg_likes INTEGER,
+  avg_comments INTEGER,
+  avg_shares INTEGER,
+  top_post_url TEXT,
+  top_post_engagement JSONB,
+  raw_data JSONB,
+  captured_at TIMESTAMPTZ DEFAULT now(),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**New edge function action: `fetch_creator_analytics`**
+- Pull analytics from each connected platform
+- Store snapshot in `social_analytics_snapshots`
+- Compare with previous snapshot to calculate growth rates
+- AI summarizes performance trends
+
+### 7c. Virality Score Engine
+
+**Scoring algorithm (computed by AI + heuristics):**
+- **Engagement velocity**: likes/views in first hour
+- **Share-to-view ratio**: viral coefficient
+- **Comment sentiment**: positive = higher score
+- **Cross-platform spread**: content appearing on multiple platforms
+- **Trend alignment**: how well content matches current trending topics
+
+**New DB table: `content_virality_scores`**
+```sql
+CREATE TABLE content_virality_scores (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id UUID REFERENCES agencies(id) NOT NULL,
+  content_plan_id UUID REFERENCES content_plans(id),
+  platform TEXT NOT NULL,
+  virality_score INTEGER CHECK (virality_score BETWEEN 0 AND 100),
+  confidence NUMERIC(3,2),
+  factors JSONB, -- breakdown of score components
+  recommendation TEXT,
+  scored_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**New edge function action: `score_content_virality`**
+- Input: content idea/caption + platform + creator niche
+- Tatum compares against current trends, creator's historical performance, platform-specific patterns
+- Returns: 0-100 score + confidence + factor breakdown + optimization tips
+
+### 7d. API Architecture
+
+```
+Frontend (SocialMediaManager.tsx)
+  │
+  ▼
+ai-social-media-manager (edge function)
+  │
+  ├── discover_tiktok_trends ──→ Firecrawl (TikTok Creative Center)
+  ├── discover_instagram_trends ──→ Instagram Graph API (native) / Firecrawl fallback
+  ├── discover_twitter_trends ──→ X API v2 (native)
+  ├── discover_reddit_trends ──→ Reddit API (native)
+  ├── fetch_creator_analytics ──→ All connected platform APIs
+  ├── score_content_virality ──→ AI + historical data + trend data
+  │
+  └── Existing actions:
+      ├── generate_posts
+      ├── generate_calendar
+      ├── analyze_strategy
+      ├── analyze_trends
+      └── niche_content_plan
+```
+
+### 7e. API Keys Required
+
+| API | Secrets Needed | Cost | Status |
+|-----|---------------|------|--------|
+| Firecrawl | `FIRECRAWL_API_KEY` | Connected | ✅ Ready |
+| TikTok Creative Center | None (public, scraped via Firecrawl) | Free | ✅ Ready |
+| Instagram Graph API | `META_APP_ID`, `META_APP_SECRET` | Free | ❌ Need Meta App |
+| X API v2 | `TWITTER_CONSUMER_KEY`, `TWITTER_CONSUMER_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET` | $100/mo Basic | ❌ Need X Developer Account |
+| Reddit API | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Free | ❌ Need Reddit App |
+
+### 7f. Implementation Order
+
+| Step | What | Effort | Dependencies |
+|------|------|--------|-------------|
+| 1 | TikTok trend discovery via Firecrawl | Small | None (ready now) |
+| 2 | Reddit trend discovery | Small | Reddit app credentials |
+| 3 | Virality scoring engine | Medium | Step 1 data |
+| 4 | Social analytics snapshots table + UI | Medium | None |
+| 5 | Twitter/X integration | Medium | X API credentials ($100/mo) |
+| 6 | Instagram Graph API integration | Large | Meta App + OAuth flow |
+| 7 | Analytics dashboard tab in Tatum UI | Medium | Steps 1-4 |
+
+---
+
+## Implementation Order (Overall)
 
 | Step | Phase | Priority | Effort |
 |------|-------|----------|--------|
@@ -138,7 +284,11 @@ All references to `creatorss.lovable.app` → `bunnyworks.io`:
 | 6 | Security RLS migrations | Blocker | Medium |
 | 7 | Update SEO meta to bunnyworks.io | High | Small |
 | 8 | Fix dead footer links | High | Small |
-| 9 | Fix OAuth loading state | Medium | Small |
-| 10 | Fix notification settings | Medium | Small |
-| 11 | Soften marketing claims | Medium | Small |
-| 12 | Console logging cleanup | Low | Medium |
+| 9 | Tatum: TikTok + Reddit trends (Phase 7, Steps 1-2) | High | Small |
+| 10 | Tatum: Virality scoring (Phase 7, Step 3) | High | Medium |
+| 11 | Tatum: Analytics dashboard (Phase 7, Steps 4+7) | Medium | Medium |
+| 12 | Tatum: X/Instagram native APIs (Phase 7, Steps 5-6) | Medium | Large |
+| 13 | Fix OAuth loading state | Medium | Small |
+| 14 | Fix notification settings | Medium | Small |
+| 15 | Soften marketing claims | Medium | Small |
+| 16 | Console logging cleanup | Low | Medium |
