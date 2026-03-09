@@ -854,7 +854,7 @@ Deno.serve(async (req) => {
         .select("username, encrypted_password")
         .eq("creator_id", link.creator_id)
         .eq("platform", link.platform)
-        .eq("status", "approved")
+        .eq("status", "accepted")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
