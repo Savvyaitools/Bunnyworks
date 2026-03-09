@@ -105,7 +105,11 @@ Deno.serve(async (req) => {
       console.log("Waiting 8s for context cookie restoration...");
       await new Promise(r => setTimeout(r, 8000));
 
-      const wasAuthenticated = existingLink?.session_status === "authenticated" && existingLink?.browserbase_context_id;
+      const hasSavedContext = Boolean(existingLink?.browserbase_context_id && existingLink?.last_saved_at);
+      const wasAuthenticated = Boolean(
+        existingLink?.browserbase_context_id &&
+        (existingLink?.session_status === "authenticated" || hasSavedContext)
+      );
       if (wasAuthenticated) {
         const platformDomain = platform.toLowerCase() === "onlyfans" ? "onlyfans.com" : platform.toLowerCase() === "fansly" ? "fansly.com" : "fanvue.com";
         const cookieCheck = await verifyCookiesRestored(BK, sess.id, platformDomain);
