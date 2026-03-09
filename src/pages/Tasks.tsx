@@ -72,7 +72,7 @@ export default function Tasks() {
     return matchesSearch && matchesStatus && matchesRequestType;
   });
 
-  const statuses: (TaskStatus | "All")[] = ["All", "To Do", "In Progress", "Review", "Completed"];
+  const statuses: (TaskStatus | "All")[] = ["All", "To Do", "Completed"];
   const requestTypes: { value: RequestType | "all"; label: string }[] = [
     { value: "all", label: "All Types" },
     { value: "general", label: "General" },
