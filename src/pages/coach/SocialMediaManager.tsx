@@ -704,6 +704,11 @@ export default function SocialMediaManager() {
               </div>
             )}
           </TabsContent>
+
+          {/* API Settings Tab */}
+          <TabsContent value="api-settings" className="space-y-4">
+            <TatumAPISettings />
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
