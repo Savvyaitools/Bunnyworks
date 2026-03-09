@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
 
 const mobileNavItems = [
   { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
@@ -84,6 +85,10 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const { profile, signOut } = useAuth();
+  const { activeSession, minimized } = useActiveBrowserSession();
+
+  // Hide bottom nav when browser session is open full-screen
+  if (activeSession && !minimized) return null;
 
   const handleNavigate = (path: string) => {
     navigate(path);

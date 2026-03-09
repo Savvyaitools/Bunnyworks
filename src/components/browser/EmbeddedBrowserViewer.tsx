@@ -119,30 +119,27 @@ export function EmbeddedBrowserViewer({
     : "onlyfans.com";
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#202124] flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
-      {/* Chrome-like title bar */}
-      <div className="flex items-center bg-[#35363a] px-2 py-1 gap-1 shrink-0">
-        {/* Tab */}
-        <div className="flex items-center gap-1.5 bg-[#202124] rounded-t-lg px-2 sm:px-3 py-1.5 max-w-[180px] sm:max-w-[240px] min-w-0">
-          <Globe className="h-3.5 w-3.5 text-[#9aa0a6] shrink-0" />
-          <span className="text-xs text-[#e8eaed] truncate">{title}</span>
-          {!isMobile && platform && (
-            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-[#35363a] text-[#9aa0a6] border-0 shrink-0 capitalize">
-              {platform}
-            </Badge>
-          )}
-        </div>
-        <div className="flex-1" />
-        {/* Window controls */}
-        <div className="flex items-center gap-1">
-          {viewerCount > 1 && !isMobile && (
-            <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 h-5 shrink-0">
-              <Users className="h-3 w-3 mr-1" />
-              {viewerCount}
-            </Badge>
-          )}
-          <Badge variant="outline" className="text-[10px] h-5 border-green-500/30 bg-green-500/10 text-green-400 shrink-0">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1 animate-pulse" />
+    <div className="fixed inset-0 z-[60] bg-[#202124] flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
+      {/* Combined compact header on mobile, separate title bar + toolbar on desktop */}
+      {isMobile ? (
+        /* Single compact toolbar for mobile */
+        <div className="flex items-center bg-[#292a2d] px-1.5 py-1 gap-1 border-b border-[#3c4043] shrink-0">
+          {/* Nav buttons */}
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("back")}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("forward")}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+
+          {/* URL bar */}
+          <div className="flex-1 flex items-center bg-[#35363a] rounded-full px-2.5 py-1 gap-1.5 min-w-0">
+            <Lock className="h-3 w-3 text-[#9aa0a6] shrink-0" />
+            <span className="text-xs text-[#e8eaed] truncate">{displayUrl}</span>
+          </div>
+
+          {/* Actions */}
+          <Badge variant="outline" className="text-[9px] h-5 border-green-500/30 bg-green-500/10 text-green-400 shrink-0 px-1.5">
             Live
           </Badge>
           {showSaveButton && onSaveAndClose && (
@@ -150,36 +147,74 @@ export function EmbeddedBrowserViewer({
               size="sm"
               onClick={onSaveAndClose}
               disabled={saving}
-              className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-2 sm:px-3"
+              className="bg-green-600 hover:bg-green-700 text-white text-[11px] h-7 px-2"
             >
-              {saving ? "Saving..." : isMobile ? "Save" : "Save & Close"}
+              {saving ? "..." : "Save"}
             </Button>
           )}
           <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-[#9aa0a6] hover:text-[#e8eaed] hover:bg-[#3c4043]">
             <X className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Desktop: Chrome-like title bar */}
+          <div className="flex items-center bg-[#35363a] px-2 py-1 gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 bg-[#202124] rounded-t-lg px-3 py-1.5 max-w-[240px] min-w-0">
+              <Globe className="h-3.5 w-3.5 text-[#9aa0a6] shrink-0" />
+              <span className="text-xs text-[#e8eaed] truncate">{title}</span>
+              {platform && (
+                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-[#35363a] text-[#9aa0a6] border-0 shrink-0 capitalize">
+                  {platform}
+                </Badge>
+              )}
+            </div>
+            <div className="flex-1" />
+            <div className="flex items-center gap-1">
+              {viewerCount > 1 && (
+                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 h-5 shrink-0">
+                  <Users className="h-3 w-3 mr-1" />
+                  {viewerCount}
+                </Badge>
+              )}
+              <Badge variant="outline" className="text-[10px] h-5 border-green-500/30 bg-green-500/10 text-green-400 shrink-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1 animate-pulse" />
+                Live
+              </Badge>
+              {showSaveButton && onSaveAndClose && (
+                <Button
+                  size="sm"
+                  onClick={onSaveAndClose}
+                  disabled={saving}
+                  className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-3"
+                >
+                  {saving ? "Saving..." : "Save & Close"}
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-[#9aa0a6] hover:text-[#e8eaed] hover:bg-[#3c4043]">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
 
-      {/* Chrome-like toolbar — compact on mobile */}
-      <div className="flex items-center bg-[#292a2d] px-1.5 sm:px-2 py-1 sm:py-1.5 gap-1 border-b border-[#3c4043] shrink-0">
-        {/* Nav buttons */}
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("back")}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("forward")}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("reload")}>
-          <RotateCw className="h-3.5 w-3.5" />
-        </Button>
-
-        {/* URL bar */}
-        <div className="flex-1 flex items-center bg-[#35363a] rounded-full px-3 py-1 gap-2 min-w-0">
-          <Lock className="h-3 w-3 text-[#9aa0a6] shrink-0" />
-          <span className="text-xs text-[#e8eaed] truncate">{displayUrl}</span>
-        </div>
-      </div>
+          {/* Desktop: Chrome-like toolbar */}
+          <div className="flex items-center bg-[#292a2d] px-2 py-1.5 gap-1.5 border-b border-[#3c4043] shrink-0">
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("back")}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("forward")}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-[#9aa0a6] hover:bg-[#3c4043]" disabled={navLoading} onClick={() => handleCdpNav("reload")}>
+              <RotateCw className="h-3.5 w-3.5" />
+            </Button>
+            <div className="flex-1 flex items-center bg-[#35363a] rounded-full px-3 py-1 gap-2 min-w-0">
+              <Lock className="h-3 w-3 text-[#9aa0a6] shrink-0" />
+              <span className="text-xs text-[#e8eaed] truncate">{displayUrl}</span>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Main content: full-width iframe — uses flex-1 + min-h-0 for proper mobile sizing */}
       <div className="flex-1 relative bg-[#202124] min-h-0">
