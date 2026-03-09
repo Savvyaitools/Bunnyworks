@@ -214,6 +214,17 @@ export function EmbeddedBrowserViewer({
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-1">
+              {sessionLinkId && (
+                <Button
+                  size="sm"
+                  onClick={handleAutoLogin}
+                  disabled={autoLoginLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-3 gap-1.5"
+                >
+                  <LogIn className="h-3 w-3" />
+                  {autoLoginLoading ? "Logging in..." : "Auto Login"}
+                </Button>
+              )}
               {viewerCount > 1 && (
                 <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 h-5 shrink-0">
                   <Users className="h-3 w-3 mr-1" />
