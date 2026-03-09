@@ -1,116 +1,96 @@
 
 
-# Production Launch Readiness Review
+# Launch Readiness Status Report
 
-## Executive Summary
+## 1. Payment Processor (GHL + Stripe)
 
-The application has strong architectural foundations (declarative routing, centralized error handling, multi-tenant RLS, structured logging) but has several **blockers** and **high-priority gaps** that must be addressed before a production launch.
+**Status: Partially wired, not production-ready**
 
----
+What exists:
+- `ghl-create-checkout` edge function syncs contacts to GoHighLevel and logs `checkout_initiated` events
+- `ghl-webhook` edge function receives payment events and updates `agencies.subscription_tier/status`
+- `useSubscription` hook reads subscription state and exposes `initiateCheckout`
+- `GHL_API_KEY` secret is configured
 
-## BLOCKERS (Must Fix Before Launch)
+What's missing / broken:
+- **`GHL_WEBHOOK_SECRET` is NOT configured** — the webhook code gracefully skips HMAC verification when the secret is absent, meaning anyone can forge payment events to upgrade agencies for free. You need to add this secret.
+- **No actual payment URL returned** — `ghl-create-checkout` returns `{ success: true }` but no `paymentUrl`, so `initiateCheckout` shows a toast but never redirects users to pay. You need to either: (a) configure a GHL payment link/funnel URL per tier and return it, or (b) switch to Stripe for direct checkout.
+- **Agency billing fields unprotected** — the security scan confirms any authenticated user in an agency can UPDATE `subscription_tier`, `max_creators`, etc. directly via the client. This is a critical privilege escalation.
 
-### 1. No Password Reset Flow
-There is no "Forgot Password" link on either login page (`Auth.tsx`, `EmployeeAuth.tsx`), and no `/reset-password` page exists. Users who forget their password are locked out permanently. The only password reset mechanism is an admin edge function (`admin-reset-password`).
-
-**Fix:** Add a "Forgot Password?" link to both auth pages, implement `supabase.auth.resetPasswordForEmail()`, and create a `/reset-password` page that handles the recovery token and calls `updateUser({ password })`.
-
-### 2. No Email Verification Resend
-After signup, the verification screen has no "Resend email" button. If the email is delayed or lost, the user is stuck.
-
-**Fix:** Add a resend button calling `supabase.auth.resend({ type: 'signup', email })` with a 60-second cooldown timer.
-
-### 3. Security Vulnerabilities (from scan)
-
-| Finding | Severity | Summary |
-|---|---|---|
-| `of_cache` table fully public | **Critical** | `USING(true)` RLS — any user can read/write all cached OnlyFans data across agencies |
-| GHL webhook no signature check | **Critical** | Attackers can forge payment events to upgrade subscriptions for free |
-| Session access logs unrestricted inserts | **Warn** | Any authenticated user can forge audit trail entries |
-| AI query resource exhaustion | **Warn** | No rate limiting on expensive AI edge function calls |
-
-**Fix:** Tighten `of_cache` RLS to service_role only, add HMAC signature verification to `ghl-webhook`, restrict `session_access_logs` inserts, add rate limiting to AI functions.
-
-### 4. Notification Settings Are Non-Functional
-The Settings > Notifications tab renders Switch toggles with hardcoded `defaultChecked` values but doesn't persist preferences anywhere. Users toggle them and nothing happens.
-
-**Fix:** Either connect to a `notification_preferences` table or remove the tab to avoid misleading users.
+**Setup steps:**
+1. Add `GHL_WEBHOOK_SECRET` as a secret (get it from your GHL webhook settings)
+2. Either configure GHL payment funnel URLs in the edge function, or switch to Stripe (Lovable has a native Stripe integration — I can enable it)
+3. Lock down the `agencies` UPDATE RLS policy to only allow `name`, `website`, `logo_url` changes from clients; all billing fields must only be writable by service_role
 
 ---
 
-## HIGH PRIORITY (Should Fix Before Launch)
+## 2. Email Management (Password Reset, Verification)
 
-### 5. Landing Page Stats Are Fabricated
-The hero section claims "500+ Agencies", "10,000+ Creators Managed", "$50M+ Revenue Tracked". These are hardcoded marketing numbers. If they are not accurate, this could damage trust or create legal issues.
+**Status: Not implemented**
 
-**Fix:** Either verify these numbers are accurate, replace with softer language ("Trusted by growing agencies"), or pull real aggregate stats.
+What exists:
+- Email verification screen shows after signup (but no "Resend" button)
+- No "Forgot Password" link on either Auth page
+- No `/reset-password` route exists anywhere in the codebase
 
-### 6. Testimonials Are Likely Fictional
-Three testimonials with first-name-last-initial format ("Marcus T.", "Elena R.", "David K.") with specific metrics. If these are not real customers, this is a significant trust/legal risk.
-
-**Fix:** Use real testimonials or remove the section. At minimum, add a disclaimer.
-
-### 7. Footer Links Are Dead
-The footer "Use Cases" links all point to `href="#"` (OnlyFans Agencies, Fansly Management, Multi-Platform). The Privacy Policy link also points to `#` instead of `/privacy`.
-
-**Fix:** Either create the target pages or remove the dead links.
-
-### 8. SEO Canonical URL Points to Lovable Subdomain
-`index.html` has `<link rel="canonical" href="https://creatorss.lovable.app" />` and all OG/Twitter meta tags reference this URL. For a production launch with a custom domain, these must be updated.
-
-**Fix:** Update canonical URL, OG URLs, and structured data to the production domain.
+What needs to be built:
+1. **Password reset flow**: Add "Forgot Password?" link → call `resetPasswordForEmail()` → create `/reset-password` page that reads the recovery token and calls `updateUser({ password })`
+2. **Resend verification email**: Add button on the verification screen calling `supabase.auth.resend({ type: 'signup', email })` with a 60-second cooldown
+3. **Custom email templates** (optional): Set up a custom sender domain so emails come from your brand instead of the default. This requires DNS configuration.
 
 ---
 
-## MEDIUM PRIORITY (Polish for Launch Quality)
+## 3. Security Vulnerabilities (from fresh scan)
 
-### 9. Console Logging in Production
-85+ `console.log/error/warn` calls across page components. These leak internal state and error details to end users who open DevTools.
+Five findings, two critical:
 
-**Fix:** Replace with the existing `createLogger()` utility which respects the `IS_DEV` flag.
-
-### 10. `window.__logoUploadHandler` Global Mutation
-Both `Settings.tsx` and `AgencyOnboardingWizard.tsx` attach upload handlers to `window` as a global. This is fragile and can cause conflicts.
-
-**Fix:** Use React context or a callback prop instead.
-
-### 11. Pricing Inconsistency
-Landing page says "$100 per creator" as the base unit, but the Core plan is $69/mo for 1 creator. The "Save 31%" badge implies $100 is the full price, but no standalone $100/creator option exists in-app.
-
-**Fix:** Clarify messaging — either offer a true $100/creator a-la-carte option or reframe the discount language.
-
-### 12. `googleLoading` State Shared Between Google and Apple Buttons
-In `Auth.tsx`, the Apple sign-in button reuses `googleLoading` state, meaning clicking Apple disables the Google button and vice versa with the wrong spinner.
-
-**Fix:** Add a separate `appleLoading` state or use a generic `oauthProvider` state.
+| # | Severity | Issue | Fix |
+|---|----------|-------|-----|
+| 1 | **Critical** | Agency users can self-modify `subscription_tier`, `max_creators`, billing fields | Restrict UPDATE policy to non-billing columns only |
+| 2 | **Critical** | Employees can grant themselves OF permissions (`employee_of_permissions` INSERT/UPDATE) | Add `user_type = 'agency'` check to write policies |
+| 3 | Warn | Any authenticated user can insert fabricated `session_access_logs` | Remove the permissive policy, keep agency-scoped one |
+| 4 | Warn | Creators can inject messages into other creators' conversations | Add `conversation_id` check to creator INSERT policy |
+| 5 | Info | RLS enabled but no policies on some tables | Add policies or confirm service-role-only access |
 
 ---
 
-## LOW PRIORITY (Nice to Have)
+## 4. Other Missing Items for Launch
 
-### 13. No Loading State on Landing Page
-The landing page eagerly loads all sections (Hero, Pain Points, Features, AI Tools, Comparison, How It Works, Testimonials, Pricing, CTA). For slower connections, consider lazy loading below-the-fold sections.
-
-### 14. Structured Data `highPrice` Mismatch
-`index.html` schema.org has `"highPrice": "399"` but the highest priced plan is $249 (Pro). Enterprise is "Custom".
-
-### 15. Missing `apple-touch-icon` Proper Sizes
-The same `favicon.png` is used for both regular and 180x180 apple touch icon. Consider providing proper sized icons.
+| Area | Status | What's needed |
+|------|--------|---------------|
+| **SEO meta** | Points to `creatorss.lovable.app` | Update `index.html` canonical, OG, and structured data URLs to your production domain |
+| **Structured data** | `highPrice: 399` but highest plan is $249 | Fix to match actual pricing |
+| **Notification settings** | UI toggles exist but don't persist | Either wire to a table or remove the tab |
+| **OAuth loading state** | `googleLoading` shared for Google and Apple buttons | Separate into per-provider states |
+| **Dead footer links** | "Use Cases" links all point to `#` | Wire to real pages or remove |
+| **Marketing claims** | "500+ Agencies", "10,000+ Creators" hardcoded | Soften or verify |
+| **Console logging** | 85+ `console.log` calls in production | Replace with `createLogger()` |
 
 ---
 
 ## Recommended Implementation Order
 
-1. **Security fixes** (of_cache RLS, GHL webhook signature) — database migrations + edge function edit
-2. **Password reset flow** — new page + auth page updates
-3. **Email resend button** — small Auth.tsx update
-4. **Fix dead footer links** — point to real routes
-5. **Remove/fix notification settings** — either build or remove
-6. **Update SEO meta for production domain** — index.html edit
-7. **Fix OAuth loading state bug** — Auth.tsx
-8. **Replace console.log with logger** — across pages
-9. **Review marketing claims** — business decision
-10. **Remove window global hack** — refactor LogoUpload
+### Phase 1 — Security (must-fix before any real users)
+- DB migration: restrict `agencies` UPDATE policy to non-billing columns
+- DB migration: restrict `employee_of_permissions` writes to agency users
+- DB migration: fix `session_access_logs` and `messages` policies
+- Add `GHL_WEBHOOK_SECRET` secret
 
-Would you like me to implement these fixes? I recommend starting with the security blockers and auth flow gaps.
+### Phase 2 — Auth flows
+- Add "Forgot Password" + `/reset-password` page
+- Add "Resend verification" button with cooldown
+- Fix OAuth loading state bug
+
+### Phase 3 — Payments
+- Either: Enable Stripe via Lovable's native integration (simpler, no GHL dependency)
+- Or: Configure GHL payment funnel URLs and return them from `ghl-create-checkout`
+
+### Phase 4 — Polish
+- Update SEO meta for production domain
+- Fix dead footer links
+- Remove non-functional notification settings
+- Clean up console.log statements
+- Fix structured data pricing
+
+Shall I start implementing? I recommend beginning with Phase 1 (security migrations) and Phase 2 (auth flows) together.
 
