@@ -9,8 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
-  Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings
+   Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
+   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings, Play
 } from "lucide-react";
 import { TatumAPISettings } from "@/components/tatum/TatumAPISettings";
 import { useNavigate } from "react-router-dom";
@@ -49,6 +49,7 @@ interface TrendItem {
 interface NicheContentPlan {
   reference_url: string;
   reference_title: string;
+  reference_video_url?: string;
   platform: string;
   what_works: string;
   recreation_prompt: string;
@@ -570,14 +571,24 @@ export default function SocialMediaManager() {
                           </div>
                           <h4 className="font-semibold text-sm">{item.reference_title}</h4>
                         </div>
-                        {item.reference_url && (
-                          <Button size="sm" variant="outline" className="gap-1.5 shrink-0 text-xs" asChild>
-                            <a href={item.reference_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3 w-3" />
-                              View Reference
-                            </a>
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {item.reference_video_url && (
+                            <Button size="sm" variant="default" className="gap-1.5 text-xs" asChild>
+                              <a href={item.reference_video_url} target="_blank" rel="noopener noreferrer">
+                                <Play className="h-3 w-3" />
+                                Watch Video
+                              </a>
+                            </Button>
+                          )}
+                          {item.reference_url && (
+                            <Button size="sm" variant="outline" className="gap-1.5 text-xs" asChild>
+                              <a href={item.reference_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-3 w-3" />
+                                View Reference
+                              </a>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <div>
