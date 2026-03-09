@@ -1,294 +1,105 @@
 
-# Production Launch Plan — BunnyWorksOS (bunnyworks.io)
 
-## Current State Summary
-- **Custom domain**: `bunnyworks.io` ✅ configured
-- **Email domain**: ❌ NOT configured — auth emails come from generic sender
-- **Payments**: GHL integration exists but will be **replaced with Stripe**
-- **SEO**: ❌ All meta/canonical/OG tags still point to `creatorss.lovable.app`
-- **Auth flows**: ❌ No password reset, no email resend button
+# CDP Capabilities Audit and Roadmap
 
----
+## What You Already Have (Built)
 
-## Phase 1 — Remove GHL & Enable Stripe
+| Capability | CDP Domain | Status |
+|---|---|---|
+| Page navigation (back/forward/reload/goto) | `Page.navigate`, `Runtime.evaluate` | Done |
+| Login state detection (CSS + AI fallback) | `Runtime.evaluate` | Done |
+| Auto-login (type email, password, click submit) | `Runtime.evaluate` with native setter | Done |
+| Earnings scraping (XHR interception + DOM fallback) | `Network.enable`, `Network.getResponseBody`, `Runtime.evaluate` | Done |
+| Cookie verification | `Network.getCookies` | Done |
+| Timezone/locale spoofing | `Emulation.setTimezoneOverride`, `Emulation.setLocaleOverride` | Done |
+| Sidebar restriction injection (CSS hide) | `Runtime.evaluate` (inject `<style>`) | Done |
+| Chat context reading (Izzy/Jodie) | `Runtime.evaluate` (DOM scrape) | Done |
+| Chat text injection | `Runtime.evaluate` (native setter) | Done |
+| Profile warmup (visit sites, scroll) | `Page.navigate`, `Runtime.evaluate` | Done |
+| Arbitrary JS execution | `Runtime.evaluate` | Done |
+| CAPTCHA event detection | Browserbase logs API | Done |
 
-### 1a. Remove GHL Integration
-**Files to delete:**
-- `supabase/functions/ghl-create-checkout/index.ts`
-- `supabase/functions/ghl-webhook/index.ts`
+## What You Can Add with CDP (No Stagehand Needed)
 
-**Files to update:**
-- `supabase/config.toml` — remove `[functions.ghl-create-checkout]` and `[functions.ghl-webhook]`
-- `src/hooks/useSubscription.ts` — remove `initiateCheckout` (will be replaced by Stripe checkout)
-- `src/pages/Settings.tsx` — remove GHL checkout references
+### 1. Auto-Credential Capture on First Manual Login
+When an agency owner manually logs in for the first time, CDP can **intercept the login form submission** and automatically save the credentials to `creator_credential_submissions` — so you never lose them again.
 
-**Secrets to delete:**
-- `GHL_API_KEY`
+**How:** `Network.requestWillBeSent` event listener watches for POST requests to OnlyFans login endpoints. Extract email/password from the request body, base64-encode the password, and upsert into the database.
 
-**DB columns to clean up (migration):**
-- `agencies.ghl_contact_id` — drop column
-- `agencies.ghl_location_id` — drop column
+### 2. Fan List / Subscriber Scraping
+Scrape `/my/subscribers/active` to extract fan usernames, subscription dates, and spend tiers. Upsert into `of_fans`.
 
-### 1b. Enable Stripe Integration
-- Use Lovable's native Stripe integration (`stripe--enable_stripe`)
-- Create Stripe products/prices matching tiers: Core ($69), Scale ($129), Pro ($249)
-- Implement checkout flow with Stripe Checkout Sessions
-- Handle subscription webhooks for status updates
-- Wire `useSubscription` to use Stripe instead of GHL
+**How:** Navigate via CDP, then `Runtime.evaluate` to extract the subscriber table DOM or intercept `/api2/v2/subscriptions` XHR responses (same pattern as earnings scraper).
 
----
+### 3. Chat History Scraping
+Scrape `/my/chats` to pull recent conversation lists — fan names, last message time, unread count. Feed into `of_chats`.
 
-## Phase 2 — Email Domain Setup
+**How:** Same XHR interception pattern targeting `/api2/v2/chats` endpoints.
 
-### 2a. Configure Email Sending Domain
-- Set up `bunnyworks.io` as the email sending domain
-- Add required DNS records (SPF, DKIM, DMARC) at domain registrar
-- This ensures password reset, verification, and notification emails come from `@bunnyworks.io`
+### 4. Mass Message Automation
+Type and send mass messages via CDP — fill in the compose form, attach vault content, select recipients, and click send.
 
-### 2b. Custom Email Templates (optional)
-- Brand the password reset, signup confirmation, and magic link emails
-- Use Lovable Cloud's email template configuration
+**How:** Same `Runtime.evaluate` pattern as `inject_chat_text` but targeting the mass message composer at `/my/mass_messages/create`.
 
----
+### 5. Vault Content Listing
+Scrape `/my/vault` to catalog all uploaded media (images, videos) with metadata. Feed into content vault tracking.
 
-## Phase 3 — Auth Flow Gaps
+**How:** DOM extraction or XHR interception on vault API endpoints.
 
-### 3a. Password Reset Flow
-- Add "Forgot Password?" link to `Auth.tsx` and `EmployeeAuth.tsx`
-- Call `supabase.auth.resetPasswordForEmail()` with redirect to `/reset-password`
-- Create `/reset-password` page: reads recovery token, allows setting new password via `updateUser({ password })`
-- Add route to `routeConfig.tsx`
+### 6. Post Scheduling / Auto-Posting
+Fill in the post composer form — text, price, media attachments, schedule date — and submit. Enables scheduled content posting.
 
-### 3b. Email Verification Resend
-- Add "Resend verification email" button on the post-signup confirmation screen
-- Call `supabase.auth.resend({ type: 'signup', email })` with 60-second cooldown timer
+**How:** `Runtime.evaluate` to interact with the post creation form at `/my/posts/create`.
 
-### 3c. Fix OAuth Loading State
-- Separate `googleLoading` / `appleLoading` states in `Auth.tsx` so buttons don't conflict
+### 7. Notification Scraping
+Read `/my/notifications` to detect new subscribers, tips, purchases, and expired subs. Feed into real-time activity feeds.
 
----
+**How:** XHR interception on notification API endpoints or DOM scraping.
 
-## Phase 4 — Security Hardening
+### 8. Screenshot Capture
+Take screenshots of the live session for QC review, proof of work, or debugging.
 
-### 4a. Agency Billing Fields (Critical)
-- Restrict `agencies` UPDATE RLS policy so clients can only modify: `name`, `website`, `logo_url`, `commission_rate`, `browser_session_mode`, `browser_sync_enabled`, `onboarding_completed`, `onboarding_step`
-- All billing/subscription fields (`subscription_tier`, `subscription_status`, `max_creators`, `max_employees`, `subscription_*`, `trial_ends_at`) writable only by service_role
+**How:** `Page.captureScreenshot` CDP command. Returns base64 PNG. Store in the `content-vault` bucket.
 
-### 4b. Employee Permissions Escalation (Critical)
-- `employee_of_permissions` INSERT/UPDATE policies must verify the caller is an agency owner, not an employee granting themselves access
+### 9. Auto-2FA Handler
+When a 2FA/email code is needed during login, detect the 2FA input field via DOM inspection, then prompt the agency owner (via push notification or in-app alert) to enter the code. Once entered, type it via CDP.
 
-### 4c. Session Access Logs
-- Remove overly permissive INSERT policy; keep agency-scoped one
+**How:** `Runtime.evaluate` to detect 2FA form, then `inject_chat_text`-style typing once the user provides the code through the UI.
 
-### 4d. Messages Cross-Creator Injection
-- Add `conversation_id` ownership check to creator INSERT policy on `messages`
+### 10. Cookie Export/Import
+Export all cookies from a session and store them as JSON. Import them into new sessions for cross-device or backup restoration.
 
----
+**How:** `Network.getAllCookies` to export, `Network.setCookies` to import.
 
-## Phase 5 — SEO & Meta Updates
+### 11. DOM Mutation Monitoring
+Watch for real-time DOM changes (new messages arriving, notifications popping up) and trigger actions.
 
-### 5a. Update index.html
-All references to `creatorss.lovable.app` → `bunnyworks.io`:
-- `<link rel="canonical">`
-- `og:url`, `og:image`
-- `twitter:image`
-- Structured data `provider.url`
+**How:** `Runtime.evaluate` to install a `MutationObserver`, then poll results or use `Runtime.addBinding` + `Runtime.bindingCalled` events.
 
-### 5b. Fix Structured Data
-- `highPrice: 399` → `249` (Pro plan is highest at $249; Enterprise is "Custom")
-- `offerCount: 4` → `3` (3 priced plans + 1 custom)
+### 12. Network Request Blocking
+Block analytics trackers, ad scripts, or specific endpoints to speed up page loads and reduce fingerprint surface.
 
-### 5c. Fix Dead Footer Links
-- "Use Cases" links point to `#` — either create pages or remove links
-- Privacy Policy footer link → `/privacy`
+**How:** `Network.setBlockedURLs` or `Fetch.enable` with request interception patterns.
 
----
+## Priority Recommendation
 
-## Phase 6 — UI Polish
+```text
+HIGH IMPACT (build next):
+  1. Auto-Credential Capture    ← solves your recurring credential loss problem
+  2. Screenshot Capture         ← enables QC workflows
+  3. Fan List Scraping          ← feeds fan analytics dashboard
 
-### 6a. Notification Settings
-- Settings > Notifications tab has non-functional Switch toggles with hardcoded values
-- Either: wire to a `notification_preferences` table, or remove the tab until implemented
+MEDIUM IMPACT:
+  4. Chat History Scraping      ← powers messaging analytics
+  5. Notification Scraping      ← real-time activity feed
+  6. Cookie Export/Import       ← backup & cross-device
 
-### 6b. Marketing Claims
-- Hero: "500+ Agencies", "10,000+ Creators", "$50M+ Revenue" are hardcoded
-- Soften to "Trusted by growing agencies" or verify numbers
-
-### 6c. Testimonials
-- 3 testimonials with first-name-last-initial — verify they're real or add disclaimer
-
-### 6d. Console Logging Cleanup
-- 85+ `console.log/error/warn` calls in page components
-- Replace with `createLogger()` utility which respects `IS_DEV` flag
-
-### 6e. `window.__logoUploadHandler` Global
-- Replace with React context or callback prop
-
----
-
-## Phase 7 — Tatum AI Social Media Agent Enhancement
-
-### 7a. Trending Sounds & Hashtags Discovery (All Platforms)
-
-**New edge function actions in `ai-social-media-manager`:**
-
-#### TikTok Trends
-- Scrape TikTok Creative Center (`ads.tiktok.com/business/creativecenter`) via Firecrawl for:
-  - Trending hashtags with view counts
-  - Trending sounds/audio with usage counts
-  - Top-performing content formats
-- Action: `discover_tiktok_trends`
-
-#### Instagram Trends
-- **Instagram Graph API** (native) for connected Business/Creator accounts:
-  - Post insights (reach, impressions, saves, shares)
-  - Story/Reel metrics
-  - Follower demographics
-  - Hashtag search volume
-- Firecrawl fallback for public profile scraping when accounts aren't connected
-- Action: `discover_instagram_trends`
-- **Requires**: Meta App ID + App Secret, creator OAuth consent
-
-#### Twitter/X Trends
-- **X API v2** (native):
-  - Trending topics by location
-  - Tweet engagement metrics (likes, retweets, quotes, impressions)
-  - User growth metrics
-- Action: `discover_twitter_trends`
-- **Requires**: `TWITTER_CONSUMER_KEY`, `TWITTER_CONSUMER_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`
-
-#### Reddit Trends
-- **Reddit Data API** (native):
-  - Subreddit trending posts (hot/rising)
-  - Post engagement (upvotes, comments, awards)
-  - Cross-post performance tracking
-  - Niche community discovery for creator promotion
-- Action: `discover_reddit_trends`
-- **Requires**: `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`
-
-### 7b. Creator Social Media Analytics
-
-**New DB table: `social_analytics_snapshots`**
-```sql
-CREATE TABLE social_analytics_snapshots (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  agency_id UUID REFERENCES agencies(id) NOT NULL,
-  creator_id UUID REFERENCES creators(id) NOT NULL,
-  platform TEXT NOT NULL, -- 'tiktok', 'instagram', 'twitter', 'reddit'
-  followers INTEGER,
-  following INTEGER,
-  total_posts INTEGER,
-  avg_engagement_rate NUMERIC(5,2),
-  avg_likes INTEGER,
-  avg_comments INTEGER,
-  avg_shares INTEGER,
-  top_post_url TEXT,
-  top_post_engagement JSONB,
-  raw_data JSONB,
-  captured_at TIMESTAMPTZ DEFAULT now(),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+LOWER PRIORITY:
+  7. Mass Message Automation
+  8. Post Scheduling
+  9. Auto-2FA Handler
+ 10. Network Request Blocking
 ```
 
-**New edge function action: `fetch_creator_analytics`**
-- Pull analytics from each connected platform
-- Store snapshot in `social_analytics_snapshots`
-- Compare with previous snapshot to calculate growth rates
-- AI summarizes performance trends
+All of these use the exact same CDP WebSocket pattern you already have in `cdp-helpers.ts` — connect, `Target.getTargets`, `Target.attachToTarget`, then the relevant domain commands. No new dependencies needed.
 
-### 7c. Virality Score Engine
-
-**Scoring algorithm (computed by AI + heuristics):**
-- **Engagement velocity**: likes/views in first hour
-- **Share-to-view ratio**: viral coefficient
-- **Comment sentiment**: positive = higher score
-- **Cross-platform spread**: content appearing on multiple platforms
-- **Trend alignment**: how well content matches current trending topics
-
-**New DB table: `content_virality_scores`**
-```sql
-CREATE TABLE content_virality_scores (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  agency_id UUID REFERENCES agencies(id) NOT NULL,
-  content_plan_id UUID REFERENCES content_plans(id),
-  platform TEXT NOT NULL,
-  virality_score INTEGER CHECK (virality_score BETWEEN 0 AND 100),
-  confidence NUMERIC(3,2),
-  factors JSONB, -- breakdown of score components
-  recommendation TEXT,
-  scored_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-**New edge function action: `score_content_virality`**
-- Input: content idea/caption + platform + creator niche
-- Tatum compares against current trends, creator's historical performance, platform-specific patterns
-- Returns: 0-100 score + confidence + factor breakdown + optimization tips
-
-### 7d. API Architecture
-
-```
-Frontend (SocialMediaManager.tsx)
-  │
-  ▼
-ai-social-media-manager (edge function)
-  │
-  ├── discover_tiktok_trends ──→ Firecrawl (TikTok Creative Center)
-  ├── discover_instagram_trends ──→ Instagram Graph API (native) / Firecrawl fallback
-  ├── discover_twitter_trends ──→ X API v2 (native)
-  ├── discover_reddit_trends ──→ Reddit API (native)
-  ├── fetch_creator_analytics ──→ All connected platform APIs
-  ├── score_content_virality ──→ AI + historical data + trend data
-  │
-  └── Existing actions:
-      ├── generate_posts
-      ├── generate_calendar
-      ├── analyze_strategy
-      ├── analyze_trends
-      └── niche_content_plan
-```
-
-### 7e. API Keys Required
-
-| API | Secrets Needed | Cost | Status |
-|-----|---------------|------|--------|
-| Firecrawl | `FIRECRAWL_API_KEY` | Connected | ✅ Ready |
-| TikTok Creative Center | None (public, scraped via Firecrawl) | Free | ✅ Ready |
-| Instagram Graph API | `META_APP_ID`, `META_APP_SECRET` | Free | ❌ Need Meta App |
-| X API v2 | `TWITTER_CONSUMER_KEY`, `TWITTER_CONSUMER_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET` | $100/mo Basic | ❌ Need X Developer Account |
-| Reddit API | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Free | ❌ Need Reddit App |
-
-### 7f. Implementation Order
-
-| Step | What | Effort | Dependencies |
-|------|------|--------|-------------|
-| 1 | TikTok trend discovery via Firecrawl | Small | None (ready now) |
-| 2 | Reddit trend discovery | Small | Reddit app credentials |
-| 3 | Virality scoring engine | Medium | Step 1 data |
-| 4 | Social analytics snapshots table + UI | Medium | None |
-| 5 | Twitter/X integration | Medium | X API credentials ($100/mo) |
-| 6 | Instagram Graph API integration | Large | Meta App + OAuth flow |
-| 7 | Analytics dashboard tab in Tatum UI | Medium | Steps 1-4 |
-
----
-
-## Implementation Order (Overall)
-
-| Step | Phase | Priority | Effort |
-|------|-------|----------|--------|
-| 1 | Remove GHL code & secrets | Blocker | Small |
-| 2 | Enable Stripe integration | Blocker | Medium |
-| 3 | Set up email domain (bunnyworks.io) | Blocker | Small (DNS) |
-| 4 | Password reset flow | Blocker | Medium |
-| 5 | Email resend button | Blocker | Small |
-| 6 | Security RLS migrations | Blocker | Medium |
-| 7 | Update SEO meta to bunnyworks.io | High | Small |
-| 8 | Fix dead footer links | High | Small |
-| 9 | Tatum: TikTok + Reddit trends (Phase 7, Steps 1-2) | High | Small |
-| 10 | Tatum: Virality scoring (Phase 7, Step 3) | High | Medium |
-| 11 | Tatum: Analytics dashboard (Phase 7, Steps 4+7) | Medium | Medium |
-| 12 | Tatum: X/Instagram native APIs (Phase 7, Steps 5-6) | Medium | Large |
-| 13 | Fix OAuth loading state | Medium | Small |
-| 14 | Fix notification settings | Medium | Small |
-| 15 | Soften marketing claims | Medium | Small |
-| 16 | Console logging cleanup | Low | Medium |
