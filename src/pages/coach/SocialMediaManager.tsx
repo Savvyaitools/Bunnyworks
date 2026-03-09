@@ -9,8 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
-  Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings
+   Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
+   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings, Play
 } from "lucide-react";
 import { TatumAPISettings } from "@/components/tatum/TatumAPISettings";
 import { useNavigate } from "react-router-dom";
