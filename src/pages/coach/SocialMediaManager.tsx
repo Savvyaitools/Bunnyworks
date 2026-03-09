@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
   Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft
+  DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings
 } from "lucide-react";
+import { TatumAPISettings } from "@/components/tatum/TatumAPISettings";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -394,6 +395,9 @@ export default function SocialMediaManager() {
             </TabsTrigger>
             <TabsTrigger value="strategy" className="gap-1.5">
               <BarChart3 className="h-4 w-4" /> Strategy
+            </TabsTrigger>
+            <TabsTrigger value="api-settings" className="gap-1.5">
+              <Settings className="h-4 w-4" /> API Settings
             </TabsTrigger>
           </TabsList>
 
