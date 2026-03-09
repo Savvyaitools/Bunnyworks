@@ -87,7 +87,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
           // Flash notification for high-confidence suggestions
           const highConf = data.suggestions.find((s: Suggestion) => s.confidence >= confidenceThreshold);
           if (highConf) {
-            toast.info("Jodie has a high-confidence reply ready", { duration: 3000 });
+            toast.info("Marylin has a high-confidence reply ready", { duration: 3000 });
           }
         }
       } catch (err) {
