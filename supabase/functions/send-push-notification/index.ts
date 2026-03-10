@@ -120,7 +120,7 @@ async function sendWebPush(
   const claims = {
     aud: `${url.protocol}//${url.host}`,
     exp: now + 60 * 60 * 12,
-    sub: `mailto:noreply@creatorss.lovable.app`,
+    sub: `mailto:noreply@bunnyworks.io`,
   };
 
   const jwt = await createVapidJwt(header, claims, vapidPrivateKey);

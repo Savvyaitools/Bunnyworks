@@ -41,8 +41,8 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       manifest: {
-        name: "Creator OS - Agency Management",
-        short_name: "Creator OS",
+        name: "BunnyWorksOS - Agency Management",
+        short_name: "BunnyWorksOS",
         description: "The all-in-one CRM for OnlyFans agencies",
         theme_color: "#080808",
         background_color: "#080808",
