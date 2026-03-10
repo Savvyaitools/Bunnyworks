@@ -61,7 +61,7 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
 
   return (
     <div
-      className="creator-card animate-fade-in cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+      className="creator-card animate-fade-in cursor-pointer hover:border-primary/50 transition-colors"
       style={{ animationDelay: `${150 + index * 50}ms` }}
       onClick={handleCardClick}
     >
