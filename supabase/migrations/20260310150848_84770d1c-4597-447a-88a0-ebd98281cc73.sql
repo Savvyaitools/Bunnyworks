@@ -1,0 +1,2 @@
+ALTER TABLE public.creator_social_accounts DROP CONSTRAINT creator_social_accounts_account_type_check;
+ALTER TABLE public.creator_social_accounts ADD CONSTRAINT creator_social_accounts_account_type_check CHECK (account_type = ANY (ARRAY['agency_managed'::text, 'creator_managed'::text, 'social'::text]));

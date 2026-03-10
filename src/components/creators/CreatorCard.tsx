@@ -61,7 +61,7 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
 
   return (
     <div
-      className="creator-card animate-fade-in cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+      className="creator-card animate-fade-in cursor-pointer hover:border-primary/50 transition-colors"
       style={{ animationDelay: `${150 + index * 50}ms` }}
       onClick={handleCardClick}
     >
@@ -147,6 +147,16 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
       </div>
 
 
+      {/* Status Badge */}
+      <div className="flex items-center justify-center gap-2 mb-3">
+        <Badge variant={creator.status === "Active" ? "default" : "secondary"} className="text-xs">
+          {creator.status}
+        </Badge>
+        <span className={cn("text-xs", creator.online_status ? "text-success" : "text-muted-foreground")}>
+          {creator.online_status ? "● Online" : "○ Offline"}
+        </span>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
@@ -162,11 +172,27 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
             <Mail className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground truncate max-w-[100px]">{creator.email.split("@")[0]}</p>
+            <p className="text-sm font-medium text-foreground truncate max-w-[120px]" title={creator.email}>{creator.email.split("@")[0]}</p>
             <p className="text-xs text-muted-foreground">Contact</p>
           </div>
         </div>
       </div>
+
+      {/* Additional Info */}
+      {(creator.phone || creator.commission_rate !== null) && (
+        <div className="grid grid-cols-2 gap-4 pt-3 mt-3 border-t border-border/50">
+          {creator.phone && (
+            <div className="text-xs text-muted-foreground truncate" title={creator.phone}>
+              📞 {creator.phone}
+            </div>
+          )}
+          {creator.commission_rate !== null && (
+            <div className="text-xs text-muted-foreground">
+              💰 {(creator.commission_rate * 100).toFixed(0)}% commission
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
