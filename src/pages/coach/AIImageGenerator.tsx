@@ -13,7 +13,7 @@ export default function AIImageGenerator() {
           className="w-full absolute inset-0"
           style={{ height: "calc(100% + 36px)", minHeight: "500px" }}
           allow="clipboard-write"
-          title="AI Image Generator"
+          title="Naked Savvy"
         />
       </div>
     </DashboardLayout>

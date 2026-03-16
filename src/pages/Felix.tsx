@@ -109,7 +109,7 @@ const agents: AgentCardProps[] = [
     color: "success", href: "/of-ai/chatter", badge: "Revenue",
   },
   {
-    name: "AI Image Generator", role: "Image Creation & Editing",
+    name: "Naked Savvy", role: "Image Creation & Editing",
     description: "Generate and edit images using AI. Create stunning visuals, edit existing images, and produce content-ready media.",
     icon: ImageIcon, features: ["AI image generation", "Image editing & enhancement", "Multiple style options", "Quick content creation"],
     color: "warning", href: "/of-ai/image-generator", badge: "Creative",
