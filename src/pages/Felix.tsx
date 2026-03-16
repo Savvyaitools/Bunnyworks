@@ -114,6 +114,12 @@ const agents: AgentCardProps[] = [
     icon: ImageIcon, features: ["AI image generation", "Image editing & enhancement", "Multiple style options", "Quick content creation"],
     color: "warning", href: "/of-ai/image-generator", badge: "Creative",
   },
+  {
+    name: "Only Voice", role: "AI Voice Generator",
+    description: "Clone and generate realistic AI voices for text-to-speech. Create custom voice content with natural-sounding speech.",
+    icon: Mic, features: ["Voice cloning & TTS", "Natural speech generation", "Multiple voice styles", "Audio content creation"],
+    color: "primary", href: "/of-ai/voice-generator", badge: "Audio",
+  },
 ];
 
 // ─── Quick Stats Bar ───────────────────────────────────────────────
