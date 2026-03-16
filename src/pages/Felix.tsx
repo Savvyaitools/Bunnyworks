@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Bot, Brain, Share2, MessagesSquare, ArrowRight, Sparkles, UserCog,
   CheckCircle2, Clock, ListTodo, TrendingUp, MessageCircle, FileText,
-  Activity, CircleDot, AlertCircle, ImageIcon
+  Activity, CircleDot, AlertCircle, ImageIcon, Mic
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { FelixChat } from "@/components/ai/FelixChat";
@@ -113,6 +113,12 @@ const agents: AgentCardProps[] = [
     description: "Generate and edit images using AI. Create stunning visuals, edit existing images, and produce content-ready media.",
     icon: ImageIcon, features: ["AI image generation", "Image editing & enhancement", "Multiple style options", "Quick content creation"],
     color: "warning", href: "/of-ai/image-generator", badge: "Creative",
+  },
+  {
+    name: "Only Voice", role: "AI Voice Generator",
+    description: "Clone and generate realistic AI voices for text-to-speech. Create custom voice content with natural-sounding speech.",
+    icon: Mic, features: ["Voice cloning & TTS", "Natural speech generation", "Multiple voice styles", "Audio content creation"],
+    color: "primary", href: "/of-ai/voice-generator", badge: "Audio",
   },
 ];
 
