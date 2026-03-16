@@ -224,33 +224,17 @@ export function AgencyOnboardingWizard() {
                 />
               </div>
 
-              {/* Logo + Commission in a compact layout */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="space-y-2">
-                  <Label className="text-xs">Logo <span className="text-muted-foreground">(optional)</span></Label>
-                  <LogoUpload
-                    currentLogoUrl={logoUrl}
-                    agencyName={formData.name || "Agency"}
-                    onUploadComplete={() => {}}
-                    onDelete={deleteLogo}
-                    uploading={uploading}
-                    size="md"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs">Commission</Label>
-                    <span className="text-sm font-semibold text-primary">{formData.commissionRate}%</span>
-                  </div>
-                  <Slider
-                    value={[formData.commissionRate]}
-                    onValueChange={(value) => setFormData({ ...formData, commissionRate: value[0] })}
-                    max={100}
-                    step={1}
-                    className="w-full mt-3"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Your agency's cut from earnings</p>
-                </div>
+              {/* Logo */}
+              <div className="pt-2 space-y-2">
+                <Label className="text-xs">Logo <span className="text-muted-foreground">(optional)</span></Label>
+                <LogoUpload
+                  currentLogoUrl={logoUrl}
+                  agencyName={formData.name || "Agency"}
+                  onUploadComplete={() => {}}
+                  onDelete={deleteLogo}
+                  uploading={uploading}
+                  size="md"
+                />
               </div>
             </div>
 
