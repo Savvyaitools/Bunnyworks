@@ -195,6 +195,8 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         creatorId={activeSession.creatorId}
         viewerCount={activeSession.viewerCount}
         sessionId={activeSession.sessionId}
+        sessionLinkId={activeSession.sessionLinkId}
+        browserbaseSessionId={activeSession.browserbaseSessionId}
         chatterId={chatterId}
       />
     );
