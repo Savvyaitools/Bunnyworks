@@ -160,6 +160,8 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         creatorName,
         creatorId,
         viewerCount: result.viewerCount ?? 1,
+        sessionLinkId,
+        browserbaseSessionId: result.sessionId,
         permissions: perms ? {
           can_view_chats: perms.can_view_chats ?? false,
           can_send_messages: perms.can_send_messages ?? false,
