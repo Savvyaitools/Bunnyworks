@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -23,32 +23,48 @@ const SUSPICIOUS_PATTERNS = [
   /roleplay.{0,20}as/i,
 ];
 
+function jsonError(message: string, status = 400) {
+  return new Response(JSON.stringify({ error: message }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    // JWT auth
+    // ── JWT auth ────────────────────────────────────────────────────
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    if (!authHeader?.startsWith('Bearer ')) return jsonError('Unauthorized', 401);
+
     const anonClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: claimsErr } = await anonClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    if (claimsErr || !claimsData?.claims) return jsonError('Unauthorized', 401);
 
-    const { query, agencyId, userId, queryType = 'general', conversationHistory = [] } = await req.json();
-    if (!query || typeof query !== 'string') return new Response(JSON.stringify({ error: 'Invalid query' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const authenticatedUserId = claimsData.claims.sub as string;
+    if (!authenticatedUserId) return jsonError('Unauthorized', 401);
+
+    // ── Input validation ────────────────────────────────────────────
+    const { query, queryType = 'general', conversationHistory = [] } = await req.json();
+    if (!query || typeof query !== 'string') return jsonError('Invalid query');
     const trimmedQuery = query.trim();
-    if (trimmedQuery.length < 3) return new Response(JSON.stringify({ error: 'Query too short' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    if (trimmedQuery.length > 1000) return new Response(JSON.stringify({ error: 'Query too long' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    if (!agencyId || !userId) return new Response(JSON.stringify({ error: 'Missing agencyId or userId' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    for (const p of SUSPICIOUS_PATTERNS) { if (p.test(trimmedQuery)) return new Response(JSON.stringify({ error: 'I can only help with agency analytics and management questions.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
+    if (trimmedQuery.length < 3) return jsonError('Query too short');
+    if (trimmedQuery.length > 1000) return jsonError('Query too long');
+    for (const p of SUSPICIOUS_PATTERNS) {
+      if (p.test(trimmedQuery)) return jsonError('I can only help with agency analytics and management questions.');
+    }
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // ── Server-side agency verification (NEVER trust client-sent agencyId) ──
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('agency_id, full_name, email')
+      .eq('id', authenticatedUserId)
+      .single();
+
+    if (!userProfile?.agency_id) return jsonError('No agency associated with your account', 403);
+    const agencyId = userProfile.agency_id;
     const today = new Date().toISOString().split('T')[0];
 
     // Get IDs for agency-scoped filtering on tables without agency_id
@@ -65,7 +81,7 @@ serve(async (req) => {
       { data: recentEarnings }, { data: tasks }, { data: kpis }, { data: memories },
       { data: contentPlans }, { data: shifts }, { data: customRequests },
       { data: recruiting }, { data: socialAccounts }, { data: alerts },
-      { data: assignments }, { data: timeLogs }, { data: profile }
+      { data: assignments }, { data: timeLogs }
     ] = await Promise.all([
       supabase.from('agencies').select('*').eq('id', agencyId).single(),
       supabase.from('creators').select('*').eq('agency_id', agencyId),
@@ -95,7 +111,6 @@ serve(async (req) => {
       chatterIds.length > 0
         ? supabase.from('chatter_time_logs').select('*, chatters(name)').in('chatter_id', chatterIds).order('clock_in', { ascending: false }).limit(30)
         : Promise.resolve({ data: [] }),
-      supabase.from('profiles').select('full_name, email').eq('id', userId).single(),
     ]);
 
     // Update memory access timestamps
@@ -117,7 +132,7 @@ serve(async (req) => {
       : '';
 
     const agencyContext = `
-OWNER: ${profile?.full_name || 'Unknown'} (${profile?.email || ''})
+OWNER: ${userProfile.full_name || 'Unknown'} (${userProfile.email || ''})
 
 AGENCY OVERVIEW:
 - Name: ${agency?.name || 'Unknown'} | Tier: ${agency?.subscription_tier || 'Unknown'} | Commission: ${agency?.commission_rate || 0}%
@@ -216,8 +231,8 @@ Only for genuinely new insights. Skip for routine queries.`;
     });
 
     if (!response.ok) {
-      if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: 'AI credits exhausted.' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      if (response.status === 429) return jsonError('Rate limit exceeded.', 429);
+      if (response.status === 402) return jsonError('AI credits exhausted.', 402);
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
@@ -243,7 +258,7 @@ Only for genuinely new insights. Skip for routine queries.`;
     const allSources = ['agencies','creators','employees','chatters','creator_earnings','tasks','employee_kpis','content_plans','chatter_shifts','custom_requests','recruiting_creators','creator_social_accounts','ai_performance_alerts','creator_assignments','chatter_time_logs','agent_memories'];
 
     await supabase.from('felix_queries').insert({
-      agency_id: agencyId, user_id: userId, query: trimmedQuery, query_type: queryType,
+      agency_id: agencyId, user_id: authenticatedUserId, query: trimmedQuery, query_type: queryType,
       response: responseText, data_accessed: allSources
     });
 

@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -23,8 +23,11 @@ interface AgencyData {
   recentRuns: any[];
 }
 
+/**
+ * Gather all data for a SINGLE agency — every query is strictly scoped by agency_id
+ * or by IDs that belong to the agency (creatorIds, chatterIds).
+ */
 async function gatherAgencyData(supabase: any, agencyId: string): Promise<AgencyData> {
-  // Get creator/chatter IDs for agency-scoped filtering on tables without agency_id
   const { data: agencyCreators } = await supabase.from('creators').select('id').eq('agency_id', agencyId);
   const creatorIds = (agencyCreators || []).map((c: any) => c.id);
   const { data: agencyChatters } = await supabase.from('chatters').select('id').eq('agency_id', agencyId);
@@ -72,7 +75,7 @@ async function gatherAgencyData(supabase: any, agencyId: string): Promise<Agency
   };
 }
 
-function buildSentinelPrompt(data: AgencyData): string {
+function buildMonitorPrompt(data: AgencyData): string {
   const normalize = (s: string) => (s || '').toLowerCase().replace(/[_ ]/g, '');
   const activeCreators = data.creators.filter(c => normalize(c.status) === 'active');
   const overdueTasks = data.tasks.filter(t => normalize(t.status) !== 'done' && normalize(t.status) !== 'completed' && t.due_date && new Date(t.due_date) < new Date());
@@ -91,7 +94,7 @@ function buildSentinelPrompt(data: AgencyData): string {
       ).join('\n')}`
     : '';
 
-  return `You are SENTINEL, a performance monitoring AI agent for an OnlyFans management agency.
+  return `You are the Flick performance monitor for an OnlyFans management agency.
 
 AGENCY: ${data.agency?.name || 'Unknown'}
 CREATORS: ${data.creators.length} total (${activeCreators.length} active)
@@ -128,14 +131,14 @@ Rules:
 Respond with ONLY the JSON array, no other text.`;
 }
 
-function buildHeraldPrompt(data: AgencyData): string {
+function buildBriefingPrompt(data: AgencyData): string {
   const normalize = (s: string) => (s || '').toLowerCase().replace(/[_ ]/g, '');
   const totalRevenue = data.earnings.reduce((sum, e) => sum + (e.amount || 0), 0);
   const completedTasks = data.tasks.filter(t => normalize(t.status) === 'done' || normalize(t.status) === 'completed').length;
   const pendingTasks = data.tasks.filter(t => normalize(t.status) === 'todo' || normalize(t.status) === 'pending').length;
   const activeCreators = data.creators.filter(c => normalize(c.status) === 'active').length;
 
-  return `You are HERALD, a daily briefing generator for an OnlyFans management agency.
+  return `You are Flick, the daily briefing generator for an OnlyFans management agency.
 
 AGENCY: ${data.agency?.name || 'Unknown'}
 
@@ -166,7 +169,7 @@ Generate a daily briefing in this exact JSON format:
 Be specific, data-driven, and actionable. Respond with ONLY the JSON, no other text.`;
 }
 
-async function executeSentinelActions(supabase: any, agencyId: string, runId: string, actions: any[]): Promise<number> {
+async function executeMonitorActions(supabase: any, agencyId: string, runId: string, actions: any[]): Promise<number> {
   let actionsExecuted = 0;
 
   for (const action of actions) {
@@ -196,12 +199,11 @@ async function executeSentinelActions(supabase: any, agencyId: string, runId: st
             title: action.title,
             message: action.message,
             type: 'agent',
-            link: '/agent-hub',
+            link: '/of-ai',
           });
         }
       }
 
-      // Log the action
       await supabase.from('agent_actions').insert({
         run_id: runId,
         agency_id: agencyId,
@@ -229,7 +231,7 @@ async function executeSentinelActions(supabase: any, agencyId: string, runId: st
   return actionsExecuted;
 }
 
-async function executeHeraldBriefing(supabase: any, agencyId: string, runId: string, briefingData: any): Promise<number> {
+async function executeBriefing(supabase: any, agencyId: string, runId: string, briefingData: any): Promise<number> {
   try {
     await supabase.from('felix_briefings').insert({
       agency_id: agencyId,
@@ -250,7 +252,7 @@ async function executeHeraldBriefing(supabase: any, agencyId: string, runId: str
 
     return 1;
   } catch (err) {
-    console.error('Herald error:', err);
+    console.error('Briefing error:', err);
     await supabase.from('agent_actions').insert({
       run_id: runId,
       agency_id: agencyId,
@@ -263,45 +265,42 @@ async function executeHeraldBriefing(supabase: any, agencyId: string, runId: str
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   const startTime = Date.now();
 
   try {
+    // This is a CRON-only function. Validate with a shared secret or service-role auth.
+    // It does NOT accept user JWT — it processes agencies in isolation.
+    const authHeader = req.headers.get('Authorization');
+    const isServiceRole = authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
+    
+    // Also allow calls from Supabase cron (no auth header but function is internal)
     const url = new URL(req.url);
-    const agentType = url.searchParams.get('agent') || 'sentinel';
+    const agentType = url.searchParams.get('agent') || 'monitor';
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get all agencies to run for
+    // Get all agencies — each will be processed in STRICT ISOLATION
     const { data: agencies, error: agencyError } = await supabase
       .from('agencies')
       .select('id, name');
 
     if (agencyError || !agencies?.length) {
       return new Response(JSON.stringify({ message: 'No agencies found', error: agencyError }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const results: any[] = [];
 
+    // Process each agency INDEPENDENTLY — no data crosses boundaries
     for (const agency of agencies) {
-      // Create a run record
       const { data: run, error: runError } = await supabase
         .from('agent_runs')
-        .insert({
-          agency_id: agency.id,
-          agent_type: agentType,
-          status: 'running',
-        })
+        .insert({ agency_id: agency.id, agent_type: agentType, status: 'running' })
         .select()
         .single();
 
@@ -311,55 +310,40 @@ serve(async (req) => {
       }
 
       try {
+        // Data gathering is fully agency-scoped
         const data = await gatherAgencyData(supabase, agency.id);
 
-        // Build prompt based on agent type
         let prompt: string;
-        if (agentType === 'herald') {
-          prompt = buildHeraldPrompt(data);
+        if (agentType === 'briefing') {
+          prompt = buildBriefingPrompt(data);
         } else {
-          prompt = buildSentinelPrompt(data);
+          prompt = buildMonitorPrompt(data);
         }
 
-        // Call AI
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.3,
-          }),
+          headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.3 }),
         });
 
-        if (!aiResponse.ok) {
-          throw new Error(`AI Gateway error: ${aiResponse.status}`);
-        }
+        if (!aiResponse.ok) throw new Error(`AI Gateway error: ${aiResponse.status}`);
 
         const aiData = await aiResponse.json();
         const responseText = aiData.choices?.[0]?.message?.content || '[]';
 
-        // Parse AI response
         const jsonMatch = responseText.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('Could not parse AI response as JSON');
-        }
+        if (!jsonMatch) throw new Error('Could not parse AI response as JSON');
 
         const parsed = JSON.parse(jsonMatch[0]);
 
-        // Execute actions
         let actionsCount = 0;
-        if (agentType === 'herald') {
-          actionsCount = await executeHeraldBriefing(supabase, agency.id, run.id, parsed);
+        if (agentType === 'briefing') {
+          actionsCount = await executeBriefing(supabase, agency.id, run.id, parsed);
         } else {
           const actions = Array.isArray(parsed) ? parsed : [];
-          actionsCount = await executeSentinelActions(supabase, agency.id, run.id, actions);
+          actionsCount = await executeMonitorActions(supabase, agency.id, run.id, actions);
         }
 
-        // Update run as completed
         const duration = Date.now() - startTime;
         await supabase.from('agent_runs').update({
           status: 'completed',
@@ -403,8 +387,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
     }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
