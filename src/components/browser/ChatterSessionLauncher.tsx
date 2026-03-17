@@ -26,6 +26,8 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     creatorId?: string;
     permissions?: BrowserPermissions;
     viewerCount?: number;
+    sessionLinkId: string;
+    browserbaseSessionId: string;
   } | null>(null);
   const [launchingCreatorId, setLaunchingCreatorId] = useState<string | null>(null);
 
@@ -158,6 +160,8 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         creatorName,
         creatorId,
         viewerCount: result.viewerCount ?? 1,
+        sessionLinkId,
+        browserbaseSessionId: result.sessionId,
         permissions: perms ? {
           can_view_chats: perms.can_view_chats ?? false,
           can_send_messages: perms.can_send_messages ?? false,
@@ -191,6 +195,8 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
         creatorId={activeSession.creatorId}
         viewerCount={activeSession.viewerCount}
         sessionId={activeSession.sessionId}
+        sessionLinkId={activeSession.sessionLinkId}
+        browserbaseSessionId={activeSession.browserbaseSessionId}
         chatterId={chatterId}
       />
     );
