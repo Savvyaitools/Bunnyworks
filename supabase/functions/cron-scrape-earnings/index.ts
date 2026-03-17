@@ -121,8 +121,7 @@ async function scrapeEarningsForCreator(
       projectId,
       browserSettings: {
         context: { id: contextId, persist: true },
-        advancedStealth: true,
-        os: "windows",
+        ...(Deno.env.get("BROWSERBASE_ADVANCED_STEALTH") === "true" ? { advancedStealth: true, os: "windows" } : {}),
       },
       proxies,
       keepAlive: false,
