@@ -153,8 +153,6 @@ export function useFelix() {
       const { data, error: fnError } = await supabase.functions.invoke('ai-felix-query', {
         body: {
           query,
-          agencyId: agency.id,
-          userId: user.id,
           queryType,
           conversationHistory: historyForContext,
         }

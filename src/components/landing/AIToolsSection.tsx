@@ -37,9 +37,9 @@ const aiAgents = [
 ];
 
 const additionalAI = [
-  { icon: MessageSquare, title: "AI Fan Messaging", description: "Engage 10x more fans without hiring additional chatters." },
-  { icon: Mic, title: "AI Voice Cloner", description: "Clone creator voices for personalized audio content." },
-  { icon: Image, title: "AI Content Generator", description: "Generate platform-ready content at scale." },
+  { icon: MessageSquare, title: "JODIE Suggestions", description: "Real-time reply suggestions that match the creator's voice and style." },
+  { icon: Mic, title: "Only Voice", description: "Clone creator voices for personalized audio messages and content." },
+  { icon: Image, title: "Naked Savvy", description: "AI image generation and editing for content-ready visuals at scale." },
 ];
 
 const ease = [0.25, 0.4, 0.25, 1] as const;
