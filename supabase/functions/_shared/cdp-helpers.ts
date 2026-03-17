@@ -5,6 +5,7 @@
  */
 
 const BB_API = "https://api.browserbase.com/v1";
+const ENABLE_ADVANCED_STEALTH = Deno.env.get("BROWSERBASE_ADVANCED_STEALTH") === "true";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -904,7 +905,7 @@ export function sessionBody(
     projectId,
     browserSettings: {
       context: { id: contextId, persist: true },
-      advancedStealth: true,
+      ...(ENABLE_ADVANCED_STEALTH ? { advancedStealth: true } : {}),
       os: "windows",
     },
     proxies,
