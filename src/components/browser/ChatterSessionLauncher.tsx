@@ -26,6 +26,8 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
     creatorId?: string;
     permissions?: BrowserPermissions;
     viewerCount?: number;
+    sessionLinkId: string;
+    browserbaseSessionId: string;
   } | null>(null);
   const [launchingCreatorId, setLaunchingCreatorId] = useState<string | null>(null);
 
