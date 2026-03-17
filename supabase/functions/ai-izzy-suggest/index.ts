@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -24,57 +24,74 @@ interface SuggestionRequest {
   suggestionType?: 'reply' | 'ppv_price' | 'upsell';
 }
 
+function jsonError(message: string, status = 400) {
+  return new Response(JSON.stringify({ error: message }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    // JWT auth
+    // ── JWT auth ────────────────────────────────────────────────────
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    if (!authHeader?.startsWith('Bearer ')) return jsonError('Unauthorized', 401);
+
     const anonClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: claimsErr } = await anonClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    if (claimsErr || !claimsData?.claims) return jsonError('Unauthorized', 401);
 
-    const { fanMessage, conversationHistory, creatorId, fanId, accountId, suggestionType = 'reply' } = await req.json() as SuggestionRequest;
+    const authenticatedUserId = claimsData.claims.sub as string;
+    if (!authenticatedUserId) return jsonError('Unauthorized', 401);
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch creator voice profile
-    const { data: voiceProfile } = await supabase
-      .from('creator_voice_profiles')
-      .select('*')
-      .eq('creator_id', creatorId)
+    // ── Server-side agency verification ─────────────────────────────
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('agency_id')
+      .eq('id', authenticatedUserId)
       .single();
 
-    // Fetch OFM knowledge base
-    const { data: knowledge } = await supabase
-      .from('ai_knowledge_base')
-      .select('*')
-      .order('priority', { ascending: false })
-      .limit(10);
+    if (!userProfile?.agency_id) return jsonError('No agency associated with your account', 403);
+    const agencyId = userProfile.agency_id;
 
-    // Fetch fan context if available
-    let fanContext = null;
-    if (fanId && accountId) {
-      const { data } = await supabase
-        .from('ai_fan_context')
-        .select('*')
-        .eq('of_fan_id', fanId)
-        .eq('of_account_id', accountId)
+    const { fanMessage, conversationHistory, creatorId, fanId, accountId, suggestionType = 'reply' } = await req.json() as SuggestionRequest;
+
+    // ── Verify creator belongs to this agency ───────────────────────
+    if (creatorId) {
+      const { data: creator } = await supabase
+        .from('creators')
+        .select('id')
+        .eq('id', creatorId)
+        .eq('agency_id', agencyId)
         .single();
-      fanContext = data;
+      if (!creator) return jsonError('Creator not found in your agency', 403);
     }
+
+    // Fetch creator voice profile, knowledge base (agency-scoped), and fan context in parallel
+    const queries: Promise<any>[] = [
+      // Voice profile — joined to creator which is already verified as agency-owned
+      supabase.from('creator_voice_profiles').select('*').eq('creator_id', creatorId).single(),
+      // Knowledge base — scoped to agency OR global (agency_id IS NULL)
+      supabase.from('ai_knowledge_base').select('*')
+        .or(`agency_id.eq.${agencyId},agency_id.is.null`)
+        .order('priority', { ascending: false })
+        .limit(10),
+    ];
+
+    if (fanId && accountId) {
+      queries.push(
+        supabase.from('ai_fan_context').select('*').eq('of_fan_id', fanId).eq('of_account_id', accountId).single()
+      );
+    }
+
+    const results = await Promise.all(queries);
+    const voiceProfile = results[0]?.data;
+    const knowledge = results[1]?.data;
+    const fanContext = results[2]?.data || null;
 
     // Build system prompt
     const voiceDescription = voiceProfile ? `
@@ -95,7 +112,7 @@ Fan Profile:
 - Interests: ${fanContext.interests?.join(', ') || 'unknown'}
 ` : 'Fan profile not available - treat as new/unknown fan.';
 
-    const knowledgeContext = knowledge?.map(k => `${k.title}: ${k.content}`).join('\n\n') || '';
+    const knowledgeContext = knowledge?.map((k: any) => `${k.title}: ${k.content}`).join('\n\n') || '';
 
     let typeSpecificInstructions = '';
     if (suggestionType === 'ppv_price') {
@@ -165,31 +182,16 @@ Response format (JSON only, no markdown):
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      if (response.status === 429) return jsonError('Rate limit exceeded. Please try again later.', 429);
+      if (response.status === 402) return jsonError('AI credits exhausted. Please add credits.', 402);
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     
-    // Parse the JSON response
     let suggestions;
     try {
-      // Remove markdown code blocks if present
       const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       suggestions = JSON.parse(cleanContent);
     } catch (parseError) {

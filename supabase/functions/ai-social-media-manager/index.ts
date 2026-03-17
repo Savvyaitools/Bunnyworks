@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function jsonError(message: string, status = 400) {
+  return new Response(JSON.stringify({ error: message }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -15,21 +19,42 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // JWT auth
+    // ── JWT auth ────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (!authHeader?.startsWith("Bearer ")) return jsonError("Unauthorized", 401);
+
     const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsErr } = await anonClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (claimsErr || !claimsData?.claims) return jsonError("Unauthorized", 401);
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+    if (!authenticatedUserId) return jsonError("Unauthorized", 401);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { action, topic, platform, creatorName, creatorNiche, creatorPersona, days, agencyId, creatorId, ofAccountId, nicheQuery, existingSocialContent } = await req.json();
+    // ── Server-side agency verification ─────────────────────────────
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('agency_id')
+      .eq('id', authenticatedUserId)
+      .single();
+
+    if (!userProfile?.agency_id) return jsonError('No agency associated with your account', 403);
+    const agencyId = userProfile.agency_id;
+
+    const { action, topic, platform, creatorName, creatorNiche, creatorPersona, days, creatorId, ofAccountId, nicheQuery, existingSocialContent } = await req.json();
+
+    // ── Verify creator belongs to this agency ───────────────────────
+    if (creatorId) {
+      const { data: creator } = await supabase
+        .from('creators')
+        .select('id')
+        .eq('id', creatorId)
+        .eq('agency_id', agencyId)
+        .single();
+      if (!creator) return jsonError('Creator not found in your agency', 403);
+    }
 
     // Load agency data + Tatum memories + creator performance + live OF data in parallel
     let dataContext = "";
@@ -87,73 +112,70 @@ serve(async (req) => {
       }
     }
 
-    if (agencyId) {
-      const queries: Promise<any>[] = [
-        supabase.from('agent_memories').select('category, content, importance').eq('agency_id', agencyId).eq('agent_type', 'tatum').order('importance', { ascending: false }).limit(30),
-        supabase.from('creators').select('id, name, status, revenue, platform, niche').eq('agency_id', agencyId),
-        supabase.from('content_plans').select('title, board_column, platform, status, scheduled_date, creators(name)').eq('agency_id', agencyId).order('updated_at', { ascending: false }).limit(20),
-      ];
+    const queries: Promise<any>[] = [
+      supabase.from('agent_memories').select('category, content, importance').eq('agency_id', agencyId).eq('agent_type', 'tatum').order('importance', { ascending: false }).limit(30),
+      supabase.from('creators').select('id, name, status, revenue, platform, niche').eq('agency_id', agencyId),
+      supabase.from('content_plans').select('title, board_column, platform, status, scheduled_date, creators(name)').eq('agency_id', agencyId).order('updated_at', { ascending: false }).limit(20),
+    ];
 
-      if (creatorId) {
-        queries.push(
-          supabase.from('creator_earnings').select('amount, period_start, period_end, subscriptions, tips, messages_revenue').eq('creator_id', creatorId).order('period_end', { ascending: false }).limit(10)
-        );
-      }
+    if (creatorId) {
+      queries.push(
+        supabase.from('creator_earnings').select('amount, period_start, period_end, subscriptions, tips, messages_revenue').eq('creator_id', creatorId).order('period_end', { ascending: false }).limit(10)
+      );
+    }
 
-      const results = await Promise.all(queries);
-      const [memoriesRes, creatorsRes, plansRes] = results;
-      const earningsRes = results[3];
+    const results = await Promise.all(queries);
+    const [memoriesRes, creatorsRes, plansRes] = results;
+    const earningsRes = results[3];
 
-      const agencyCreatorIds = (creatorsRes.data || []).map((c: any) => c.id);
-      const { data: socialsData } = agencyCreatorIds.length > 0
-        ? await supabase.from('creator_social_accounts').select('username, platform, of_connection_status, of_account_id, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
-        : { data: [] };
+    const agencyCreatorIds = (creatorsRes.data || []).map((c: any) => c.id);
+    const { data: socialsData } = agencyCreatorIds.length > 0
+      ? await supabase.from('creator_social_accounts').select('username, platform, of_connection_status, of_account_id, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
+      : { data: [] };
 
-      if (memoriesRes.data?.length) {
-        memoryContext = `\n\nYOUR MEMORY (brand/content preferences you've learned):\n${memoriesRes.data.map((m: any) => `- [${m.category}]: ${m.content}`).join('\n')}\nApply these to match the agency's established style.`;
-      }
+    if (memoriesRes.data?.length) {
+      memoryContext = `\n\nYOUR MEMORY (brand/content preferences you've learned):\n${memoriesRes.data.map((m: any) => `- [${m.category}]: ${m.content}`).join('\n')}\nApply these to match the agency's established style.`;
+    }
 
-      const creatorsInfo = creatorsRes.data?.map((c: any) => `${c.name}: ${c.platform || 'N/A'}, niche=${c.niche || 'general'}, revenue=$${c.revenue || 0}`).join(' | ') || '';
-      const plansInfo = plansRes.data?.slice(0, 10).map((p: any) => `"${p.title}" (${p.creators?.name}, ${p.board_column}, ${p.platform || '?'})`).join(' | ') || '';
-      const socialsInfo = (socialsData || []).map((s: any) => `${s.creators?.name}: @${s.username} on ${s.platform}`).join(' | ') || '';
-      const earningsInfo = earningsRes?.data?.map((e: any) => `$${e.amount} (${e.period_start}→${e.period_end}, subs=$${e.subscriptions||0}, tips=$${e.tips||0})`).join(' | ') || '';
+    const creatorsInfo = creatorsRes.data?.map((c: any) => `${c.name}: ${c.platform || 'N/A'}, niche=${c.niche || 'general'}, revenue=$${c.revenue || 0}`).join(' | ') || '';
+    const plansInfo = plansRes.data?.slice(0, 10).map((p: any) => `"${p.title}" (${p.creators?.name}, ${p.board_column}, ${p.platform || '?'})`).join(' | ') || '';
+    const socialsInfo = (socialsData || []).map((s: any) => `${s.creators?.name}: @${s.username} on ${s.platform}`).join(' | ') || '';
+    const earningsInfo = earningsRes?.data?.map((e: any) => `$${e.amount} (${e.period_start}→${e.period_end}, subs=$${e.subscriptions||0}, tips=$${e.tips||0})`).join(' | ') || '';
 
-      dataContext = `\n\nAGENCY DATA FOR CONTEXT:
+    dataContext = `\n\nAGENCY DATA FOR CONTEXT:
 Creators: ${creatorsInfo || 'None'}
 Recent Content Plans: ${plansInfo || 'None'}
 Social Accounts: ${socialsInfo || 'None'}
 ${earningsInfo ? `Creator Earnings: ${earningsInfo}` : ''}
 Use this data to create more targeted, performance-informed content suggestions.`;
-    }
 
     // Fetch warmup intelligence for richer context
     let intelligenceContext = "";
-    if (agencyId) {
-      const { data: intelData } = await supabase.from("warmup_intelligence")
-        .select("source_url, page_title, extracted_text, category, keywords, key_takeaways, statistics, engagement_metrics, content_type")
-        .eq("agency_id", agencyId)
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (intelData && intelData.length > 0) {
-        const intelSummary = intelData.map((i: any) => {
-          let entry = `[${i.content_type || i.category}] ${i.page_title}`;
-          if (i.key_takeaways?.length > 0) {
-            entry += `\n  Key Takeaways: ${i.key_takeaways.join('; ')}`;
-          }
-          if (i.statistics?.length > 0) {
-            entry += `\n  Statistics: ${i.statistics.join('; ')}`;
-          }
-          if (i.engagement_metrics) {
-            const em = i.engagement_metrics;
-            entry += `\n  Engagement: ${em.upvotes ? `${em.upvotes} upvotes` : ''}${em.comments ? `, ${em.comments} comments` : ''}`;
-          }
-          if (!i.key_takeaways?.length && i.extracted_text) {
-            entry += `: ${(i.extracted_text || '').slice(0, 200)}`;
-          }
-          return entry;
-        }).join('\n');
-        intelligenceContext = `\n\nRESEARCH INTELLIGENCE (AI-extracted structured data from live browsing sessions):\n${intelSummary}\nUse these real-world findings with their specific statistics and engagement metrics to ground your recommendations in current trends and competitor strategies.`;
-      }
+    const { data: intelData } = await supabase.from("warmup_intelligence")
+      .select("source_url, page_title, extracted_text, category, keywords, key_takeaways, statistics, engagement_metrics, content_type")
+      .eq("agency_id", agencyId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (intelData && intelData.length > 0) {
+      const intelSummary = intelData.map((i: any) => {
+        let entry = `[${i.content_type || i.category}] ${i.page_title}`;
+        if (i.key_takeaways?.length > 0) {
+          entry += `\n  Key Takeaways: ${i.key_takeaways.join('; ')}`;
+        }
+        if (i.statistics?.length > 0) {
+          entry += `\n  Statistics: ${i.statistics.join('; ')}`;
+        }
+        if (i.engagement_metrics) {
+          const em = i.engagement_metrics;
+          entry += `\n  Engagement: ${em.upvotes ? `${em.upvotes} upvotes` : ''}${em.comments ? `, ${em.comments} comments` : ''}`;
+        }
+        if (!i.key_takeaways?.length && i.extracted_text) {
+          entry += `: ${(i.extracted_text || '').slice(0, 200)}`;
+        }
+        return entry;
+      }).join('\n');
+      intelligenceContext = `\n\nRESEARCH INTELLIGENCE (AI-extracted structured data from live browsing sessions):\n${intelSummary}\nUse these real-world findings with their specific statistics and engagement metrics to ground your recommendations in current trends and competitor strategies.`;
     }
 
     let systemPrompt = "";
@@ -222,30 +244,28 @@ Respond ONLY with JSON: {"content_plan": [{"reference_url": "string (MUST be a r
     });
 
     if (!aiRes.ok) {
-      if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (aiRes.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (aiRes.status === 429) return jsonError("Rate limit exceeded", 429);
+      if (aiRes.status === 402) return jsonError("AI credits exhausted", 402);
       throw new Error(`AI gateway error: ${aiRes.status}`);
     }
 
     const aiData = await aiRes.json();
     let text = aiData.choices?.[0]?.message?.content || "{}";
 
-    // Extract and save memories
-    if (agencyId) {
-      const memMatch = text.match(/<!--MEMORIES:(\[[\s\S]*?\])-->/);
-      if (memMatch) {
-        try {
-          const mems = JSON.parse(memMatch[1]);
-          if (Array.isArray(mems)) {
-            await supabase.from('agent_memories').insert(mems.map((m: any) => ({
-              agency_id: agencyId, agent_type: 'tatum',
-              category: m.category || 'general', content: m.content,
-              importance: Math.min(10, Math.max(1, m.importance || 5)),
-            })));
-          }
-        } catch (e) { console.error('Memory save error:', e); }
-        text = text.replace(/<!--MEMORIES:[\s\S]*?-->/g, '').trim();
-      }
+    // Extract and save memories (agency-scoped)
+    const memMatch = text.match(/<!--MEMORIES:(\[[\s\S]*?\])-->/);
+    if (memMatch) {
+      try {
+        const mems = JSON.parse(memMatch[1]);
+        if (Array.isArray(mems)) {
+          await supabase.from('agent_memories').insert(mems.map((m: any) => ({
+            agency_id: agencyId, agent_type: 'tatum',
+            category: m.category || 'general', content: m.content,
+            importance: Math.min(10, Math.max(1, m.importance || 5)),
+          })));
+        }
+      } catch (e) { console.error('Memory save error:', e); }
+      text = text.replace(/<!--MEMORIES:[\s\S]*?-->/g, '').trim();
     }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
