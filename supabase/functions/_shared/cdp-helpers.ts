@@ -905,8 +905,7 @@ export function sessionBody(
     projectId,
     browserSettings: {
       context: { id: contextId, persist: true },
-      ...(ENABLE_ADVANCED_STEALTH ? { advancedStealth: true } : {}),
-      os: "windows",
+      ...(ENABLE_ADVANCED_STEALTH ? { advancedStealth: true, os: "windows" } : {}),
     },
     proxies,
     keepAlive: opts.keepAlive ?? true,
