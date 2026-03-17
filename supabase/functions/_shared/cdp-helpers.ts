@@ -5,6 +5,7 @@
  */
 
 const BB_API = "https://api.browserbase.com/v1";
+const ENABLE_ADVANCED_STEALTH = Deno.env.get("BROWSERBASE_ADVANCED_STEALTH") === "true";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
