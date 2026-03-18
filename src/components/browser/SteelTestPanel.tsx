@@ -156,15 +156,27 @@ export function SteelTestPanel() {
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
           {!session ? (
-            <Button
-              size="sm"
-              onClick={handleCreate}
-              disabled={!!loading}
-              className="gap-1.5"
-            >
-              {loading === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-              Launch Steel Session
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleCreate(false)}
+                disabled={!!loading}
+                className="gap-1.5"
+              >
+                {loading === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+                Launch (No Proxy)
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleCreate(true)}
+                disabled={!!loading}
+                className="gap-1.5"
+              >
+                {loading === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+                Launch (With Proxy)
+              </Button>
+            </div>
           ) : (
             <>
               <Button size="sm" variant="outline" onClick={handleCheckStatus} disabled={!!loading} className="gap-1.5">
