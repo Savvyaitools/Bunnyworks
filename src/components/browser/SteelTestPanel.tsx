@@ -31,11 +31,11 @@ export function SteelTestPanel() {
     return data;
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (useProxy = false) => {
     setLoading("create");
     try {
-      log("Creating Steel.dev session...");
-      const data = await invoke("create_session");
+      log(`Creating Steel.dev session (proxy=${useProxy})...`);
+      const data = await invoke("create_session", { useProxy });
       setSession(data);
       log(`✅ Session created: ${data.sessionId} (status: ${data.status})`);
       log(`Viewer URL: ${data.sessionViewerUrl ? "available" : "not available"}`);
