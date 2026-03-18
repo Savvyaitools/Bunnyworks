@@ -51,7 +51,6 @@ export function AgencyOnboardingWizard() {
   const [formData, setFormData] = useState({
     name: "",
     website: "",
-    commissionRate: 30,
   });
 
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
