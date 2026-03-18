@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+
 import { useAgency } from "@/hooks/useAgency";
 import { useAgencyLogo } from "@/hooks/useAgencyLogo";
 import { LogoUpload } from "@/components/shared/LogoUpload";
@@ -51,7 +51,6 @@ export function AgencyOnboardingWizard() {
   const [formData, setFormData] = useState({
     name: "",
     website: "",
-    commissionRate: 30,
   });
 
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({
@@ -74,7 +73,6 @@ export function AgencyOnboardingWizard() {
       setFormData({
         name: agency.name || "",
         website: agency.website || "",
-        commissionRate: (agency.commission_rate || 0.3) * 100,
       });
       const savedStep = (agency as any).onboarding_step;
       // Map old steps to new: 1→1, 2-3→1, 4-5→2, 6→3, 7-8→4
@@ -112,7 +110,6 @@ export function AgencyOnboardingWizard() {
         .update({
           name: formData.name.trim(),
           website: formData.website.trim() || null,
-          commission_rate: formData.commissionRate / 100,
         })
         .eq("id", agencyId);
 
