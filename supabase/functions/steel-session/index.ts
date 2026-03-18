@@ -215,13 +215,14 @@ Deno.serve(async (req) => {
 
     // ========== CREATE SESSION ==========
     if (action === "create_session") {
-      const useProxy = p.useProxy !== false; // default true, can disable for hobby plan
-      console.log(`Steel: Creating test session (proxy=${useProxy})`);
+      const useProxy = p.useProxy === true;
+      const solveCaptcha = p.solveCaptcha === true;
+      console.log(`Steel: Creating test session (proxy=${useProxy}, captcha=${solveCaptcha})`);
       const sessionOpts: Record<string, unknown> = {
-        solveCaptcha: true,
-        timeout: 900000, // 15 minutes in ms
+        timeout: 900000,
       };
       if (useProxy) sessionOpts.useProxy = true;
+      if (solveCaptcha) sessionOpts.solveCaptcha = true;
 
       const session = await steelFetch("/sessions", STEEL_KEY, {
         method: "POST",
