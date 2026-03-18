@@ -110,7 +110,6 @@ export function AgencyOnboardingWizard() {
         .update({
           name: formData.name.trim(),
           website: formData.website.trim() || null,
-          commission_rate: formData.commissionRate / 100,
         })
         .eq("id", agencyId);
 
