@@ -73,7 +73,6 @@ export function AgencyOnboardingWizard() {
       setFormData({
         name: agency.name || "",
         website: agency.website || "",
-        commissionRate: (agency.commission_rate || 0.3) * 100,
       });
       const savedStep = (agency as any).onboarding_step;
       // Map old steps to new: 1→1, 2-3→1, 4-5→2, 6→3, 7-8→4
