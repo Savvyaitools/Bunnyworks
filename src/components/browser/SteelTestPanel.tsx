@@ -31,11 +31,11 @@ export function SteelTestPanel() {
     return data;
   };
 
-  const handleCreate = async (useProxy = false) => {
+  const handleCreate = async (withPaidFeatures = false) => {
     setLoading("create");
     try {
-      log(`Creating Steel.dev session (proxy=${useProxy})...`);
-      const data = await invoke("create_session", { useProxy });
+      log(`Creating Steel.dev session (proxy=${withPaidFeatures}, captcha=${withPaidFeatures})...`);
+      const data = await invoke("create_session", { useProxy: withPaidFeatures, solveCaptcha: withPaidFeatures });
       setSession(data);
       log(`✅ Session created: ${data.sessionId} (status: ${data.status})`);
       log(`Viewer URL: ${data.sessionViewerUrl ? "available" : "not available"}`);
