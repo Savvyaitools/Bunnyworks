@@ -164,7 +164,7 @@ export function SteelTestPanel() {
                 className="gap-1.5"
               >
                 {loading === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-                Launch (No Proxy)
+                Launch Steel Session
               </Button>
               <Button
                 size="sm"
@@ -174,7 +174,7 @@ export function SteelTestPanel() {
                 className="gap-1.5"
               >
                 {loading === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-                Launch (With Proxy)
+                Launch (Proxy + Captcha)
               </Button>
             </div>
           ) : (
