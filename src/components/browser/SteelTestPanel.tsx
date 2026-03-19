@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   FlaskConical, Rocket, Globe, ShieldCheck, Cookie, X, Loader2, ExternalLink,
-  Activity, Terminal, ChevronDown, ChevronUp,
+  Activity, Terminal, ChevronDown, ChevronUp, Maximize2, Minimize2,
 } from "lucide-react";
 
 interface SteelSession {
@@ -20,7 +20,9 @@ export function SteelTestPanel() {
   const [session, setSession] = useState<SteelSession | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  const [logsExpanded, setLogsExpanded] = useState(true);
+  const [logsExpanded, setLogsExpanded] = useState(false);
+  const [navUrl, setNavUrl] = useState("https://onlyfans.com");
+  const [viewerFullscreen, setViewerFullscreen] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,14 +62,15 @@ export function SteelTestPanel() {
     }
   };
 
-  const handleNavigate = async () => {
+  const handleNavigate = async (url?: string) => {
     if (!session) return;
     setLoading("navigate");
     try {
-      log("Navigating to OnlyFans…");
+      const target = url || navUrl;
+      log(`Navigating to ${target}…`);
       const data = await invoke("cdp_navigate", {
         sessionId: session.sessionId,
-        url: "https://onlyfans.com",
+        url: target,
       });
       log(`✅ Navigation complete (success=${data.success})`);
       toast.success("Navigation complete");
@@ -143,44 +146,27 @@ export function SteelTestPanel() {
     }
   };
 
-  const ActionButton = ({
-    onClick,
-    loadingKey,
-    icon: Icon,
-    label,
-    variant = "outline",
+  const ActionBtn = ({
+    onClick, loadingKey, icon: Icon, label, variant = "outline",
   }: {
-    onClick: () => void;
-    loadingKey: string;
-    icon: any;
-    label: string;
+    onClick: () => void; loadingKey: string; icon: any; label: string;
     variant?: "outline" | "destructive" | "default";
   }) => (
-    <Button
-      size="sm"
-      variant={variant}
-      onClick={onClick}
-      disabled={!!loading}
-      className="gap-1.5 h-8 text-xs"
-    >
-      {loading === loadingKey ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <Icon className="h-3.5 w-3.5" />
-      )}
+    <Button size="sm" variant={variant} onClick={onClick} disabled={!!loading} className="gap-1.5 h-7 text-[11px] px-2.5">
+      {loading === loadingKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
       {label}
     </Button>
   );
 
   return (
-    <Card className="border border-border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+    <div className={`flex flex-col rounded-lg border border-border overflow-hidden bg-card ${viewerFullscreen && session ? "fixed inset-0 z-50 rounded-none" : ""}`}>
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2">
           <FlaskConical className="h-4 w-4 text-amber-500" />
-          <span className="text-sm font-semibold text-foreground">Steel.dev Test Panel</span>
+          <span className="text-sm font-semibold text-foreground">Steel.dev Live Session</span>
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-500 border-amber-500/30">
-            Debug
+            Test
           </Badge>
         </div>
         <div className="flex items-center gap-2">
@@ -191,20 +177,15 @@ export function SteelTestPanel() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                 </span>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {session.sessionId.slice(0, 8)}
-                </span>
+                <span className="text-[11px] text-muted-foreground font-mono">{session.sessionId.slice(0, 8)}</span>
               </div>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setViewerFullscreen(!viewerFullscreen)}>
+                {viewerFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </Button>
               {session.sessionViewerUrl && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs gap-1.5 text-primary"
-                  asChild
-                >
-                  <a href={session.sessionViewerUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-3 w-3" />
-                    Live Viewer
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" asChild>
+                  <a href={session.sessionViewerUrl} target="_blank" rel="noopener noreferrer" title="Open in new tab">
+                    <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 </Button>
               )}
@@ -213,93 +194,89 @@ export function SteelTestPanel() {
         </div>
       </div>
 
-      <CardContent className="p-4 space-y-3">
-        {/* Actions */}
-        <div className="flex flex-wrap gap-2">
-          {!session ? (
-            <>
-              <Button
-                size="sm"
-                onClick={() => handleCreate(false)}
-                disabled={!!loading}
-                className="gap-1.5 h-8"
-              >
-                {loading === "create" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Rocket className="h-3.5 w-3.5" />
-                )}
-                Launch Session
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/10 flex-wrap">
+        {!session ? (
+          <>
+            <Button size="sm" onClick={() => handleCreate(false)} disabled={!!loading} className="gap-1.5 h-8">
+              {loading === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+              Launch Session
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleCreate(true)} disabled={!!loading} className="gap-1.5 h-8">
+              {loading === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+              Launch + Proxy & Captcha
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5 flex-1 min-w-[200px] max-w-md">
+              <Input
+                value={navUrl}
+                onChange={(e) => setNavUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleNavigate()}
+                placeholder="https://onlyfans.com"
+                className="h-7 text-xs font-mono bg-background"
+              />
+              <Button size="sm" variant="outline" onClick={() => handleNavigate()} disabled={!!loading} className="h-7 px-2.5 text-[11px] gap-1">
+                {loading === "navigate" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+                Go
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleCreate(true)}
-                disabled={!!loading}
-                className="gap-1.5 h-8"
-              >
-                {loading === "create" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Rocket className="h-3.5 w-3.5" />
-                )}
-                Launch + Proxy & Captcha
-              </Button>
-            </>
-          ) : (
-            <>
-              <ActionButton onClick={handleCheckStatus} loadingKey="status" icon={Activity} label="Status" />
-              <ActionButton onClick={handleNavigate} loadingKey="navigate" icon={Globe} label="Navigate to OF" />
-              <ActionButton onClick={handleCheckLogin} loadingKey="login" icon={ShieldCheck} label="Check Login" />
-              <ActionButton onClick={handleGetCookies} loadingKey="cookies" icon={Cookie} label="Cookies" />
-              <ActionButton onClick={handleRelease} loadingKey="release" icon={X} label="Release" variant="destructive" />
-            </>
-          )}
-        </div>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <ActionBtn onClick={handleCheckStatus} loadingKey="status" icon={Activity} label="Status" />
+            <ActionBtn onClick={handleCheckLogin} loadingKey="login" icon={ShieldCheck} label="Login" />
+            <ActionBtn onClick={handleGetCookies} loadingKey="cookies" icon={Cookie} label="Cookies" />
+            <ActionBtn onClick={handleRelease} loadingKey="release" icon={X} label="Release" variant="destructive" />
+          </>
+        )}
+      </div>
 
-        {/* Logs */}
+      {/* Main content: Embedded Viewer */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {session?.sessionViewerUrl ? (
+          <div className={`relative bg-black ${viewerFullscreen ? "flex-1" : "h-[600px]"}`}>
+            <iframe
+              src={session.sessionViewerUrl}
+              className="w-full h-full border-0"
+              allow="clipboard-read; clipboard-write; fullscreen"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+              title="Steel.dev Live Viewer"
+            />
+          </div>
+        ) : !session ? (
+          <div className="flex items-center justify-center py-20 text-center">
+            <div className="space-y-3">
+              <FlaskConical className="h-12 w-12 text-muted-foreground/20 mx-auto" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Launch a session to start</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">The live browser will appear here with full keyboard & mouse interaction</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Logs drawer */}
         {logs.length > 0 && (
-          <div className="rounded-md border border-border bg-muted/20 overflow-hidden">
+          <div className="border-t border-border bg-muted/10">
             <button
               onClick={() => setLogsExpanded(!logsExpanded)}
-              className="flex items-center justify-between w-full px-3 py-1.5 hover:bg-muted/40 transition-colors"
+              className="flex items-center justify-between w-full px-4 py-1.5 hover:bg-muted/30 transition-colors"
             >
               <div className="flex items-center gap-1.5">
                 <Terminal className="h-3 w-3 text-muted-foreground" />
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  Log ({logs.length})
-                </span>
+                <span className="text-[11px] font-medium text-muted-foreground">Log ({logs.length})</span>
               </div>
               <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLogs([]);
-                  }}
-                  className="text-[10px] text-muted-foreground hover:text-foreground px-1"
-                >
+                <button onClick={(e) => { e.stopPropagation(); setLogs([]); }} className="text-[10px] text-muted-foreground hover:text-foreground px-1">
                   Clear
                 </button>
-                {logsExpanded ? (
-                  <ChevronUp className="h-3 w-3 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                )}
+                {logsExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
               </div>
             </button>
             {logsExpanded && (
-              <div className="px-3 pb-2 max-h-48 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-px">
+              <div className="px-4 pb-2 max-h-32 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-px">
                 {logs.map((l, i) => (
-                  <div
-                    key={i}
-                    className={
-                      l.includes("❌")
-                        ? "text-destructive"
-                        : l.includes("✅")
-                        ? "text-green-500"
-                        : "text-muted-foreground"
-                    }
-                  >
+                  <div key={i} className={l.includes("❌") ? "text-destructive" : l.includes("✅") ? "text-green-500" : "text-muted-foreground"}>
                     {l}
                   </div>
                 ))}
@@ -308,14 +285,7 @@ export function SteelTestPanel() {
             )}
           </div>
         )}
-
-        {/* Empty state */}
-        {!session && logs.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            Launch a Steel.dev session to test CDP navigation, login detection, and cookies. Opens in a new tab for full interaction.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
