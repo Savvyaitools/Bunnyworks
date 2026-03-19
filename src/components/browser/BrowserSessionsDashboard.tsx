@@ -173,7 +173,7 @@ interface SessionListProps {
   scrapeFans: any;
 }
 
-function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession }: SessionListProps) {
+function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
   return (
     <div className="space-y-3">
       {sessionLinks.map((link) => {
