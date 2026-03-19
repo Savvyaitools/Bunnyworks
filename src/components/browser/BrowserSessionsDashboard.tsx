@@ -253,7 +253,7 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
   );
 }
 
-function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession }: SessionListProps) {
+function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
   return (
     <Table>
       <TableHeader>
