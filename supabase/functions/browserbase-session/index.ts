@@ -4,7 +4,7 @@ import {
   PLATFORM_URLS, navigateViaCDP, checkLoginViaCDP, verifyCookiesRestored,
   executeCDPScript, aiExtractEarnings, aiDetectLoginState,
   proxyConf, sessionBody, resolveContext, preLoginSetup, STATE_TIMEZONES,
-  autoLoginViaCDP,
+  autoLoginViaCDP, getProxyConfig, injectStealthFingerprint,
 } from "../_shared/cdp-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
@@ -92,8 +92,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      const proxies = proxyConf(cr);
+      const proxyConfig = await getProxyConfig(svc, creatorId);
+      const proxies = proxyConf(cr, proxyConfig);
       const resolvedState = proxies[0]?.geolocation?.state || "TX";
+      const stealthProfile = proxyConfig?.stealth_profile || null;
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(
         sessionBody(BP, ctxId, proxies, { timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } })
       ) });
@@ -125,6 +127,11 @@ Deno.serve(async (req) => {
       }
 
       try { await preLoginSetup(BK, sess.id, resolvedState); } catch (e) { console.warn("Pre-login setup failed (non-fatal):", e); }
+
+      // Inject stealth fingerprint if enabled
+      if (stealthProfile?.enabled !== false) {
+        try { await injectStealthFingerprint(BK, sess.id, stealthProfile?.enabled ? stealthProfile : undefined); } catch (e) { console.warn("Stealth injection failed (non-fatal):", e); }
+      }
 
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
@@ -491,8 +498,10 @@ Deno.serve(async (req) => {
       const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city, name").eq("id", link.creator_id).single();
       const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
-      const proxies = proxyConf(cr);
+      const chatterProxyConfig = await getProxyConfig(svc, link.creator_id);
+      const proxies = proxyConf(cr, chatterProxyConfig);
       const resolvedState = proxies[0]?.geolocation?.state || "TX";
+      const chatterStealthProfile = chatterProxyConfig?.stealth_profile || null;
 
       const cfg = sessionBody(BP, link.browserbase_context_id, proxies, { timeout: 3600, extensionId: extIds[0] || undefined, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } });
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
@@ -503,6 +512,11 @@ Deno.serve(async (req) => {
 
       await new Promise(r => setTimeout(r, 8000));
       try { await preLoginSetup(BK, sess.id, resolvedState); } catch {}
+
+      // Inject stealth for chatter sessions too
+      if (chatterStealthProfile?.enabled !== false) {
+        try { await injectStealthFingerprint(BK, sess.id, chatterStealthProfile?.enabled ? chatterStealthProfile : undefined); } catch (e) { console.warn("Chatter stealth injection failed (non-fatal):", e); }
+      }
 
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
       let loginVerified = true;
@@ -668,10 +682,15 @@ Deno.serve(async (req) => {
       const warmupId = warmupRec!.id;
 
       let proxySettings = null;
-      if (creatorId) { const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle(); if (cr) proxySettings = cr; }
+      let warmupProxyConfig = null;
+      if (creatorId) {
+        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle();
+        if (cr) proxySettings = cr;
+        warmupProxyConfig = await getProxyConfig(svc, creatorId);
+      }
 
       try {
-        const proxies = proxySettings ? proxyConf(proxySettings) : [];
+        const proxies = proxySettings ? proxyConf(proxySettings, warmupProxyConfig) : [];
         const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessionBody(BP, bbContextId, proxies, { keepAlive: false, timeout: 600, userMetadata: { warmup: true, agencyId, creatorId } })) });
         if (!sess?.id) throw new Error("Session creation failed");
         const sessReady = await waitForSessionReady(BK, sess.id, 15000);
@@ -722,11 +741,12 @@ Deno.serve(async (req) => {
       const { data: warmupRec } = await svc.from("creator_profile_warmups").insert({ creator_id: creatorId || null, agency_id: agencyId, browserbase_context_id: bbContextId, status: "running", warmup_type: "extended", total_sites: totalSites, started_at: new Date().toISOString() }).select("id").single();
       const warmupId = warmupRec!.id;
 
-      let proxySettings = null;
-      if (creatorId) { const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle(); if (cr) proxySettings = cr; }
+      let extProxySettings = null;
+      let extProxyConfig = null;
+      if (creatorId) { const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle(); if (cr) extProxySettings = cr; extProxyConfig = await getProxyConfig(svc, creatorId); }
 
       try {
-        const proxies = proxySettings ? proxyConf(proxySettings) : [];
+        const proxies = extProxySettings ? proxyConf(extProxySettings, extProxyConfig) : [];
         const timeoutSec = Math.min(durationHours * 3600, 14400);
         const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessionBody(BP, bbContextId, proxies, { keepAlive: true, timeout: timeoutSec, userMetadata: { warmup: true, extended: true, agencyId, creatorId } })) });
         if (!sess?.id) throw new Error("Session creation failed");
