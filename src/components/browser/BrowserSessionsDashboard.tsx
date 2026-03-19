@@ -7,13 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink } from "lucide-react";
+import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink, Users, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { SessionRecordingViewer } from "./SessionRecordingViewer";
 import { SessionLogsViewer } from "./SessionLogsViewer";
 import { SessionDownloadsViewer } from "./SessionDownloadsViewer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
+import { invokeBrowserAction } from "@/lib/browserbase";
+import { useAgency } from "@/hooks/useAgency";
+import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 
 function statusBadge(status: string | null) {
   switch (status) {
@@ -40,6 +44,23 @@ export function BrowserSessionsDashboard() {
   const captchaCheck = useCaptchaCheck();
   const [viewerPanel, setViewerPanel] = useState<ViewerPanel | null>(null);
   const isMobile = useIsMobile();
+  const { agencyId } = useAgency();
+
+  const scrapeFans = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId }: { browserbaseSessionId: string; creatorId?: string }) => {
+      return await invokeBrowserAction("scrape_fan_analytics", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+      });
+    },
+    onSuccess: (data) => {
+      toast.success(`Fan analytics scraped: ${data.fansUpserted || 0} fans, ${data.chatsUpserted || 0} chats extracted`);
+    },
+    onError: (err: Error) => {
+      toast.error(`Fan scrape failed: ${err.message}`);
+    },
+  });
 
   const handleRejoinSession = (activeSessionRow: any, link: any) => {
     setActiveSession({
@@ -121,6 +142,7 @@ export function BrowserSessionsDashboard() {
             captchaCheck={captchaCheck}
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
+            scrapeFans={scrapeFans}
           />
         ) : (
           <DesktopSessionTable
@@ -131,6 +153,7 @@ export function BrowserSessionsDashboard() {
             captchaCheck={captchaCheck}
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
+            scrapeFans={scrapeFans}
           />
         )}
       </CardContent>
@@ -147,9 +170,10 @@ interface SessionListProps {
   captchaCheck: any;
   setViewerPanel: (panel: ViewerPanel | null) => void;
   onRejoinSession: (activeSession: any, link: any) => void;
+  scrapeFans: any;
 }
 
-function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession }: SessionListProps) {
+function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
   return (
     <div className="space-y-3">
       {sessionLinks.map((link) => {
@@ -213,6 +237,9 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
                   <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-8 text-xs gap-1">
                     <ExternalLink className="h-3.5 w-3.5" /> Open
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={scrapeFans.isPending}>
+                    {scrapeFans.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />} Scrape Fans
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-8 text-xs gap-1">
                     <Trash2 className="h-3.5 w-3.5" /> Kill
                   </Button>
@@ -226,7 +253,7 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
   );
 }
 
-function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession }: SessionListProps) {
+function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
   return (
     <Table>
       <TableHeader>
@@ -294,6 +321,9 @@ function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, t
                     <div key={s.id} className="flex items-center gap-1">
                       <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-7 text-xs gap-1">
                         <ExternalLink className="h-3 w-3" /> Open
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="Scrape Fan Analytics" disabled={scrapeFans.isPending}>
+                        {scrapeFans.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} Fans
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-7 text-xs">
                         <Trash2 className="h-3 w-3 mr-1" /> Kill

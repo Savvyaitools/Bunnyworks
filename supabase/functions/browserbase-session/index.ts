@@ -899,6 +899,247 @@ Deno.serve(async (req) => {
       return json(result);
     }
 
+    // ========== SCRAPE FAN ANALYTICS (CDP) ==========
+    if (action === "scrape_fan_analytics") {
+      const { browserbaseSessionId: bbSid, creatorId, agencyId } = p;
+      if (!bbSid || !agencyId) return json({ error: "browserbaseSessionId and agencyId required" }, 400);
+
+      // Verify agency ownership
+      const { data: profile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
+      if (!profile || profile.agency_id !== agencyId) return json({ error: "Unauthorized" }, 403);
+
+      const scrapeWsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${bbSid}`;
+
+      const fanData = await new Promise<any>((resolve) => {
+        let done = false;
+        const ws = new WebSocket(scrapeWsUrl);
+        const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ error: "timeout" }); } }, 60000);
+        let mid = 1;
+        let cdpSid: string | null = null;
+        let getTargetsId: number | null = null;
+        let attachId: number | null = null;
+        let networkEnableId: number | null = null;
+        let navigateId: number | null = null;
+        const pendingBodyRequests = new Map<number, string>();
+        const accumulated: Record<string, any> = {};
+        let xhrCount = 0;
+        let xhrFinishTimer: ReturnType<typeof setTimeout> | null = null;
+        let domPollId: number | null = null;
+
+        const send = (method: string, params: Record<string, unknown> = {}) => {
+          const id = mid++;
+          const msg: any = { id, method, params };
+          if (cdpSid) msg.sessionId = cdpSid;
+          try { ws.send(JSON.stringify(msg)); } catch {}
+          return id;
+        };
+
+        const finish = (result: any) => {
+          if (done) return;
+          done = true; clearTimeout(timer); if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
+          try { ws.close(); } catch {}
+          resolve(result);
+        };
+
+        ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.id === getTargetsId) {
+              const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+              if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+              else finish({ error: "No page target found" });
+              return;
+            }
+            if (msg.id === attachId) {
+              cdpSid = msg.result?.sessionId;
+              if (cdpSid) { networkEnableId = send("Network.enable", {}); }
+              return;
+            }
+            if (msg.id === networkEnableId) {
+              send("Page.enable", {});
+              // Navigate to fans/following page to trigger API calls
+              navigateId = send("Page.navigate", { url: "https://onlyfans.com/my/subscribers/active" });
+              return;
+            }
+            if (msg.id === navigateId) {
+              // After navigation, wait then also hit the stats pages
+              setTimeout(() => {
+                send("Page.navigate", { url: "https://onlyfans.com/my/statistics/fans" });
+              }, 8000);
+              // Also do a DOM poll after 12 seconds as fallback
+              setTimeout(() => {
+                domPollId = send("Runtime.evaluate", {
+                  expression: `(function() {
+                    var result = { fans: [], stats: {} };
+                    // Try to extract fan list from DOM
+                    var fanEls = document.querySelectorAll('.b-users-list__item, [class*="subscriber"], [class*="fan-item"], .m-fans .b-user-list-item');
+                    fanEls.forEach(function(el) {
+                      var nameEl = el.querySelector('.g-user-name, [class*="user-name"], .b-username');
+                      var spentEl = el.querySelector('[class*="spent"], [class*="earnings"], [class*="amount"], .m-spent');
+                      var statusEl = el.querySelector('[class*="status"], [class*="rebill"], .m-rebill');
+                      var subDateEl = el.querySelector('[class*="date"], [class*="subscribed"], .m-date');
+                      if (nameEl) {
+                        result.fans.push({
+                          name: nameEl.innerText.trim(),
+                          spent: spentEl ? spentEl.innerText.trim() : '',
+                          status: statusEl ? statusEl.innerText.trim() : '',
+                          subscribedDate: subDateEl ? subDateEl.innerText.trim() : ''
+                        });
+                      }
+                    });
+                    // Try stats from page
+                    var statEls = document.querySelectorAll('[class*="stat"], .b-stats__item, .m-stat');
+                    statEls.forEach(function(el) {
+                      var label = el.querySelector('[class*="label"], .b-stats__label');
+                      var value = el.querySelector('[class*="value"], .b-stats__value');
+                      if (label && value) result.stats[label.innerText.trim()] = value.innerText.trim();
+                    });
+                    // Get total text for AI parsing
+                    result.pageText = document.body ? document.body.innerText.substring(0, 10000) : '';
+                    return JSON.stringify(result);
+                  })()`,
+                  returnByValue: true,
+                });
+              }, 12000);
+              return;
+            }
+            // Capture XHR responses from OF API
+            if (msg.method === "Network.responseReceived") {
+              const resp = msg.params?.response;
+              const url = resp?.url || "";
+              const reqId = msg.params?.requestId;
+              if (reqId && (
+                url.includes("/api2/v2/subscriptions") ||
+                url.includes("/api2/v2/lists") ||
+                url.includes("/api2/v2/users") ||
+                url.includes("/api2/v2/chats") ||
+                url.includes("/api2/v2/earnings") ||
+                url.includes("/api2/v2/statistics") ||
+                url.includes("/api2/v2/statics") ||
+                url.includes("/api2/v2/subscribers") ||
+                url.includes("/api2/v2/fans")
+              )) {
+                const bodyMid = send("Network.getResponseBody", { requestId: reqId });
+                pendingBodyRequests.set(bodyMid, url);
+              }
+              return;
+            }
+            if (pendingBodyRequests.has(msg.id)) {
+              const sourceUrl = pendingBodyRequests.get(msg.id)!;
+              pendingBodyRequests.delete(msg.id);
+              const body = msg.result?.body;
+              if (body) {
+                try {
+                  const parsed = JSON.parse(body);
+                  // Determine data type from URL
+                  const key = sourceUrl.includes("subscri") ? "subscribers"
+                    : sourceUrl.includes("fans") ? "fans"
+                    : sourceUrl.includes("chat") ? "chats"
+                    : sourceUrl.includes("earning") ? "earnings"
+                    : sourceUrl.includes("statistic") || sourceUrl.includes("statics") ? "statistics"
+                    : sourceUrl.includes("lists") ? "lists"
+                    : sourceUrl.includes("users") ? "users"
+                    : `api_${xhrCount}`;
+                  
+                  if (accumulated[key] && Array.isArray(accumulated[key]) && Array.isArray(parsed)) {
+                    accumulated[key] = [...accumulated[key], ...parsed];
+                  } else {
+                    accumulated[key] = parsed;
+                  }
+                  xhrCount++;
+                  if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
+                  xhrFinishTimer = setTimeout(() => finish({ success: true, source: "xhr", data: accumulated, xhrCount }), 5000);
+                } catch {}
+              }
+              return;
+            }
+            // DOM poll result
+            if (msg.id === domPollId) {
+              const text = msg.result?.result?.value;
+              if (text && !done) {
+                try {
+                  const domResult = JSON.parse(text);
+                  // If we have XHR data, merge; otherwise use DOM
+                  if (xhrCount > 0) return; // let XHR finish timer handle it
+                  finish({ success: true, source: "dom", data: domResult, xhrCount: 0 });
+                } catch {
+                  if (xhrCount === 0) finish({ success: true, source: "dom_raw", data: { pageText: text }, xhrCount: 0 });
+                }
+              }
+              return;
+            }
+          } catch {}
+        };
+        ws.onerror = () => finish({ error: "WebSocket error" });
+        ws.onclose = () => { if (!done) finish({ error: "WebSocket closed early", data: accumulated, xhrCount }); };
+      });
+
+      // Process and store extracted fan data
+      if (fanData.success && fanData.data) {
+        const d = fanData.data;
+        
+        // Process subscribers/fans from XHR
+        const rawFans = d.subscribers || d.fans || d.users || [];
+        const fansArray = Array.isArray(rawFans) ? rawFans : (rawFans.list || rawFans.data || []);
+        
+        let upsertedCount = 0;
+        for (const fan of fansArray.slice(0, 200)) {
+          try {
+            const fanPayload: any = {
+              agency_id: agencyId,
+              platform_user_id: String(fan.id || fan.userId || fan.user_id || `unknown_${upsertedCount}`),
+              username: fan.username || fan.name || fan.user?.username || '',
+              display_name: fan.name || fan.displayName || fan.user?.name || '',
+              total_spent: parseFloat(fan.subscribedPrice || fan.totalSpent || fan.total_spent || 0),
+              is_active: fan.subscribedIsExpiredNow === false || fan.isActive !== false,
+              platform: 'onlyfans',
+            };
+            if (creatorId) fanPayload.creator_id = creatorId;
+            if (fan.subscribedOnData || fan.subscribedOn) fanPayload.subscribed_at = fan.subscribedOnData || fan.subscribedOn;
+            if (fan.renewedAt || fan.renewOn) fanPayload.renew_on = fan.renewedAt || fan.renewOn;
+
+            await svc.from("of_fans").upsert(fanPayload, { onConflict: "agency_id,platform_user_id" });
+            upsertedCount++;
+          } catch (e) { console.warn("Fan upsert failed:", e); }
+        }
+
+        // Process chat data
+        const rawChats = d.chats || [];
+        const chatsArray = Array.isArray(rawChats) ? rawChats : (rawChats.list || rawChats.data || []);
+        let chatCount = 0;
+        for (const chat of chatsArray.slice(0, 200)) {
+          try {
+            const chatPayload: any = {
+              agency_id: agencyId,
+              platform_chat_id: String(chat.id || chat.chatId || `chat_${chatCount}`),
+              fan_username: chat.withUser?.username || chat.username || '',
+              last_message_at: chat.lastMessage?.createdAt || chat.updatedAt || new Date().toISOString(),
+              message_count: chat.messagesCount || chat.messageCount || 0,
+              platform: 'onlyfans',
+            };
+            if (creatorId) chatPayload.creator_id = creatorId;
+
+            await svc.from("of_chats").upsert(chatPayload, { onConflict: "agency_id,platform_chat_id" });
+            chatCount++;
+          } catch (e) { console.warn("Chat upsert failed:", e); }
+        }
+
+        return json({
+          success: true,
+          source: fanData.source,
+          fansExtracted: fansArray.length,
+          fansUpserted: upsertedCount,
+          chatsExtracted: chatsArray.length,
+          chatsUpserted: chatCount,
+          rawKeys: Object.keys(d),
+          statistics: d.statistics || null,
+        });
+      }
+
+      return json({ success: false, ...fanData });
+    }
+
     return json({ error: "Invalid action" }, 400);
   } catch (error) {
     console.error("browserbase-session error:", error);
