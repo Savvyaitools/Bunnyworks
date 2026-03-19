@@ -92,8 +92,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      const proxies = proxyConf(cr);
+      const proxyConfig = await getProxyConfig(svc, creatorId);
+      const proxies = proxyConf(cr, proxyConfig);
       const resolvedState = proxies[0]?.geolocation?.state || "TX";
+      const stealthProfile = proxyConfig?.stealth_profile || null;
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(
         sessionBody(BP, ctxId, proxies, { timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } })
       ) });
