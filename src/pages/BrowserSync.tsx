@@ -3,7 +3,6 @@ import { DashboardLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
 import { BrowserSessionsDashboard } from "@/components/browser/BrowserSessionsDashboard";
-import { SteelTestPanel } from "@/components/browser/SteelTestPanel";
 import { CaptchaAlertsFeed } from "@/components/browser/CaptchaAlertsFeed";
 import { ProxyGeoSettings } from "@/components/browser/ProxyGeoSettings";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -34,7 +33,6 @@ export default function BrowserSync() {
           </TabsList>
 
           <TabsContent value="live-sessions" className="space-y-4 mt-4">
-            <SteelTestPanel />
             <AdminSessionLauncher />
             <BrowserSessionsDashboard />
           </TabsContent>
