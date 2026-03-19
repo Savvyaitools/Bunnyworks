@@ -11,3 +11,5 @@ export { CaptchaAlertsFeed } from "./CaptchaAlertsFeed";
 export { ProxyGeoSettings } from "./ProxyGeoSettings";
 export { ExtensionsManager } from "./ExtensionsManager";
 export { SessionModeToggle } from "./SessionModeToggle";
+export { ProxyProviderManager } from "./ProxyProviderManager";
+export { StealthProfileManager } from "./StealthProfileManager";
