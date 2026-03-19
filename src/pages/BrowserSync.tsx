@@ -1,4 +1,4 @@
-import { Monitor, Bell, MapPin, Globe, Shield } from "lucide-react";
+import { Monitor, Bell, MapPin, Globe } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
@@ -6,7 +6,6 @@ import { BrowserSessionsDashboard } from "@/components/browser/BrowserSessionsDa
 import { CaptchaAlertsFeed } from "@/components/browser/CaptchaAlertsFeed";
 import { ProxyGeoSettings } from "@/components/browser/ProxyGeoSettings";
 import { ProxyProviderManager } from "@/components/browser/ProxyProviderManager";
-import { StealthProfileManager } from "@/components/browser/StealthProfileManager";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function BrowserSync() {
@@ -32,10 +31,6 @@ export default function BrowserSync() {
               <Globe className="h-3.5 w-3.5" />
               Proxy Providers
             </TabsTrigger>
-            <TabsTrigger value="stealth" className="gap-2 text-sm">
-              <Shield className="h-3.5 w-3.5" />
-              Stealth
-            </TabsTrigger>
             <TabsTrigger value="monitoring" className="gap-2 text-sm">
               <Bell className="h-3.5 w-3.5" />
               Monitoring
@@ -53,10 +48,6 @@ export default function BrowserSync() {
 
           <TabsContent value="proxy-providers" className="space-y-4 mt-4">
             <ProxyProviderManager />
-          </TabsContent>
-
-          <TabsContent value="stealth" className="space-y-4 mt-4">
-            <StealthProfileManager />
           </TabsContent>
 
           <TabsContent value="monitoring" className="space-y-4 mt-4">
