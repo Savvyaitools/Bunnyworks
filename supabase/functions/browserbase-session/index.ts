@@ -741,11 +741,12 @@ Deno.serve(async (req) => {
       const { data: warmupRec } = await svc.from("creator_profile_warmups").insert({ creator_id: creatorId || null, agency_id: agencyId, browserbase_context_id: bbContextId, status: "running", warmup_type: "extended", total_sites: totalSites, started_at: new Date().toISOString() }).select("id").single();
       const warmupId = warmupRec!.id;
 
-      let proxySettings = null;
-      if (creatorId) { const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle(); if (cr) proxySettings = cr; }
+      let extProxySettings = null;
+      let extProxyConfig = null;
+      if (creatorId) { const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle(); if (cr) extProxySettings = cr; extProxyConfig = await getProxyConfig(svc, creatorId); }
 
       try {
-        const proxies = proxySettings ? proxyConf(proxySettings) : [];
+        const proxies = extProxySettings ? proxyConf(extProxySettings, extProxyConfig) : [];
         const timeoutSec = Math.min(durationHours * 3600, 14400);
         const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessionBody(BP, bbContextId, proxies, { keepAlive: true, timeout: timeoutSec, userMetadata: { warmup: true, extended: true, agencyId, creatorId } })) });
         if (!sess?.id) throw new Error("Session creation failed");
