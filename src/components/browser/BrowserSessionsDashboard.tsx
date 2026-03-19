@@ -322,6 +322,9 @@ function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, t
                       <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-7 text-xs gap-1">
                         <ExternalLink className="h-3 w-3" /> Open
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="Scrape Fan Analytics" disabled={scrapeFans.isPending}>
+                        {scrapeFans.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} Fans
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-7 text-xs">
                         <Trash2 className="h-3 w-3 mr-1" /> Kill
                       </Button>
