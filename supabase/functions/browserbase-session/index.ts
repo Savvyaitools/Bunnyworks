@@ -1160,6 +1160,76 @@ Deno.serve(async (req) => {
       return json({ success: false, ...fanData });
     }
 
+    // ========== TEST PROXY ==========
+    if (action === "test_proxy") {
+      const { creatorId: testCreatorId, agencyId: testAgencyId } = p;
+      if (!testCreatorId || !testAgencyId) return json({ error: "creatorId and agencyId required" }, 400);
+
+      const { data: profile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
+      if (!profile || profile.agency_id !== testAgencyId) return json({ error: "Unauthorized" }, 403);
+
+      const testProxyConfig = await getProxyConfig(svc, testCreatorId);
+      if (!testProxyConfig || testProxyConfig.provider === "browserbase") {
+        return json({ error: "No custom proxy configured for this creator. Default proxy does not need testing." }, 400);
+      }
+
+      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", testCreatorId).single();
+      const proxies = proxyConf(cr, testProxyConfig);
+
+      let testSessId: string | null = null;
+      try {
+        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({
+          projectId: BP,
+          proxies,
+          ...(ENABLE_ADVANCED_STEALTH ? { browserSettings: { advancedStealth: true, os: "windows" } } : {}),
+        }) });
+        if (!sess?.id) return json({ error: "Failed to create test session" }, 502);
+        testSessId = sess.id;
+
+        const ready = await waitForSessionReady(BK, sess.id, 15000);
+        if (!ready) throw new Error("Test session failed to start");
+
+        const ipResult = await navigateViaCDP(BK, sess.id, "https://httpbin.org/ip", {
+          timeout: 15000,
+          evaluate: `document.body ? document.body.innerText : ''`,
+        });
+
+        let ip = null;
+        let geo = null;
+        if (ipResult.success && ipResult.result) {
+          try {
+            const parsed = JSON.parse(ipResult.result as string);
+            ip = parsed.origin;
+          } catch {
+            const match = String(ipResult.result).match(/(\d+\.\d+\.\d+\.\d+)/);
+            if (match) ip = match[1];
+          }
+        }
+
+        // Try to get geo info
+        if (ip) {
+          try {
+            const geoResult = await navigateViaCDP(BK, sess.id, `https://ipinfo.io/${ip}/json`, {
+              timeout: 10000,
+              evaluate: `document.body ? document.body.innerText : ''`,
+            });
+            if (geoResult.success && geoResult.result) {
+              const geoData = JSON.parse(geoResult.result as string);
+              geo = `${geoData.city || ""}, ${geoData.region || ""}, ${geoData.country || ""}`.replace(/^, |, $/g, "");
+            }
+          } catch {}
+        }
+
+        // Release session
+        try { await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
+
+        return json({ success: true, ip, geo, provider: testProxyConfig.provider });
+      } catch (e: any) {
+        if (testSessId) { try { await fetch(`${BB_API}/sessions/${testSessId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {} }
+        return json({ error: e.message, ip: null, geo: null }, 500);
+      }
+    }
+
     return json({ error: "Invalid action" }, 400);
   } catch (error) {
     console.error("browserbase-session error:", error);
