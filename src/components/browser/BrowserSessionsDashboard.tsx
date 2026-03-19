@@ -142,6 +142,7 @@ export function BrowserSessionsDashboard() {
             captchaCheck={captchaCheck}
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
+            scrapeFans={scrapeFans}
           />
         ) : (
           <DesktopSessionTable
@@ -152,6 +153,7 @@ export function BrowserSessionsDashboard() {
             captchaCheck={captchaCheck}
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
+            scrapeFans={scrapeFans}
           />
         )}
       </CardContent>
@@ -168,6 +170,7 @@ interface SessionListProps {
   captchaCheck: any;
   setViewerPanel: (panel: ViewerPanel | null) => void;
   onRejoinSession: (activeSession: any, link: any) => void;
+  scrapeFans: any;
 }
 
 function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession }: SessionListProps) {
