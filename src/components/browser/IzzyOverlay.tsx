@@ -160,6 +160,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
     setInjecting(idx);
 
     let injected = false;
+    let injectReason: string | undefined;
 
     // Try CDP injection into the remote browser
     if (browserbaseSessionId) {
@@ -168,11 +169,14 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
           browserbaseSessionId,
           text,
         });
-        if (result?.success) {
-          injected = true;
+
+        injected = Boolean(result?.success && result?.autoSent);
+        if (!injected && typeof result?.reason === "string") {
+          injectReason = result.reason;
         }
       } catch (err) {
         console.warn("CDP inject failed, falling back to clipboard:", err);
+        injectReason = "Could not confirm auto-send from live session";
       }
     }
 
@@ -184,7 +188,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
     setHistory(prev => [{
       fanMessage: fanMessage || "—",
       reply: text,
-      autoSent: false,
+      autoSent: injected,
       timestamp: new Date(),
     }, ...prev]);
 
@@ -192,7 +196,11 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
       injected
         ? "Reply sent in chat"
         : "Reply copied to clipboard — paste it into the chat",
-      { description: injected ? "Message was typed and sent automatically" : undefined }
+      {
+        description: injected
+          ? "Message was typed and sent automatically"
+          : injectReason || "Auto-send could not be confirmed, so the reply was copied.",
+      }
     );
 
     setTimeout(() => {

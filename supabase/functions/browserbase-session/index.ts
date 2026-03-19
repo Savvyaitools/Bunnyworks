@@ -812,10 +812,158 @@ Deno.serve(async (req) => {
       const { browserbaseSessionId: bbSid, text } = p;
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
       if (!text) return json({ error: "text required" }, 400);
-      const escapedText = (text as string).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-      const injectScript = `(function() { var input = document.querySelector('textarea[id="new_post_text_input"], .b-chat__input textarea, [class*="chat-input"] textarea, .b-make-post__textarea textarea'); if (!input) { input = document.querySelector('[contenteditable="true"][class*="chat"], .b-chat__input [contenteditable="true"]'); } if (!input) { input = document.querySelector('.b-make-post__wrapper textarea, .b-chat-message-input textarea'); } if (!input) return JSON.stringify({ success: false, error: 'Chat input not found' }); var text = '${escapedText}'; if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') { var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set; if (nativeSetter) nativeSetter.call(input, text); else input.value = text; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); } else { input.innerText = text; input.dispatchEvent(new Event('input', { bubbles: true })); } input.focus(); setTimeout(function() { var sendBtn = document.querySelector('.b-chat__btn-submit, button[type="submit"].g-btn.m-rounded, button.b-btn-send-message'); if (!sendBtn) { var allBtns = document.querySelectorAll('button[type="submit"]'); for (var i = 0; i < allBtns.length; i++) { if (allBtns[i].closest('.b-chat__input, .b-make-post__wrapper, .b-chat-message-input, [class*="chat"]')) { sendBtn = allBtns[i]; break; } } } if (sendBtn) { sendBtn.removeAttribute('disabled'); sendBtn.click(); } }, 500); return JSON.stringify({ success: true, autoSent: true }); })()`;
+
+      const escapedText = (text as string)
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, "\\n");
+
+      const injectScript = `(function() {
+        var text = '${escapedText}';
+        var result = { success: false, autoSent: false, reason: '', inputMode: '', sendStrategy: '' };
+
+        var textareaSelectors = [
+          'textarea[id="new_post_text_input"]',
+          '.b-chat__input textarea',
+          '.b-chat-message-input textarea',
+          '.b-make-post__wrapper textarea',
+          '.b-make-post__textarea textarea',
+          '[class*="chat-input"] textarea'
+        ];
+
+        var editableSelectors = [
+          '.b-chat__input [contenteditable="true"]',
+          '[contenteditable="true"][class*="chat"]',
+          '[data-testid*="chat"] [contenteditable="true"]'
+        ];
+
+        var pickFirst = function(selectors) {
+          for (var i = 0; i < selectors.length; i++) {
+            var el = document.querySelector(selectors[i]);
+            if (el) return el;
+          }
+          return null;
+        };
+
+        var input = pickFirst(textareaSelectors) || pickFirst(editableSelectors);
+        if (!input) {
+          result.reason = 'Chat input not found';
+          return JSON.stringify(result);
+        }
+
+        var dispatchInputEvents = function(el) {
+          try {
+            el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+          } catch (_) {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+          var proto = input.tagName === 'TEXTAREA'
+            ? window.HTMLTextAreaElement.prototype
+            : window.HTMLInputElement.prototype;
+          var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+          if (nativeSetter) nativeSetter.call(input, text);
+          else input.value = text;
+          result.inputMode = 'text_input';
+        } else {
+          input.focus();
+          if (typeof input.textContent === 'string') input.textContent = text;
+          if (typeof input.innerText === 'string') input.innerText = text;
+          result.inputMode = 'contenteditable';
+        }
+
+        dispatchInputEvents(input);
+        input.focus();
+
+        var isVisible = function(el) {
+          if (!el) return false;
+          var style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden') return false;
+          var rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        };
+
+        var clickButton = function(btn) {
+          try { btn.removeAttribute('disabled'); } catch (_) {}
+          try { btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
+          try { btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
+          try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
+          try { btn.click(); } catch (_) {}
+        };
+
+        var findSendButton = function() {
+          var selectors = [
+            '.b-chat__btn-submit',
+            'button.b-btn-send-message',
+            'button[data-testid*="send"]',
+            'button[aria-label*="Send"]',
+            'button[aria-label*="send"]',
+            '.b-chat-message-input button[type="submit"]',
+            '.b-chat__input button[type="submit"]',
+            'form button[type="submit"]'
+          ];
+
+          for (var i = 0; i < selectors.length; i++) {
+            var nodes = document.querySelectorAll(selectors[i]);
+            for (var j = 0; j < nodes.length; j++) {
+              if (isVisible(nodes[j])) return nodes[j];
+            }
+          }
+          return null;
+        };
+
+        var sendBtn = findSendButton();
+        if (sendBtn) {
+          clickButton(sendBtn);
+          result.success = true;
+          result.autoSent = true;
+          result.sendStrategy = 'button_click';
+          return JSON.stringify(result);
+        }
+
+        var form = input.closest ? input.closest('form') : null;
+        if (form && typeof form.requestSubmit === 'function') {
+          try {
+            form.requestSubmit();
+            result.success = true;
+            result.autoSent = true;
+            result.sendStrategy = 'form_submit';
+            return JSON.stringify(result);
+          } catch (_) {}
+        }
+
+        try {
+          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+          input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+        } catch (_) {}
+
+        result.success = true;
+        result.autoSent = false;
+        result.sendStrategy = 'enter_fallback';
+        result.reason = 'Send button not found, only text injection confirmed';
+        return JSON.stringify(result);
+      })()`;
+
       const result = await executeCDPScript(BK, bbSid, injectScript);
-      return json(result);
+      if (!result.success) {
+        return json({
+          success: false,
+          autoSent: false,
+          reason: result.error || "Failed to execute chat injection",
+        });
+      }
+
+      const payload = (result.data ?? {}) as Record<string, unknown>;
+      return json({
+        success: Boolean(payload.success),
+        autoSent: Boolean(payload.autoSent),
+        reason: typeof payload.reason === "string" ? payload.reason : null,
+        sendStrategy: typeof payload.sendStrategy === "string" ? payload.sendStrategy : null,
+        inputMode: typeof payload.inputMode === "string" ? payload.inputMode : null,
+      });
     }
 
     // ========== AUTO-LOGIN VIA CDP ==========
