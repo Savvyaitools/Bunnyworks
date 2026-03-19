@@ -44,6 +44,23 @@ export function BrowserSessionsDashboard() {
   const captchaCheck = useCaptchaCheck();
   const [viewerPanel, setViewerPanel] = useState<ViewerPanel | null>(null);
   const isMobile = useIsMobile();
+  const { agencyId } = useAgency();
+
+  const scrapeFans = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId }: { browserbaseSessionId: string; creatorId?: string }) => {
+      return await invokeBrowserAction("scrape_fan_analytics", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+      });
+    },
+    onSuccess: (data) => {
+      toast.success(`Fan analytics scraped: ${data.fansUpserted || 0} fans, ${data.chatsUpserted || 0} chats extracted`);
+    },
+    onError: (err: Error) => {
+      toast.error(`Fan scrape failed: ${err.message}`);
+    },
+  });
 
   const handleRejoinSession = (activeSessionRow: any, link: any) => {
     setActiveSession({
