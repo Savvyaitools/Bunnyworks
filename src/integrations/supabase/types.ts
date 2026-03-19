@@ -1706,6 +1706,79 @@ export type Database = {
           },
         ]
       }
+      creator_proxy_configs: {
+        Row: {
+          agency_id: string
+          created_at: string
+          creator_id: string
+          id: string
+          is_active: boolean
+          label: string | null
+          provider: Database["public"]["Enums"]["proxy_provider"]
+          proxy_host: string | null
+          proxy_password: string | null
+          proxy_port: number | null
+          proxy_protocol: Database["public"]["Enums"]["proxy_protocol"]
+          proxy_username: string | null
+          stealth_profile: Json | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          provider?: Database["public"]["Enums"]["proxy_provider"]
+          proxy_host?: string | null
+          proxy_password?: string | null
+          proxy_port?: number | null
+          proxy_protocol?: Database["public"]["Enums"]["proxy_protocol"]
+          proxy_username?: string | null
+          stealth_profile?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          provider?: Database["public"]["Enums"]["proxy_provider"]
+          proxy_host?: string | null
+          proxy_password?: string | null
+          proxy_port?: number | null
+          proxy_protocol?: Database["public"]["Enums"]["proxy_protocol"]
+          proxy_username?: string | null
+          stealth_profile?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_proxy_configs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_proxy_configs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_proxy_configs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_session_links: {
         Row: {
           agency_id: string
@@ -4722,6 +4795,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
+      proxy_protocol: "http" | "socks5"
+      proxy_provider: "browserbase" | "brightdata" | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4850,6 +4925,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "user"],
+      proxy_protocol: ["http", "socks5"],
+      proxy_provider: ["browserbase", "brightdata", "custom"],
     },
   },
 } as const
