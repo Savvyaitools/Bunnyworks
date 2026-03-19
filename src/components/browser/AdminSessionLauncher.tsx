@@ -95,6 +95,7 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="onlyfans">OnlyFans</SelectItem>
+                <SelectItem value="fansly">Fansly</SelectItem>
                 <SelectItem value="fanvue">Fanvue</SelectItem>
               </SelectContent>
             </Select>
