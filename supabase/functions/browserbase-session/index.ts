@@ -682,10 +682,15 @@ Deno.serve(async (req) => {
       const warmupId = warmupRec!.id;
 
       let proxySettings = null;
-      if (creatorId) { const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle(); if (cr) proxySettings = cr; }
+      let warmupProxyConfig = null;
+      if (creatorId) {
+        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle();
+        if (cr) proxySettings = cr;
+        warmupProxyConfig = await getProxyConfig(svc, creatorId);
+      }
 
       try {
-        const proxies = proxySettings ? proxyConf(proxySettings) : [];
+        const proxies = proxySettings ? proxyConf(proxySettings, warmupProxyConfig) : [];
         const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessionBody(BP, bbContextId, proxies, { keepAlive: false, timeout: 600, userMetadata: { warmup: true, agencyId, creatorId } })) });
         if (!sess?.id) throw new Error("Session creation failed");
         const sessReady = await waitForSessionReady(BK, sess.id, 15000);
