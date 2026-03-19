@@ -29,14 +29,15 @@ export interface ProxyConfig {
 }
 
 export function useProxyConfigs() {
-  const crud = useAgencyScopedCRUD<ProxyConfig>("creator_proxy_configs" as any, {
+  const crud = useAgencyScopedCRUD<ProxyConfig>({
+    table: "creator_proxy_configs",
     queryKey: "proxy-configs",
     orderBy: { column: "created_at", ascending: false },
   });
 
   return {
     configs: crud.items as ProxyConfig[],
-    isLoading: crud.isLoading,
+    isLoading: crud.loading,
     create: crud.create,
     update: crud.update,
     remove: crud.remove,
