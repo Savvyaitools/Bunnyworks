@@ -190,9 +190,9 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
 
     toast.success(
       injected
-        ? "Reply injected into chat input"
+        ? "Reply sent in chat"
         : "Reply copied to clipboard — paste it into the chat",
-      { description: injected ? "Review and hit Send in OnlyFans" : undefined }
+      { description: injected ? "Message was typed and sent automatically" : undefined }
     );
 
     setTimeout(() => {
