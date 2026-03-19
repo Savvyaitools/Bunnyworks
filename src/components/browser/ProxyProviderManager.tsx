@@ -220,7 +220,7 @@ export function ProxyProviderManager() {
                         </>
                       )}
                       <Input
-                        placeholder={edit.provider === "brightdata" ? "Customer ID" : "Username"}
+                        placeholder="Username"
                         value={edit.proxy_username}
                         onChange={(e) => updateEdit(creator.id, "proxy_username", e.target.value)}
                         className="h-8 text-xs"
