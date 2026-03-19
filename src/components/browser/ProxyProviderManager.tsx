@@ -170,8 +170,7 @@ export function ProxyProviderManager() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="browserbase">Browserbase (Default)</SelectItem>
-                        <SelectItem value="brightdata">Bright Data</SelectItem>
+                        <SelectItem value="browserbase">Default Proxy</SelectItem>
                         <SelectItem value="custom">Custom Proxy</SelectItem>
                       </SelectContent>
                     </Select>
