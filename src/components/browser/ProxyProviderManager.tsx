@@ -137,7 +137,7 @@ export function ProxyProviderManager() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          Configure proxy provider per creator. Use Browserbase's built-in proxies, Bright Data residential, or your own custom proxy.
+          Configure proxy provider per creator. Use the default built-in proxies or connect your own custom proxy.
         </p>
 
         <div className="space-y-4">
