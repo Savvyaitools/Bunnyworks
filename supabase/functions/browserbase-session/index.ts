@@ -128,6 +128,11 @@ Deno.serve(async (req) => {
 
       try { await preLoginSetup(BK, sess.id, resolvedState); } catch (e) { console.warn("Pre-login setup failed (non-fatal):", e); }
 
+      // Inject stealth fingerprint if enabled
+      if (stealthProfile?.enabled !== false) {
+        try { await injectStealthFingerprint(BK, sess.id, stealthProfile?.enabled ? stealthProfile : undefined); } catch (e) { console.warn("Stealth injection failed (non-fatal):", e); }
+      }
+
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
         try { await navigateViaCDP(BK, sess.id, startUrl, { timeout: 30000 }); } catch (e) { console.warn("CDP auto-navigate failed (non-fatal):", e); }
