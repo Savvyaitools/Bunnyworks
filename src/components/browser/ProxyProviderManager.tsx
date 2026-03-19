@@ -125,7 +125,7 @@ export function ProxyProviderManager() {
   };
 
   const providerLabel = (p: string) =>
-    p === "browserbase" ? "Browserbase (Default)" : p === "brightdata" ? "Bright Data" : "Custom Proxy";
+    p === "browserbase" ? "Default Proxy" : p === "brightdata" ? "Custom Proxy" : "Custom Proxy";
 
   return (
     <Card>
