@@ -870,7 +870,43 @@ export const STATE_TIMEZONES: Record<string, string> = {
   MN: "America/Chicago", CA: "America/Los_Angeles", PA: "America/New_York",
 };
 
-export function proxyConf(c: any) {
+/**
+ * Build proxy config. Supports three providers:
+ * - "browserbase" (default): Uses Browserbase's built-in residential proxies with geo-targeting
+ * - "brightdata": External proxy via Bright Data super-proxy with geo in username
+ * - "custom": Any external HTTP/SOCKS5 proxy
+ */
+export function proxyConf(c: any, proxyConfig?: any) {
+  // If a custom/external proxy config is active, use it
+  if (proxyConfig && proxyConfig.provider !== "browserbase" && proxyConfig.is_active) {
+    if (proxyConfig.provider === "brightdata") {
+      // Bright Data super-proxy format: geo-targeting baked into username
+      const bdCid = proxyConfig.proxy_username || "";
+      const bdPass = proxyConfig.proxy_password || "";
+      const country = c?.proxy_country?.toLowerCase() || "us";
+      const state = c?.proxy_state?.toLowerCase()?.replace(/_/g, "-") || "";
+      let bdUser = bdCid;
+      if (country) bdUser += `-country-${country}`;
+      if (state) bdUser += `-state-${state}`;
+      const server = proxyConfig.proxy_host
+        ? `${proxyConfig.proxy_protocol || "http"}://${proxyConfig.proxy_host}:${proxyConfig.proxy_port || 22225}`
+        : "http://brd.superproxy.io:22225";
+      console.log(`Proxy: Bright Data external (${country}/${state || "any"})`);
+      return [{ type: "external", server, username: bdUser, password: bdPass }];
+    }
+    // Custom external proxy
+    if (proxyConfig.proxy_host) {
+      const server = `${proxyConfig.proxy_protocol || "http"}://${proxyConfig.proxy_host}:${proxyConfig.proxy_port || 8080}`;
+      console.log(`Proxy: Custom external → ${proxyConfig.proxy_host}:${proxyConfig.proxy_port}`);
+      return [{
+        type: "external",
+        server,
+        ...(proxyConfig.proxy_username ? { username: proxyConfig.proxy_username, password: proxyConfig.proxy_password || "" } : {}),
+      }];
+    }
+  }
+
+  // Default: Browserbase built-in proxy with geolocation
   const country = c?.proxy_country || "US";
   const rawState = c?.proxy_state;
   const rawCity = c?.proxy_city;
@@ -886,8 +922,185 @@ export function proxyConf(c: any) {
   }
   const geo: Record<string, string> = { country, state };
   if (rawCity) geo.city = rawCity;
-  console.log(`Proxy: ${country}/${state}${rawCity ? `/${rawCity}` : ""}`);
+  console.log(`Proxy: Browserbase ${country}/${state}${rawCity ? `/${rawCity}` : ""}`);
   return [{ type: "browserbase", geolocation: geo }];
+}
+
+/**
+ * Fetch proxy config for a creator from the database.
+ */
+export async function getProxyConfig(svc: any, creatorId: string): Promise<any | null> {
+  const { data } = await svc
+    .from("creator_proxy_configs")
+    .select("*")
+    .eq("creator_id", creatorId)
+    .eq("is_active", true)
+    .maybeSingle();
+  return data;
+}
+
+// ========== Stealth Fingerprint Injection ==========
+
+/**
+ * Injects anti-detect stealth scripts via CDP Page.addScriptToEvaluateOnNewDocument.
+ * Persists across navigations (unlike Runtime.evaluate).
+ */
+export async function injectStealthFingerprint(
+  apiKey: string,
+  sessionId: string,
+  profile?: {
+    userAgent?: string;
+    screenWidth?: number;
+    screenHeight?: number;
+    webglVendor?: string;
+    webglRenderer?: string;
+    hardwareConcurrency?: number;
+    deviceMemory?: number;
+    languages?: string[];
+    platform?: string;
+    timezone?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  const p = profile || {};
+  const hw = p.hardwareConcurrency || (4 + Math.floor(Math.random() * 5) * 2); // 4-12
+  const dm = p.deviceMemory || [4, 8, 16][Math.floor(Math.random() * 3)];
+  const sw = p.screenWidth || [1920, 1536, 1440, 1366][Math.floor(Math.random() * 4)];
+  const sh = p.screenHeight || Math.round(sw * 9 / 16);
+  const langs = p.languages || ["en-US", "en"];
+  const plat = p.platform || "Win32";
+  const webglV = p.webglVendor || "Google Inc. (NVIDIA)";
+  const webglR = p.webglRenderer || "ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)";
+
+  const stealthScript = `
+(function() {
+  // Navigator.webdriver
+  Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+
+  // Hardware concurrency
+  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => ${hw}, configurable: true });
+
+  // Device memory
+  Object.defineProperty(navigator, 'deviceMemory', { get: () => ${dm}, configurable: true });
+
+  // Platform
+  Object.defineProperty(navigator, 'platform', { get: () => '${plat}', configurable: true });
+
+  // Languages
+  Object.defineProperty(navigator, 'languages', { get: () => ${JSON.stringify(langs)}, configurable: true });
+  Object.defineProperty(navigator, 'language', { get: () => '${langs[0]}', configurable: true });
+
+  // Screen dimensions
+  Object.defineProperty(screen, 'width', { get: () => ${sw}, configurable: true });
+  Object.defineProperty(screen, 'height', { get: () => ${sh}, configurable: true });
+  Object.defineProperty(screen, 'availWidth', { get: () => ${sw}, configurable: true });
+  Object.defineProperty(screen, 'availHeight', { get: () => ${sh - 40}, configurable: true });
+
+  // WebGL spoofing
+  var getParamOrig = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function(param) {
+    if (param === 37445) return '${webglV}';
+    if (param === 37446) return '${webglR}';
+    return getParamOrig.call(this, param);
+  };
+  if (typeof WebGL2RenderingContext !== 'undefined') {
+    var getParam2Orig = WebGL2RenderingContext.prototype.getParameter;
+    WebGL2RenderingContext.prototype.getParameter = function(param) {
+      if (param === 37445) return '${webglV}';
+      if (param === 37446) return '${webglR}';
+      return getParam2Orig.call(this, param);
+    };
+  }
+
+  // Canvas fingerprint noise
+  var origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.toDataURL = function(type) {
+    if (this.width > 16 && this.height > 16) {
+      var ctx = this.getContext('2d');
+      if (ctx) {
+        var imgData = ctx.getImageData(0, 0, Math.min(this.width, 4), Math.min(this.height, 4));
+        for (var i = 0; i < imgData.data.length; i += 4) {
+          imgData.data[i] = imgData.data[i] ^ 1;
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+    }
+    return origToDataURL.apply(this, arguments);
+  };
+
+  // Plugins — spoof realistic list
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => {
+      return {
+        length: 3,
+        0: { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer' },
+        1: { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai' },
+        2: { name: 'Native Client', filename: 'internal-nacl-plugin' },
+        item: function(i) { return this[i] || null; },
+        namedItem: function(n) { for (var j = 0; j < this.length; j++) if (this[j].name === n) return this[j]; return null; },
+        refresh: function() {},
+        [Symbol.iterator]: function*() { for (var j = 0; j < this.length; j++) yield this[j]; }
+      };
+    },
+    configurable: true
+  });
+
+  // Chrome runtime stub (avoid detection of headless)
+  if (!window.chrome) window.chrome = {};
+  if (!window.chrome.runtime) window.chrome.runtime = { connect: function() {}, sendMessage: function() {} };
+
+  // Permission API — deny 'notifications' gracefully
+  var origQuery = navigator.permissions?.query?.bind(navigator.permissions);
+  if (origQuery) {
+    navigator.permissions.query = function(desc) {
+      if (desc.name === 'notifications') return Promise.resolve({ state: 'denied', onchange: null });
+      return origQuery(desc);
+    };
+  }
+})();
+`;
+
+  return new Promise((resolve) => {
+    let mid = 1;
+    let resolved = false;
+    const ws = new WebSocket(`wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`);
+    const timer = setTimeout(() => {
+      if (!resolved) { resolved = true; try { ws.close(); } catch {} resolve({ success: false, error: "Timeout" }); }
+    }, 10000);
+
+    const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+      const id = mid++;
+      const msg: any = { id, method, params };
+      if (sid) msg.sessionId = sid;
+      try { ws.send(JSON.stringify(msg)); } catch {}
+      return id;
+    };
+
+    let getTargetsId: number | null = null;
+    let attachId: number | null = null;
+    let addScriptId: number | null = null;
+
+    ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data as string);
+        if (msg.id === getTargetsId) {
+          const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+          if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
+          else { resolved = true; clearTimeout(timer); ws.close(); resolve({ success: false, error: "No page target" }); }
+        } else if (msg.id === attachId && msg.result?.sessionId) {
+          // Use addScriptToEvaluateOnNewDocument so it persists across navigations
+          addScriptId = send("Page.addScriptToEvaluateOnNewDocument", { source: stealthScript }, msg.result.sessionId);
+          // Also evaluate immediately on current page
+          send("Runtime.evaluate", { expression: stealthScript, returnByValue: true }, msg.result.sessionId);
+        } else if (msg.id === addScriptId) {
+          console.log("Stealth fingerprint injected ✓");
+          resolved = true; clearTimeout(timer); ws.close(); resolve({ success: true });
+        }
+      } catch {}
+    };
+    ws.onerror = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve({ success: false, error: "WebSocket error" }); } };
+    ws.onclose = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve({ success: false, error: "WebSocket closed" }); } };
+  });
 }
 
 export function sessionBody(
