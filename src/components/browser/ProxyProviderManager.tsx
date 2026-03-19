@@ -125,7 +125,7 @@ export function ProxyProviderManager() {
   };
 
   const providerLabel = (p: string) =>
-    p === "browserbase" ? "Browserbase (Default)" : p === "brightdata" ? "Bright Data" : "Custom Proxy";
+    p === "browserbase" ? "Default Proxy" : p === "brightdata" ? "Custom Proxy" : "Custom Proxy";
 
   return (
     <Card>
@@ -137,7 +137,7 @@ export function ProxyProviderManager() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          Configure proxy provider per creator. Use Browserbase's built-in proxies, Bright Data residential, or your own custom proxy.
+          Configure proxy provider per creator. Use the default built-in proxies or connect your own custom proxy.
         </p>
 
         <div className="space-y-4">
@@ -170,8 +170,7 @@ export function ProxyProviderManager() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="browserbase">Browserbase (Default)</SelectItem>
-                        <SelectItem value="brightdata">Bright Data</SelectItem>
+                        <SelectItem value="browserbase">Default Proxy</SelectItem>
                         <SelectItem value="custom">Custom Proxy</SelectItem>
                       </SelectContent>
                     </Select>
@@ -221,7 +220,7 @@ export function ProxyProviderManager() {
                         </>
                       )}
                       <Input
-                        placeholder={edit.provider === "brightdata" ? "Customer ID" : "Username"}
+                        placeholder="Username"
                         value={edit.proxy_username}
                         onChange={(e) => updateEdit(creator.id, "proxy_username", e.target.value)}
                         className="h-8 text-xs"
