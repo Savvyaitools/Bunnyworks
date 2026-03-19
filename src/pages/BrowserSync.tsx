@@ -33,7 +33,6 @@ export default function BrowserSync() {
           </TabsList>
 
           <TabsContent value="live-sessions" className="space-y-4 mt-4">
-            <SteelTestPanel />
             <AdminSessionLauncher />
             <BrowserSessionsDashboard />
           </TabsContent>
