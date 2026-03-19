@@ -237,6 +237,9 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
                   <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-8 text-xs gap-1">
                     <ExternalLink className="h-3.5 w-3.5" /> Open
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={scrapeFans.isPending}>
+                    {scrapeFans.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />} Scrape Fans
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-8 text-xs gap-1">
                     <Trash2 className="h-3.5 w-3.5" /> Kill
                   </Button>
