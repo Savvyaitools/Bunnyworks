@@ -7,12 +7,14 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Sparkles, X, Loader2, Send, ChevronUp, ChevronDown,
-  Zap, BrainCircuit, Eye, RotateCcw, MessageCircle, ShieldCheck, ScanSearch
+  Zap, BrainCircuit, RotateCcw, MessageCircle, ShieldCheck, ScanSearch,
+  PlayCircle, CheckCircle2, AlertCircle, SkipForward
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeBrowserAction } from "@/lib/browserbase";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Suggestion {
   text: string;
@@ -27,6 +29,15 @@ interface HandledMessage {
   timestamp: Date;
 }
 
+interface BatchResult {
+  fanName: string;
+  status: string;
+  reply?: string;
+  confidence?: number;
+  error?: string;
+  fanMessage?: string;
+}
+
 interface IzzyOverlayProps {
   creatorId: string;
   creatorName?: string;
@@ -35,6 +46,8 @@ interface IzzyOverlayProps {
 }
 
 export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSessionId }: IzzyOverlayProps) {
+  const { profile } = useAuth();
+  const agencyId = profile?.agency_id;
   const [expanded, setExpanded] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
@@ -44,9 +57,12 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
   const [reading, setReading] = useState(false);
   const [injecting, setInjecting] = useState<number | null>(null);
   const [history, setHistory] = useState<HandledMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<"assist" | "history">("assist");
+  const [activeTab, setActiveTab] = useState<"assist" | "history" | "batch">("assist");
   const [confidenceThreshold] = useState(80);
   const [detectedFanName, setDetectedFanName] = useState<string>("");
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
+  const [batchLimit, setBatchLimit] = useState(5);
   const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Auto-mode: periodically read chat and generate suggestions
@@ -210,6 +226,46 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
     }, 1200);
   }, [browserbaseSessionId, fanMessage]);
 
+  const runBatchReply = useCallback(async () => {
+    if (!browserbaseSessionId || !agencyId) {
+      toast.error("No active browser session or agency");
+      return;
+    }
+    setBatchRunning(true);
+    setBatchResults([]);
+    setActiveTab("batch");
+    try {
+      const result = await invokeBrowserAction("batch_reply", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+        limit: batchLimit,
+      });
+      const results = result?.results || [];
+      setBatchResults(results);
+      const sent = results.filter((r: BatchResult) => r.status === "sent").length;
+      toast.success(`Marilyn sent ${sent} replies`, {
+        description: `${results.length} conversations processed, ${sent} replies sent`,
+      });
+      // Add sent replies to history
+      for (const r of results) {
+        if (r.status === "sent" && r.reply) {
+          setHistory(prev => [{
+            fanMessage: r.fanMessage || r.fanName,
+            reply: r.reply!,
+            autoSent: true,
+            timestamp: new Date(),
+          }, ...prev]);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Batch reply failed";
+      toast.error(msg);
+    } finally {
+      setBatchRunning(false);
+    }
+  }, [browserbaseSessionId, agencyId, creatorId, batchLimit]);
+
   if (minimized) {
     return (
       <button
@@ -317,6 +373,21 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
             <span className="ml-1 text-[10px] bg-primary/20 text-primary px-1 rounded-full">
               {history.length}
             </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("batch")}
+          className={cn(
+            "flex-1 text-xs py-2 font-medium transition-colors border-b-2 relative",
+            activeTab === "batch"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <PlayCircle className="h-3 w-3 inline mr-1" />
+          Batch
+          {batchRunning && (
+            <Loader2 className="h-3 w-3 inline ml-1 animate-spin" />
           )}
         </button>
       </div>
@@ -432,7 +503,7 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
               </p>
             )}
           </div>
-        ) : (
+        ) : activeTab === "history" ? (
           <ScrollArea className={expanded ? "max-h-[380px]" : "max-h-[250px]"}>
             {history.length === 0 ? (
               <div className="text-center py-8">
@@ -470,6 +541,103 @@ export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSess
               </div>
             )}
           </ScrollArea>
+        ) : (
+          /* Batch Tab */
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/40 border">
+              <PlayCircle className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                Marilyn will scan your inbox for unread messages, generate AI replies, and send them automatically.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label className="text-xs whitespace-nowrap">Max replies:</Label>
+              <select
+                value={batchLimit}
+                onChange={(e) => setBatchLimit(Number(e.target.value))}
+                className="text-xs border rounded px-2 py-1 bg-background"
+                disabled={batchRunning}
+              >
+                {[3, 5, 10, 15, 20].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+
+            <Button
+              className="w-full gap-2"
+              size="sm"
+              onClick={runBatchReply}
+              disabled={batchRunning || !browserbaseSessionId}
+            >
+              {batchRunning ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Running Marilyn...
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="h-3.5 w-3.5" />
+                  Run Batch Reply
+                </>
+              )}
+            </Button>
+
+            {batchResults.length > 0 && (
+              <ScrollArea className={expanded ? "max-h-[280px]" : "max-h-[180px]"}>
+                <div className="space-y-1.5">
+                  {batchResults.map((r, i) => (
+                    <div key={i} className="p-2 rounded-lg border bg-muted/30 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium truncate">{r.fanName}</span>
+                        {r.status === "sent" ? (
+                          <Badge className="bg-green-500/20 text-green-600 text-[9px] px-1.5 py-0 gap-0.5">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            Sent
+                          </Badge>
+                        ) : r.status === "skipped" ? (
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 gap-0.5">
+                            <SkipForward className="h-2.5 w-2.5" />
+                            Skipped
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[9px] px-1.5 py-0 gap-0.5">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            Error
+                          </Badge>
+                        )}
+                      </div>
+                      {r.reply && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">{r.reply}</p>
+                      )}
+                      {r.error && (
+                        <p className="text-[10px] text-destructive">{r.error}</p>
+                      )}
+                      {r.confidence !== undefined && (
+                        <span className={cn(
+                          "text-[10px] font-medium",
+                          r.confidence >= 80 ? "text-green-500" :
+                          r.confidence >= 50 ? "text-amber-500" : "text-destructive"
+                        )}>
+                          {Math.round(r.confidence)}% confidence
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+
+            {!batchRunning && batchResults.length === 0 && (
+              <p className="text-[11px] text-muted-foreground text-center py-2">
+                {browserbaseSessionId
+                  ? "Click Run Batch Reply to let Marilyn handle unread fan messages"
+                  : "Start a browser session first to use batch reply"
+                }
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

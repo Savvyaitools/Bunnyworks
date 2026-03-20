@@ -1378,6 +1378,347 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ========== MARILYN: SCRAPE CHAT LIST (CDP) ==========
+    if (action === "scrape_chat_list") {
+      const { browserbaseSessionId: bbSid } = p;
+      if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
+
+      // Navigate to chats page first
+      try {
+        await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
+        await new Promise(r => setTimeout(r, 4000)); // Wait for DOM to settle
+      } catch (e) {
+        console.warn("Chat list navigation failed:", e);
+      }
+
+      const scrapeScript = `(function() {
+        var result = { conversations: [], totalCount: 0, currentUrl: window.location.href };
+        var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
+        if (!chatItems.length) {
+          // Fallback selectors
+          chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+        }
+        chatItems.forEach(function(el, index) {
+          var nameEl = el.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
+          var previewEl = el.querySelector('.b-chats__item-text, [class*="preview"], [class*="last-message"], .b-chats__item__text');
+          var unreadBadge = el.querySelector('.b-chats__item-unread, [class*="unread"], .b-counter, .b-badge');
+          var timeEl = el.querySelector('.b-chats__item-time, [class*="time"], [class*="date"], time');
+          var avatarEl = el.querySelector('img.b-avatar, img[class*="avatar"], .b-user-avatar img');
+          var isUnread = false;
+          if (unreadBadge) {
+            var badgeText = unreadBadge.innerText.trim();
+            isUnread = badgeText !== '' && badgeText !== '0';
+          }
+          // Also check if the item has an unread class
+          if (!isUnread) {
+            isUnread = el.classList.contains('m-unread') || el.classList.contains('b-chats__item--unread') || el.className.includes('unread');
+          }
+          if (nameEl) {
+            result.conversations.push({
+              index: index,
+              fanName: nameEl.innerText.trim(),
+              lastMessage: previewEl ? previewEl.innerText.trim() : '',
+              isUnread: isUnread,
+              unreadCount: unreadBadge ? (parseInt(unreadBadge.innerText.trim()) || (isUnread ? 1 : 0)) : 0,
+              time: timeEl ? timeEl.innerText.trim() : '',
+              avatarUrl: avatarEl ? avatarEl.src : ''
+            });
+          }
+        });
+        result.totalCount = result.conversations.length;
+        return JSON.stringify(result);
+      })()`;
+
+      const result = await executeCDPScript(BK, bbSid, scrapeScript, 15000);
+      return json(result);
+    }
+
+    // ========== MARILYN: CLICK CONVERSATION (CDP) ==========
+    if (action === "click_conversation") {
+      const { browserbaseSessionId: bbSid, conversationIndex, fanName } = p;
+      if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
+      if (conversationIndex === undefined && !fanName) return json({ error: "conversationIndex or fanName required" }, 400);
+
+      const escapedFanName = fanName ? String(fanName).replace(/'/g, "\\'") : "";
+      const clickScript = `(function() {
+        var result = { success: false, clickedName: '', reason: '' };
+        var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
+        if (!chatItems.length) {
+          chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+        }
+        var target = null;
+        var targetName = '';
+        ${fanName ? `
+        // Find by fan name
+        for (var i = 0; i < chatItems.length; i++) {
+          var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
+          if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedFanName}'.toLowerCase()) {
+            target = chatItems[i];
+            targetName = nameEl.innerText.trim();
+            break;
+          }
+        }` : `
+        // Find by index
+        var idx = ${conversationIndex || 0};
+        if (idx < chatItems.length) {
+          target = chatItems[idx];
+          var nameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"]');
+          targetName = nameEl ? nameEl.innerText.trim() : 'index_' + idx;
+        }`}
+        if (!target) {
+          result.reason = 'Conversation not found';
+          return JSON.stringify(result);
+        }
+        // Click the conversation
+        var clickTarget = target.querySelector('a') || target;
+        try {
+          clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+          clickTarget.click();
+        } catch (e) {
+          target.click();
+        }
+        result.success = true;
+        result.clickedName = targetName;
+        return JSON.stringify(result);
+      })()`;
+
+      const result = await executeCDPScript(BK, bbSid, clickScript, 10000);
+      return json(result);
+    }
+
+    // ========== MARILYN: BATCH REPLY (ORCHESTRATOR) ==========
+    if (action === "batch_reply") {
+      const { browserbaseSessionId: bbSid, creatorId: batchCreatorId, agencyId: batchAgencyId, limit: batchLimit } = p;
+      if (!bbSid || !batchCreatorId || !batchAgencyId) return json({ error: "browserbaseSessionId, creatorId, agencyId required" }, 400);
+
+      // Verify agency ownership
+      const { data: batchProfile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
+      if (!batchProfile || batchProfile.agency_id !== batchAgencyId) return json({ error: "Unauthorized" }, 403);
+
+      const maxReplies = Math.min(Number(batchLimit) || 5, 20);
+      const results: any[] = [];
+      let navigatedToChats = false;
+
+      // Step 1: Navigate to chats
+      try {
+        await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
+        await new Promise(r => setTimeout(r, 4000));
+        navigatedToChats = true;
+      } catch (e) {
+        return json({ error: "Failed to navigate to chats page", detail: String(e) }, 500);
+      }
+
+      // Step 2: Scrape chat list
+      const scrapeScript = `(function() {
+        var result = { conversations: [] };
+        var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
+        if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+        chatItems.forEach(function(el, index) {
+          var nameEl = el.querySelector('.g-user-name, .b-username, [class*="user-name"]');
+          var unreadBadge = el.querySelector('.b-chats__item-unread, [class*="unread"], .b-counter, .b-badge');
+          var isUnread = false;
+          if (unreadBadge) {
+            var badgeText = unreadBadge.innerText.trim();
+            isUnread = badgeText !== '' && badgeText !== '0';
+          }
+          if (!isUnread) isUnread = el.classList.contains('m-unread') || el.className.includes('unread');
+          if (nameEl && isUnread) {
+            result.conversations.push({ index: index, fanName: nameEl.innerText.trim() });
+          }
+        });
+        return JSON.stringify(result);
+      })()`;
+
+      const chatListResult = await executeCDPScript(BK, bbSid, scrapeScript, 15000);
+      const chatList = chatListResult.data?.conversations || [];
+
+      if (!chatList.length) {
+        return json({ success: true, message: "No unread conversations found", repliesSent: 0, results: [] });
+      }
+
+      // Get creator info for AI context
+      const { data: batchCreator } = await svc.from("creators").select("name, niche").eq("id", batchCreatorId).single();
+      const creatorName = batchCreator?.name || "Creator";
+
+      // Step 3: Loop through unread conversations
+      const toProcess = chatList.slice(0, maxReplies);
+
+      for (let ci = 0; ci < toProcess.length; ci++) {
+        const conv = toProcess[ci];
+        const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null };
+
+        try {
+          // 3a: Click into conversation
+          const clickScript = `(function() {
+            var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
+            if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+            var target = chatItems[${conv.index}];
+            if (!target) return JSON.stringify({ success: false, reason: 'Not found' });
+            var clickTarget = target.querySelector('a') || target;
+            try { clickTarget.click(); } catch(e) { target.click(); }
+            return JSON.stringify({ success: true });
+          })()`;
+          const clickRes = await executeCDPScript(BK, bbSid, clickScript, 8000);
+          if (!clickRes.data?.success) {
+            stepResult.status = "skipped";
+            stepResult.error = "Could not click conversation";
+            results.push(stepResult);
+            continue;
+          }
+
+          // Wait for chat to load
+          await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random() * 2000)));
+
+          // 3b: Read chat context
+          const readScript = `(function() {
+            var result = { messages: [], fanName: '' };
+            var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
+            if (header) result.fanName = header.innerText.trim();
+            var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
+            var msgs = Array.from(msgEls).slice(-10);
+            msgs.forEach(function(el) {
+              var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
+              var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
+              var text = textEl ? textEl.innerText.trim() : '';
+              if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
+            });
+            var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
+            result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
+            return JSON.stringify(result);
+          })()`;
+          const chatContext = await executeCDPScript(BK, bbSid, readScript, 10000);
+          const lastFanMsg = chatContext.data?.lastFanMessage;
+
+          if (!lastFanMsg) {
+            stepResult.status = "skipped";
+            stepResult.error = "No fan message found in conversation";
+            results.push(stepResult);
+            // Go back to chats list
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+
+          // 3c: Call ai-chatter for reply
+          const aiRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-chatter`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": auth,
+            },
+            body: JSON.stringify({
+              action: "generate_reply",
+              fanMessage: lastFanMsg,
+              creatorName: creatorName,
+              creatorId: batchCreatorId,
+              confidenceThreshold: 70,
+            }),
+          });
+
+          if (!aiRes.ok) {
+            stepResult.status = "error";
+            stepResult.error = `AI chatter returned ${aiRes.status}`;
+            results.push(stepResult);
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+
+          const aiData = await aiRes.json();
+          const replyText = aiData.reply;
+          const confidence = aiData.confidence || 0;
+
+          if (!replyText || confidence < 50) {
+            stepResult.status = "skipped";
+            stepResult.error = `AI confidence too low (${confidence}%) or empty reply`;
+            stepResult.confidence = confidence;
+            results.push(stepResult);
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+
+          // 3d: Inject reply text and send
+          const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
+          const injectScript = `(function() {
+            var text = '${escapedReply}';
+            var result = { success: false, autoSent: false };
+            var input = document.querySelector('textarea[id="new_post_text_input"]') || document.querySelector('.b-chat__input textarea') || document.querySelector('.b-chat-message-input textarea') || document.querySelector('[contenteditable="true"]');
+            if (!input) { result.reason = 'No input found'; return JSON.stringify(result); }
+            if (input.tagName === 'TEXTAREA') {
+              var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+              if (nativeSetter) nativeSetter.call(input, text);
+              else input.value = text;
+            } else {
+              input.focus();
+              input.textContent = text;
+            }
+            try { input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text })); } catch(_) { input.dispatchEvent(new Event('input', { bubbles: true })); }
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.focus();
+            // Click send
+            setTimeout(function() {
+              var sendBtn = document.querySelector('.b-chat__btn-submit') || document.querySelector('button[type="submit"]') || document.querySelector('[class*="send"] button');
+              if (sendBtn) {
+                try { sendBtn.removeAttribute('disabled'); } catch(_) {}
+                sendBtn.click();
+                result.autoSent = true;
+              }
+            }, 500);
+            result.success = true;
+            return JSON.stringify(result);
+          })()`;
+
+          const injectRes = await executeCDPScript(BK, bbSid, injectScript, 10000);
+
+          stepResult.status = "sent";
+          stepResult.reply = replyText;
+          stepResult.confidence = confidence;
+          stepResult.autoSent = injectRes.data?.autoSent || false;
+          stepResult.fanMessage = lastFanMsg;
+
+          // Log to ai_suggestions_log
+          try {
+            await svc.from("ai_suggestions_log").insert({
+              agency_id: batchAgencyId,
+              creator_id: batchCreatorId,
+              suggestion_type: "batch_reply",
+              suggestions: [{ text: replyText, confidence, fanMessage: lastFanMsg, fanName: conv.fanName }],
+              selected_index: 0,
+              final_message: replyText,
+            });
+          } catch (e) { console.warn("Failed to log suggestion:", e); }
+
+          results.push(stepResult);
+
+          // 3e: Go back to chats list for next conversation
+          if (ci < toProcess.length - 1) {
+            await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random() * 4000))); // Random delay 2-6s
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await new Promise(r => setTimeout(r, 3000));
+          }
+        } catch (e: any) {
+          stepResult.status = "error";
+          stepResult.error = e.message;
+          results.push(stepResult);
+          // Try to recover
+          try {
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await new Promise(r => setTimeout(r, 2000));
+          } catch {}
+        }
+      }
+
+      const sentCount = results.filter(r => r.status === "sent").length;
+      return json({
+        success: true,
+        repliesSent: sentCount,
+        totalProcessed: results.length,
+        totalUnread: chatList.length,
+        results,
+      });
+    }
+
     return json({ error: "Invalid action" }, 400);
   } catch (error) {
     console.error("browserbase-session error:", error);
