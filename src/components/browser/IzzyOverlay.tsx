@@ -45,7 +45,7 @@ interface IzzyOverlayProps {
   browserbaseSessionId?: string;
 }
 
-export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSessionId }: IzzyOverlayProps) {
+export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, browserbaseSessionId }: IzzyOverlayProps) {
   const [expanded, setExpanded] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
