@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Sparkles, X, Loader2, Send, ChevronUp, ChevronDown,
-  Zap, BrainCircuit, Eye, RotateCcw, MessageCircle, ShieldCheck, ScanSearch
+  Zap, BrainCircuit, RotateCcw, MessageCircle, ShieldCheck, ScanSearch,
+  PlayCircle, CheckCircle2, AlertCircle, SkipForward
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeBrowserAction } from "@/lib/browserbase";
