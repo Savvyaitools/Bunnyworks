@@ -55,9 +55,12 @@ export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, brows
   const [reading, setReading] = useState(false);
   const [injecting, setInjecting] = useState<number | null>(null);
   const [history, setHistory] = useState<HandledMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<"assist" | "history">("assist");
+  const [activeTab, setActiveTab] = useState<"assist" | "history" | "batch">("assist");
   const [confidenceThreshold] = useState(80);
   const [detectedFanName, setDetectedFanName] = useState<string>("");
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
+  const [batchLimit, setBatchLimit] = useState(5);
   const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Auto-mode: periodically read chat and generate suggestions
