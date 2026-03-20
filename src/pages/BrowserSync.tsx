@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 export default function BrowserSync() {
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-[1400px]">
+      <div className="space-y-6">
         <PageHeader
           title="Browser Sessions"
           subtitle="Manage live browser sessions and monitoring"
