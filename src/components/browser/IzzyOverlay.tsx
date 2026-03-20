@@ -373,6 +373,21 @@ export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, brows
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab("batch")}
+          className={cn(
+            "flex-1 text-xs py-2 font-medium transition-colors border-b-2 relative",
+            activeTab === "batch"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <PlayCircle className="h-3 w-3 inline mr-1" />
+          Batch
+          {batchRunning && (
+            <Loader2 className="h-3 w-3 inline ml-1 animate-spin" />
+          )}
+        </button>
       </div>
 
       {/* Body */}
