@@ -28,9 +28,19 @@ interface HandledMessage {
   timestamp: Date;
 }
 
+interface BatchResult {
+  fanName: string;
+  status: string;
+  reply?: string;
+  confidence?: number;
+  error?: string;
+  fanMessage?: string;
+}
+
 interface IzzyOverlayProps {
   creatorId: string;
   creatorName?: string;
+  agencyId?: string;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
   browserbaseSessionId?: string;
 }
