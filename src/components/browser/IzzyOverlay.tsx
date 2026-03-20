@@ -41,12 +41,13 @@ interface BatchResult {
 interface IzzyOverlayProps {
   creatorId: string;
   creatorName?: string;
-  agencyId?: string;
   iframeRef?: React.RefObject<HTMLIFrameElement>;
   browserbaseSessionId?: string;
 }
 
-export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, browserbaseSessionId }: IzzyOverlayProps) {
+export function IzzyOverlay({ creatorId, creatorName, iframeRef, browserbaseSessionId }: IzzyOverlayProps) {
+  const { profile } = useAuth();
+  const agencyId = profile?.agency_id;
   const [expanded, setExpanded] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
