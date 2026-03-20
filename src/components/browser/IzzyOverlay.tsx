@@ -264,6 +264,7 @@ export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, brows
     }
   }, [browserbaseSessionId, agencyId, creatorId, batchLimit]);
 
+  if (minimized) {
     return (
       <button
         onClick={() => setMinimized(false)}
