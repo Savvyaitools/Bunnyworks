@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeBrowserAction } from "@/lib/browserbase";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Suggestion {
   text: string;
