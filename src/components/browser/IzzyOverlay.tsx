@@ -501,7 +501,7 @@ export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, brows
               </p>
             )}
           </div>
-        ) : (
+        ) : activeTab === "history" ? (
           <ScrollArea className={expanded ? "max-h-[380px]" : "max-h-[250px]"}>
             {history.length === 0 ? (
               <div className="text-center py-8">
@@ -539,6 +539,103 @@ export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, brows
               </div>
             )}
           </ScrollArea>
+        ) : (
+          /* Batch Tab */
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/40 border">
+              <PlayCircle className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                Marilyn will scan your inbox for unread messages, generate AI replies, and send them automatically.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label className="text-xs whitespace-nowrap">Max replies:</Label>
+              <select
+                value={batchLimit}
+                onChange={(e) => setBatchLimit(Number(e.target.value))}
+                className="text-xs border rounded px-2 py-1 bg-background"
+                disabled={batchRunning}
+              >
+                {[3, 5, 10, 15, 20].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+
+            <Button
+              className="w-full gap-2"
+              size="sm"
+              onClick={runBatchReply}
+              disabled={batchRunning || !browserbaseSessionId}
+            >
+              {batchRunning ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Running Marilyn...
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="h-3.5 w-3.5" />
+                  Run Batch Reply
+                </>
+              )}
+            </Button>
+
+            {batchResults.length > 0 && (
+              <ScrollArea className={expanded ? "max-h-[280px]" : "max-h-[180px]"}>
+                <div className="space-y-1.5">
+                  {batchResults.map((r, i) => (
+                    <div key={i} className="p-2 rounded-lg border bg-muted/30 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium truncate">{r.fanName}</span>
+                        {r.status === "sent" ? (
+                          <Badge className="bg-green-500/20 text-green-600 text-[9px] px-1.5 py-0 gap-0.5">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            Sent
+                          </Badge>
+                        ) : r.status === "skipped" ? (
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 gap-0.5">
+                            <SkipForward className="h-2.5 w-2.5" />
+                            Skipped
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[9px] px-1.5 py-0 gap-0.5">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            Error
+                          </Badge>
+                        )}
+                      </div>
+                      {r.reply && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">{r.reply}</p>
+                      )}
+                      {r.error && (
+                        <p className="text-[10px] text-destructive">{r.error}</p>
+                      )}
+                      {r.confidence !== undefined && (
+                        <span className={cn(
+                          "text-[10px] font-medium",
+                          r.confidence >= 80 ? "text-green-500" :
+                          r.confidence >= 50 ? "text-amber-500" : "text-destructive"
+                        )}>
+                          {Math.round(r.confidence)}% confidence
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+
+            {!batchRunning && batchResults.length === 0 && (
+              <p className="text-[11px] text-muted-foreground text-center py-2">
+                {browserbaseSessionId
+                  ? "Click Run Batch Reply to let Marilyn handle unread fan messages"
+                  : "Start a browser session first to use batch reply"
+                }
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>
