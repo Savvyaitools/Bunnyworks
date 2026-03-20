@@ -224,7 +224,46 @@ export function IzzyOverlay({ creatorId, creatorName, agencyId, iframeRef, brows
     }, 1200);
   }, [browserbaseSessionId, fanMessage]);
 
-  if (minimized) {
+  const runBatchReply = useCallback(async () => {
+    if (!browserbaseSessionId || !agencyId) {
+      toast.error("No active browser session or agency");
+      return;
+    }
+    setBatchRunning(true);
+    setBatchResults([]);
+    setActiveTab("batch");
+    try {
+      const result = await invokeBrowserAction("batch_reply", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+        limit: batchLimit,
+      });
+      const results = result?.results || [];
+      setBatchResults(results);
+      const sent = results.filter((r: BatchResult) => r.status === "sent").length;
+      toast.success(`Marilyn sent ${sent} replies`, {
+        description: `${results.length} conversations processed, ${sent} replies sent`,
+      });
+      // Add sent replies to history
+      for (const r of results) {
+        if (r.status === "sent" && r.reply) {
+          setHistory(prev => [{
+            fanMessage: r.fanMessage || r.fanName,
+            reply: r.reply!,
+            autoSent: true,
+            timestamp: new Date(),
+          }, ...prev]);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Batch reply failed";
+      toast.error(msg);
+    } finally {
+      setBatchRunning(false);
+    }
+  }, [browserbaseSessionId, agencyId, creatorId, batchLimit]);
+
     return (
       <button
         onClick={() => setMinimized(false)}
