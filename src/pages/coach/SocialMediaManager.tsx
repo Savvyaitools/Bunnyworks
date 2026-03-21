@@ -702,13 +702,23 @@ export default function SocialMediaManager() {
                           <h4 className="font-semibold text-sm">{trend.title}</h4>
                           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{trend.description}</p>
                         </div>
-                        {trend.url && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" asChild>
-                            <a href={trend.url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {trend.video_url && (
+                            <Button size="sm" variant="default" className="gap-1.5 text-xs" asChild>
+                              <a href={trend.video_url} target="_blank" rel="noopener noreferrer">
+                                <Play className="h-3 w-3" />
+                                Watch
+                              </a>
+                            </Button>
+                          )}
+                          {trend.url && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" asChild>
+                              <a href={trend.url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-start gap-2 p-2.5 rounded-md bg-primary/5 border border-primary/10">
                         <ArrowUpRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
