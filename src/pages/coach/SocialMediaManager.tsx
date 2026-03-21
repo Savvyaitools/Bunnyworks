@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { firecrawlApi } from "@/lib/api/firecrawl";
+import { searchPlatformTrends } from "@/lib/api/apify";
 
 interface GeneratedPost {
   platform: string;
