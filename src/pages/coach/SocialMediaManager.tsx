@@ -44,6 +44,7 @@ interface TrendItem {
   description: string;
   engagement: string;
   url?: string;
+  video_url?: string;
   actionable_tip: string;
 }
 
