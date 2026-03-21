@@ -339,7 +339,7 @@ export default function SocialMediaManager() {
       toast.success(`Generated ${aiData.content_plan?.length || 0} content ideas with reference links`);
     } catch (err) {
       console.error("Niche research error:", err);
-      toast.error("Failed to research niche. Make sure Firecrawl is connected.");
+      toast.error("Failed to research niche");
     } finally {
       setResearchingNiche(false);
     }
