@@ -31,9 +31,12 @@ serve(async (req) => {
 
     console.log(`Running Apify actor: ${actorId}`);
 
+    // Encode actor ID for URL (e.g., "clockworks/free-tiktok-scraper" → "clockworks~free-tiktok-scraper")
+    const encodedActorId = actorId.replace("/", "~");
+
     // Start actor run and wait for it to finish (synchronous call)
     const runRes = await fetch(
-      `${APIFY_BASE}/acts/${actorId}/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}&timeout=${timeoutSecs || 120}`,
+      `${APIFY_BASE}/acts/${encodedActorId}/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}&timeout=${timeoutSecs || 120}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
