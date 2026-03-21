@@ -137,15 +137,15 @@ function normalizeItem(item: any, platformHint: string): NormalizedPost {
   }
 
   // Reddit
-  if (item.subreddit || item.ups !== undefined) {
+  if (item.communityName || item.upVotes !== undefined || item.subreddit || item.ups !== undefined) {
     return {
       title: (item.title || item.body || "").slice(0, 300),
-      url: item.url || item.permalink ? `https://reddit.com${item.permalink}` : "",
+      url: item.url || item.link || (item.permalink ? `https://reddit.com${item.permalink}` : ""),
       platform: "reddit",
-      author: item.author || item.user || "",
+      author: item.username || item.author || item.user || "",
       views: 0,
-      likes: item.ups || item.score || 0,
-      comments: item.numComments || item.num_comments || 0,
+      likes: item.upVotes || item.ups || item.score || 0,
+      comments: item.numberOfComments || item.numComments || item.num_comments || 0,
       shares: 0,
     };
   }
