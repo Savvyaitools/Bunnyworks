@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { firecrawlApi } from "@/lib/api/firecrawl";
+import { searchPlatformTrends } from "@/lib/api/apify";
 
 interface GeneratedPost {
   platform: string;
@@ -180,69 +181,62 @@ export default function SocialMediaManager() {
     setScanningTrends(true);
     setTrends([]);
     try {
-      // Multi-query strategy: search for viral videos + platform-specific trends + engagement data
-      const platformVideoQueries: Record<string, string[]> = {
-        instagram: [
-          "site:instagram.com OR site:tiktok.com viral reels millions views creator",
-          "most viral Instagram Reels this week millions views likes",
-          "Instagram growth hacks viral content strategy high engagement rate",
-        ],
-        twitter: [
-          "viral tweets millions impressions engagement creator promotion",
-          "Twitter X viral content strategy high engagement retweets",
-          "most viral X posts this month creator marketing",
-        ],
-        tiktok: [
-          "site:tiktok.com viral videos millions views trending sounds",
-          "most viral TikTok videos this week creator niche millions views",
-          "TikTok algorithm viral content strategy high view count",
-        ],
-        reddit: [
-          "site:reddit.com top posts this week creator promotion thousands upvotes",
-          "Reddit viral posts high engagement upvotes comments creator marketing",
-          "most successful Reddit promotion strategies creators high karma",
-        ],
-        all: [
-          "most viral social media videos this week millions views engagement",
-          "viral content creator strategies high engagement views 2026",
-          "trending viral videos TikTok Instagram Reels millions views",
-        ],
-      };
+      const creator = creators?.find(c => c.id === selectedCreator);
+      const query = topic.trim() || "viral content creator";
 
-      const queries = platformVideoQueries[platform] || platformVideoQueries.all;
-      
-      // Run multiple searches in parallel for richer results
-      const searchResults = await Promise.all(
-        queries.map(q => firecrawlApi.search(q, {
-          limit: 5,
-          scrapeOptions: { formats: ["markdown"] },
-        }))
-      );
+      // Use Apify actors for platform-specific trend scraping
+      const apifyResult = await searchPlatformTrends(platform, query, 15);
 
-      // Merge and deduplicate results
-      const allResults: any[] = [];
-      const seenUrls = new Set<string>();
-      for (const result of searchResults) {
-        if (result.success && result.data) {
-          for (const item of result.data as any[]) {
-            if (item.url && !seenUrls.has(item.url)) {
-              seenUrls.add(item.url);
-              allResults.push(item);
+      let scrapedContent = "";
+
+      if (apifyResult.success && apifyResult.formattedContent) {
+        scrapedContent = apifyResult.formattedContent;
+      } else {
+        // Fallback to Firecrawl if Apify fails
+        const platformVideoQueries: Record<string, string[]> = {
+          instagram: [
+            "site:instagram.com OR site:tiktok.com viral reels millions views creator",
+            "most viral Instagram Reels this week millions views likes",
+          ],
+          twitter: [
+            "viral tweets millions impressions engagement creator promotion",
+            "Twitter X viral content strategy high engagement retweets",
+          ],
+          tiktok: [
+            "site:tiktok.com viral videos millions views trending sounds",
+            "most viral TikTok videos this week creator niche millions views",
+          ],
+          reddit: [
+            "site:reddit.com top posts this week creator promotion thousands upvotes",
+            "Reddit viral posts high engagement upvotes comments creator marketing",
+          ],
+          all: [
+            "most viral social media videos this week millions views engagement",
+            "trending viral videos TikTok Instagram Reels millions views",
+          ],
+        };
+        const queries = platformVideoQueries[platform] || platformVideoQueries.all;
+        const searchResults = await Promise.all(
+          queries.map(q => firecrawlApi.search(q, { limit: 5, scrapeOptions: { formats: ["markdown"] } }))
+        );
+        const allResults: any[] = [];
+        const seenUrls = new Set<string>();
+        for (const result of searchResults) {
+          if (result.success && result.data) {
+            for (const item of result.data as any[]) {
+              if (item.url && !seenUrls.has(item.url)) {
+                seenUrls.add(item.url);
+                allResults.push(item);
+              }
             }
           }
         }
+        if (allResults.length === 0) throw new Error("No search results found");
+        scrapedContent = allResults.slice(0, 10)
+          .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
+          .join("\n\n---\n\n");
       }
 
-      if (allResults.length === 0) {
-        throw new Error("No search results found");
-      }
-
-      const scrapedContent = allResults
-        .slice(0, 10)
-        .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
-        .join("\n\n---\n\n");
-
-      const creator = creators?.find(c => c.id === selectedCreator);
       const { data: aiData, error: aiError } = await supabase.functions.invoke("ai-social-media-manager", {
         body: {
           action: "analyze_trends",
@@ -262,7 +256,7 @@ export default function SocialMediaManager() {
       toast.success(`Found ${aiData.trends?.length || 0} trending strategies`);
     } catch (err) {
       console.error("Trends scan error:", err);
-      toast.error("Failed to scan trends. Make sure Firecrawl is connected.");
+      toast.error("Failed to scan trends");
     } finally {
       setScanningTrends(false);
     }
@@ -273,38 +267,30 @@ export default function SocialMediaManager() {
     setResearchingNiche(true);
     setNicheContentPlan([]);
     try {
-      // Step 1: Multi-query niche search for viral content with engagement data
-      const nicheSearchQueries = [
-        `${nicheQuery} viral video millions views ${platform !== "all" ? platform : "TikTok Instagram"}`,
-        `${nicheQuery} most popular content creator high engagement likes views`,
-        `site:tiktok.com OR site:instagram.com ${nicheQuery} viral trending`,
-      ];
-      
-      const nicheResults = await Promise.all(
-        nicheSearchQueries.map(q => firecrawlApi.search(q, {
-          limit: 5,
-          scrapeOptions: { formats: ["markdown"] },
-        }))
-      );
-      
-      // Merge and deduplicate
-      const allNicheResults: any[] = [];
-      const seenNicheUrls = new Set<string>();
-      for (const result of nicheResults) {
-        if (result.success && result.data) {
-          for (const item of result.data as any[]) {
-            if (item.url && !seenNicheUrls.has(item.url)) {
-              seenNicheUrls.add(item.url);
-              allNicheResults.push(item);
-            }
+      // Step 1: Use Apify for niche trend scraping
+      const apifyResult = await searchPlatformTrends(platform, nicheQuery, 15);
+
+      let nicheItems: any[] = [];
+      if (apifyResult.success && apifyResult.rawItems.length > 0) {
+        nicheItems = apifyResult.rawItems;
+      } else {
+        // Fallback to Firecrawl
+        const nicheSearchQueries = [
+          `${nicheQuery} viral video millions views ${platform !== "all" ? platform : "TikTok Instagram"}`,
+          `${nicheQuery} most popular content creator high engagement likes views`,
+        ];
+        const nicheResults = await Promise.all(
+          nicheSearchQueries.map(q => firecrawlApi.search(q, { limit: 5, scrapeOptions: { formats: ["markdown"] } }))
+        );
+        for (const result of nicheResults) {
+          if (result.success && result.data) {
+            nicheItems.push(...(result.data as any[]));
           }
         }
       }
-      
-      const searchResult = { success: allNicheResults.length > 0, data: allNicheResults, error: allNicheResults.length === 0 ? "Niche search failed" : undefined };
 
-      if (!searchResult.success || !searchResult.data) {
-        throw new Error(searchResult.error || "Niche search failed");
+      if (nicheItems.length === 0) {
+        throw new Error("Niche search failed");
       }
 
       // Step 2: If creator social URL provided, scrape their existing content
@@ -324,10 +310,11 @@ export default function SocialMediaManager() {
         }
       }
 
-      const searchData = (searchResult.data as any[]).slice(0, 8);
-      const scrapedReferences = searchData
-        .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
-        .join("\n\n---\n\n");
+      const scrapedReferences = apifyResult.success && apifyResult.formattedContent
+        ? apifyResult.formattedContent
+        : nicheItems.slice(0, 8)
+          .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
+          .join("\n\n---\n\n");
 
       // Step 3: Send to AI for niche content plan with reference links
       const creator = creators?.find(c => c.id === selectedCreator);
@@ -352,7 +339,7 @@ export default function SocialMediaManager() {
       toast.success(`Generated ${aiData.content_plan?.length || 0} content ideas with reference links`);
     } catch (err) {
       console.error("Niche research error:", err);
-      toast.error("Failed to research niche. Make sure Firecrawl is connected.");
+      toast.error("Failed to research niche");
     } finally {
       setResearchingNiche(false);
     }
