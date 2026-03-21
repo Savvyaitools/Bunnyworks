@@ -388,10 +388,12 @@ export default function SocialMediaManager() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="tiktok">TikTok</SelectItem>
               <SelectItem value="instagram">Instagram</SelectItem>
               <SelectItem value="twitter">Twitter / X</SelectItem>
-              <SelectItem value="tiktok">TikTok</SelectItem>
               <SelectItem value="reddit">Reddit</SelectItem>
+              <SelectItem value="threads">Threads</SelectItem>
+              <SelectItem value="snapchat">Snapchat</SelectItem>
               <SelectItem value="all">All Platforms</SelectItem>
             </SelectContent>
           </Select>
