@@ -267,38 +267,30 @@ export default function SocialMediaManager() {
     setResearchingNiche(true);
     setNicheContentPlan([]);
     try {
-      // Step 1: Multi-query niche search for viral content with engagement data
-      const nicheSearchQueries = [
-        `${nicheQuery} viral video millions views ${platform !== "all" ? platform : "TikTok Instagram"}`,
-        `${nicheQuery} most popular content creator high engagement likes views`,
-        `site:tiktok.com OR site:instagram.com ${nicheQuery} viral trending`,
-      ];
-      
-      const nicheResults = await Promise.all(
-        nicheSearchQueries.map(q => firecrawlApi.search(q, {
-          limit: 5,
-          scrapeOptions: { formats: ["markdown"] },
-        }))
-      );
-      
-      // Merge and deduplicate
-      const allNicheResults: any[] = [];
-      const seenNicheUrls = new Set<string>();
-      for (const result of nicheResults) {
-        if (result.success && result.data) {
-          for (const item of result.data as any[]) {
-            if (item.url && !seenNicheUrls.has(item.url)) {
-              seenNicheUrls.add(item.url);
-              allNicheResults.push(item);
-            }
+      // Step 1: Use Apify for niche trend scraping
+      const apifyResult = await searchPlatformTrends(platform, nicheQuery, 15);
+
+      let nicheItems: any[] = [];
+      if (apifyResult.success && apifyResult.rawItems.length > 0) {
+        nicheItems = apifyResult.rawItems;
+      } else {
+        // Fallback to Firecrawl
+        const nicheSearchQueries = [
+          `${nicheQuery} viral video millions views ${platform !== "all" ? platform : "TikTok Instagram"}`,
+          `${nicheQuery} most popular content creator high engagement likes views`,
+        ];
+        const nicheResults = await Promise.all(
+          nicheSearchQueries.map(q => firecrawlApi.search(q, { limit: 5, scrapeOptions: { formats: ["markdown"] } }))
+        );
+        for (const result of nicheResults) {
+          if (result.success && result.data) {
+            nicheItems.push(...(result.data as any[]));
           }
         }
       }
-      
-      const searchResult = { success: allNicheResults.length > 0, data: allNicheResults, error: allNicheResults.length === 0 ? "Niche search failed" : undefined };
 
-      if (!searchResult.success || !searchResult.data) {
-        throw new Error(searchResult.error || "Niche search failed");
+      if (nicheItems.length === 0) {
+        throw new Error("Niche search failed");
       }
 
       // Step 2: If creator social URL provided, scrape their existing content
