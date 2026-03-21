@@ -199,40 +199,43 @@ Respond ONLY with JSON: {"calendar": [{"platform": "string", "caption": "string"
 Platform: ${platform}
 Respond ONLY with JSON: {"insights": [{"title": "string", "description": "string", "priority": "high|medium|low", "metric": "optional string"}]}`;
     } else if (action === "analyze_trends") {
-      systemPrompt = `${basePersonality}\n\nYou are analyzing scraped web content to find HIGHLY VIRAL content with real engagement numbers. Focus on content with millions of views, thousands of likes, and proven viral mechanics. Do NOT give generic advice or link to blog articles. Every trend MUST reference specific viral content with real view counts, like counts, or engagement metrics from the scraped data. If the scraped data contains actual TikTok, Instagram, or Twitter URLs, preserve those exact URLs. Prioritize content that went viral (100K+ views) over generic strategy articles. Respond with valid JSON only.`;
-      userPrompt = `Analyze these scraped results and extract 4-6 VIRAL content trends for ${creatorName} on ${platform}.
+      systemPrompt = `${basePersonality}\n\nYou are analyzing scraped social media data to find HIGHLY VIRAL content with real engagement numbers. The data comes from direct platform scraping (TikTok, Instagram, Reddit, Twitter/X, Threads, Snapchat) and contains actual post metrics.\n\nIMPORTANT: Match trends to the creator's PERSONA. The creator's persona is "${creatorPersona || 'engaging content creator'}". Only surface trends that align with their brand, audience, and content style.\n\nEvery trend MUST include:\n1. A direct link to the original viral video/post (the actual URL from the scraped data)\n2. Real engagement numbers (views, likes, comments, shares)\n3. A specific recreation prompt tailored to the creator's persona\n\nDo NOT give generic advice or link to blog articles. Respond with valid JSON only.`;
+      userPrompt = `Analyze these scraped results and extract 4-6 VIRAL content trends for ${creatorName} (persona: ${creatorPersona || "engaging"}) on ${platform}.
 
-IMPORTANT RULES:
-- Each trend MUST include specific engagement numbers (views, likes, shares) from the scraped data
-- Prioritize actual viral videos/posts over blog articles about trends
-- Include direct links to viral content (TikTok, Instagram, Twitter URLs), NOT blog articles
-- The "engagement" field must contain REAL numbers (e.g. "2.3M views, 450K likes") not vague labels
-- If a scraped result is just a generic blog post with no viral content examples, skip it
+CREATOR PERSONA: ${creatorPersona || "engaging content creator"}
+Only suggest trends that this persona can authentically recreate.
 
-SCRAPED CONTENT:
+SCRAPED PLATFORM DATA (real posts with metrics):
 ${topic}
 
-Respond ONLY with JSON: {"trends": [{"title": "string (name the specific viral trend or sound)", "platform": "string", "description": "string (2-3 sentences describing the viral content and WHY it went viral)", "engagement": "string (MUST include real numbers e.g. '4.2M views, 890K likes, 12K shares')", "url": "string or null (direct link to viral content, NOT a blog article)", "actionable_tip": "string (specific step-by-step action to recreate this viral trend)"}]}`;
+RULES:
+- Each trend MUST include the original post/video URL from the scraped data above
+- The "engagement" field must contain REAL numbers from the data (e.g. "2.3M views, 450K likes")
+- The "video_url" field should contain the direct video link if available
+- Skip any items without meaningful engagement data
+- Tailor actionable_tip to the creator's specific persona
+
+Respond ONLY with JSON: {"trends": [{"title": "string (name the specific viral trend)", "platform": "string", "description": "string (2-3 sentences on WHY it went viral and how it fits this creator's persona)", "engagement": "string (REAL numbers e.g. '4.2M views, 890K likes')", "url": "string (direct link to the original viral post)", "video_url": "string or null (direct video URL for reference)", "actionable_tip": "string (step-by-step recreation instructions tailored to ${creatorName}'s persona)"}]}`;
     } else if (action === "niche_content_plan") {
-      systemPrompt = `${basePersonality}\n\nYou are building a niche-specific content plan with REAL reference links to VIRAL content. The agency wants actionable content ideas referencing specific viral videos and posts with proven high engagement. Do NOT link to generic blog articles or strategy guides — every reference MUST be actual viral content (TikTok videos, Instagram Reels, viral tweets, Reddit posts with high upvotes). Analyze what makes each reference successful with specific engagement metrics (views, likes, shares, comments). If the creator's existing social media content is provided, tailor the plan to complement and improve on their current style. IMPORTANT: Always preserve exact TikTok/Instagram/Twitter/Reddit URLs from the scraped data. Include the direct video URL in the "reference_video_url" field. Respond with valid JSON only.`;
-      userPrompt = `Build a niche content plan for ${creatorName} in the "${nicheQuery || creatorNiche}" niche on ${platform}.
+      systemPrompt = `${basePersonality}\n\nYou are building a niche-specific content plan with REAL reference links to VIRAL content scraped directly from social platforms. The data contains actual posts with real engagement metrics.\n\nCREATOR PERSONA: "${creatorPersona || 'engaging content creator'}"\nOnly suggest content ideas that authentically fit this persona.\n\nEvery content idea MUST include:\n1. The direct URL to the reference viral post/video from the scraped data\n2. A "reference_video_url" with the direct video link when available\n3. Real engagement numbers from the reference\n4. A persona-tailored recreation prompt\n\nRespond with valid JSON only.`;
+      userPrompt = `Build a niche content plan for ${creatorName} (persona: ${creatorPersona || "engaging"}) in the "${nicheQuery || creatorNiche}" niche on ${platform}.
 
-SCRAPED REFERENCE CONTENT (use these REAL URLs as references):
+CREATOR PERSONA: ${creatorPersona || "engaging content creator"}
+
+SCRAPED REFERENCE CONTENT (real platform data with engagement metrics):
 ${topic}
 
-${existingSocialContent ? `CREATOR'S EXISTING SOCIAL MEDIA CONTENT (analyze their current style):
-${existingSocialContent}
+${existingSocialContent ? `CREATOR'S EXISTING SOCIAL MEDIA CONTENT:\n${existingSocialContent}\n\nCompare trending references with the creator's existing content. Identify gaps and opportunities.` : "No existing social media content provided."}
 
-Compare the trending references with the creator's existing content. Identify gaps, opportunities, and content styles they should adopt.` : "No existing social media content provided — give general niche recommendations."}
+RULES:
+- Each item MUST include the original post URL from the scraped data
+- "reference_video_url" should be the direct video link when available
+- "estimated_engagement" MUST include real numbers from the reference
+- Tailor recreation_prompt to ${creatorName}'s specific persona
+- Skip any references without meaningful engagement data
 
-IMPORTANT RULES:
-- Reference ONLY viral content (videos, posts) with real engagement numbers — NO blog articles
-- Each item's "estimated_engagement" MUST include real numbers from the reference (e.g. "Original got 5.2M views, 340K likes")
-- Preserve exact social media URLs (tiktok.com, instagram.com, twitter.com, reddit.com) from the scraped data
-- If a scraped result is a blog/article, extract any viral content URLs mentioned WITHIN that article instead
-
-Return 5-8 content ideas. Each MUST include a real reference_url from the scraped content above.
-Respond ONLY with JSON: {"content_plan": [{"reference_url": "string (MUST be a real URL — prefer social media URLs over blog articles)", "reference_title": "string", "reference_video_url": "string or null (direct video URL if reference is a video — TikTok, YouTube, IG Reel, etc.)", "platform": "string", "what_works": "string (2-3 sentences citing SPECIFIC engagement metrics — views, likes, shares)", "recreation_prompt": "string (specific step-by-step instructions for the creator to recreate)", "hashtags": ["string"], "estimated_engagement": "string (MUST include real numbers e.g. 'Original: 3.1M views, 200K likes — expect 50K-500K views')"}]}`;
+Return 5-8 content ideas.
+Respond ONLY with JSON: {"content_plan": [{"reference_url": "string (real URL from scraped data)", "reference_title": "string", "reference_video_url": "string or null (direct video URL)", "platform": "string", "what_works": "string (2-3 sentences citing SPECIFIC engagement metrics)", "recreation_prompt": "string (persona-tailored step-by-step instructions)", "hashtags": ["string"], "estimated_engagement": "string (real numbers from reference)"}]}`;
     } else {
       throw new Error("Invalid action");
     }
