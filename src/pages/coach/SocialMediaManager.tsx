@@ -310,10 +310,11 @@ export default function SocialMediaManager() {
         }
       }
 
-      const searchData = (searchResult.data as any[]).slice(0, 8);
-      const scrapedReferences = searchData
-        .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
-        .join("\n\n---\n\n");
+      const scrapedReferences = apifyResult.success && apifyResult.formattedContent
+        ? apifyResult.formattedContent
+        : nicheItems.slice(0, 8)
+          .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${(r.markdown || r.description || "").slice(0, 600)}`)
+          .join("\n\n---\n\n");
 
       // Step 3: Send to AI for niche content plan with reference links
       const creator = creators?.find(c => c.id === selectedCreator);
