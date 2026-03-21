@@ -63,8 +63,7 @@ export async function scrapeTwitterTrends(query: string, maxItems = 20) {
 /** Scrape Threads posts by search query */
 export async function scrapeThreadsTrends(query: string, maxItems = 20) {
   return runApifyActor("automation-lab/threads-scraper", {
-    type: "search",
-    searchQuery: query,
+    searchQueries: [query],
     maxPosts: maxItems,
   }, { maxItems, timeoutSecs: 120 });
 }
