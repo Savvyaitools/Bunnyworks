@@ -182,7 +182,7 @@ export default function SocialMediaManager() {
     setTrends([]);
     try {
       const creator = creators?.find(c => c.id === selectedCreator);
-      const query = topic.trim() || creator?.niche || "viral content creator";
+      const query = topic.trim() || "viral content creator";
 
       // Use Apify actors for platform-specific trend scraping
       const apifyResult = await searchPlatformTrends(platform, query, 15);
