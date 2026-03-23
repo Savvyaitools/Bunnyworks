@@ -88,7 +88,7 @@ const agents: AgentCardProps[] = [
     name: "Coach PBF", role: "Personal Coach",
     description: "Your personal AI coach with full access to agency data. Get real-time advice on revenue, performance, and strategy.",
     icon: Brain, features: ["Revenue & performance insights", "Strategic recommendations", "Agency health monitoring", "Data-driven decision support"],
-    color: "primary", href: "#chat", badge: "Coach",
+    color: "primary", href: "/of-ai/coach", badge: "Coach",
   },
   {
     name: "Flick", role: "Agency Manager",
@@ -383,7 +383,6 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
 // ─── Main Page ─────────────────────────────────────────────────────
 export default function Felix() {
   const navigate = useNavigate();
-  const [showChat, setShowChat] = useState(false);
   const { tasks } = useTasks();
   const { creators } = useCreators();
   const { agencyId } = useAgency();
@@ -405,11 +404,7 @@ export default function Felix() {
   });
 
   const handleAgentClick = (agent: AgentCardProps) => {
-    if (agent.href === "#chat") {
-      setShowChat(true);
-    } else {
-      navigate(agent.href);
-    }
+    navigate(agent.href);
   };
 
   return (
@@ -443,19 +438,6 @@ export default function Felix() {
           ))}
         </motion.div>
 
-        {/* Chat Panel */}
-        {showChat && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Brain className="h-5 w-5 text-primary" />
-                Coach PBF
-              </h2>
-              <Button variant="ghost" size="sm" onClick={() => setShowChat(false)}>Close</Button>
-            </div>
-            <FelixChat className="h-[500px]" />
-          </motion.div>
-        )}
 
         {/* Task Overview */}
         <TaskOverview tasks={tasks} />
