@@ -130,7 +130,7 @@ serve(async (req) => {
 
     const agencyCreatorIds = (creatorsRes.data || []).map((c: any) => c.id);
     const { data: socialsData } = agencyCreatorIds.length > 0
-      ? await supabase.from('creator_social_accounts').select('username, platform, of_connection_status, of_account_id, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
+      ? await supabase.from('creator_social_accounts').select('username, platform, follower_count, engagement_rate, bio, avg_likes, avg_comments, posts_count, last_synced_at, of_connection_status, of_account_id, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
       : { data: [] };
 
     if (memoriesRes.data?.length) {
@@ -139,7 +139,16 @@ serve(async (req) => {
 
     const creatorsInfo = creatorsRes.data?.map((c: any) => `${c.name}: ${c.platform || 'N/A'}, niche=${c.niche || 'general'}, revenue=$${c.revenue || 0}`).join(' | ') || '';
     const plansInfo = plansRes.data?.slice(0, 10).map((p: any) => `"${p.title}" (${p.creators?.name}, ${p.board_column}, ${p.platform || '?'})`).join(' | ') || '';
-    const socialsInfo = (socialsData || []).map((s: any) => `${s.creators?.name}: @${s.username} on ${s.platform}`).join(' | ') || '';
+    const socialsInfo = (socialsData || []).map((s: any) => {
+      let entry = `${s.creators?.name}: @${s.username} on ${s.platform}`;
+      if (s.follower_count) entry += `, ${s.follower_count.toLocaleString()} followers`;
+      if (s.engagement_rate) entry += `, ${s.engagement_rate.toFixed(1)}% engagement`;
+      if (s.avg_likes) entry += `, ~${s.avg_likes} avg likes`;
+      if (s.posts_count) entry += `, ${s.posts_count} posts`;
+      if (s.bio) entry += `, bio: "${s.bio.slice(0, 100)}"`;
+      if (s.last_synced_at) entry += ` (synced ${new Date(s.last_synced_at).toLocaleDateString()})`;
+      return entry;
+    }).join(' | ') || '';
     const earningsInfo = earningsRes?.data?.map((e: any) => `$${e.amount} (${e.period_start}→${e.period_end}, subs=$${e.subscriptions||0}, tips=$${e.tips||0})`).join(' | ') || '';
 
     dataContext = `\n\nAGENCY DATA FOR CONTEXT:

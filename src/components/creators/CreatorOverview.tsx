@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, FileText, User, Tag, Plus, Link2, Heart, Sparkles, Star, MessageCircle, Hash } from "lucide-react";
+import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, FileText, User, Tag, Plus, Link2, Heart, Sparkles, Star, MessageCircle, Hash, RefreshCw, Loader2, TrendingUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,12 @@ interface SocialAccount {
   account_type: string;
   profile_url: string | null;
   follower_count: number | null;
+  engagement_rate: number | null;
+  bio: string | null;
+  avg_likes: number | null;
+  avg_comments: number | null;
+  posts_count: number | null;
+  last_synced_at: string | null;
   creator_id: string;
 }
 
@@ -60,6 +66,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
   // Social accounts state
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [loadingSocials, setLoadingSocials] = useState(true);
+  const [syncingStats, setSyncingStats] = useState(false);
   const [isAddSocialOpen, setIsAddSocialOpen] = useState(false);
   const [socialForm, setSocialForm] = useState({ platform: "", username: "", profile_url: "", follower_count: "" });
 
@@ -138,6 +145,31 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     } else {
       toast.success("Account removed");
       fetchSocialAccounts();
+    }
+  };
+
+  const syncSocialStats = async () => {
+    if (socialAccounts.length === 0) {
+      toast.error("No social accounts to sync");
+      return;
+    }
+    setSyncingStats(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-social-stats", {
+        body: { creatorId: creator.id, mode: "single" },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`Synced ${data.synced}/${data.total} accounts`);
+        fetchSocialAccounts();
+      } else {
+        toast.error(data?.error || "Sync failed");
+      }
+    } catch (err) {
+      console.error("Sync stats error:", err);
+      toast.error("Failed to sync social stats");
+    } finally {
+      setSyncingStats(false);
     }
   };
 
@@ -327,11 +359,19 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
               Social Accounts
               <Badge variant="secondary" className="ml-1">{socialAccounts.length}/{MAX_SOCIAL_ACCOUNTS}</Badge>
             </CardTitle>
-            {socialAccounts.length < MAX_SOCIAL_ACCOUNTS && (
-              <Button size="sm" variant="outline" onClick={() => setIsAddSocialOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {socialAccounts.length > 0 && (
+                <Button size="sm" variant="outline" onClick={syncSocialStats} disabled={syncingStats}>
+                  {syncingStats ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                  {syncingStats ? "Syncing..." : "Sync Stats"}
+                </Button>
+              )}
+              {socialAccounts.length < MAX_SOCIAL_ACCOUNTS && (
+                <Button size="sm" variant="outline" onClick={() => setIsAddSocialOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -355,15 +395,26 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                       <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bgColor)}>
                         <span className={config.color}>{config.icon}</span>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{account.platform}</span>
-                          <span className="text-sm text-muted-foreground">@{account.username}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{account.platform}</span>
+                            <span className="text-sm text-muted-foreground">@{account.username}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {account.follower_count != null && account.follower_count > 0 && (
+                              <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
+                            )}
+                            {account.engagement_rate != null && (
+                              <span className="text-xs text-success flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />{account.engagement_rate.toFixed(1)}% eng.</span>
+                            )}
+                            {account.posts_count != null && (
+                              <span className="text-xs text-muted-foreground">{formatFollowerCount(account.posts_count)} posts</span>
+                            )}
+                            {account.last_synced_at && (
+                              <span className="text-xs text-muted-foreground/60">synced {new Date(account.last_synced_at).toLocaleDateString()}</span>
+                            )}
+                          </div>
                         </div>
-                        {account.follower_count != null && account.follower_count > 0 && (
-                          <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
-                        )}
-                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       {account.profile_url && (
