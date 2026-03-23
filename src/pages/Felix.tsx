@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Bot, Brain, Share2, MessagesSquare, ArrowRight, Sparkles, UserCog,
   CheckCircle2, Clock, ListTodo, TrendingUp, MessageCircle, FileText,
-  Activity, CircleDot, AlertCircle, ImageIcon, Mic
+  Activity, CircleDot, AlertCircle, ImageIcon, Mic, Workflow
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { FelixChat } from "@/components/ai/FelixChat";
@@ -119,6 +119,12 @@ const agents: AgentCardProps[] = [
     description: "Clone and generate realistic AI voices for text-to-speech. Create custom voice content with natural-sounding speech.",
     icon: Mic, features: ["Voice cloning & TTS", "Natural speech generation", "Multiple voice styles", "Audio content creation"],
     color: "primary", href: "/of-ai/voice-generator", badge: "Audio",
+  },
+  {
+    name: "ComfyUI", role: "Advanced Workflow Editor",
+    description: "Node-based AI workflow editor for complex image and video generation pipelines. Build custom AI workflows with full control.",
+    icon: Workflow, features: ["Node-based workflow editor", "Custom AI pipelines", "Image & video generation", "Advanced model chaining"],
+    color: "accent", href: "/of-ai/comfyui", badge: "Advanced",
   },
 ];
 
