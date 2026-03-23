@@ -339,7 +339,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
       .slice(0, 8);
   }, [tasks, contentPlans]);
 
-  const agentIcons: Record<string, typeof Bot> = { Felix: UserCog, Tatum: Share2, Jodie: MessagesSquare, "Coach PBF": Brain };
+  const agentIcons: Record<string, typeof Bot> = { Flick: UserCog, Tatum: Share2, "Marylin Monroe": MessagesSquare, "Coach PBF": Brain };
 
   return (
     <motion.div variants={itemVariants}>

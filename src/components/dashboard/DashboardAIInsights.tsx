@@ -93,13 +93,13 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
       name: "Marylin · Chatter",
       icon: MessageSquare,
       color: "text-success",
-      conversations: data?.jodie.count || 0,
-      recentActivity: data?.jodie.lastActivity
-        ? formatDistanceToNow(new Date(data.jodie.lastActivity), { addSuffix: true })
+      conversations: data?.marylin.count || 0,
+      recentActivity: data?.marylin.lastActivity
+        ? formatDistanceToNow(new Date(data.marylin.lastActivity), { addSuffix: true })
         : null,
       href: "/coach-pbf",
-      badge: data?.jodie.recentSales
-        ? `${data.jodie.recentSales} recent sales`
+      badge: data?.marylin.recentSales
+        ? `${data.marylin.recentSales} recent sales`
         : undefined,
     },
   ];
