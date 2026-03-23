@@ -68,6 +68,9 @@ const CoachPBFPage = lazy(() => import("@/pages/coach/CoachPBF"));
 const CreatorApplication = lazy(() => import("@/pages/apply/CreatorApplication"));
 const EmployeeApplication = lazy(() => import("@/pages/apply/EmployeeApplication"));
 
+// Public pages
+const CreatorLinkPage = lazy(() => import("@/pages/CreatorLinkPage"));
+
 export type UserType = "agency" | "creator" | "employee";
 
 export interface RouteConfig {
