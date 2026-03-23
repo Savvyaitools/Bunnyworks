@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LinkPageManager } from "./LinkPageManager";
 import { Plus, Link2, MousePointerClick, DollarSign, Target, Copy, ExternalLink, Trash2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
