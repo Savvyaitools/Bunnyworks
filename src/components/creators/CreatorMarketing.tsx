@@ -136,7 +136,10 @@ export function CreatorMarketing({ creatorId, creatorName }: CreatorMarketingPro
 
   return (
     <div className="space-y-6">
-      {/* Feature Guide */}
+      {/* Link Page (Linktree alternative) */}
+      {creatorName && (
+        <LinkPageManager creatorId={creatorId} creatorName={creatorName} />
+      )}
       <FeatureGuide
         title="How to Use Tracking Links"
         description="Create unique tracking links to measure which traffic sources bring the most fans and revenue."
