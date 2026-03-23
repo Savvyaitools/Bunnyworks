@@ -350,92 +350,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
         </Card>
       </div>
 
-      {/* Social Accounts Section */}
-      <Card className="glass-card">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-primary" />
-              Social Accounts
-              <Badge variant="secondary" className="ml-1">{socialAccounts.length}/{MAX_SOCIAL_ACCOUNTS}</Badge>
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {socialAccounts.length > 0 && (
-                <Button size="sm" variant="outline" onClick={syncSocialStats} disabled={syncingStats}>
-                  {syncingStats ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                  {syncingStats ? "Syncing..." : "Sync Stats"}
-                </Button>
-              )}
-              {socialAccounts.length < MAX_SOCIAL_ACCOUNTS && (
-                <Button size="sm" variant="outline" onClick={() => setIsAddSocialOpen(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Add
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingSocials ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          ) : socialAccounts.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <Link2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No social accounts added yet</p>
-              <Button size="sm" variant="outline" className="mt-3" onClick={() => setIsAddSocialOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add Social Account
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {socialAccounts.map((account) => {
-                const config = socialPlatformConfig[account.platform] || { icon: <Globe className="h-4 w-4" />, color: "text-muted-foreground", bgColor: "bg-muted" };
-                return (
-                  <div key={account.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bgColor)}>
-                        <span className={config.color}>{config.icon}</span>
-                      </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-foreground">{account.platform}</span>
-                            <span className="text-sm text-muted-foreground">@{account.username}</span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {account.follower_count != null && account.follower_count > 0 && (
-                              <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
-                            )}
-                            {account.engagement_rate != null && (
-                              <span className="text-xs text-success flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />{account.engagement_rate.toFixed(1)}% eng.</span>
-                            )}
-                            {account.posts_count != null && (
-                              <span className="text-xs text-muted-foreground">{formatFollowerCount(account.posts_count)} posts</span>
-                            )}
-                            {account.last_synced_at && (
-                              <span className="text-xs text-muted-foreground/60">synced {new Date(account.last_synced_at).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {account.profile_url && (
-                        <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <ExternalLink className="h-3.5 w-3.5 text-primary" />
-                          </Button>
-                        </a>
-                      )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSocialAccount(account.id)}>
-                        <X className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <div className="grid md:grid-cols-2 gap-6">
         {/* Left Column */}
         <div className="space-y-6">
@@ -482,6 +396,92 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                     ? `${(creator.commission_rate * 100).toFixed(0)}% (Custom)` 
                     : `${((agency?.commission_rate ?? 0.3) * 100).toFixed(0)}% (Agency Default)`}
                 </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Social Accounts Card */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-primary" />
+                  Social Accounts
+                  <Badge variant="secondary" className="ml-1">{socialAccounts.length}/{MAX_SOCIAL_ACCOUNTS}</Badge>
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {socialAccounts.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={syncSocialStats} disabled={syncingStats}>
+                      {syncingStats ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                      {syncingStats ? "Syncing..." : "Sync Stats"}
+                    </Button>
+                  )}
+                  {socialAccounts.length < MAX_SOCIAL_ACCOUNTS && (
+                    <Button size="sm" variant="outline" onClick={() => setIsAddSocialOpen(true)}>
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingSocials ? (
+                <p className="text-sm text-muted-foreground">Loading...</p>
+              ) : socialAccounts.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Link2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No social accounts added yet</p>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => setIsAddSocialOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Add Social Account
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {socialAccounts.map((account) => {
+                    const config = socialPlatformConfig[account.platform] || { icon: <Globe className="h-4 w-4" />, color: "text-muted-foreground", bgColor: "bg-muted" };
+                    return (
+                      <div key={account.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bgColor)}>
+                            <span className={config.color}>{config.icon}</span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">{account.platform}</span>
+                              <span className="text-sm text-muted-foreground">@{account.username}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {account.follower_count != null && account.follower_count > 0 && (
+                                <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
+                              )}
+                              {account.engagement_rate != null && (
+                                <span className="text-xs text-success flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />{account.engagement_rate.toFixed(1)}% eng.</span>
+                              )}
+                              {account.posts_count != null && (
+                                <span className="text-xs text-muted-foreground">{formatFollowerCount(account.posts_count)} posts</span>
+                              )}
+                              {account.last_synced_at && (
+                                <span className="text-xs text-muted-foreground/60">synced {new Date(account.last_synced_at).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {account.profile_url && (
+                            <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                              </Button>
+                            </a>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSocialAccount(account.id)}>
+                            <X className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </CardContent>
           </Card>
