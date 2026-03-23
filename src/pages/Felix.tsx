@@ -383,7 +383,6 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
 // ─── Main Page ─────────────────────────────────────────────────────
 export default function Felix() {
   const navigate = useNavigate();
-  const [showChat, setShowChat] = useState(false);
   const { tasks } = useTasks();
   const { creators } = useCreators();
   const { agencyId } = useAgency();
@@ -405,11 +404,7 @@ export default function Felix() {
   });
 
   const handleAgentClick = (agent: AgentCardProps) => {
-    if (agent.href === "#chat") {
-      setShowChat(true);
-    } else {
-      navigate(agent.href);
-    }
+    navigate(agent.href);
   };
 
   return (
