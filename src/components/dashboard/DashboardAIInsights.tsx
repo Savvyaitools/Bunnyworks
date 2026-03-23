@@ -36,7 +36,7 @@ function useAIInsightsData(agencyId: string | undefined) {
           supabase.from("tatum_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
           supabase.from("tatum_conversations").select("updated_at, title").eq("agency_id", agencyId!).order("updated_at", { ascending: false }).limit(1),
         ]),
-        // Jodie
+        // Marylin Monroe
         Promise.all([
           supabase.from("ai_suggestions_log").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
           supabase.from("ai_suggestions_log").select("created_at, resulted_in_sale, sale_amount").eq("agency_id", agencyId!).order("created_at", { ascending: false }).limit(10),
