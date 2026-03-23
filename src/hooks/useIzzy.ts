@@ -65,7 +65,7 @@ export function useIzzy({ creatorId, accountId, fanId }: UseIzzyOptions) {
         });
       } else if (message.includes('credits')) {
         toast.error('AI Credits Exhausted', {
-          description: 'Please add credits to continue using JODIE.',
+          description: 'Please add credits to continue using Marylin Monroe.',
         });
       }
       
