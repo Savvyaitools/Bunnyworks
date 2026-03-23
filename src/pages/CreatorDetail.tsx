@@ -111,7 +111,7 @@ export default function CreatorDetail() {
           </TabsContent>
 
           <TabsContent value="marketing" className="glass-card p-6">
-            <CreatorMarketing creatorId={creator.id} />
+            <CreatorMarketing creatorId={creator.id} creatorName={creator.name} />
           </TabsContent>
 
           <TabsContent value="requests" className="glass-card p-6">

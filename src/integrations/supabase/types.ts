@@ -4970,6 +4970,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_link_click: {
+        Args: { link_id_param: string }
+        Returns: undefined
+      }
       onboard_recruiting_creator: {
         Args: { recruiting_id: string }
         Returns: string

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LinkPageManager } from "./LinkPageManager";
 import { Plus, Link2, MousePointerClick, DollarSign, Target, Copy, ExternalLink, Trash2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,9 +46,10 @@ import {
 
 interface CreatorMarketingProps {
   creatorId: string;
+  creatorName?: string;
 }
 
-export function CreatorMarketing({ creatorId }: CreatorMarketingProps) {
+export function CreatorMarketing({ creatorId, creatorName }: CreatorMarketingProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -134,7 +136,10 @@ export function CreatorMarketing({ creatorId }: CreatorMarketingProps) {
 
   return (
     <div className="space-y-6">
-      {/* Feature Guide */}
+      {/* Link Page (Linktree alternative) */}
+      {creatorName && (
+        <LinkPageManager creatorId={creatorId} creatorName={creatorName} />
+      )}
       <FeatureGuide
         title="How to Use Tracking Links"
         description="Create unique tracking links to measure which traffic sources bring the most fans and revenue."
