@@ -88,7 +88,7 @@ const agents: AgentCardProps[] = [
     name: "Coach PBF", role: "Personal Coach",
     description: "Your personal AI coach with full access to agency data. Get real-time advice on revenue, performance, and strategy.",
     icon: Brain, features: ["Revenue & performance insights", "Strategic recommendations", "Agency health monitoring", "Data-driven decision support"],
-    color: "primary", href: "#chat", badge: "Coach",
+    color: "primary", href: "/of-ai/coach", badge: "Coach",
   },
   {
     name: "Flick", role: "Agency Manager",
