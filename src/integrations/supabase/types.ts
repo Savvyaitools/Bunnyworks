@@ -1639,6 +1639,123 @@ export type Database = {
           },
         ]
       }
+      creator_link_pages: {
+        Row: {
+          accent_color: string | null
+          agency_id: string
+          avatar_url: string | null
+          background_color: string | null
+          bio: string | null
+          created_at: string | null
+          creator_id: string
+          display_name: string
+          id: string
+          is_active: boolean | null
+          slug: string
+          text_color: string | null
+          theme: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          agency_id: string
+          avatar_url?: string | null
+          background_color?: string | null
+          bio?: string | null
+          created_at?: string | null
+          creator_id: string
+          display_name: string
+          id?: string
+          is_active?: boolean | null
+          slug: string
+          text_color?: string | null
+          theme?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          agency_id?: string
+          avatar_url?: string | null
+          background_color?: string | null
+          bio?: string | null
+          created_at?: string | null
+          creator_id?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean | null
+          slug?: string
+          text_color?: string | null
+          theme?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_link_pages_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_link_pages_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_link_pages_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_page_links: {
+        Row: {
+          click_count: number | null
+          created_at: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          page_id: string
+          position: number | null
+          title: string
+          url: string
+        }
+        Insert: {
+          click_count?: number | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          page_id: string
+          position?: number | null
+          title: string
+          url: string
+        }
+        Update: {
+          click_count?: number | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          page_id?: string
+          position?: number | null
+          title?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_page_links_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "creator_link_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_profile_warmups: {
         Row: {
           agency_id: string
@@ -3331,6 +3448,51 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "izzy_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_click_events: {
+        Row: {
+          clicked_at: string | null
+          country: string | null
+          id: string
+          link_id: string
+          page_id: string
+          referrer: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          clicked_at?: string | null
+          country?: string | null
+          id?: string
+          link_id: string
+          page_id: string
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          clicked_at?: string | null
+          country?: string | null
+          id?: string
+          link_id?: string
+          page_id?: string
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_click_events_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "creator_page_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "link_click_events_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "creator_link_pages"
             referencedColumns: ["id"]
           },
         ]
