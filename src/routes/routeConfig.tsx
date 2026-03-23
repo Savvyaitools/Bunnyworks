@@ -62,6 +62,7 @@ const AIChatterPage = lazy(() => import("@/pages/coach/AIChatter"));
 const AIImageGenerator = lazy(() => import("@/pages/coach/AIImageGenerator"));
 const AIVoiceGenerator = lazy(() => import("@/pages/coach/AIVoiceGenerator"));
 const FlickManager = lazy(() => import("@/pages/coach/FlickManager"));
+const CoachPBFPage = lazy(() => import("@/pages/coach/CoachPBF"));
 
 // Application pages
 const CreatorApplication = lazy(() => import("@/pages/apply/CreatorApplication"));
