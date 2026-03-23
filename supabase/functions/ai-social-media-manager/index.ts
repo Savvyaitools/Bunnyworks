@@ -130,7 +130,7 @@ serve(async (req) => {
 
     const agencyCreatorIds = (creatorsRes.data || []).map((c: any) => c.id);
     const { data: socialsData } = agencyCreatorIds.length > 0
-      ? await supabase.from('creator_social_accounts').select('username, platform, of_connection_status, of_account_id, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
+      ? await supabase.from('creator_social_accounts').select('username, platform, follower_count, engagement_rate, bio, avg_likes, avg_comments, posts_count, last_synced_at, of_connection_status, of_account_id, creators(name)').in('creator_id', agencyCreatorIds).limit(20)
       : { data: [] };
 
     if (memoriesRes.data?.length) {
