@@ -365,8 +365,8 @@ export default function SocialMediaManager() {
                 <Share2 className="h-6 w-6 text-primary" />
                 Tatum
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                AI Social Media Manager — generate content, analyze trends, and optimize strategy
+               <p className="text-sm text-muted-foreground mt-1">
+                 Content Strategist — discover viral content, generate content plans with video references, and auto-submit to Creator Content Ideas
               </p>
             </div>
           </div>

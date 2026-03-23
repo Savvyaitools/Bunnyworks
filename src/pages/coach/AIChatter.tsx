@@ -135,11 +135,11 @@ export default function AIChatter() {
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <Bot className="h-6 w-6 text-primary" />
-                Jodie
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                AI Chatter — auto-replies simple messages, flags complex ones for your review
-              </p>
+                Marylin Monroe
+               </h1>
+               <p className="text-sm text-muted-foreground mt-1">
+                Chatbot Trainer — configure auto-replies, train on conversations, and fine-tune tone & upsell strategies
+               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
