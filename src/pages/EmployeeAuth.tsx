@@ -21,7 +21,6 @@ export default function EmployeeAuth() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: ""
