@@ -46,9 +46,10 @@ import {
 
 interface CreatorMarketingProps {
   creatorId: string;
+  creatorName?: string;
 }
 
-export function CreatorMarketing({ creatorId }: CreatorMarketingProps) {
+export function CreatorMarketing({ creatorId, creatorName }: CreatorMarketingProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
