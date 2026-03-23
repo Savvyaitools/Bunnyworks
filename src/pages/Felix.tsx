@@ -259,7 +259,7 @@ function AgentScorecards({ tasks, contentPlans }: { tasks: any[]; contentPlans: 
       status: thisWeekPlans.length > 0 ? "Active" : "Idle",
     },
     {
-      name: "Jodie", icon: MessagesSquare, color: "success" as const,
+      name: "Marylin Monroe", icon: MessagesSquare, color: "success" as const,
       metrics: [
         { label: "Messages handled", value: "—" },
         { label: "PPVs sent", value: "—" },
