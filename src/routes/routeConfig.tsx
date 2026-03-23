@@ -61,6 +61,7 @@ const SocialMediaManager = lazy(() => import("@/pages/coach/SocialMediaManager")
 const AIChatterPage = lazy(() => import("@/pages/coach/AIChatter"));
 const AIImageGenerator = lazy(() => import("@/pages/coach/AIImageGenerator"));
 const AIVoiceGenerator = lazy(() => import("@/pages/coach/AIVoiceGenerator"));
+const FlickManager = lazy(() => import("@/pages/coach/FlickManager"));
 
 // Application pages
 const CreatorApplication = lazy(() => import("@/pages/apply/CreatorApplication"));
@@ -115,6 +116,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/of-ai/chatter", element: <AIChatterPage />, auth: ["agency"] },
   { path: "/of-ai/image-generator", element: <AIImageGenerator />, auth: ["agency"] },
   { path: "/of-ai/voice-generator", element: <AIVoiceGenerator />, auth: ["agency"] },
+  { path: "/of-ai/manager", element: <FlickManager />, auth: ["agency"] },
   { path: "/fan-analytics", element: <FanAnalytics />, auth: ["agency"] },
 ];
 
