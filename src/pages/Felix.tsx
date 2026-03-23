@@ -438,19 +438,6 @@ export default function Felix() {
           ))}
         </motion.div>
 
-        {/* Chat Panel */}
-        {showChat && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Brain className="h-5 w-5 text-primary" />
-                Coach PBF
-              </h2>
-              <Button variant="ghost" size="sm" onClick={() => setShowChat(false)}>Close</Button>
-            </div>
-            <FelixChat className="h-[500px]" />
-          </motion.div>
-        )}
 
         {/* Task Overview */}
         <TaskOverview tasks={tasks} />
