@@ -243,7 +243,7 @@ function AgentScorecards({ tasks, contentPlans }: { tasks: any[]; contentPlans: 
       status: "Ready",
     },
     {
-      name: "Felix", icon: UserCog, color: "warning" as const,
+      name: "Flick", icon: UserCog, color: "warning" as const,
       metrics: [
         { label: "Tasks tracked", value: thisWeekTasks.length },
         { label: "Completed this week", value: thisWeekTasks.filter(t => t.status === "Completed").length },
@@ -259,7 +259,7 @@ function AgentScorecards({ tasks, contentPlans }: { tasks: any[]; contentPlans: 
       status: thisWeekPlans.length > 0 ? "Active" : "Idle",
     },
     {
-      name: "Jodie", icon: MessagesSquare, color: "success" as const,
+      name: "Marylin Monroe", icon: MessagesSquare, color: "success" as const,
       metrics: [
         { label: "Messages handled", value: "—" },
         { label: "PPVs sent", value: "—" },
@@ -318,7 +318,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
       .slice(0, 5)
       .forEach(t => {
         activities.push({
-          id: `task-${t.id}`, agent: "Felix", action: "completed task",
+          id: `task-${t.id}`, agent: "Flick", action: "completed task",
           target: t.title, time: new Date(t.updated_at), color: "warning",
         });
       });
@@ -339,7 +339,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
       .slice(0, 8);
   }, [tasks, contentPlans]);
 
-  const agentIcons: Record<string, typeof Bot> = { Felix: UserCog, Tatum: Share2, Jodie: MessagesSquare, "Coach PBF": Brain };
+  const agentIcons: Record<string, typeof Bot> = { Flick: UserCog, Tatum: Share2, "Marylin Monroe": MessagesSquare, "Coach PBF": Brain };
 
   return (
     <motion.div variants={itemVariants}>

@@ -25,7 +25,7 @@ function useAIInsightsData(agencyId: string | undefined) {
     enabled: Boolean(agencyId),
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
-      const [coachRes, tatumRes, jodieRes, runsRes] = await Promise.all([
+      const [coachRes, tatumRes, marylinRes, runsRes] = await Promise.all([
         // Coach PBF
         Promise.all([
           supabase.from("coach_pbf_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
@@ -36,7 +36,7 @@ function useAIInsightsData(agencyId: string | undefined) {
           supabase.from("tatum_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
           supabase.from("tatum_conversations").select("updated_at, title").eq("agency_id", agencyId!).order("updated_at", { ascending: false }).limit(1),
         ]),
-        // Jodie
+        // Marylin Monroe
         Promise.all([
           supabase.from("ai_suggestions_log").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
           supabase.from("ai_suggestions_log").select("created_at, resulted_in_sale, sale_amount").eq("agency_id", agencyId!).order("created_at", { ascending: false }).limit(10),
@@ -48,13 +48,13 @@ function useAIInsightsData(agencyId: string | undefined) {
         ]),
       ]);
 
-      const jodieSuggestions = jodieRes[1].data || [];
-      const sales = jodieSuggestions.filter((r: any) => r.resulted_in_sale);
+      const marylinSuggestions = marylinRes[1].data || [];
+      const sales = marylinSuggestions.filter((r: any) => r.resulted_in_sale);
 
       return {
         coach: { count: coachRes[0].count || 0, lastActivity: coachRes[1].data?.[0]?.updated_at || null, lastTitle: coachRes[1].data?.[0]?.title || null },
         tatum: { count: tatumRes[0].count || 0, lastActivity: tatumRes[1].data?.[0]?.updated_at || null, lastTitle: tatumRes[1].data?.[0]?.title || null },
-        jodie: { count: jodieRes[0].count || 0, lastActivity: jodieSuggestions[0]?.created_at || null, recentSales: sales.length },
+        marylin: { count: marylinRes[0].count || 0, lastActivity: marylinSuggestions[0]?.created_at || null, recentSales: sales.length },
         runs: { completedRuns: runsRes[0].count || 0, lastRun: runsRes[1].data?.[0] || null },
       };
     },
@@ -93,13 +93,13 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
       name: "Marylin · Chatter",
       icon: MessageSquare,
       color: "text-success",
-      conversations: data?.jodie.count || 0,
-      recentActivity: data?.jodie.lastActivity
-        ? formatDistanceToNow(new Date(data.jodie.lastActivity), { addSuffix: true })
+      conversations: data?.marylin.count || 0,
+      recentActivity: data?.marylin.lastActivity
+        ? formatDistanceToNow(new Date(data.marylin.lastActivity), { addSuffix: true })
         : null,
       href: "/coach-pbf",
-      badge: data?.jodie.recentSales
-        ? `${data.jodie.recentSales} recent sales`
+      badge: data?.marylin.recentSales
+        ? `${data.marylin.recentSales} recent sales`
         : undefined,
     },
   ];

@@ -37,7 +37,7 @@ const aiAgents = [
 ];
 
 const additionalAI = [
-  { icon: MessageSquare, title: "JODIE Suggestions", description: "Real-time reply suggestions that match the creator's voice and style." },
+  { icon: MessageSquare, title: "Marylin Monroe", description: "Real-time reply suggestions that match the creator's voice and style." },
   { icon: Mic, title: "Only Voice", description: "Clone creator voices for personalized audio messages and content." },
   { icon: Image, title: "Naked Savvy", description: "AI image generation and editing for content-ready visuals at scale." },
 ];
