@@ -1861,10 +1861,15 @@ export type Database = {
       creator_social_accounts: {
         Row: {
           account_type: string
+          avg_comments: number | null
+          avg_likes: number | null
+          bio: string | null
           created_at: string
           creator_id: string
+          engagement_rate: number | null
           follower_count: number | null
           id: string
+          last_synced_at: string | null
           of_account_id: string | null
           of_connected_at: string | null
           of_connection_status: string | null
@@ -1874,16 +1879,22 @@ export type Database = {
           of_next_retry_at: string | null
           of_sync_retry_count: number | null
           platform: string
+          posts_count: number | null
           profile_url: string | null
           updated_at: string
           username: string
         }
         Insert: {
           account_type?: string
+          avg_comments?: number | null
+          avg_likes?: number | null
+          bio?: string | null
           created_at?: string
           creator_id: string
+          engagement_rate?: number | null
           follower_count?: number | null
           id?: string
+          last_synced_at?: string | null
           of_account_id?: string | null
           of_connected_at?: string | null
           of_connection_status?: string | null
@@ -1893,16 +1904,22 @@ export type Database = {
           of_next_retry_at?: string | null
           of_sync_retry_count?: number | null
           platform: string
+          posts_count?: number | null
           profile_url?: string | null
           updated_at?: string
           username: string
         }
         Update: {
           account_type?: string
+          avg_comments?: number | null
+          avg_likes?: number | null
+          bio?: string | null
           created_at?: string
           creator_id?: string
+          engagement_rate?: number | null
           follower_count?: number | null
           id?: string
+          last_synced_at?: string | null
           of_account_id?: string | null
           of_connected_at?: string | null
           of_connection_status?: string | null
@@ -1912,6 +1929,7 @@ export type Database = {
           of_next_retry_at?: string | null
           of_sync_retry_count?: number | null
           platform?: string
+          posts_count?: number | null
           profile_url?: string | null
           updated_at?: string
           username?: string
