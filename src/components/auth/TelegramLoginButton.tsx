@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 interface TelegramUser {
@@ -18,9 +18,14 @@ interface TelegramLoginButtonProps {
   botName: string;
 }
 
+const PRODUCTION_DOMAIN = "bunnyworks.io";
+
 export function TelegramLoginButton({ botName }: TelegramLoginButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
+  const [widgetError, setWidgetError] = useState(false);
+
+  const isProduction = window.location.hostname === PRODUCTION_DOMAIN || window.location.hostname === `www.${PRODUCTION_DOMAIN}`;
 
   useEffect(() => {
     // Expose callback globally
@@ -59,8 +64,8 @@ export function TelegramLoginButton({ botName }: TelegramLoginButtonProps) {
       }
     };
 
-    // Load Telegram widget script
-    if (containerRef.current) {
+    // Only load the widget on the production domain
+    if (containerRef.current && isProduction) {
       containerRef.current.innerHTML = "";
       const script = document.createElement("script");
       script.src = "https://telegram.org/js/telegram-widget.js?22";
@@ -70,19 +75,40 @@ export function TelegramLoginButton({ botName }: TelegramLoginButtonProps) {
       script.setAttribute("data-onauth", "onTelegramAuth(user)");
       script.setAttribute("data-request-access", "write");
       script.async = true;
+      script.onerror = () => setWidgetError(true);
       containerRef.current.appendChild(script);
     }
 
     return () => {
       delete (window as any).onTelegramAuth;
     };
-  }, [botName]);
+  }, [botName, isProduction]);
 
   if (loading) {
     return (
       <Button variant="outline" className="w-full h-12 text-base gap-3" disabled>
         <Loader2 className="h-5 w-5 animate-spin" />
         Verifying with Telegram...
+      </Button>
+    );
+  }
+
+  // Show a styled button in preview/non-production environments
+  if (!isProduction || widgetError) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full h-12 text-base gap-3"
+        disabled={!isProduction}
+        onClick={() => {
+          if (!isProduction) {
+            toast.info("Telegram login only works on the published site (bunnyworks.io)");
+          }
+        }}
+      >
+        <Send className="h-5 w-5 text-[#2AABEE]" />
+        {isProduction ? "Login with Telegram" : "Telegram Login (available on published site)"}
       </Button>
     );
   }
