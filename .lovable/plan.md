@@ -1,98 +1,88 @@
 
 
-# Custom Proxy & Stealth Layer on Browserbase
+# Replace Google/Apple Auth with Telegram Login
 
-## Current State
+## Overview
 
-The platform exclusively uses **Browserbase's built-in proxies** (`type: "browserbase"` with geolocation). The `proxyConf()` function in `cdp-helpers.ts` always returns `[{ type: "browserbase", geolocation: { country, state, city } }]`. Stealth is limited to the `BROWSERBASE_ADVANCED_STEALTH` env flag which toggles `advancedStealth: true` and `os: "windows"` in the Browserbase session config.
+Remove Google and Apple OAuth buttons from both auth pages (`Auth.tsx` and `EmployeeAuth.tsx`) and replace them with Telegram Login. Since Telegram is not a standard OAuth provider supported by Lovable Cloud, this requires a custom flow using the Telegram Login Widget and a backend edge function for verification.
 
-## What Changes
-
-### 1. Database: Per-Creator Proxy Provider Settings
-
-Add a `creator_proxy_configs` table storing custom proxy credentials per creator:
+## How Telegram Login Works
 
 ```text
-creator_proxy_configs
-├── id (uuid PK)
-├── creator_id (FK → creators)
-├── agency_id (FK → agencies)
-├── provider (enum: 'browserbase' | 'brightdata' | 'custom')
-├── proxy_host (text, encrypted)
-├── proxy_port (int)
-├── proxy_username (text, encrypted)
-├── proxy_password (text, encrypted)
-├── proxy_protocol (enum: 'http' | 'socks5')
-├── is_active (bool, default true)
-├── label (text, e.g. "Bright Data US Residential")
-└── created_at / updated_at
+User clicks "Login with Telegram"
+  → Telegram Login Widget opens (popup)
+  → User authorizes via their Telegram app
+  → Widget returns: { id, first_name, last_name, username, photo_url, auth_date, hash }
+  → Frontend sends this data to edge function
+  → Edge function verifies hash using bot token (HMAC-SHA256)
+  → Edge function creates or finds user in auth system
+  → Edge function returns a session (access_token + refresh_token)
+  → Frontend sets the session → user is logged in
 ```
 
-Also add a `stealth_profile` JSONB column to `creator_session_links` or `creator_proxy_configs` for per-creator fingerprint overrides (user agent, screen res, WebGL vendor, etc.).
+## Prerequisites
 
-### 2. Edge Function: Hybrid Proxy Support in `proxyConf`
+- **Telegram Bot Token**: You need a bot created via [@BotFather](https://t.me/BotFather). The bot token will be stored as a secret (`TELEGRAM_BOT_TOKEN`).
+- **Telegram connector**: We'll connect the Telegram connector for gateway access and also store the bot token as a separate secret for hash verification.
 
-Update `proxyConf()` in `cdp-helpers.ts` to check if the creator has a custom proxy config. If so, return Browserbase's `type: "external"` proxy format:
+## Implementation Steps
 
-```text
-// Browserbase external proxy format:
-[{
-  type: "external",
-  server: "http://proxy-host:port",
-  username: "user",
-  password: "pass"
-}]
-```
+### Step 1: Add `TELEGRAM_BOT_TOKEN` secret
+Store the bot token from BotFather for server-side hash verification.
 
-When `provider === 'brightdata'`, auto-construct the Bright Data super-proxy URL with geo-targeting baked into the username (e.g., `brd-customer-XXXX-zone-residential-country-us-state-texas`).
+### Step 2: Create `telegram-auth` edge function
+New file: `supabase/functions/telegram-auth/index.ts`
 
-When `provider === 'browserbase'`, keep current behavior.
+- Accepts POST with Telegram Login Widget payload (`id`, `first_name`, `last_name`, `username`, `photo_url`, `auth_date`, `hash`)
+- Verifies the `hash` using HMAC-SHA256 with the bot token (per [Telegram docs](https://core.telegram.org/widgets/login#checking-authorization))
+- Checks `auth_date` is not stale (reject if > 5 minutes old)
+- Uses Supabase service role to:
+  - Look up existing user by `telegram_id` in profiles table
+  - If not found: create a new auth user with a deterministic email (`tg_<telegram_id>@telegram.user`) and random password, then create profile
+  - If found: retrieve the user
+  - Generate a session using `admin.generateLink` or sign in programmatically
+- Returns `{ access_token, refresh_token }` to the frontend
 
-### 3. CDP-Injected Stealth Layer
+### Step 3: Add `telegram_id` column to profiles table
+Database migration to add `telegram_id bigint` column to the `profiles` table for linking Telegram accounts to users.
 
-Add a `injectStealthFingerprint()` helper in `cdp-helpers.ts` that runs after session creation via `Runtime.evaluate`. This injects JavaScript overrides for:
+### Step 4: Create `TelegramLoginButton` component
+New file: `src/components/auth/TelegramLoginButton.tsx`
 
-- **Navigator spoofing**: `navigator.webdriver = false`, platform, hardwareConcurrency, deviceMemory
-- **Canvas fingerprint noise**: Add subtle pixel noise to `HTMLCanvasElement.toDataURL` and `toBlob`
-- **WebGL spoofing**: Override `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL`
-- **Timezone consistency**: Match `Intl.DateTimeFormat` to proxy geo
-- **Screen resolution**: Override `screen.width/height` to common values
-- **Plugin/language masking**: Spoof `navigator.plugins` and `navigator.languages`
+- Loads the Telegram Login Widget script (`https://telegram.org/js/telegram-widget.js`)
+- Renders an invisible container; on callback receives user data
+- Calls the `telegram-auth` edge function with the payload
+- On success, calls `supabase.auth.setSession()` with the returned tokens
+- Shows loading state during verification
 
-This runs via `executeCDPScript()` on every session launch (admin and chatter), called right after `preLoginSetup()`.
+### Step 5: Update `Auth.tsx`
+- Remove the `lovable` import and `handleGoogleLogin` function
+- Remove Google and Apple OAuth buttons
+- Add `<TelegramLoginButton />` in their place
+- Keep email/password form below for agencies that prefer it
 
-### 4. UI: Proxy Provider Manager
-
-Add a "Proxy Provider" section to the existing **Proxy Settings** tab on the Browser Sync page. Per creator:
-
-- Toggle between Browserbase (default), Bright Data, or Custom
-- Input fields for host, port, username, password when Custom/Bright Data selected
-- Test button that creates a throwaway session and verifies IP via `https://httpbin.org/ip`
-- Display current detected IP and geolocation
-
-### 5. Stealth Settings UI
-
-Add a collapsible "Stealth Profile" card on the Proxy Settings tab:
-
-- Toggle for custom fingerprint injection (on/off)
-- Optional overrides: User Agent string, screen resolution, WebGL renderer
-- Defaults auto-generated per creator for consistency across sessions
-
-## Implementation Order
-
-1. Migration: `creator_proxy_configs` table with RLS
-2. Update `proxyConf()` and `sessionBody()` in `cdp-helpers.ts` to support external proxies
-3. Add `injectStealthFingerprint()` CDP helper
-4. Wire stealth injection into `create_admin_session` and `launch_chatter_session` flows
-5. Build Proxy Provider Manager UI component
-6. Build Stealth Profile UI component
-7. Add proxy test endpoint (`test_proxy` action in edge function)
+### Step 6: Update `EmployeeAuth.tsx`
+- Remove Google and Apple OAuth buttons and related state (`googleLoading`)
+- Remove `lovable` import
+- Add `<TelegramLoginButton />` in their place
+- Keep email/password form below
 
 ## Technical Details
 
-- Bright Data residential proxy format: `http://brd-customer-{CID}-zone-{ZONE}-country-{CC}-state-{ST}:{PASS}@brd.superproxy.io:22225`
-- Browserbase `type: "external"` passes proxy to the browser instance directly — Browserbase handles the tunnel
-- Stealth scripts use `Page.addScriptToEvaluateOnNewDocument` (not `Runtime.evaluate`) so overrides persist across navigations
-- Proxy credentials stored with RLS scoped to `agency_id`
-- Secret management: Bright Data API key stored via `add_secret` tool as `BRIGHTDATA_CUSTOMER_ID` and `BRIGHTDATA_ZONE_PASSWORD`
+**Hash verification (edge function)**:
+```text
+data_check_string = sorted key=value pairs joined by \n (excluding hash)
+secret_key = SHA256(bot_token)
+computed_hash = HMAC-SHA256(data_check_string, secret_key)
+valid = computed_hash === received_hash
+```
+
+**User creation strategy**: Uses a synthetic email (`tg_<id>@telegram.user`) so Supabase auth can manage the user. The real identity is tracked via `telegram_id` on the profiles table. The `handle_new_user` trigger will auto-create the profile; the edge function then patches it with `telegram_id`.
+
+**Files modified**:
+- `src/pages/Auth.tsx` — remove Google/Apple, add Telegram button
+- `src/pages/EmployeeAuth.tsx` — remove Google/Apple, add Telegram button
+- `src/components/auth/TelegramLoginButton.tsx` — new component
+- `supabase/functions/telegram-auth/index.ts` — new edge function
+- Database migration: add `telegram_id` to profiles
 
