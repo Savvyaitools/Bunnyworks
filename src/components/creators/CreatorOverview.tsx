@@ -26,6 +26,12 @@ interface SocialAccount {
   account_type: string;
   profile_url: string | null;
   follower_count: number | null;
+  engagement_rate: number | null;
+  bio: string | null;
+  avg_likes: number | null;
+  avg_comments: number | null;
+  posts_count: number | null;
+  last_synced_at: string | null;
   creator_id: string;
 }
 
