@@ -395,15 +395,26 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                       <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bgColor)}>
                         <span className={config.color}>{config.icon}</span>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{account.platform}</span>
-                          <span className="text-sm text-muted-foreground">@{account.username}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{account.platform}</span>
+                            <span className="text-sm text-muted-foreground">@{account.username}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {account.follower_count != null && account.follower_count > 0 && (
+                              <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
+                            )}
+                            {account.engagement_rate != null && (
+                              <span className="text-xs text-success flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />{account.engagement_rate.toFixed(1)}% eng.</span>
+                            )}
+                            {account.posts_count != null && (
+                              <span className="text-xs text-muted-foreground">{formatFollowerCount(account.posts_count)} posts</span>
+                            )}
+                            {account.last_synced_at && (
+                              <span className="text-xs text-muted-foreground/60">synced {new Date(account.last_synced_at).toLocaleDateString()}</span>
+                            )}
+                          </div>
                         </div>
-                        {account.follower_count != null && account.follower_count > 0 && (
-                          <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
-                        )}
-                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       {account.profile_url && (
