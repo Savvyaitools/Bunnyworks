@@ -148,6 +148,31 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
     }
   };
 
+  const syncSocialStats = async () => {
+    if (socialAccounts.length === 0) {
+      toast.error("No social accounts to sync");
+      return;
+    }
+    setSyncingStats(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-social-stats", {
+        body: { creatorId: creator.id, mode: "single" },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`Synced ${data.synced}/${data.total} accounts`);
+        fetchSocialAccounts();
+      } else {
+        toast.error(data?.error || "Sync failed");
+      }
+    } catch (err) {
+      console.error("Sync stats error:", err);
+      toast.error("Failed to sync social stats");
+    } finally {
+      setSyncingStats(false);
+    }
+  };
+
   const handleSave = async () => {
     const commissionValue = formData.commission_rate 
       ? parseFloat(formData.commission_rate) / 100 
