@@ -66,6 +66,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
   // Social accounts state
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [loadingSocials, setLoadingSocials] = useState(true);
+  const [syncingStats, setSyncingStats] = useState(false);
   const [isAddSocialOpen, setIsAddSocialOpen] = useState(false);
   const [socialForm, setSocialForm] = useState({ platform: "", username: "", profile_url: "", follower_count: "" });
 
