@@ -120,6 +120,12 @@ const agents: AgentCardProps[] = [
     icon: Mic, features: ["Voice cloning & TTS", "Natural speech generation", "Multiple voice styles", "Audio content creation"],
     color: "primary", href: "/of-ai/voice-generator", badge: "Audio",
   },
+  {
+    name: "ComfyUI", role: "Advanced Workflow Editor",
+    description: "Node-based AI workflow editor for complex image and video generation pipelines. Build custom AI workflows with full control.",
+    icon: Workflow, features: ["Node-based workflow editor", "Custom AI pipelines", "Image & video generation", "Advanced model chaining"],
+    color: "secondary", href: "/of-ai/comfyui", badge: "Advanced",
+  },
 ];
 
 // ─── Quick Stats Bar ───────────────────────────────────────────────
