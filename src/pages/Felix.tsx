@@ -97,16 +97,16 @@ const agents: AgentCardProps[] = [
     color: "warning", href: "/of-ai/manager", badge: "Manager",
   },
   {
-    name: "Tatum", role: "Social Media Manager",
-    description: "Finds viral content tailored to each creator's persona. Researches trends, suggests content plans with reference links.",
-    icon: Share2, features: ["Viral content discovery by persona", "Content plans with reference links", "Trend & niche research", "Platform-optimized calendars"],
+    name: "Tatum", role: "Content Strategist",
+    description: "Discovers viral content matched to each creator's niche, then generates ready-to-approve content plans with video references for recreation.",
+    icon: Share2, features: ["Viral search by creator niche & data", "Content plan with video references", "Auto-submit to Creator Content Ideas", "Trend & platform analysis"],
     color: "accent", href: "/of-ai/social-media", badge: "Growth",
   },
   {
-    name: "Marylin Monroe", role: "AI Chatter",
-    description: "Expert fan engagement specialist. Chats with fans, shares content via OnlyFans messages, and handles PPV sends.",
-    icon: MessagesSquare, features: ["Fan conversations & engagement", "Content sharing via messages", "PPV & upsell management", "Creator voice matching"],
-    color: "success", href: "/of-ai/chatter", badge: "Revenue",
+    name: "Marylin Monroe", role: "Chatbot Trainer",
+    description: "Configure auto-replies, train the AI chatter on past conversations, and fine-tune tone & upsell strategies. Live chatting runs in the Browser Session widget.",
+    icon: MessagesSquare, features: ["Auto-reply rule configuration", "Train on conversation history", "Tone & persona optimization", "Upsell strategy tuning"],
+    color: "success", href: "/of-ai/chatter", badge: "Setup",
   },
   {
     name: "Naked Savvy", role: "Image Creation & Editing",
