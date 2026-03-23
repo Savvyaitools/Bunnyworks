@@ -64,3 +64,6 @@ verify_jwt = false
 
 [functions.apify-actor]
 verify_jwt = false
+
+[functions.telegram-auth]
+verify_jwt = false
