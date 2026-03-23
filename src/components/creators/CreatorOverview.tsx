@@ -359,11 +359,19 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
               Social Accounts
               <Badge variant="secondary" className="ml-1">{socialAccounts.length}/{MAX_SOCIAL_ACCOUNTS}</Badge>
             </CardTitle>
-            {socialAccounts.length < MAX_SOCIAL_ACCOUNTS && (
-              <Button size="sm" variant="outline" onClick={() => setIsAddSocialOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {socialAccounts.length > 0 && (
+                <Button size="sm" variant="outline" onClick={syncSocialStats} disabled={syncingStats}>
+                  {syncingStats ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                  {syncingStats ? "Syncing..." : "Sync Stats"}
+                </Button>
+              )}
+              {socialAccounts.length < MAX_SOCIAL_ACCOUNTS && (
+                <Button size="sm" variant="outline" onClick={() => setIsAddSocialOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
