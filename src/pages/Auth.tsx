@@ -9,7 +9,7 @@ import { Loader2, ArrowLeft, Eye, EyeOff, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/bunnyworks-logo.png";
 import { z } from "zod";
-import { lovable } from "@/integrations/lovable/index";
+import { TelegramLoginButton } from "@/components/auth/TelegramLoginButton";
 
 type AuthMode = "signin" | "signup";
 
