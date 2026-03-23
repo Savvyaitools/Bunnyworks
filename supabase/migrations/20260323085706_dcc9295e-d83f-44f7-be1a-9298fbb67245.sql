@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN telegram_id bigint UNIQUE;
