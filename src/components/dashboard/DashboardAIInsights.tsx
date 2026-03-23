@@ -48,13 +48,13 @@ function useAIInsightsData(agencyId: string | undefined) {
         ]),
       ]);
 
-      const jodieSuggestions = jodieRes[1].data || [];
-      const sales = jodieSuggestions.filter((r: any) => r.resulted_in_sale);
+      const marylinSuggestions = marylinRes[1].data || [];
+      const sales = marylinSuggestions.filter((r: any) => r.resulted_in_sale);
 
       return {
         coach: { count: coachRes[0].count || 0, lastActivity: coachRes[1].data?.[0]?.updated_at || null, lastTitle: coachRes[1].data?.[0]?.title || null },
         tatum: { count: tatumRes[0].count || 0, lastActivity: tatumRes[1].data?.[0]?.updated_at || null, lastTitle: tatumRes[1].data?.[0]?.title || null },
-        jodie: { count: jodieRes[0].count || 0, lastActivity: jodieSuggestions[0]?.created_at || null, recentSales: sales.length },
+        marylin: { count: marylinRes[0].count || 0, lastActivity: marylinSuggestions[0]?.created_at || null, recentSales: sales.length },
         runs: { completedRuns: runsRes[0].count || 0, lastRun: runsRes[1].data?.[0] || null },
       };
     },
