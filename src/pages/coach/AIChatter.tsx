@@ -161,20 +161,20 @@ export default function AIChatter() {
           </SelectContent>
         </Select>
 
-        <Tabs defaultValue="queue" className="space-y-4">
+        <Tabs defaultValue="rules" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="queue" className="gap-1.5">
-              <AlertTriangle className="h-4 w-4" /> Review Queue
-              {queue.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-5 text-xs">{queue.length}</Badge>}
+            <TabsTrigger value="rules" className="gap-1.5">
+              <Zap className="h-4 w-4" /> Setup & Training Rules
             </TabsTrigger>
             <TabsTrigger value="test" className="gap-1.5">
-              <Sparkles className="h-4 w-4" /> Test Reply
+              <Sparkles className="h-4 w-4" /> Training Sandbox
             </TabsTrigger>
-            <TabsTrigger value="rules" className="gap-1.5">
-              <Zap className="h-4 w-4" /> Auto-Reply Rules
+            <TabsTrigger value="queue" className="gap-1.5">
+              <AlertTriangle className="h-4 w-4" /> Human Review Queue
+              {queue.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-5 text-xs">{queue.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="stats" className="gap-1.5">
-              <BrainCircuit className="h-4 w-4" /> Performance
+              <Shield className="h-4 w-4" /> Live Sessions & Metrics
             </TabsTrigger>
           </TabsList>
 

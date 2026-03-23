@@ -434,19 +434,19 @@ export default function SocialMediaManager() {
           </div>
         )}
 
-        <Tabs defaultValue="generate" className="space-y-4">
+        <Tabs defaultValue="trends" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="trends" className="gap-1.5">
+              <Flame className="h-4 w-4" /> Viral Discovery
+            </TabsTrigger>
             <TabsTrigger value="generate" className="gap-1.5">
-              <Sparkles className="h-4 w-4" /> Generate
+              <Sparkles className="h-4 w-4" /> Content Plan Builder
             </TabsTrigger>
             <TabsTrigger value="calendar" className="gap-1.5">
-              <Calendar className="h-4 w-4" /> Calendar
-            </TabsTrigger>
-            <TabsTrigger value="trends" className="gap-1.5">
-              <Flame className="h-4 w-4" /> Trends
+              <Calendar className="h-4 w-4" /> Ideas Queue
             </TabsTrigger>
             <TabsTrigger value="strategy" className="gap-1.5">
-              <BarChart3 className="h-4 w-4" /> Strategy
+              <BarChart3 className="h-4 w-4" /> Optimization
             </TabsTrigger>
             <TabsTrigger value="api-settings" className="gap-1.5">
               <Settings className="h-4 w-4" /> API Settings
