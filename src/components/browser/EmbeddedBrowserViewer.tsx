@@ -311,7 +311,7 @@ export function EmbeddedBrowserViewer({
         />
       </div>
 
-      {/* Jodie AI Floating Overlay */}
+      {/* Marylin Monroe AI Floating Overlay */}
       {creatorId && (
         <IzzyOverlay creatorId={creatorId} creatorName={title} iframeRef={iframeRef} browserbaseSessionId={bbSessionId} />
       )}
