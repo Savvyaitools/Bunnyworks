@@ -160,16 +160,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate session tokens by signing in
-    // We use a deterministic password approach - update password then sign in
-    const tempPass = crypto.randomUUID();
-    await supabase.auth.admin.updateUserById(userId, { password: tempPass });
+    // Generate session tokens using a cryptographically random password
+    // that won't trigger pwned-password checks
+    const randomBytes = new Uint8Array(48);
+    crypto.getRandomValues(randomBytes);
+    const tempPass = btoa(String.fromCharCode(...randomBytes)) + "!Aa1";
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, { password: tempPass });
+    if (updateError) {
+      console.error("Password update error:", updateError);
+      throw new Error("Failed to prepare session: " + updateError.message);
+    }
 
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: session, error: signInError } =
       await anonClient.auth.signInWithPassword({ email, password: tempPass });
 
     if (signInError || !session?.session) {
+      console.error("Sign-in error:", signInError);
       throw new Error(signInError?.message || "Failed to create session");
     }
 
