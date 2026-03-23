@@ -243,7 +243,7 @@ function AgentScorecards({ tasks, contentPlans }: { tasks: any[]; contentPlans: 
       status: "Ready",
     },
     {
-      name: "Felix", icon: UserCog, color: "warning" as const,
+      name: "Flick", icon: UserCog, color: "warning" as const,
       metrics: [
         { label: "Tasks tracked", value: thisWeekTasks.length },
         { label: "Completed this week", value: thisWeekTasks.filter(t => t.status === "Completed").length },
