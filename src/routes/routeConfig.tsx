@@ -91,6 +91,7 @@ export const publicRoutes: RouteConfig[] = [
   { path: "/privacy", element: <PrivacyPolicy /> },
   { path: "/apply/creator/:agencyId", element: <CreatorApplication /> },
   { path: "/apply/employee/:agencyId", element: <EmployeeApplication /> },
+  { path: "/l/:slug", element: <CreatorLinkPage /> },
 ];
 
 /** Agency-only routes */
