@@ -318,7 +318,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
       .slice(0, 5)
       .forEach(t => {
         activities.push({
-          id: `task-${t.id}`, agent: "Felix", action: "completed task",
+          id: `task-${t.id}`, agent: "Flick", action: "completed task",
           target: t.title, time: new Date(t.updated_at), color: "warning",
         });
       });
