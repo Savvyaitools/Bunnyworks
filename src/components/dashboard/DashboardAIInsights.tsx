@@ -25,7 +25,7 @@ function useAIInsightsData(agencyId: string | undefined) {
     enabled: Boolean(agencyId),
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
-      const [coachRes, tatumRes, jodieRes, runsRes] = await Promise.all([
+      const [coachRes, tatumRes, marylinRes, runsRes] = await Promise.all([
         // Coach PBF
         Promise.all([
           supabase.from("coach_pbf_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
