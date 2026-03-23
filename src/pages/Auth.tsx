@@ -186,7 +186,7 @@ export default function Auth() {
 
         {/* Telegram Login */}
         <div className="space-y-3">
-          <TelegramLoginButton botName="BunnyWorksBot" />
+          <TelegramLoginButton botName="bunnyworksloginbot" />
           
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
