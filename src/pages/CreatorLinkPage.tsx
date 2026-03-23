@@ -68,8 +68,8 @@ export default function CreatorLinkPage() {
       user_agent: navigator.userAgent || null,
     }).then(() => {});
 
-    // Also increment counter
-    supabase.rpc("increment_link_click", { link_id_param: link.id }).then(() => {});
+    // Also increment counter via raw rpc call (type will auto-sync)
+    (supabase.rpc as any)("increment_link_click", { link_id_param: link.id }).then(() => {});
 
     window.open(link.url, "_blank", "noopener");
   };
