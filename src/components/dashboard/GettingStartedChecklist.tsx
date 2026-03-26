@@ -80,8 +80,8 @@ export function GettingStartedChecklist() {
     },
     {
       id: "session",
-      label: "Launch a browser session",
-      description: "Start managing creator accounts through cloud browsers",
+      label: "Launch a platform session",
+      description: "Start managing creator accounts through platform access",
       icon: Globe,
       href: "/browser-sync",
       completed: (counts?.sessions || 0) > 0,

@@ -20,8 +20,8 @@ const showcaseItems = [
   {
     id: "browser",
     icon: Globe,
-    tab: "Cloud Browser",
-    title: "Cloud Browser Sessions",
+    tab: "Platform Access",
+    title: "Platform Access",
     description: "Launch live platform sessions directly in your browser. Pre-authenticated access with persistent login states and proxy geo-settings. No downloads, works on any device.",
     image: browserImg,
   },

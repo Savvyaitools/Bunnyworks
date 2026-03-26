@@ -19,7 +19,7 @@ export function EmployeeLayout({ children }: EmployeeLayoutProps) {
     { icon: Home, label: "Home", path: "/employee" },
     { icon: Users, label: "Creators", path: "/employee/creators" },
     { icon: MessagesSquare, label: "Chat", path: "/employee/team-chat" },
-    { icon: Globe, label: "Browser", path: "/employee/browser" },
+    { icon: Globe, label: "Access", path: "/employee/browser" },
     { icon: BarChart3, label: "Stats", path: "/employee/performance" },
   ];
 
