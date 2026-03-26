@@ -206,7 +206,7 @@ export function AppSidebar() {
             return (
               <SidebarGroup key={section.label}>
                 <SidebarGroupContent>
-                  <NavSection items={section.items} location={location} isCollapsed={isCollapsed} />
+                  <NavSection items={section.items} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
                 </SidebarGroupContent>
               </SidebarGroup>
             );
