@@ -1,25 +1,22 @@
 
 
-## Rename "Browser Sessions" → "Platform Access"
+# Lock Platform Access Feature (Whitelist: Testing26@gmail.com)
 
-A text-label rename across all UI-facing references. No route or file renaming — just user-visible strings.
+## What Changes
 
-### Files to Update
+1. **`src/components/layout/AppSidebar.tsx`** — Add a `locked` flag to the Platform Access nav item. When the logged-in user's email is NOT `testing26@gmail.com` (case-insensitive), show a lock icon instead of the Globe icon, apply disabled styling (opacity, cursor), and prevent navigation (use `onClick` with `e.preventDefault()` + toast "Feature locked").
 
-1. **`src/pages/BrowserSync.tsx`** — PageHeader title: "Browser Sessions" → "Platform Access", subtitle update
-2. **`src/pages/employee/EmployeeBrowserSessions.tsx`** — Page heading and description text
-3. **`src/components/layout/AppSidebar.tsx`** — Sidebar item: "Live Sessions" → "Platform Access"
-4. **`src/components/layout/MobileBottomNav.tsx`** — Menu item: "Live Sessions" → "Platform Access"
-5. **`src/components/employee/EmployeeLayout.tsx`** — Bottom nav label: "Browser" → "Access"
-6. **`src/components/dashboard/GettingStartedChecklist.tsx`** — Checklist item label and description
-7. **`src/pages/employee/EmployeeDashboard.tsx`** — Button label "Browser Sessions" → "Platform Access"
-8. **`src/components/landing/ScreenshotShowcase.tsx`** — "Cloud Browser Sessions" → "Platform Access"
-9. **`src/components/landing/FeaturesSection.tsx`** — Feature title update if applicable
-10. **`src/components/landing/HeroSection.tsx`** — Hero description text
-11. **`src/components/landing/LandingSections.tsx`** — Pricing card feature list
-12. **`src/components/landing/ComparisonSection.tsx`** — Comparison row label
-13. **`src/lib/subscriptionTiers.ts`** — Feature strings in tier definitions
-14. **`src/components/browser/ActiveSessionBanner.tsx`** — Banner label "Session:" → keep as-is (refers to an active session instance, not the feature name)
+2. **`src/components/layout/MobileBottomNav.tsx`** — Same lock treatment for the Platform Access item in the mobile hamburger menu.
 
-Internal code names (variable names, route paths, file names, edge function names) remain unchanged.
+3. **`src/pages/BrowserSync.tsx`** — Add an access guard at the top of the component: check `useAuth()` profile email. If not `testing26@gmail.com`, render a full-page locked state (lock icon + "This feature is restricted" message) instead of the normal tabs/content.
+
+4. **`src/routes/routeConfig.tsx`** — No route removal needed; the page-level guard in BrowserSync.tsx handles it.
+
+## Technical Details
+
+- Use `useAuth()` hook to get `profile?.email` and `user?.email`
+- Whitelist check: `const isUnlocked = profile?.email?.toLowerCase() === 'testing26@gmail.com'`
+- Sidebar: modify `NavSection` to accept a `lockedUrls` set; for locked items, swap icon to `Lock`, add `opacity-50 cursor-not-allowed` classes, prevent click
+- BrowserSync page: early return with a centered Card showing Lock icon + "Feature Locked" heading + "Contact admin for access" message
+- Import `Lock` from `lucide-react` where needed
 
