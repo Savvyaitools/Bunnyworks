@@ -221,7 +221,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarGroup>
                   <SidebarGroupContent>
-                    <NavSection items={section.items} location={location} isCollapsed={isCollapsed} />
+                    <NavSection items={section.items} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
                   </SidebarGroupContent>
                 </SidebarGroup>
               </CollapsibleContent>
