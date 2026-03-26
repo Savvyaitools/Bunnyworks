@@ -196,7 +196,7 @@ export function AppSidebar() {
         {/* Main navigation */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <NavSection items={mainNavItems} location={location} isCollapsed={isCollapsed} />
+            <NavSection items={mainNavItems} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
           </SidebarGroupContent>
         </SidebarGroup>
 
