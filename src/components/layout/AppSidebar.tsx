@@ -115,7 +115,7 @@ function NavSection({ items, location, isCollapsed, userEmail }: { items: typeof
                   onClick={() => toast("Feature locked", { description: "Contact admin for access." })}
                   className="nav-item w-full justify-start opacity-50 cursor-not-allowed"
                 >
-                  <Lock className="h-5 w-5 shrink-0" />
+                  <LockIcon className="h-5 w-5 shrink-0" />
                   {!isCollapsed && <span className="flex-1">{item.title}</span>}
                 </button>
               </SidebarMenuButton>
