@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Command,
   BarChart3,
+  Lock as LockIcon,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -96,11 +97,32 @@ const bottomNavItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-function NavSection({ items, location, isCollapsed }: { items: typeof mainNavItems; location: ReturnType<typeof useLocation>; isCollapsed: boolean }) {
+const LOCKED_URLS = new Set(["/browser-sync"]);
+const WHITELISTED_EMAIL = "testing26@gmail.com";
+
+function NavSection({ items, location, isCollapsed, userEmail }: { items: typeof mainNavItems; location: ReturnType<typeof useLocation>; isCollapsed: boolean; userEmail?: string }) {
   return (
     <SidebarMenu>
       {items.map((item) => {
         const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
+        const isLocked = LOCKED_URLS.has(item.url) && userEmail?.toLowerCase() !== WHITELISTED_EMAIL;
+        
+        if (isLocked) {
+          return (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild>
+                <button
+                  onClick={() => toast("Feature locked", { description: "Contact admin for access." })}
+                  className="nav-item w-full justify-start opacity-50 cursor-not-allowed"
+                >
+                  <LockIcon className="h-5 w-5 shrink-0" />
+                  {!isCollapsed && <span className="flex-1">{item.title}</span>}
+                </button>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          );
+        }
+
         return (
           <SidebarMenuItem key={item.title}>
             <SidebarMenuButton asChild>
@@ -120,7 +142,8 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useSidebar();
-  const { profile, signOut } = useAuth();
+  const { profile, user, signOut } = useAuth();
+  const userEmail = profile?.email || user?.email;
   const { unreadCount } = useNotifications();
   const isCollapsed = state === "collapsed";
 
@@ -173,7 +196,7 @@ export function AppSidebar() {
         {/* Main navigation */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <NavSection items={mainNavItems} location={location} isCollapsed={isCollapsed} />
+            <NavSection items={mainNavItems} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -183,7 +206,7 @@ export function AppSidebar() {
             return (
               <SidebarGroup key={section.label}>
                 <SidebarGroupContent>
-                  <NavSection items={section.items} location={location} isCollapsed={isCollapsed} />
+                  <NavSection items={section.items} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
                 </SidebarGroupContent>
               </SidebarGroup>
             );
@@ -198,7 +221,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarGroup>
                   <SidebarGroupContent>
-                    <NavSection items={section.items} location={location} isCollapsed={isCollapsed} />
+                    <NavSection items={section.items} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
                   </SidebarGroupContent>
                 </SidebarGroup>
               </CollapsibleContent>
