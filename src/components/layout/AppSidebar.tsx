@@ -142,7 +142,8 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useSidebar();
-  const { profile, signOut } = useAuth();
+  const { profile, user, signOut } = useAuth();
+  const userEmail = profile?.email || user?.email;
   const { unreadCount } = useNotifications();
   const isCollapsed = state === "collapsed";
 
