@@ -150,7 +150,7 @@ export default function EmployeeDashboard() {
               onClick={() => navigate("/employee/browser")}
             >
               <Globe className="h-5 w-5" />
-              <span>Browser Sessions</span>
+              <span>Platform Access</span>
             </Button>
             <Button 
               variant="outline" 

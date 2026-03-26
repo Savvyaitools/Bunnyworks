@@ -42,10 +42,10 @@ export default function EmployeeBrowserSessions() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Globe className="h-6 w-6 text-primary" />
-            Browser Sessions
+            Platform Access
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Launch pre-authenticated browser sessions for your assigned creators
+            Launch pre-authenticated platform sessions for your assigned creators
           </p>
         </div>
 

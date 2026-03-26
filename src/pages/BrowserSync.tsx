@@ -13,8 +13,8 @@ export default function BrowserSync() {
     <DashboardLayout>
       <div className="space-y-6">
         <PageHeader
-          title="Browser Sessions"
-          subtitle="Manage live browser sessions and monitoring"
+          title="Platform Access"
+          subtitle="Manage live platform sessions and monitoring"
         />
 
         <Tabs defaultValue="live-sessions">

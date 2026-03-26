@@ -69,7 +69,7 @@ const collapsibleSections = [
   {
     label: "Operations",
     items: [
-      { title: "Live Sessions", url: "/browser-sync", icon: Globe },
+      { title: "Platform Access", url: "/browser-sync", icon: Globe },
       { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
       { title: "Team Chat", url: "/team-chat", icon: MessageSquare },
     ],

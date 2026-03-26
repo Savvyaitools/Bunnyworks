@@ -19,7 +19,7 @@ const competitorComparison = {
     { name: "Recruiting Pipeline" },
     { name: "Team Permission Management" },
     { name: "Marketing & Tracking Links" },
-    { name: "Cloud Browser Sessions" },
+    { name: "Platform Access" },
     { name: "AI Agency Intelligence (Coach PBF)" },
     { name: "AI Content Automation (Tatum)" },
     { name: "AI Smart Replies with Learning (Izzy)" },

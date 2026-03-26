@@ -63,7 +63,7 @@ export const SUBSCRIPTION_TIERS: Record<string, TierConfig> = {
       "Recruiting pipeline with follow-ups",
       "Coverage gap detection",
       "200 GB Content Vault",
-      "Cloud Browser Sessions",
+      "Platform Access",
       "Priority support",
     ],
   },
