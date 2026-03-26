@@ -43,7 +43,7 @@ export const SUBSCRIPTION_TIERS: Record<string, TierConfig> = {
       "Task management dashboard",
       "Basic performance tracking",
       "Fan CRM",
-      "Cloud Browser Sessions",
+      "Platform Access",
     ],
   },
   scale: {
