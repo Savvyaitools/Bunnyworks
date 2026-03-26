@@ -154,7 +154,7 @@ export function MobileBottomNav() {
                                             : "text-foreground hover:bg-muted/50"
                                       )}
                                     >
-                                      {locked ? <Lock className="h-4 w-4 shrink-0" /> : <item.icon className="h-4 w-4 shrink-0" />}
+                                      {locked ? <LockIcon className="h-4 w-4 shrink-0" /> : <item.icon className="h-4 w-4 shrink-0" />}
                                       <span>{item.title}</span>
                                     </button>
                                   );
