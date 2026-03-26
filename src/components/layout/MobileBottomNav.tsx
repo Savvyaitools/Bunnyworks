@@ -15,8 +15,8 @@ import {
   Globe,
   ClipboardList,
   BookOpen,
-  
   HelpCircle,
+  Lock as LockIcon,
   Bell,
   Settings,
   LogOut,
