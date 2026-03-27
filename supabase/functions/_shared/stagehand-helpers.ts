@@ -5,7 +5,7 @@
  * Requires secrets: STAGEHAND_API_KEY, STAGEHAND_SERVER_URL
  */
 
-// ========== Humanized Delay Helpers ==========
+// ========== Humanized Delay Helpers (5x slower for stealth) ==========
 
 /** Random delay between min and max ms to mimic human behavior */
 function humanDelay(minMs: number, maxMs: number): Promise<void> {
@@ -14,14 +14,17 @@ function humanDelay(minMs: number, maxMs: number): Promise<void> {
   return new Promise(r => setTimeout(r, delay));
 }
 
-/** Short pause (like reading / thinking) */
-function shortPause(): Promise<void> { return humanDelay(800, 2000); }
+/** Short pause (like reading / thinking) — 4-10 seconds */
+function shortPause(): Promise<void> { return humanDelay(4000, 10000); }
 
-/** Medium pause (like a person processing a page) */
-function mediumPause(): Promise<void> { return humanDelay(2000, 4500); }
+/** Medium pause (like a person processing a page) — 10-22 seconds */
+function mediumPause(): Promise<void> { return humanDelay(10000, 22000); }
 
-/** Long pause (like page load + reading) */
-function longPause(): Promise<void> { return humanDelay(4000, 7000); }
+/** Long pause (like page load + reading) — 20-35 seconds */
+function longPause(): Promise<void> { return humanDelay(20000, 35000); }
+
+/** Extra long pause (between conversations) — 30-60 seconds */
+function extraLongPause(): Promise<void> { return humanDelay(30000, 60000); }
 
 // ========== Types ==========
 
@@ -102,15 +105,21 @@ async function stagehandRequest<T = unknown>(
 // ========== Core API Wrappers ==========
 
 /**
- * Navigate the browser to a URL.
+ * Navigate the browser to a URL using act() since /navigate may not exist.
+ * Uses stagehandAct to tell the AI to navigate, then waits for page to load.
  */
 export async function stagehandNavigate(
   sessionId: string,
   url: string
 ): Promise<StagehandResponse> {
   console.log(`Stagehand: navigate to ${url}`);
-  const result = await stagehandRequest("/navigate", { sessionId, url }, 20000);
-  await mediumPause(); // Wait for page to settle like a human would
+  // Use act() to navigate — more reliable than a dedicated /navigate endpoint
+  const result = await stagehandRequest("/act", { 
+    sessionId, 
+    action: `Navigate to the URL: ${url}`,
+    variables: { url }
+  }, 30000);
+  await longPause(); // Wait for page to fully load like a human would
   return result;
 }
 

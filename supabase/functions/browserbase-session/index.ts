@@ -1586,7 +1586,7 @@ Deno.serve(async (req) => {
         // CDP fallback: Navigate and scrape
         try {
           await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
-          await new Promise(r => setTimeout(r, 4000));
+          await new Promise(r => setTimeout(r, 20000)); // Wait 20s for page to load
         } catch (e) {
           return json({ error: "Failed to navigate to chats page", detail: String(e) }, 500);
         }
@@ -1655,8 +1655,8 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Humanized wait — person would take time reading the chat
-          await new Promise(r => setTimeout(r, 3000 + Math.floor(Math.random() * 4000)));
+          // Humanized wait — person would take time reading the chat (15-35 seconds)
+          await new Promise(r => setTimeout(r, 15000 + Math.floor(Math.random() * 20000)));
 
           // Step B: Read chat context
           let lastFanMsg = "";
@@ -1696,7 +1696,7 @@ Deno.serve(async (req) => {
             } else {
               await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             }
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 10000)));
             continue;
           }
 
@@ -1719,7 +1719,7 @@ Deno.serve(async (req) => {
             results.push(stepResult);
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 10000)));
             continue;
           }
 
@@ -1734,7 +1734,7 @@ Deno.serve(async (req) => {
             results.push(stepResult);
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 10000)));
             continue;
           }
 
@@ -1795,11 +1795,12 @@ Deno.serve(async (req) => {
 
           // Go back to chats list for next conversation
           if (ci < toProcess.length - 1) {
-            // Humanized gap between conversations (8-18 seconds)
-            await new Promise(r => setTimeout(r, 8000 + Math.floor(Math.random() * 10000)));
+            // Humanized gap between conversations (40-90 seconds like a real person)
+            console.log(`Stagehand: waiting before next conversation (${ci + 1}/${toProcess.length})...`);
+            await new Promise(r => setTimeout(r, 40000 + Math.floor(Math.random() * 50000)));
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 4000 + Math.floor(Math.random() * 3000)));
+            await new Promise(r => setTimeout(r, 15000 + Math.floor(Math.random() * 10000)));
           }
         } catch (e: any) {
           stepResult.status = "error";
@@ -1808,7 +1809,7 @@ Deno.serve(async (req) => {
           try {
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 10000));
           } catch {}
         }
       }
