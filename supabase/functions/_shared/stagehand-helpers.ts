@@ -5,6 +5,24 @@
  * Requires secrets: STAGEHAND_API_KEY, STAGEHAND_SERVER_URL
  */
 
+// ========== Humanized Delay Helpers ==========
+
+/** Random delay between min and max ms to mimic human behavior */
+function humanDelay(minMs: number, maxMs: number): Promise<void> {
+  const delay = minMs + Math.floor(Math.random() * (maxMs - minMs));
+  console.log(`Stagehand: humanized wait ${delay}ms`);
+  return new Promise(r => setTimeout(r, delay));
+}
+
+/** Short pause (like reading / thinking) */
+function shortPause(): Promise<void> { return humanDelay(800, 2000); }
+
+/** Medium pause (like a person processing a page) */
+function mediumPause(): Promise<void> { return humanDelay(2000, 4500); }
+
+/** Long pause (like page load + reading) */
+function longPause(): Promise<void> { return humanDelay(4000, 7000); }
+
 // ========== Types ==========
 
 interface StagehandResponse<T = unknown> {
@@ -91,7 +109,9 @@ export async function stagehandNavigate(
   url: string
 ): Promise<StagehandResponse> {
   console.log(`Stagehand: navigate to ${url}`);
-  return stagehandRequest("/navigate", { sessionId, url }, 20000);
+  const result = await stagehandRequest("/navigate", { sessionId, url }, 20000);
+  await mediumPause(); // Wait for page to settle like a human would
+  return result;
 }
 
 /**
@@ -103,12 +123,15 @@ export async function stagehandAct(
   instruction: string,
   variables?: Record<string, string>
 ): Promise<StagehandResponse> {
+  await shortPause(); // Brief human-like hesitation before acting
   console.log(`Stagehand: act "${instruction}"`);
-  return stagehandRequest("/act", {
+  const result = await stagehandRequest("/act", {
     sessionId,
     action: instruction,
     ...(variables ? { variables } : {}),
   }, 30000);
+  await shortPause(); // Pause after action like a person watching the result
+  return result;
 }
 
 /**
@@ -169,8 +192,8 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "navigate", error: nav.error };
     }
 
-    // Wait for page to settle
-    await new Promise(r => setTimeout(r, 3000));
+    // Wait for page to settle (humanized)
+    await longPause();
 
     // Step 2: Check if already logged in
     const pageState = await stagehandExtract<{ isLoggedIn: boolean; hasLoginForm: boolean }>(
@@ -200,8 +223,7 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "type_email", error: typeEmail.error };
     }
 
-    // Small delay between fields
-    await new Promise(r => setTimeout(r, 500));
+    // Human-like pause between fields
 
     // Step 4: Type password
     const typePass = await stagehandAct(
@@ -212,7 +234,7 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "type_password", error: typePass.error };
     }
 
-    await new Promise(r => setTimeout(r, 500));
+    // stagehandAct already includes humanized delays
 
     // Step 5: Click login button
     const clickLogin = await stagehandAct(
@@ -223,8 +245,8 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "click_login", error: clickLogin.error };
     }
 
-    // Step 6: Wait and verify login
-    await new Promise(r => setTimeout(r, 5000));
+    // Wait for login to process (human would watch the page)
+    await longPause();
 
     const verifyLogin = await stagehandExtract<{ isLoggedIn: boolean }>(
       sessionId,
@@ -284,7 +306,8 @@ export async function scrapeChatListViaStagehand(
   const nav = await stagehandNavigate(sessionId, "https://onlyfans.com/my/chats");
   if (!nav.success) return { success: false, error: nav.error };
 
-  await new Promise(r => setTimeout(r, 4000));
+  // Human-like page scan delay
+  await longPause();
 
   return stagehandExtract<{ conversations: ChatConversation[] }>(
     sessionId,
@@ -358,29 +381,104 @@ export async function readChatContextViaStagehand(
 
 /**
  * Type a reply into the chat input and click send using Stagehand.
+ * Uses a multi-step approach: click input → type text → verify → click send → verify sent.
  */
 export async function injectChatReplyViaStagehand(
   sessionId: string,
   replyText: string
 ): Promise<StagehandResponse<{ autoSent: boolean }>> {
-  // Type the reply
+  console.log(`Stagehand: injecting chat reply (${replyText.length} chars)`);
+
+  // Step 1: Click on the chat input to focus it
+  const focusResult = await stagehandAct(
+    sessionId,
+    "Click on the message input field or textarea at the bottom of the chat conversation to focus it"
+  );
+  if (!focusResult.success) {
+    console.error("Stagehand: Failed to focus chat input:", focusResult.error);
+    return { success: false, error: `Could not focus chat input: ${focusResult.error}` };
+  }
+
+  // Human pause after clicking input
+  await shortPause();
+
+  // Step 2: Type the message (use clear instruction with the exact text)
   const typeResult = await stagehandAct(
     sessionId,
-    `Type the following message into the chat input/textarea field: "${replyText}"`
+    `Type the following text into the currently focused chat message input field: "${replyText}"`
   );
-  if (!typeResult.success) return { success: false, error: typeResult.error };
+  if (!typeResult.success) {
+    console.error("Stagehand: Failed to type reply:", typeResult.error);
+    return { success: false, error: `Could not type reply: ${typeResult.error}` };
+  }
 
-  await new Promise(r => setTimeout(r, 800));
+  // Human-like pause — person would re-read their message before sending
+  await mediumPause();
 
-  // Click send
+  // Step 3: Verify the text was actually entered
+  const verifyText = await stagehandExtract<{ hasText: boolean; inputText: string }>(
+    sessionId,
+    "Check the chat message input field at the bottom. Is there text typed into it? Extract what text is currently in the input field.",
+    {
+      type: "object",
+      properties: {
+        hasText: { type: "boolean", description: "true if there is text in the input field" },
+        inputText: { type: "string", description: "The text currently in the input field" },
+      },
+      required: ["hasText", "inputText"],
+    }
+  );
+
+  if (verifyText.success && !verifyText.data?.data?.hasText) {
+    console.warn("Stagehand: Text verification failed, retrying type...");
+    // Retry: click and type again
+    await stagehandAct(sessionId, "Click on the message input field to focus it");
+    await shortPause();
+    await stagehandAct(sessionId, `Type "${replyText}" into the message input field`);
+    await shortPause();
+  }
+
+  // Step 4: Click the send button
   const sendResult = await stagehandAct(
     sessionId,
-    "Click the Send button to submit the typed chat message"
+    "Click the Send button (it may be a paper plane icon or a button labeled 'Send') to submit the typed chat message"
   );
 
+  if (!sendResult.success) {
+    console.error("Stagehand: Failed to click send:", sendResult.error);
+    // Try pressing Enter as fallback
+    console.log("Stagehand: Trying Enter key as fallback...");
+    const enterResult = await stagehandAct(
+      sessionId,
+      "Press the Enter key to send the message in the chat input field"
+    );
+    if (!enterResult.success) {
+      return { success: false, error: `Could not send message: ${sendResult.error}` };
+    }
+  }
+
+  // Human pause after sending — person would watch message appear
+  await mediumPause();
+
+  // Step 5: Verify message was sent by checking if input is now empty
+  const verifySent = await stagehandExtract<{ inputEmpty: boolean; messageSent: boolean }>(
+    sessionId,
+    "Check if the chat message was sent successfully. The input field should now be empty, and the message should appear in the chat as the latest message from the creator/model.",
+    {
+      type: "object",
+      properties: {
+        inputEmpty: { type: "boolean", description: "true if the input field is now empty" },
+        messageSent: { type: "boolean", description: "true if the message appears in the chat as sent" },
+      },
+      required: ["inputEmpty", "messageSent"],
+    }
+  );
+
+  const wasSent = verifySent.success && (verifySent.data?.data?.messageSent || verifySent.data?.data?.inputEmpty);
+  console.log(`Stagehand: Message injection result — sent: ${wasSent}`);
+
   return {
-    success: sendResult.success,
-    data: { autoSent: sendResult.success },
-    error: sendResult.error,
+    success: true,
+    data: { autoSent: wasSent === true },
   };
 }
