@@ -1045,27 +1045,57 @@ Deno.serve(async (req) => {
       }
 
       console.log(`Auto-login: Starting for creator ${link.creator_id} on ${link.platform}`);
-      const result = await autoLoginViaCDP(BK, bbSid, creds.username, password);
-      console.log(`Auto-login result:`, JSON.stringify(result));
 
-      if (result.success && result.step === "login_clicked") {
-        // Wait a moment then check login status
-        await new Promise(r => setTimeout(r, 5000));
-        try {
-          const loginCheck = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login verify" });
-          if (loginCheck.isLoggedIn) {
-            await svc.from("creator_session_links").update({
-              session_status: "authenticated",
-              updated_at: new Date().toISOString(),
-            }).eq("id", sessionLinkId);
+      // Try Stagehand first (AI-driven), fall back to CDP (selector-based)
+      let result: any;
+      let loginMethod = "unknown";
+
+      try {
+        console.log("Auto-login: Attempting Stagehand (AI-driven)...");
+        const stagehandResult = await autoLoginViaStagehand(bbSid, creds.username, password);
+        loginMethod = "stagehand";
+        console.log(`Auto-login Stagehand result:`, JSON.stringify(stagehandResult));
+
+        if (stagehandResult.success && stagehandResult.isLoggedIn) {
+          await svc.from("creator_session_links").update({
+            session_status: "authenticated",
+            updated_at: new Date().toISOString(),
+          }).eq("id", sessionLinkId);
+          return json({ ...stagehandResult, loginVerified: true, loginMethod });
+        }
+
+        // Stagehand clicked login but couldn't verify — still return
+        if (stagehandResult.success) {
+          result = stagehandResult;
+        } else {
+          throw new Error(stagehandResult.error || "Stagehand login failed");
+        }
+      } catch (stagehandErr: any) {
+        console.warn(`Auto-login: Stagehand failed (${stagehandErr.message}), falling back to CDP...`);
+
+        // Fallback to CDP auto-login
+        result = await autoLoginViaCDP(BK, bbSid, creds.username, password);
+        loginMethod = "cdp";
+        console.log(`Auto-login CDP result:`, JSON.stringify(result));
+
+        if (result.success && result.step === "login_clicked") {
+          await new Promise(r => setTimeout(r, 5000));
+          try {
+            const loginCheck = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login verify" });
+            if (loginCheck.isLoggedIn) {
+              await svc.from("creator_session_links").update({
+                session_status: "authenticated",
+                updated_at: new Date().toISOString(),
+              }).eq("id", sessionLinkId);
+            }
+            return json({ ...result, loginVerified: loginCheck.isLoggedIn, loginMethod });
+          } catch (e) {
+            console.warn("Post-login verification failed:", e);
           }
-          return json({ ...result, loginVerified: loginCheck.isLoggedIn });
-        } catch (e) {
-          console.warn("Post-login verification failed:", e);
         }
       }
 
-      return json(result);
+      return json({ ...result, loginMethod });
     }
 
     // ========== SCRAPE FAN ANALYTICS (CDP) ==========
