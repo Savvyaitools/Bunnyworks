@@ -1719,7 +1719,7 @@ Deno.serve(async (req) => {
             results.push(stepResult);
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 10000)));
             continue;
           }
 
