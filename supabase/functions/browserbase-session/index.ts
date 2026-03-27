@@ -1416,15 +1416,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ========== MARILYN: SCRAPE CHAT LIST (CDP) ==========
+    // ========== MARILYN: SCRAPE CHAT LIST (STAGEHAND-FIRST + CDP FALLBACK) ==========
     if (action === "scrape_chat_list") {
       const { browserbaseSessionId: bbSid } = p;
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
 
-      // Navigate to chats page first
+      // Try Stagehand first
+      try {
+        console.log("scrape_chat_list: Attempting Stagehand...");
+        const stagehandResult = await scrapeChatListViaStagehand(bbSid);
+        if (stagehandResult.success && stagehandResult.data?.data?.conversations?.length) {
+          console.log(`Stagehand: scraped ${stagehandResult.data.data.conversations.length} conversations`);
+          return json({ data: stagehandResult.data.data, method: "stagehand" });
+        }
+        throw new Error(stagehandResult.error || "Empty result from Stagehand");
+      } catch (stagehandErr: any) {
+        console.warn(`scrape_chat_list Stagehand failed: ${stagehandErr.message}, falling back to CDP`);
+      }
+
+      // CDP fallback
       try {
         await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
-        await new Promise(r => setTimeout(r, 4000)); // Wait for DOM to settle
+        await new Promise(r => setTimeout(r, 4000));
       } catch (e) {
         console.warn("Chat list navigation failed:", e);
       }
@@ -1433,7 +1446,6 @@ Deno.serve(async (req) => {
         var result = { conversations: [], totalCount: 0, currentUrl: window.location.href };
         var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
         if (!chatItems.length) {
-          // Fallback selectors
           chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
         }
         chatItems.forEach(function(el, index) {
@@ -1447,7 +1459,6 @@ Deno.serve(async (req) => {
             var badgeText = unreadBadge.innerText.trim();
             isUnread = badgeText !== '' && badgeText !== '0';
           }
-          // Also check if the item has an unread class
           if (!isUnread) {
             isUnread = el.classList.contains('m-unread') || el.classList.contains('b-chats__item--unread') || el.className.includes('unread');
           }
@@ -1468,15 +1479,30 @@ Deno.serve(async (req) => {
       })()`;
 
       const result = await executeCDPScript(BK, bbSid, scrapeScript, 15000);
-      return json(result);
+      return json({ ...result, method: "cdp" });
     }
 
-    // ========== MARILYN: CLICK CONVERSATION (CDP) ==========
+    // ========== MARILYN: CLICK CONVERSATION (STAGEHAND-FIRST + CDP FALLBACK) ==========
     if (action === "click_conversation") {
       const { browserbaseSessionId: bbSid, conversationIndex, fanName } = p;
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
       if (conversationIndex === undefined && !fanName) return json({ error: "conversationIndex or fanName required" }, 400);
 
+      // Try Stagehand first (works best with fanName)
+      if (fanName) {
+        try {
+          console.log(`click_conversation: Attempting Stagehand for "${fanName}"...`);
+          const stagehandResult = await clickConversationViaStagehand(bbSid, fanName as string);
+          if (stagehandResult.success) {
+            return json({ data: { success: true, clickedName: fanName }, method: "stagehand" });
+          }
+          throw new Error(stagehandResult.error || "Stagehand click failed");
+        } catch (stagehandErr: any) {
+          console.warn(`click_conversation Stagehand failed: ${stagehandErr.message}, falling back to CDP`);
+        }
+      }
+
+      // CDP fallback
       const escapedFanName = fanName ? String(fanName).replace(/'/g, "\\'") : "";
       const clickScript = `(function() {
         var result = { success: false, clickedName: '', reason: '' };
@@ -1487,7 +1513,6 @@ Deno.serve(async (req) => {
         var target = null;
         var targetName = '';
         ${fanName ? `
-        // Find by fan name
         for (var i = 0; i < chatItems.length; i++) {
           var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
           if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedFanName}'.toLowerCase()) {
@@ -1496,7 +1521,6 @@ Deno.serve(async (req) => {
             break;
           }
         }` : `
-        // Find by index
         var idx = ${conversationIndex || 0};
         if (idx < chatItems.length) {
           target = chatItems[idx];
@@ -1507,7 +1531,6 @@ Deno.serve(async (req) => {
           result.reason = 'Conversation not found';
           return JSON.stringify(result);
         }
-        // Click the conversation
         var clickTarget = target.querySelector('a') || target;
         try {
           clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
@@ -1521,7 +1544,7 @@ Deno.serve(async (req) => {
       })()`;
 
       const result = await executeCDPScript(BK, bbSid, clickScript, 10000);
-      return json(result);
+      return json({ ...result, method: "cdp" });
     }
 
     // ========== MARILYN: BATCH REPLY (STAGEHAND-FIRST + CDP FALLBACK) ==========
