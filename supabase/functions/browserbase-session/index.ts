@@ -1494,58 +1494,34 @@ Deno.serve(async (req) => {
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
       if (conversationIndex === undefined && !fanName) return json({ error: "conversationIndex or fanName required" }, 400);
 
-      // Try Stagehand first (works best with fanName)
+      // CDP-first approach — reliable DOM clicking that avoids profile links
       if (fanName) {
-        try {
-          console.log(`click_conversation: Attempting Stagehand for "${fanName}"...`);
-          const stagehandResult = await clickConversationViaStagehand(bbSid, fanName as string);
-          if (stagehandResult.success) {
-            return json({ data: { success: true, clickedName: fanName }, method: "stagehand" });
-          }
-          throw new Error(stagehandResult.error || "Stagehand click failed");
-        } catch (stagehandErr: any) {
-          console.warn(`click_conversation Stagehand failed: ${stagehandErr.message}, falling back to CDP`);
+        console.log(`click_conversation: Using CDP for "${fanName}"...`);
+        const cdpClick = await clickConversationViaCDP(BK, bbSid, fanName as string);
+        if (cdpClick.success) {
+          return json({ data: { success: true, clickedName: fanName }, method: "cdp" });
         }
+        console.warn(`click_conversation CDP failed: ${cdpClick.error}`);
       }
 
-      // CDP fallback
-      const escapedFanName = fanName ? String(fanName).replace(/'/g, "\\'") : "";
+      // Index-based fallback (no fanName provided)
       const clickScript = `(function() {
         var result = { success: false, clickedName: '', reason: '' };
         var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-        if (!chatItems.length) {
-          chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
-        }
-        var target = null;
-        var targetName = '';
-        ${fanName ? `
-        for (var i = 0; i < chatItems.length; i++) {
-          var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
-          if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedFanName}'.toLowerCase()) {
-            target = chatItems[i];
-            targetName = nameEl.innerText.trim();
-            break;
-          }
-        }` : `
+        if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
         var idx = ${conversationIndex || 0};
-        if (idx < chatItems.length) {
-          target = chatItems[idx];
-          var nameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"]');
-          targetName = nameEl ? nameEl.innerText.trim() : 'index_' + idx;
-        }`}
-        if (!target) {
-          result.reason = 'Conversation not found';
-          return JSON.stringify(result);
-        }
-        var clickTarget = target.querySelector('a') || target;
-        try {
-          clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-          clickTarget.click();
-        } catch (e) {
-          target.click();
-        }
+        if (idx >= chatItems.length) { result.reason = 'Index out of range'; return JSON.stringify(result); }
+        var target = chatItems[idx];
+        var nameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"]');
+        result.clickedName = nameEl ? nameEl.innerText.trim() : 'index_' + idx;
+        // Click the preview/row body — NOT the <a> profile link
+        var preview = target.querySelector('.b-chats__item-text, [class*="preview"], [class*="last-message"]');
+        var clickTarget = preview || target;
+        if (clickTarget.tagName === 'A') clickTarget = target;
+        try { clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch(e) {}
+        try { clickTarget.click(); } catch(e) {}
+        if (clickTarget !== target) { try { target.click(); } catch(e) {} }
         result.success = true;
-        result.clickedName = targetName;
         return JSON.stringify(result);
       })()`;
 
