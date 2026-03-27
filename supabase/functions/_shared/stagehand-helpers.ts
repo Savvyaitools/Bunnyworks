@@ -234,7 +234,7 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "type_password", error: typePass.error };
     }
 
-    await new Promise(r => setTimeout(r, 500));
+    // stagehandAct already includes humanized delays
 
     // Step 5: Click login button
     const clickLogin = await stagehandAct(
