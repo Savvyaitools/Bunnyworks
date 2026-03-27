@@ -1,9 +1,160 @@
 /**
  * Stagehand 2.0 REST API helpers for AI-driven browser automation.
- * Human-first approach: observe → understand → act slowly.
+ * Hybrid CDP+Stagehand: CDP-first for reliable DOM actions,
+ * Stagehand for AI extraction when available.
  * 
  * Requires secrets: STAGEHAND_API_KEY, STAGEHAND_SERVER_URL
+ * Also uses: BROWSERBASE_API_KEY via cdp-helpers
  */
+
+import { executeCDPScript, navigateViaCDP } from "./cdp-helpers.ts";
+
+// ========== Stagehand Health Check ==========
+
+let _stagehandAvailable: boolean | null = null;
+
+export async function isStagehandAvailable(): Promise<boolean> {
+  if (_stagehandAvailable !== null) return _stagehandAvailable;
+  try {
+    const { serverUrl, apiKey } = getConfig();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${serverUrl}/health`, {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    _stagehandAvailable = res.ok;
+  } catch {
+    _stagehandAvailable = false;
+  }
+  console.log(`🔌 Stagehand available: ${_stagehandAvailable}`);
+  return _stagehandAvailable;
+}
+
+// ========== CDP-First Action Helpers ==========
+
+/**
+ * Click a conversation row by fan name using CDP.
+ * CRITICAL: Clicks the row body/preview — NOT the <a> profile link.
+ */
+export async function clickConversationViaCDP(
+  apiKey: string,
+  sessionId: string,
+  fanName: string
+): Promise<{ success: boolean; error?: string }> {
+  console.log(`🖱️ CDP: Clicking conversation for "${fanName}"...`);
+  const escapedName = fanName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+  const clickScript = `(function() {
+    var result = { success: false, clickedName: '', reason: '' };
+    var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
+    if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+
+    var target = null;
+    for (var i = 0; i < chatItems.length; i++) {
+      var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
+      if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedName}'.toLowerCase()) {
+        target = chatItems[i];
+        result.clickedName = nameEl.innerText.trim();
+        break;
+      }
+    }
+    if (!target) {
+      result.reason = 'Conversation not found for: ${escapedName}';
+      return JSON.stringify(result);
+    }
+
+    // IMPORTANT: Click the message preview area or the row itself — NOT the <a> tag
+    // The <a> tags inside conversation rows link to the fan's profile page
+    var preview = target.querySelector(
+      '.b-chats__item-text, [class*="preview"], [class*="last-message"], [class*="item__text"], [class*="message-preview"]'
+    );
+    var clickTarget = preview || target;
+
+    // Avoid clicking any <a> element — those open profile pages
+    if (clickTarget.tagName === 'A') {
+      clickTarget = target;
+    }
+
+    try {
+      clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    } catch(e) {}
+    try { clickTarget.click(); } catch(e) {}
+    // Also click the row itself as backup
+    if (clickTarget !== target) {
+      try { target.click(); } catch(e) {}
+    }
+
+    result.success = true;
+    return JSON.stringify(result);
+  })()`;
+
+  const res = await executeCDPScript(apiKey, sessionId, clickScript, 10000);
+  if (!res.success || !res.data?.success) {
+    return { success: false, error: res.data?.reason || res.error || "CDP click failed" };
+  }
+  return { success: true };
+}
+
+/**
+ * Inject chat reply text and send via CDP.
+ * Reusable helper extracted from inline batch_reply code.
+ */
+export async function injectChatReplyViaCDP(
+  apiKey: string,
+  sessionId: string,
+  replyText: string
+): Promise<{ success: boolean; autoSent: boolean; reason?: string }> {
+  console.log("💬 CDP: Injecting reply (" + replyText.length + " chars)...");
+  const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
+
+  const injectScript = "(function() {" +
+    "var text = '" + escapedReply + "';" +
+    "var result = { success: false, autoSent: false, reason: '', inputMode: '', sendStrategy: '' };" +
+    "var textareaSelectors = ['textarea[id=\"new_post_text_input\"]','.b-chat__input textarea','.b-chat-message-input textarea','.b-make-post__wrapper textarea','.b-make-post__textarea textarea','[class*=\"chat-input\"] textarea'];" +
+    "var editableSelectors = ['.b-chat__input [contenteditable=\"true\"]','[contenteditable=\"true\"][class*=\"chat\"]','[data-testid*=\"chat\"] [contenteditable=\"true\"]','[role=\"textbox\"][contenteditable=\"true\"]','.ProseMirror[contenteditable=\"true\"]'];" +
+    "var pickFirst = function(selectors) { for (var i = 0; i < selectors.length; i++) { var el = document.querySelector(selectors[i]); if (el) return el; } return null; };" +
+    "var input = pickFirst(textareaSelectors) || pickFirst(editableSelectors);" +
+    "if (!input) { result.reason = 'Chat input not found'; return JSON.stringify(result); }" +
+    "var dispatchInputEvents = function(el) { try { el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text })); } catch (_) { el.dispatchEvent(new Event('input', { bubbles: true })); } el.dispatchEvent(new Event('change', { bubbles: true })); };" +
+    "if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {" +
+    "  var proto = input.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;" +
+    "  var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');" +
+    "  if (nativeSetter && nativeSetter.set) nativeSetter.set.call(input, text); else input.value = text;" +
+    "  result.inputMode = 'text_input';" +
+    "} else {" +
+    "  input.focus();" +
+    "  if (typeof input.textContent === 'string') input.textContent = text;" +
+    "  if (typeof input.innerText === 'string') input.innerText = text;" +
+    "  result.inputMode = 'contenteditable';" +
+    "}" +
+    "dispatchInputEvents(input); input.focus();" +
+    "var isVisible = function(el) { if (!el) return false; var style = window.getComputedStyle(el); if (style.display === 'none' || style.visibility === 'hidden') return false; var rect = el.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; };" +
+    "var clickButton = function(btn) { try { btn.removeAttribute('disabled'); } catch (_) {} try { btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window })); } catch (_) {} try { btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window })); } catch (_) {} try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch (_) {} try { btn.click(); } catch (_) {} };" +
+    "var findSendButton = function() {" +
+    "  var selectors = ['.b-chat__btn-submit','button.b-btn-send-message','button[data-testid*=\"send\"]','button[aria-label*=\"Send\"]','button[aria-label*=\"send\"]','.b-chat-message-input button[type=\"submit\"]','.b-chat__input button[type=\"submit\"]','form button[type=\"submit\"]','button[class*=\"send\"]','button[class*=\"submit\"]','[aria-label*=\"paper plane\"]','[title*=\"Send\"]'];" +
+    "  for (var i = 0; i < selectors.length; i++) { var nodes = document.querySelectorAll(selectors[i]); for (var j = 0; j < nodes.length; j++) { if (isVisible(nodes[j])) return nodes[j]; } } return null;" +
+    "};" +
+    "var sendBtn = findSendButton();" +
+    "if (sendBtn) { clickButton(sendBtn); result.success = true; result.autoSent = true; result.sendStrategy = 'button_click'; return JSON.stringify(result); }" +
+    "var form = input.closest ? input.closest('form') : null;" +
+    "if (form && typeof form.requestSubmit === 'function') { try { form.requestSubmit(); result.success = true; result.autoSent = true; result.sendStrategy = 'form_submit'; return JSON.stringify(result); } catch (_) {} }" +
+    "try { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true })); input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true })); } catch (_) {}" +
+    "result.success = true; result.autoSent = false; result.sendStrategy = 'enter_fallback'; result.reason = 'Send button not found, only text injection confirmed';" +
+    "return JSON.stringify(result);" +
+    "})()";
+
+  const res = await executeCDPScript(apiKey, sessionId, injectScript, 12000);
+  if (!res.success) {
+    return { success: false, autoSent: false, reason: res.error || "CDP injection failed" };
+  }
+  return {
+    success: Boolean(res.data?.success),
+    autoSent: Boolean(res.data?.autoSent),
+    reason: res.data?.reason || undefined,
+  };
+}
 
 // ========== Humanized Delay Helpers ==========
 

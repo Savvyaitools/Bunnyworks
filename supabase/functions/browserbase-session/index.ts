@@ -16,6 +16,9 @@ import {
   stagehandObserve,
   stagehandScroll,
   stagehandHumanType,
+  clickConversationViaCDP,
+  injectChatReplyViaCDP,
+  isStagehandAvailable,
 } from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
@@ -1491,58 +1494,34 @@ Deno.serve(async (req) => {
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
       if (conversationIndex === undefined && !fanName) return json({ error: "conversationIndex or fanName required" }, 400);
 
-      // Try Stagehand first (works best with fanName)
+      // CDP-first approach — reliable DOM clicking that avoids profile links
       if (fanName) {
-        try {
-          console.log(`click_conversation: Attempting Stagehand for "${fanName}"...`);
-          const stagehandResult = await clickConversationViaStagehand(bbSid, fanName as string);
-          if (stagehandResult.success) {
-            return json({ data: { success: true, clickedName: fanName }, method: "stagehand" });
-          }
-          throw new Error(stagehandResult.error || "Stagehand click failed");
-        } catch (stagehandErr: any) {
-          console.warn(`click_conversation Stagehand failed: ${stagehandErr.message}, falling back to CDP`);
+        console.log(`click_conversation: Using CDP for "${fanName}"...`);
+        const cdpClick = await clickConversationViaCDP(BK, bbSid, fanName as string);
+        if (cdpClick.success) {
+          return json({ data: { success: true, clickedName: fanName }, method: "cdp" });
         }
+        console.warn(`click_conversation CDP failed: ${cdpClick.error}`);
       }
 
-      // CDP fallback
-      const escapedFanName = fanName ? String(fanName).replace(/'/g, "\\'") : "";
+      // Index-based fallback (no fanName provided)
       const clickScript = `(function() {
         var result = { success: false, clickedName: '', reason: '' };
         var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-        if (!chatItems.length) {
-          chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
-        }
-        var target = null;
-        var targetName = '';
-        ${fanName ? `
-        for (var i = 0; i < chatItems.length; i++) {
-          var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
-          if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedFanName}'.toLowerCase()) {
-            target = chatItems[i];
-            targetName = nameEl.innerText.trim();
-            break;
-          }
-        }` : `
+        if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
         var idx = ${conversationIndex || 0};
-        if (idx < chatItems.length) {
-          target = chatItems[idx];
-          var nameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"]');
-          targetName = nameEl ? nameEl.innerText.trim() : 'index_' + idx;
-        }`}
-        if (!target) {
-          result.reason = 'Conversation not found';
-          return JSON.stringify(result);
-        }
-        var clickTarget = target.querySelector('a') || target;
-        try {
-          clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-          clickTarget.click();
-        } catch (e) {
-          target.click();
-        }
+        if (idx >= chatItems.length) { result.reason = 'Index out of range'; return JSON.stringify(result); }
+        var target = chatItems[idx];
+        var nameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"]');
+        result.clickedName = nameEl ? nameEl.innerText.trim() : 'index_' + idx;
+        // Click the preview/row body — NOT the <a> profile link
+        var preview = target.querySelector('.b-chats__item-text, [class*="preview"], [class*="last-message"]');
+        var clickTarget = preview || target;
+        if (clickTarget.tagName === 'A') clickTarget = target;
+        try { clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch(e) {}
+        try { clickTarget.click(); } catch(e) {}
+        if (clickTarget !== target) { try { target.click(); } catch(e) {} }
         result.success = true;
-        result.clickedName = targetName;
         return JSON.stringify(result);
       })()`;
 
@@ -1660,157 +1639,7 @@ Deno.serve(async (req) => {
         return Boolean(verifyRes.success && verifyRes.data?.sent);
       };
 
-      const injectReplyViaCDP = async (replyText: string) => {
-        const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
-        const injectScript = `(function() {
-          var text = '${escapedReply}';
-          var result = { success: false, autoSent: false, reason: '', inputMode: '', sendStrategy: '' };
-
-          var textareaSelectors = [
-            'textarea[id="new_post_text_input"]',
-            '.b-chat__input textarea',
-            '.b-chat-message-input textarea',
-            '.b-make-post__wrapper textarea',
-            '.b-make-post__textarea textarea',
-            '[class*="chat-input"] textarea'
-          ];
-
-          var editableSelectors = [
-            '.b-chat__input [contenteditable="true"]',
-            '[contenteditable="true"][class*="chat"]',
-            '[data-testid*="chat"] [contenteditable="true"]',
-            '[role="textbox"][contenteditable="true"]',
-            '.ProseMirror[contenteditable="true"]'
-          ];
-
-          var pickFirst = function(selectors) {
-            for (var i = 0; i < selectors.length; i++) {
-              var el = document.querySelector(selectors[i]);
-              if (el) return el;
-            }
-            return null;
-          };
-
-          var input = pickFirst(textareaSelectors) || pickFirst(editableSelectors);
-          if (!input) {
-            result.reason = 'Chat input not found';
-            return JSON.stringify(result);
-          }
-
-          var dispatchInputEvents = function(el) {
-            try {
-              el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-            } catch (_) {
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-          };
-
-          if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
-            var proto = input.tagName === 'TEXTAREA'
-              ? window.HTMLTextAreaElement.prototype
-              : window.HTMLInputElement.prototype;
-            var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-            if (nativeSetter) nativeSetter.call(input, text);
-            else input.value = text;
-            result.inputMode = 'text_input';
-          } else {
-            input.focus();
-            if (typeof input.textContent === 'string') input.textContent = text;
-            if (typeof input.innerText === 'string') input.innerText = text;
-            result.inputMode = 'contenteditable';
-          }
-
-          dispatchInputEvents(input);
-          input.focus();
-
-          var isVisible = function(el) {
-            if (!el) return false;
-            var style = window.getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden') return false;
-            var rect = el.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0;
-          };
-
-          var clickButton = function(btn) {
-            try { btn.removeAttribute('disabled'); } catch (_) {}
-            try { btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
-            try { btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
-            try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
-            try { btn.click(); } catch (_) {}
-          };
-
-          var findSendButton = function() {
-            var selectors = [
-              '.b-chat__btn-submit',
-              'button.b-btn-send-message',
-              'button[data-testid*="send"]',
-              'button[aria-label*="Send"]',
-              'button[aria-label*="send"]',
-              '.b-chat-message-input button[type="submit"]',
-              '.b-chat__input button[type="submit"]',
-              'form button[type="submit"]',
-              'button[class*="send"]',
-              'button[class*="submit"]',
-              '[aria-label*="paper plane"]',
-              '[title*="Send"]'
-            ];
-
-            for (var i = 0; i < selectors.length; i++) {
-              var nodes = document.querySelectorAll(selectors[i]);
-              for (var j = 0; j < nodes.length; j++) {
-                if (isVisible(nodes[j])) return nodes[j];
-              }
-            }
-            return null;
-          };
-
-          var sendBtn = findSendButton();
-          if (sendBtn) {
-            clickButton(sendBtn);
-            result.success = true;
-            result.autoSent = true;
-            result.sendStrategy = 'button_click';
-            return JSON.stringify(result);
-          }
-
-          var form = input.closest ? input.closest('form') : null;
-          if (form && typeof form.requestSubmit === 'function') {
-            try {
-              form.requestSubmit();
-              result.success = true;
-              result.autoSent = true;
-              result.sendStrategy = 'form_submit';
-              return JSON.stringify(result);
-            } catch (_) {}
-          }
-
-          try {
-            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-            input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-          } catch (_) {}
-
-          result.success = true;
-          result.autoSent = false;
-          result.sendStrategy = 'enter_fallback';
-          result.reason = 'Send button not found, only text injection confirmed';
-          return JSON.stringify(result);
-        })()`;
-
-        const injectRes = await executeCDPScript(BK, bbSid, injectScript, 12000);
-        if (!injectRes.success) {
-          return {
-            success: false,
-            autoSent: false,
-            reason: injectRes.error || "CDP injection execution failed",
-          };
-        }
-        return {
-          success: Boolean(injectRes.data?.success),
-          autoSent: Boolean(injectRes.data?.autoSent),
-          reason: injectRes.data?.reason || null,
-        };
-      };
+      // injectReplyViaCDP is now imported from stagehand-helpers.ts
 
       for (let ci = 0; ci < toProcess.length; ci++) {
         const conv = toProcess[ci];
@@ -1818,32 +1647,13 @@ Deno.serve(async (req) => {
         console.log(`\n━━━ Conversation ${ci + 1}/${toProcess.length}: ${conv.fanName} ━━━`);
 
         try {
-          // Step A: Click into conversation
-          if (useStagehand) {
-            const clickRes = await clickConversationViaStagehand(bbSid, conv.fanName);
-            if (!clickRes.success) {
-              stepResult.status = "skipped";
-              stepResult.error = `Could not open conversation: ${clickRes.error}`;
-              results.push(stepResult);
-              continue;
-            }
-          } else {
-            const clickScript = `(function() {
-              var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-              if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
-              var target = chatItems[${conv.index}];
-              if (!target) return JSON.stringify({ success: false, reason: 'Not found' });
-              var clickTarget = target.querySelector('a') || target;
-              try { clickTarget.click(); } catch(e) { target.click(); }
-              return JSON.stringify({ success: true });
-            })()`;
-            const clickRes = await executeCDPScript(BK, bbSid, clickScript, 8000);
-            if (!clickRes.data?.success) {
-              stepResult.status = "skipped";
-              stepResult.error = "Could not click conversation";
-              results.push(stepResult);
-              continue;
-            }
+          // Step A: Click into conversation — always use CDP (reliable, avoids profile link bug)
+          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName);
+          if (!clickRes.success) {
+            stepResult.status = "skipped";
+            stepResult.error = `Could not open conversation: ${clickRes.error}`;
+            results.push(stepResult);
+            continue;
           }
 
           // Human would take time to read the conversation (20-40s)
@@ -1903,8 +1713,7 @@ Deno.serve(async (req) => {
             stepResult.error = "No fan message found";
             results.push(stepResult);
             // Navigate back with human pacing
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
             continue;
           }
@@ -1927,8 +1736,7 @@ Deno.serve(async (req) => {
             stepResult.status = "error";
             stepResult.error = `AI chatter returned ${aiRes.status}`;
             results.push(stepResult);
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
             continue;
           }
@@ -1942,37 +1750,26 @@ Deno.serve(async (req) => {
             stepResult.error = `AI confidence too low (${confidence}%) or empty reply`;
             stepResult.confidence = confidence;
             results.push(stepResult);
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
             continue;
           }
 
           console.log(`💬 Reply (${confidence}%): "${replyText.substring(0, 60)}..."`);
 
-          // Step D: Inject reply and send (with full human typing)
+          // Step D: Inject reply and send — CDP-first (reliable)
           let autoSent = false;
           let sendFailureReason: string | null = null;
 
-          if (useStagehand) {
-            const injectRes = await injectChatReplyViaStagehand(bbSid, replyText);
-            autoSent = injectRes.success && (injectRes.data?.autoSent ?? false);
-            sendFailureReason = injectRes.error || (injectRes.data?.autoSent ? null : "Stagehand could not confirm send");
-            if (!autoSent && injectRes.success) {
-              autoSent = await verifyReplySentViaCDP(replyText);
-              if (autoSent) sendFailureReason = null;
-            }
+          // Always use CDP for injection — Stagehand act endpoints return 404
+          const cdpInjectRes = await injectChatReplyViaCDP(BK, bbSid, replyText);
+          autoSent = cdpInjectRes.success && cdpInjectRes.autoSent;
+          if (!autoSent && cdpInjectRes.success) {
+            await new Promise(r => setTimeout(r, 2000));
+            autoSent = await verifyReplySentViaCDP(replyText);
           }
-
           if (!autoSent) {
-            const cdpInjectRes = await injectReplyViaCDP(replyText);
-            autoSent = cdpInjectRes.success && cdpInjectRes.autoSent;
-            if (!autoSent && cdpInjectRes.success) {
-              autoSent = await verifyReplySentViaCDP(replyText);
-            }
-            if (!autoSent) {
-              sendFailureReason = cdpInjectRes.reason || sendFailureReason || "Unable to click send button";
-            }
+            sendFailureReason = cdpInjectRes.reason || "Unable to click send button";
           }
 
           if (!autoSent) {
@@ -1982,8 +1779,7 @@ Deno.serve(async (req) => {
             stepResult.fanMessage = lastFanMsg;
             stepResult.error = `Reply generation worked but send failed${sendFailureReason ? `: ${sendFailureReason}` : ""}`;
             results.push(stepResult);
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
             continue;
           }
@@ -2011,12 +1807,10 @@ Deno.serve(async (req) => {
 
           // Go back to chats list for next conversation
           if (ci < toProcess.length - 1) {
-            // Human pause between conversations while staying within function runtime limits
             const gapMs = 12000 + Math.floor(Math.random() * 12000);
             console.log(`⏳ Waiting ${(gapMs / 1000).toFixed(0)}s before next conversation (${ci + 1}/${toProcess.length})...`);
             await new Promise(r => setTimeout(r, gapMs));
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 3000 + Math.floor(Math.random() * 4000)));
           }
         } catch (e: any) {
@@ -2025,8 +1819,7 @@ Deno.serve(async (req) => {
           results.push(stepResult);
           console.error(`❌ Error processing ${conv.fanName}: ${e.message}`);
           try {
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 3000));
           } catch {}
         }
