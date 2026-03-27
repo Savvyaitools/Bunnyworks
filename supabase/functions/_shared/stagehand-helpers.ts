@@ -123,12 +123,15 @@ export async function stagehandAct(
   instruction: string,
   variables?: Record<string, string>
 ): Promise<StagehandResponse> {
+  await shortPause(); // Brief human-like hesitation before acting
   console.log(`Stagehand: act "${instruction}"`);
-  return stagehandRequest("/act", {
+  const result = await stagehandRequest("/act", {
     sessionId,
     action: instruction,
     ...(variables ? { variables } : {}),
   }, 30000);
+  await shortPause(); // Pause after action like a person watching the result
+  return result;
 }
 
 /**
