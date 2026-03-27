@@ -306,7 +306,8 @@ export async function scrapeChatListViaStagehand(
   const nav = await stagehandNavigate(sessionId, "https://onlyfans.com/my/chats");
   if (!nav.success) return { success: false, error: nav.error };
 
-  await new Promise(r => setTimeout(r, 4000));
+  // Human-like page scan delay
+  await longPause();
 
   return stagehandExtract<{ conversations: ChatConversation[] }>(
     sessionId,
