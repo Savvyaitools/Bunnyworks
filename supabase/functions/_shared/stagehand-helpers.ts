@@ -245,8 +245,8 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "click_login", error: clickLogin.error };
     }
 
-    // Step 6: Wait and verify login
-    await new Promise(r => setTimeout(r, 5000));
+    // Wait for login to process (human would watch the page)
+    await longPause();
 
     const verifyLogin = await stagehandExtract<{ isLoggedIn: boolean }>(
       sessionId,
