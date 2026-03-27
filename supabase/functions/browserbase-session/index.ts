@@ -1655,8 +1655,8 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Humanized wait — person would take time reading the chat
-          await new Promise(r => setTimeout(r, 3000 + Math.floor(Math.random() * 4000)));
+          // Humanized wait — person would take time reading the chat (15-35 seconds)
+          await new Promise(r => setTimeout(r, 15000 + Math.floor(Math.random() * 20000)));
 
           // Step B: Read chat context
           let lastFanMsg = "";
