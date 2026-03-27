@@ -252,3 +252,135 @@ export async function autoLoginViaStagehand(
     return { success: false, method: "stagehand", step: "exception", error: message };
   }
 }
+
+// ========== MARILYN: Chat Workflow Helpers ==========
+
+interface ChatConversation {
+  index: number;
+  fanName: string;
+  lastMessage: string;
+  isUnread: boolean;
+  unreadCount: number;
+}
+
+interface ChatMessage {
+  role: "creator" | "fan";
+  text: string;
+}
+
+interface ChatContext {
+  fanName: string;
+  messages: ChatMessage[];
+  lastFanMessage: string;
+}
+
+/**
+ * Scrape the OnlyFans chat list using Stagehand AI extraction.
+ */
+export async function scrapeChatListViaStagehand(
+  sessionId: string
+): Promise<StagehandResponse<{ conversations: ChatConversation[] }>> {
+  // Navigate to chats
+  const nav = await stagehandNavigate(sessionId, "https://onlyfans.com/my/chats");
+  if (!nav.success) return { success: false, error: nav.error };
+
+  await new Promise(r => setTimeout(r, 4000));
+
+  return stagehandExtract<{ conversations: ChatConversation[] }>(
+    sessionId,
+    "Extract the list of chat conversations visible on this OnlyFans chats page. For each conversation, get the fan's display name, their last message preview text, whether it has an unread indicator/badge, and the unread count if visible. Return up to 20 conversations.",
+    {
+      type: "object",
+      properties: {
+        conversations: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              index: { type: "number", description: "Position in the list, starting at 0" },
+              fanName: { type: "string", description: "The fan's display name" },
+              lastMessage: { type: "string", description: "Preview of the last message" },
+              isUnread: { type: "boolean", description: "Whether this conversation has unread messages" },
+              unreadCount: { type: "number", description: "Number of unread messages, 0 if none" },
+            },
+            required: ["index", "fanName", "lastMessage", "isUnread", "unreadCount"],
+          },
+        },
+      },
+      required: ["conversations"],
+    }
+  );
+}
+
+/**
+ * Click into a specific conversation by fan name using Stagehand.
+ */
+export async function clickConversationViaStagehand(
+  sessionId: string,
+  fanName: string
+): Promise<StagehandResponse> {
+  return stagehandAct(
+    sessionId,
+    `Click on the chat conversation with the fan named "${fanName}" in the chat list`
+  );
+}
+
+/**
+ * Read the current chat conversation context using Stagehand.
+ */
+export async function readChatContextViaStagehand(
+  sessionId: string
+): Promise<StagehandResponse<ChatContext>> {
+  return stagehandExtract<ChatContext>(
+    sessionId,
+    "Extract the chat conversation currently open. Get the fan's name from the chat header, and the last 10 messages in order. For each message, determine if it was sent by the creator (owner/model) or the fan. Also identify the last message that was sent by the fan.",
+    {
+      type: "object",
+      properties: {
+        fanName: { type: "string", description: "The fan's display name from the chat header" },
+        messages: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              role: { type: "string", enum: ["creator", "fan"], description: "Who sent this message" },
+              text: { type: "string", description: "The message text content" },
+            },
+            required: ["role", "text"],
+          },
+        },
+        lastFanMessage: { type: "string", description: "The text of the most recent message sent by the fan" },
+      },
+      required: ["fanName", "messages", "lastFanMessage"],
+    }
+  );
+}
+
+/**
+ * Type a reply into the chat input and click send using Stagehand.
+ */
+export async function injectChatReplyViaStagehand(
+  sessionId: string,
+  replyText: string
+): Promise<StagehandResponse<{ autoSent: boolean }>> {
+  // Type the reply
+  const typeResult = await stagehandAct(
+    sessionId,
+    `Type the following message into the chat input/textarea field: "${replyText}"`
+  );
+  if (!typeResult.success) return { success: false, error: typeResult.error };
+
+  await new Promise(r => setTimeout(r, 800));
+
+  // Click send
+  const sendResult = await stagehandAct(
+    sessionId,
+    "Click the Send button to submit the typed chat message"
+  );
+
+  return {
+    success: sendResult.success,
+    data: { autoSent: sendResult.success },
+    error: sendResult.error,
+  };
+}
