@@ -223,8 +223,7 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "type_email", error: typeEmail.error };
     }
 
-    // Small delay between fields
-    await new Promise(r => setTimeout(r, 500));
+    // Human-like pause between fields
 
     // Step 4: Type password
     const typePass = await stagehandAct(
