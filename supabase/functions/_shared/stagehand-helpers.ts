@@ -572,9 +572,11 @@ export async function clickConversationViaStagehand(
   }
 
   await microPause(); // human hovering over the name
+  // IMPORTANT: Click on the message preview text or the conversation row area —
+  // NOT on the fan's profile picture or username link, which opens their profile page.
   return stagehandAct(
     sessionId,
-    `Click on the chat conversation with the fan named "${fanName}" in the chat list to open it`
+    `Click on the message preview text or the right side of the conversation row for "${fanName}" in the chat list. Do NOT click on their profile picture or their username/display name link — those open the profile page. Click on the message preview snippet or the timestamp area to open the conversation.`
   );
 }
 
