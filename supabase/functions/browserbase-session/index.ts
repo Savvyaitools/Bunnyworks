@@ -1576,7 +1576,11 @@ Deno.serve(async (req) => {
         const chatListResult = await scrapeChatListViaStagehand(bbSid);
 
         if (chatListResult.success && chatListResult.data?.data?.conversations?.length) {
-          chatList = chatListResult.data.data.conversations.filter((c: any) => c.isUnread);
+          const extractedConversations = chatListResult.data.data.conversations;
+          chatList = extractedConversations.filter((c: any) => c.isUnread || Number(c.unreadCount || 0) > 0);
+          if (!chatList.length) {
+            throw new Error("Stagehand did not detect unread conversations");
+          }
           console.log(`✅ Found ${chatList.length} unread conversations`);
         } else {
           throw new Error(chatListResult.error || "No conversations found via Stagehand");
@@ -1626,6 +1630,36 @@ Deno.serve(async (req) => {
       const toProcess = chatList.slice(0, maxReplies);
       console.log(`📋 Processing ${toProcess.length} conversations...`);
 
+      const verifyReplySentViaCDP = async (replyText: string) => {
+        const escapedSnippet = replyText
+          .slice(0, 80)
+          .replace(/\\/g, "\\\\")
+          .replace(/'/g, "\\'")
+          .replace(/\n/g, " ")
+          .trim();
+
+        const verifyScript = `(function() {
+          var result = { sent: false, matchedText: '' };
+          var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
+          if (!msgEls.length) return JSON.stringify(result);
+          var own = Array.from(msgEls).filter(function(el) {
+            return el.classList.contains('b-chat__message--owner') || !!el.closest('[class*="message--owner"]');
+          });
+          if (!own.length) return JSON.stringify(result);
+          var latest = own[own.length - 1];
+          var textEl = latest.querySelector('.b-chat__message__text, [class*="message__text"]');
+          var txt = (textEl ? textEl.innerText : latest.innerText || '').trim();
+          if (!txt) return JSON.stringify(result);
+          result.matchedText = txt;
+          var probe = '${escapedSnippet}'.toLowerCase();
+          result.sent = probe.length > 8 ? txt.toLowerCase().includes(probe) : txt.length > 0;
+          return JSON.stringify(result);
+        })()`;
+
+        const verifyRes = await executeCDPScript(BK, bbSid, verifyScript, 10000);
+        return Boolean(verifyRes.success && verifyRes.data?.sent);
+      };
+
       const injectReplyViaCDP = async (replyText: string) => {
         const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
         const injectScript = `(function() {
@@ -1644,7 +1678,9 @@ Deno.serve(async (req) => {
           var editableSelectors = [
             '.b-chat__input [contenteditable="true"]',
             '[contenteditable="true"][class*="chat"]',
-            '[data-testid*="chat"] [contenteditable="true"]'
+            '[data-testid*="chat"] [contenteditable="true"]',
+            '[role="textbox"][contenteditable="true"]',
+            '.ProseMirror[contenteditable="true"]'
           ];
 
           var pickFirst = function(selectors) {
@@ -1713,7 +1749,11 @@ Deno.serve(async (req) => {
               'button[aria-label*="send"]',
               '.b-chat-message-input button[type="submit"]',
               '.b-chat__input button[type="submit"]',
-              'form button[type="submit"]'
+              'form button[type="submit"]',
+              'button[class*="send"]',
+              'button[class*="submit"]',
+              '[aria-label*="paper plane"]',
+              '[title*="Send"]'
             ];
 
             for (var i = 0; i < selectors.length; i++) {
@@ -1807,7 +1847,7 @@ Deno.serve(async (req) => {
           }
 
           // Human would take time to read the conversation (20-40s)
-          await new Promise(r => setTimeout(r, 20000 + Math.floor(Math.random() * 20000)));
+          await new Promise(r => setTimeout(r, 6000 + Math.floor(Math.random() * 6000)));
 
           // Step B: Read chat context
           let lastFanMsg = "";
@@ -1817,6 +1857,25 @@ Deno.serve(async (req) => {
             if (chatCtx.success && chatCtx.data?.data?.lastFanMessage) {
               lastFanMsg = chatCtx.data.data.lastFanMessage;
               console.log(`📩 Fan message: "${lastFanMsg.substring(0, 60)}..."`);
+            } else {
+              const readScript = `(function() {
+                var result = { messages: [], fanName: '' };
+                var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
+                if (header) result.fanName = header.innerText.trim();
+                var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
+                var msgs = Array.from(msgEls).slice(-10);
+                msgs.forEach(function(el) {
+                  var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
+                  var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
+                  var text = textEl ? textEl.innerText.trim() : '';
+                  if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
+                });
+                var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
+                result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
+                return JSON.stringify(result);
+              })()`;
+              const chatContextFallback = await executeCDPScript(BK, bbSid, readScript, 10000);
+              lastFanMsg = chatContextFallback.data?.lastFanMessage || "";
             }
           } else {
             const readScript = `(function() {
@@ -1846,7 +1905,7 @@ Deno.serve(async (req) => {
             // Navigate back with human pacing
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
+            await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
             continue;
           }
 
@@ -1870,7 +1929,7 @@ Deno.serve(async (req) => {
             results.push(stepResult);
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
+            await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
             continue;
           }
 
@@ -1899,11 +1958,18 @@ Deno.serve(async (req) => {
             const injectRes = await injectChatReplyViaStagehand(bbSid, replyText);
             autoSent = injectRes.success && (injectRes.data?.autoSent ?? false);
             sendFailureReason = injectRes.error || (injectRes.data?.autoSent ? null : "Stagehand could not confirm send");
+            if (!autoSent && injectRes.success) {
+              autoSent = await verifyReplySentViaCDP(replyText);
+              if (autoSent) sendFailureReason = null;
+            }
           }
 
           if (!autoSent) {
             const cdpInjectRes = await injectReplyViaCDP(replyText);
             autoSent = cdpInjectRes.success && cdpInjectRes.autoSent;
+            if (!autoSent && cdpInjectRes.success) {
+              autoSent = await verifyReplySentViaCDP(replyText);
+            }
             if (!autoSent) {
               sendFailureReason = cdpInjectRes.reason || sendFailureReason || "Unable to click send button";
             }
@@ -1945,13 +2011,13 @@ Deno.serve(async (req) => {
 
           // Go back to chats list for next conversation
           if (ci < toProcess.length - 1) {
-            // Extra long human pause between conversations (60-120 seconds)
-            const gapMs = 60000 + Math.floor(Math.random() * 60000);
+            // Human pause between conversations while staying within function runtime limits
+            const gapMs = 12000 + Math.floor(Math.random() * 12000);
             console.log(`⏳ Waiting ${(gapMs / 1000).toFixed(0)}s before next conversation (${ci + 1}/${toProcess.length})...`);
             await new Promise(r => setTimeout(r, gapMs));
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 15000 + Math.floor(Math.random() * 15000)));
+            await new Promise(r => setTimeout(r, 3000 + Math.floor(Math.random() * 4000)));
           }
         } catch (e: any) {
           stepResult.status = "error";
@@ -1961,7 +2027,7 @@ Deno.serve(async (req) => {
           try {
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 15000));
+            await new Promise(r => setTimeout(r, 3000));
           } catch {}
         }
       }
