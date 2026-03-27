@@ -105,15 +105,21 @@ async function stagehandRequest<T = unknown>(
 // ========== Core API Wrappers ==========
 
 /**
- * Navigate the browser to a URL.
+ * Navigate the browser to a URL using act() since /navigate may not exist.
+ * Uses stagehandAct to tell the AI to navigate, then waits for page to load.
  */
 export async function stagehandNavigate(
   sessionId: string,
   url: string
 ): Promise<StagehandResponse> {
   console.log(`Stagehand: navigate to ${url}`);
-  const result = await stagehandRequest("/navigate", { sessionId, url }, 20000);
-  await mediumPause(); // Wait for page to settle like a human would
+  // Use act() to navigate — more reliable than a dedicated /navigate endpoint
+  const result = await stagehandRequest("/act", { 
+    sessionId, 
+    action: `Navigate to the URL: ${url}`,
+    variables: { url }
+  }, 30000);
+  await longPause(); // Wait for page to fully load like a human would
   return result;
 }
 
