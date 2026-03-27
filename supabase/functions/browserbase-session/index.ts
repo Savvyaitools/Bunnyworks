@@ -13,6 +13,9 @@ import {
   readChatContextViaStagehand,
   injectChatReplyViaStagehand,
   stagehandNavigate,
+  stagehandObserve,
+  stagehandScroll,
+  stagehandHumanType,
 } from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
