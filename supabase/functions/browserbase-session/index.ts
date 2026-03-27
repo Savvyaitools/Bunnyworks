@@ -1569,24 +1569,24 @@ Deno.serve(async (req) => {
       let useStagehand = true;
 
       try {
-        console.log("Marilyn batch_reply: Attempting Stagehand workflow...");
+        console.log("🤖 Marilyn batch_reply: Starting Stagehand workflow...");
         const chatListResult = await scrapeChatListViaStagehand(bbSid);
 
         if (chatListResult.success && chatListResult.data?.data?.conversations?.length) {
           chatList = chatListResult.data.data.conversations.filter((c: any) => c.isUnread);
-          console.log(`Stagehand: Found ${chatList.length} unread conversations`);
+          console.log(`✅ Found ${chatList.length} unread conversations`);
         } else {
           throw new Error(chatListResult.error || "No conversations found via Stagehand");
         }
       } catch (stagehandErr: any) {
-        console.warn(`Stagehand chat scrape failed: ${stagehandErr.message}, falling back to CDP...`);
+        console.warn(`⚠️ Stagehand chat scrape failed: ${stagehandErr.message}, falling back to CDP...`);
         useStagehand = false;
         automationMethod = "cdp";
 
         // CDP fallback: Navigate and scrape
         try {
           await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
-          await new Promise(r => setTimeout(r, 20000)); // Wait 20s for page to load
+          await new Promise(r => setTimeout(r, 20000));
         } catch (e) {
           return json({ error: "Failed to navigate to chats page", detail: String(e) }, 500);
         }
@@ -1621,10 +1621,12 @@ Deno.serve(async (req) => {
 
       // Process conversations
       const toProcess = chatList.slice(0, maxReplies);
+      console.log(`📋 Processing ${toProcess.length} conversations...`);
 
       for (let ci = 0; ci < toProcess.length; ci++) {
         const conv = toProcess[ci];
         const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null, method: automationMethod };
+        console.log(`\n━━━ Conversation ${ci + 1}/${toProcess.length}: ${conv.fanName} ━━━`);
 
         try {
           // Step A: Click into conversation
@@ -1632,7 +1634,7 @@ Deno.serve(async (req) => {
             const clickRes = await clickConversationViaStagehand(bbSid, conv.fanName);
             if (!clickRes.success) {
               stepResult.status = "skipped";
-              stepResult.error = `Stagehand click failed: ${clickRes.error}`;
+              stepResult.error = `Could not open conversation: ${clickRes.error}`;
               results.push(stepResult);
               continue;
             }
@@ -1655,8 +1657,8 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Humanized wait — person would take time reading the chat (15-35 seconds)
-          await new Promise(r => setTimeout(r, 15000 + Math.floor(Math.random() * 20000)));
+          // Human would take time to read the conversation (20-40s)
+          await new Promise(r => setTimeout(r, 20000 + Math.floor(Math.random() * 20000)));
 
           // Step B: Read chat context
           let lastFanMsg = "";
@@ -1665,6 +1667,7 @@ Deno.serve(async (req) => {
             const chatCtx = await readChatContextViaStagehand(bbSid);
             if (chatCtx.success && chatCtx.data?.data?.lastFanMessage) {
               lastFanMsg = chatCtx.data.data.lastFanMessage;
+              console.log(`📩 Fan message: "${lastFanMsg.substring(0, 60)}..."`);
             }
           } else {
             const readScript = `(function() {
@@ -1689,18 +1692,17 @@ Deno.serve(async (req) => {
 
           if (!lastFanMsg) {
             stepResult.status = "skipped";
-            stepResult.error = "No fan message found in conversation";
+            stepResult.error = "No fan message found";
             results.push(stepResult);
-            if (useStagehand) {
-              await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            } else {
-              await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            }
-            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 10000)));
+            // Navigate back with human pacing
+            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
+            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
             continue;
           }
 
-          // Step C: Call ai-chatter for reply
+          // Step C: Call ai-chatter for reply (human "thinking" time)
+          console.log("🧠 Generating AI reply...");
           const aiRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-chatter`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": auth },
@@ -1719,7 +1721,7 @@ Deno.serve(async (req) => {
             results.push(stepResult);
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 10000)));
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
             continue;
           }
 
@@ -1734,11 +1736,13 @@ Deno.serve(async (req) => {
             results.push(stepResult);
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 10000)));
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
             continue;
           }
 
-          // Step D: Inject reply and send
+          console.log(`💬 Reply (${confidence}%): "${replyText.substring(0, 60)}..."`);
+
+          // Step D: Inject reply and send (with full human typing)
           let autoSent = false;
 
           if (useStagehand) {
@@ -1792,24 +1796,27 @@ Deno.serve(async (req) => {
           } catch (e) { console.warn("Failed to log suggestion:", e); }
 
           results.push(stepResult);
+          console.log(`✅ Reply sent to ${conv.fanName}`);
 
           // Go back to chats list for next conversation
           if (ci < toProcess.length - 1) {
-            // Humanized gap between conversations (40-90 seconds like a real person)
-            console.log(`Stagehand: waiting before next conversation (${ci + 1}/${toProcess.length})...`);
-            await new Promise(r => setTimeout(r, 40000 + Math.floor(Math.random() * 50000)));
+            // Extra long human pause between conversations (60-120 seconds)
+            const gapMs = 60000 + Math.floor(Math.random() * 60000);
+            console.log(`⏳ Waiting ${(gapMs / 1000).toFixed(0)}s before next conversation (${ci + 1}/${toProcess.length})...`);
+            await new Promise(r => setTimeout(r, gapMs));
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 15000 + Math.floor(Math.random() * 10000)));
+            await new Promise(r => setTimeout(r, 15000 + Math.floor(Math.random() * 15000)));
           }
         } catch (e: any) {
           stepResult.status = "error";
           stepResult.error = e.message;
           results.push(stepResult);
+          console.error(`❌ Error processing ${conv.fanName}: ${e.message}`);
           try {
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 10000));
+            await new Promise(r => setTimeout(r, 15000));
           } catch {}
         }
       }
