@@ -6,6 +6,7 @@ import {
   proxyConf, sessionBody, resolveContext, preLoginSetup, STATE_TIMEZONES,
   autoLoginViaCDP, getProxyConfig, injectStealthFingerprint,
 } from "../_shared/cdp-helpers.ts";
+import { autoLoginViaStagehand } from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
 
