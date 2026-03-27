@@ -1795,10 +1795,11 @@ Deno.serve(async (req) => {
 
           // Go back to chats list for next conversation
           if (ci < toProcess.length - 1) {
-            await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random() * 4000)));
+            // Humanized gap between conversations (8-18 seconds)
+            await new Promise(r => setTimeout(r, 8000 + Math.floor(Math.random() * 10000)));
             if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
             else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 4000 + Math.floor(Math.random() * 3000)));
           }
         } catch (e: any) {
           stepResult.status = "error";
