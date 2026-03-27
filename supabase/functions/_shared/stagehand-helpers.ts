@@ -69,6 +69,28 @@ function getConfig() {
   return { apiKey, serverUrl: serverUrl.replace(/\/$/, "") };
 }
 
+function unique<T>(items: T[]): T[] {
+  return [...new Set(items)];
+}
+
+function isSessionPrimitiveEndpoint(endpoint: string) {
+  return endpoint === "/act" || endpoint === "/observe" || endpoint === "/extract";
+}
+
+function buildRequestUrls(baseUrl: string, endpoint: string, sessionId?: string) {
+  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const urls = [`${baseUrl}${normalizedEndpoint}`];
+
+  if (sessionId && isSessionPrimitiveEndpoint(normalizedEndpoint)) {
+    const primitive = normalizedEndpoint.slice(1); // act | observe | extract
+    urls.push(`${baseUrl}/sessions/${sessionId}/${primitive}`);
+    urls.push(`${baseUrl}/v1/sessions/${sessionId}/${primitive}`);
+    urls.push(`${baseUrl}/api/v1/sessions/${sessionId}/${primitive}`);
+  }
+
+  return unique(urls);
+}
+
 // ========== Base Request ==========
 
 async function stagehandRequest<T = unknown>(
@@ -77,41 +99,68 @@ async function stagehandRequest<T = unknown>(
   timeoutMs = 30000
 ): Promise<StagehandResponse<T>> {
   const { apiKey, serverUrl } = getConfig();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const sessionId = typeof body.sessionId === "string" ? body.sessionId : undefined;
+  const requestUrls = buildRequestUrls(serverUrl, endpoint, sessionId);
+  const bodyWithoutSession =
+    sessionId && isSessionPrimitiveEndpoint(endpoint.startsWith("/") ? endpoint : `/${endpoint}`)
+      ? Object.fromEntries(Object.entries(body).filter(([key]) => key !== "sessionId"))
+      : body;
 
-  try {
-    const res = await fetch(`${serverUrl}${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+  let lastError = "Unknown Stagehand request error";
 
-    const text = await res.text();
-    if (!res.ok) {
-      console.error(`Stagehand ${endpoint} failed (${res.status}):`, text);
-      return { success: false, error: `Stagehand API error (${res.status}): ${text}` };
-    }
+  for (let i = 0; i < requestUrls.length; i++) {
+    const url = requestUrls[i];
+    const includesSessionInPath = !!(sessionId && url.includes(`/sessions/${sessionId}/`));
+    const payload = includesSessionInPath ? bodyWithoutSession : body;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const data = JSON.parse(text) as T;
-      return { success: true, data };
-    } catch {
-      return { success: true, data: text as unknown as T };
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      const text = await res.text();
+
+      if (!res.ok) {
+        lastError = `Stagehand API error (${res.status}): ${text}`;
+        if (res.status === 404 && i < requestUrls.length - 1) {
+          console.warn(`Stagehand endpoint not found at ${url}, trying fallback path...`);
+          continue;
+        }
+        console.error(`Stagehand request failed at ${url}:`, text);
+        return { success: false, error: lastError };
+      }
+
+      try {
+        const data = JSON.parse(text) as T;
+        return { success: true, data };
+      } catch {
+        return { success: true, data: text as unknown as T };
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      lastError = message.includes("abort")
+        ? `Stagehand ${endpoint} timed out after ${timeoutMs}ms`
+        : message;
+      if (i < requestUrls.length - 1) {
+        console.warn(`Stagehand request failed at ${url}: ${lastError}. Trying fallback path...`);
+        continue;
+      }
+      return { success: false, error: lastError };
+    } finally {
+      clearTimeout(timer);
     }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("abort")) {
-      return { success: false, error: `Stagehand ${endpoint} timed out after ${timeoutMs}ms` };
-    }
-    return { success: false, error: message };
-  } finally {
-    clearTimeout(timer);
   }
+
+  return { success: false, error: lastError };
 }
 
 // ========== Core API Wrappers ==========
@@ -126,10 +175,19 @@ export async function stagehandObserve(
 ): Promise<StagehandResponse<ObserveElement[]>> {
   console.log(`👀 Observe: "${instruction}"`);
   await microPause(); // human glance before looking
-  return stagehandRequest<ObserveElement[]>("/observe", {
+  const result = await stagehandRequest<ObserveElement[] | { data?: ObserveElement[]; actions?: ObserveElement[]; elements?: ObserveElement[] }>("/observe", {
     sessionId,
     instruction,
   }, 25000);
+
+  if (!result.success) return result as StagehandResponse<ObserveElement[]>;
+
+  const payload = result.data;
+  const normalized = Array.isArray(payload)
+    ? payload
+    : payload?.data ?? payload?.actions ?? payload?.elements ?? [];
+
+  return { success: true, data: normalized };
 }
 
 /**
@@ -142,11 +200,20 @@ export async function stagehandExtract<T = Record<string, unknown>>(
 ): Promise<StagehandResponse<ExtractResult<T>>> {
   console.log(`📊 Extract: "${instruction}"`);
   await microPause();
-  return stagehandRequest<ExtractResult<T>>("/extract", {
+  const result = await stagehandRequest<ExtractResult<T> | T>("/extract", {
     sessionId,
     instruction,
     ...(schema ? { schema } : {}),
   }, 30000);
+
+  if (!result.success) return result as StagehandResponse<ExtractResult<T>>;
+
+  const payload = result.data as ExtractResult<T> | T;
+  if (payload && typeof payload === "object" && "data" in (payload as Record<string, unknown>)) {
+    return { success: true, data: payload as ExtractResult<T> };
+  }
+
+  return { success: true, data: { data: payload as T } };
 }
 
 /**
@@ -162,8 +229,20 @@ export async function stagehandAct(
   const result = await stagehandRequest("/act", {
     sessionId,
     action: instruction,
+    instruction,
     ...(variables ? { variables } : {}),
   }, 30000);
+
+  if (result.success && result.data && typeof result.data === "object") {
+    const payload = result.data as Record<string, unknown>;
+    if (payload.success === false) {
+      return {
+        success: false,
+        error: typeof payload.error === "string" ? payload.error : "Stagehand action failed",
+      };
+    }
+  }
+
   await shortPause(); // watch the result
   return result;
 }
@@ -208,6 +287,7 @@ export async function stagehandNavigate(
   const result = await stagehandRequest("/act", {
     sessionId,
     action: `Navigate to the URL: ${url}`,
+    instruction: `Navigate to the URL: ${url}`,
     variables: { url }
   }, 30000);
   await longPause(); // wait for full page load
@@ -286,6 +366,7 @@ export async function stagehandHumanType(
     lastResult = await stagehandRequest("/act", {
       sessionId,
       action: `Type "${chunks[i]}" continuing from where the cursor is in the input field (append, do not clear)`,
+      instruction: `Type "${chunks[i]}" continuing from where the cursor is in the input field (append, do not clear)`,
     }, 15000);
 
     if (!lastResult.success) {

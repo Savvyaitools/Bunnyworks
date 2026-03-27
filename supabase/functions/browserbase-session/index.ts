@@ -1626,6 +1626,152 @@ Deno.serve(async (req) => {
       const toProcess = chatList.slice(0, maxReplies);
       console.log(`📋 Processing ${toProcess.length} conversations...`);
 
+      const injectReplyViaCDP = async (replyText: string) => {
+        const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
+        const injectScript = `(function() {
+          var text = '${escapedReply}';
+          var result = { success: false, autoSent: false, reason: '', inputMode: '', sendStrategy: '' };
+
+          var textareaSelectors = [
+            'textarea[id="new_post_text_input"]',
+            '.b-chat__input textarea',
+            '.b-chat-message-input textarea',
+            '.b-make-post__wrapper textarea',
+            '.b-make-post__textarea textarea',
+            '[class*="chat-input"] textarea'
+          ];
+
+          var editableSelectors = [
+            '.b-chat__input [contenteditable="true"]',
+            '[contenteditable="true"][class*="chat"]',
+            '[data-testid*="chat"] [contenteditable="true"]'
+          ];
+
+          var pickFirst = function(selectors) {
+            for (var i = 0; i < selectors.length; i++) {
+              var el = document.querySelector(selectors[i]);
+              if (el) return el;
+            }
+            return null;
+          };
+
+          var input = pickFirst(textareaSelectors) || pickFirst(editableSelectors);
+          if (!input) {
+            result.reason = 'Chat input not found';
+            return JSON.stringify(result);
+          }
+
+          var dispatchInputEvents = function(el) {
+            try {
+              el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+            } catch (_) {
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          };
+
+          if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+            var proto = input.tagName === 'TEXTAREA'
+              ? window.HTMLTextAreaElement.prototype
+              : window.HTMLInputElement.prototype;
+            var nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+            if (nativeSetter) nativeSetter.call(input, text);
+            else input.value = text;
+            result.inputMode = 'text_input';
+          } else {
+            input.focus();
+            if (typeof input.textContent === 'string') input.textContent = text;
+            if (typeof input.innerText === 'string') input.innerText = text;
+            result.inputMode = 'contenteditable';
+          }
+
+          dispatchInputEvents(input);
+          input.focus();
+
+          var isVisible = function(el) {
+            if (!el) return false;
+            var style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden') return false;
+            var rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+          };
+
+          var clickButton = function(btn) {
+            try { btn.removeAttribute('disabled'); } catch (_) {}
+            try { btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
+            try { btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
+            try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch (_) {}
+            try { btn.click(); } catch (_) {}
+          };
+
+          var findSendButton = function() {
+            var selectors = [
+              '.b-chat__btn-submit',
+              'button.b-btn-send-message',
+              'button[data-testid*="send"]',
+              'button[aria-label*="Send"]',
+              'button[aria-label*="send"]',
+              '.b-chat-message-input button[type="submit"]',
+              '.b-chat__input button[type="submit"]',
+              'form button[type="submit"]'
+            ];
+
+            for (var i = 0; i < selectors.length; i++) {
+              var nodes = document.querySelectorAll(selectors[i]);
+              for (var j = 0; j < nodes.length; j++) {
+                if (isVisible(nodes[j])) return nodes[j];
+              }
+            }
+            return null;
+          };
+
+          var sendBtn = findSendButton();
+          if (sendBtn) {
+            clickButton(sendBtn);
+            result.success = true;
+            result.autoSent = true;
+            result.sendStrategy = 'button_click';
+            return JSON.stringify(result);
+          }
+
+          var form = input.closest ? input.closest('form') : null;
+          if (form && typeof form.requestSubmit === 'function') {
+            try {
+              form.requestSubmit();
+              result.success = true;
+              result.autoSent = true;
+              result.sendStrategy = 'form_submit';
+              return JSON.stringify(result);
+            } catch (_) {}
+          }
+
+          try {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+            input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+          } catch (_) {}
+
+          result.success = true;
+          result.autoSent = false;
+          result.sendStrategy = 'enter_fallback';
+          result.reason = 'Send button not found, only text injection confirmed';
+          return JSON.stringify(result);
+        })()`;
+
+        const injectRes = await executeCDPScript(BK, bbSid, injectScript, 12000);
+        if (!injectRes.success) {
+          return {
+            success: false,
+            autoSent: false,
+            reason: injectRes.error || "CDP injection execution failed",
+          };
+        }
+        return {
+          success: Boolean(injectRes.data?.success),
+          autoSent: Boolean(injectRes.data?.autoSent),
+          reason: injectRes.data?.reason || null,
+        };
+      };
+
       for (let ci = 0; ci < toProcess.length; ci++) {
         const conv = toProcess[ci];
         const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null, method: automationMethod };
@@ -1747,37 +1893,33 @@ Deno.serve(async (req) => {
 
           // Step D: Inject reply and send (with full human typing)
           let autoSent = false;
+          let sendFailureReason: string | null = null;
 
           if (useStagehand) {
             const injectRes = await injectChatReplyViaStagehand(bbSid, replyText);
             autoSent = injectRes.success && (injectRes.data?.autoSent ?? false);
-          } else {
-            const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
-            const injectScript = `(function() {
-              var text = '${escapedReply}';
-              var result = { success: false, autoSent: false };
-              var input = document.querySelector('textarea[id="new_post_text_input"]') || document.querySelector('.b-chat__input textarea') || document.querySelector('.b-chat-message-input textarea') || document.querySelector('[contenteditable="true"]');
-              if (!input) { result.reason = 'No input found'; return JSON.stringify(result); }
-              if (input.tagName === 'TEXTAREA') {
-                var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-                if (nativeSetter) nativeSetter.call(input, text);
-                else input.value = text;
-              } else {
-                input.focus();
-                input.textContent = text;
-              }
-              try { input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text })); } catch(_) { input.dispatchEvent(new Event('input', { bubbles: true })); }
-              input.dispatchEvent(new Event('change', { bubbles: true }));
-              input.focus();
-              setTimeout(function() {
-                var sendBtn = document.querySelector('.b-chat__btn-submit') || document.querySelector('button[type="submit"]') || document.querySelector('[class*="send"] button');
-                if (sendBtn) { try { sendBtn.removeAttribute('disabled'); } catch(_) {} sendBtn.click(); result.autoSent = true; }
-              }, 500);
-              result.success = true;
-              return JSON.stringify(result);
-            })()`;
-            const injectRes = await executeCDPScript(BK, bbSid, injectScript, 10000);
-            autoSent = injectRes.data?.autoSent || false;
+            sendFailureReason = injectRes.error || (injectRes.data?.autoSent ? null : "Stagehand could not confirm send");
+          }
+
+          if (!autoSent) {
+            const cdpInjectRes = await injectReplyViaCDP(replyText);
+            autoSent = cdpInjectRes.success && cdpInjectRes.autoSent;
+            if (!autoSent) {
+              sendFailureReason = cdpInjectRes.reason || sendFailureReason || "Unable to click send button";
+            }
+          }
+
+          if (!autoSent) {
+            stepResult.status = "error";
+            stepResult.reply = replyText;
+            stepResult.confidence = confidence;
+            stepResult.fanMessage = lastFanMsg;
+            stepResult.error = `Reply generation worked but send failed${sendFailureReason ? `: ${sendFailureReason}` : ""}`;
+            results.push(stepResult);
+            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
+            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
+            continue;
           }
 
           stepResult.status = "sent";
