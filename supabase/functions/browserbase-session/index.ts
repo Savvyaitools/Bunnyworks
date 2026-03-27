@@ -1586,7 +1586,7 @@ Deno.serve(async (req) => {
         // CDP fallback: Navigate and scrape
         try {
           await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
-          await new Promise(r => setTimeout(r, 4000));
+          await new Promise(r => setTimeout(r, 20000)); // Wait 20s for page to load
         } catch (e) {
           return json({ error: "Failed to navigate to chats page", detail: String(e) }, 500);
         }
