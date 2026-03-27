@@ -1863,8 +1863,7 @@ Deno.serve(async (req) => {
             stepResult.error = "No fan message found";
             results.push(stepResult);
             // Navigate back with human pacing
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
             continue;
           }
