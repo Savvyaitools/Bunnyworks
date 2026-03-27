@@ -5,6 +5,24 @@
  * Requires secrets: STAGEHAND_API_KEY, STAGEHAND_SERVER_URL
  */
 
+// ========== Humanized Delay Helpers ==========
+
+/** Random delay between min and max ms to mimic human behavior */
+function humanDelay(minMs: number, maxMs: number): Promise<void> {
+  const delay = minMs + Math.floor(Math.random() * (maxMs - minMs));
+  console.log(`Stagehand: humanized wait ${delay}ms`);
+  return new Promise(r => setTimeout(r, delay));
+}
+
+/** Short pause (like reading / thinking) */
+function shortPause(): Promise<void> { return humanDelay(800, 2000); }
+
+/** Medium pause (like a person processing a page) */
+function mediumPause(): Promise<void> { return humanDelay(2000, 4500); }
+
+/** Long pause (like page load + reading) */
+function longPause(): Promise<void> { return humanDelay(4000, 7000); }
+
 // ========== Types ==========
 
 interface StagehandResponse<T = unknown> {
