@@ -14,26 +14,26 @@ function humanDelay(minMs: number, maxMs: number): Promise<void> {
   return new Promise(r => setTimeout(r, delay));
 }
 
-/** Micro pause — like a blink or glance (1-3s) */
-function microPause(): Promise<void> { return humanDelay(1000, 3000); }
+/** Micro pause — like a blink or glance */
+function microPause(): Promise<void> { return humanDelay(250, 700); }
 
-/** Short pause — reading a button label (3-6s) */
-function shortPause(): Promise<void> { return humanDelay(3000, 6000); }
+/** Short pause — reading a button label */
+function shortPause(): Promise<void> { return humanDelay(700, 1600); }
 
-/** Medium pause — scanning a page section (8-15s) */
-function mediumPause(): Promise<void> { return humanDelay(8000, 15000); }
+/** Medium pause — scanning a page section */
+function mediumPause(): Promise<void> { return humanDelay(1600, 3200); }
 
-/** Long pause — reading content carefully (15-30s) */
-function longPause(): Promise<void> { return humanDelay(15000, 30000); }
+/** Long pause — reading content carefully */
+function longPause(): Promise<void> { return humanDelay(2800, 5200); }
 
-/** Extra long pause — between major actions (30-60s) */
-function extraLongPause(): Promise<void> { return humanDelay(30000, 60000); }
+/** Extra long pause — between major actions */
+function extraLongPause(): Promise<void> { return humanDelay(6000, 11000); }
 
 /** Reading pause — scales with content length (~300ms per word) */
 function readingPause(text: string): Promise<void> {
   const wordCount = text.split(/\s+/).length;
-  const baseMs = Math.max(3000, wordCount * 300);
-  const jitter = Math.floor(Math.random() * 3000);
+  const baseMs = Math.max(900, wordCount * 140);
+  const jitter = Math.floor(Math.random() * 1200);
   console.log(`📖 Reading ${wordCount} words (~${((baseMs + jitter) / 1000).toFixed(1)}s)`);
   return new Promise(r => setTimeout(r, baseMs + jitter));
 }
@@ -276,7 +276,7 @@ export async function stagehandNavigate(
         "Click the Messages or Chat icon/link in the navigation to go to the chats/inbox page"
       );
       if (clickResult.success) {
-        await longPause(); // wait for page transition like a human
+        await mediumPause(); // wait for page transition like a human
         return clickResult;
       }
       console.warn("🧭 UI nav click failed, falling back to URL navigation");
@@ -290,7 +290,7 @@ export async function stagehandNavigate(
     instruction: `Navigate to the URL: ${url}`,
     variables: { url }
   }, 30000);
-  await longPause(); // wait for full page load
+  await mediumPause(); // wait for full page load
   return result;
 }
 
@@ -328,7 +328,7 @@ export async function stagehandHumanType(
 
   // For short texts (< 30 chars), type in one go but with delay
   if (text.length < 30) {
-    await humanDelay(500, 1500); // small pre-type pause
+    await humanDelay(120, 400); // small pre-type pause
     const result = await stagehandAct(
       sessionId,
       `Type "${text}" into the currently focused ${fieldDescription}`
@@ -337,12 +337,12 @@ export async function stagehandHumanType(
     return result;
   }
 
-  // For longer texts, type in chunks of 15-40 chars (at word boundaries)
+  // For longer texts, type in chunks of 20-55 chars (at word boundaries)
   const chunks: string[] = [];
   let remaining = text;
   while (remaining.length > 0) {
     const chunkSize = Math.min(
-      15 + Math.floor(Math.random() * 25), // 15-40 chars
+      20 + Math.floor(Math.random() * 35), // 20-55 chars
       remaining.length
     );
     // Find nearest word boundary
@@ -359,8 +359,8 @@ export async function stagehandHumanType(
   let lastResult: StagehandResponse = { success: true };
 
   for (let i = 0; i < chunks.length; i++) {
-    // Typing rhythm: 50-150ms per character equivalent
-    const typingDelay = chunks[i].length * (50 + Math.floor(Math.random() * 100));
+    // Typing rhythm: 22-50ms per character equivalent
+    const typingDelay = chunks[i].length * (22 + Math.floor(Math.random() * 28));
     await new Promise(r => setTimeout(r, typingDelay));
 
     lastResult = await stagehandRequest("/act", {
@@ -374,9 +374,9 @@ export async function stagehandHumanType(
       return lastResult;
     }
 
-    // Occasional longer pauses (like thinking mid-sentence)
+    // Occasional short pauses (like thinking mid-sentence)
     if (i < chunks.length - 1 && Math.random() < 0.3) {
-      await humanDelay(1500, 4000);
+      await humanDelay(300, 1200);
     }
   }
 
@@ -698,40 +698,50 @@ export async function injectChatReplyViaStagehand(
   await stagehandObserve(sessionId, "Find the Send button — it may be a paper plane icon, an arrow icon, or labeled 'Send'");
   await microPause();
 
-  const sendResult = await stagehandAct(
+  let sendResult = await stagehandAct(
     sessionId,
     "Click the Send button (paper plane icon or 'Send' label) to submit the typed chat message"
   );
 
   if (!sendResult.success) {
     console.warn("⚠️ Send button click failed, trying Enter key...");
-    const enterResult = await stagehandAct(
+    sendResult = await stagehandAct(
       sessionId,
       "Press the Enter key to send the message in the chat input"
     );
-    if (!enterResult.success) {
+    if (!sendResult.success) {
+      console.warn("⚠️ Enter key send failed, trying alternate send instruction...");
+      sendResult = await stagehandAct(
+        sessionId,
+        "Find the chat composer send icon and click it once to send the current drafted message"
+      );
+    }
+    if (!sendResult.success) {
       return { success: false, error: `Could not send: ${sendResult.error}` };
     }
   }
 
-  // Step 6: Watch the message appear (human would watch)
-  await mediumPause();
-
-  // Step 7: Verify message was sent
-  const verifySent = await stagehandExtract<{ inputEmpty: boolean; messageSent: boolean }>(
-    sessionId,
-    "Check if the message was sent. The input should be empty now, and the message should appear as the latest message in the chat from the creator/model side.",
-    {
-      type: "object",
-      properties: {
-        inputEmpty: { type: "boolean", description: "true if input is now empty" },
-        messageSent: { type: "boolean", description: "true if message appears as sent in chat" },
-      },
-      required: ["inputEmpty", "messageSent"],
+  // Step 6/7: Watch and verify send with retries
+  let wasSent = false;
+  for (let attempt = 0; attempt < 2 && !wasSent; attempt++) {
+    await shortPause();
+    const verifySent = await stagehandExtract<{ inputEmpty: boolean; messageSent: boolean }>(
+      sessionId,
+      "Check if the drafted message was sent. The input should be empty and the message should appear as the newest outgoing message from the creator/model.",
+      {
+        type: "object",
+        properties: {
+          inputEmpty: { type: "boolean", description: "true if input is now empty" },
+          messageSent: { type: "boolean", description: "true if message appears as sent in chat" },
+        },
+        required: ["inputEmpty", "messageSent"],
+      }
+    );
+    wasSent = Boolean(verifySent.success && (verifySent.data?.data?.messageSent || verifySent.data?.data?.inputEmpty));
+    if (!wasSent && attempt === 0) {
+      await stagehandAct(sessionId, "Click Send once more if the drafted message is still in the input field");
     }
-  );
-
-  const wasSent = verifySent.success && (verifySent.data?.data?.messageSent || verifySent.data?.data?.inputEmpty);
+  }
   console.log(`💬 Message send result: ${wasSent ? '✅ sent' : '❓ uncertain'}`);
 
   // Final human pause — watching the sent message
