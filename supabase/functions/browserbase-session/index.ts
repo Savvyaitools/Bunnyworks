@@ -1886,8 +1886,7 @@ Deno.serve(async (req) => {
             stepResult.status = "error";
             stepResult.error = `AI chatter returned ${aiRes.status}`;
             results.push(stepResult);
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
             continue;
           }
