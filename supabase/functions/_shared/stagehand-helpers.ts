@@ -109,7 +109,9 @@ export async function stagehandNavigate(
   url: string
 ): Promise<StagehandResponse> {
   console.log(`Stagehand: navigate to ${url}`);
-  return stagehandRequest("/navigate", { sessionId, url }, 20000);
+  const result = await stagehandRequest("/navigate", { sessionId, url }, 20000);
+  await mediumPause(); // Wait for page to settle like a human would
+  return result;
 }
 
 /**
