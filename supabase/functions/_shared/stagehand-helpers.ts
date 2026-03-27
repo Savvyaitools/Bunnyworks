@@ -1,30 +1,42 @@
 /**
  * Stagehand 2.0 REST API helpers for AI-driven browser automation.
- * Replaces fragile CDP/CSS selector logic with natural language instructions.
+ * Human-first approach: observe → understand → act slowly.
  * 
  * Requires secrets: STAGEHAND_API_KEY, STAGEHAND_SERVER_URL
  */
 
-// ========== Humanized Delay Helpers (5x slower for stealth) ==========
+// ========== Humanized Delay Helpers ==========
 
-/** Random delay between min and max ms to mimic human behavior */
+/** Random delay between min and max ms */
 function humanDelay(minMs: number, maxMs: number): Promise<void> {
   const delay = minMs + Math.floor(Math.random() * (maxMs - minMs));
-  console.log(`Stagehand: humanized wait ${delay}ms`);
+  console.log(`⏳ Human pause: ${(delay / 1000).toFixed(1)}s`);
   return new Promise(r => setTimeout(r, delay));
 }
 
-/** Short pause (like reading / thinking) — 4-10 seconds */
-function shortPause(): Promise<void> { return humanDelay(4000, 10000); }
+/** Micro pause — like a blink or glance (1-3s) */
+function microPause(): Promise<void> { return humanDelay(1000, 3000); }
 
-/** Medium pause (like a person processing a page) — 10-22 seconds */
-function mediumPause(): Promise<void> { return humanDelay(10000, 22000); }
+/** Short pause — reading a button label (3-6s) */
+function shortPause(): Promise<void> { return humanDelay(3000, 6000); }
 
-/** Long pause (like page load + reading) — 20-35 seconds */
-function longPause(): Promise<void> { return humanDelay(20000, 35000); }
+/** Medium pause — scanning a page section (8-15s) */
+function mediumPause(): Promise<void> { return humanDelay(8000, 15000); }
 
-/** Extra long pause (between conversations) — 30-60 seconds */
+/** Long pause — reading content carefully (15-30s) */
+function longPause(): Promise<void> { return humanDelay(15000, 30000); }
+
+/** Extra long pause — between major actions (30-60s) */
 function extraLongPause(): Promise<void> { return humanDelay(30000, 60000); }
+
+/** Reading pause — scales with content length (~300ms per word) */
+function readingPause(text: string): Promise<void> {
+  const wordCount = text.split(/\s+/).length;
+  const baseMs = Math.max(3000, wordCount * 300);
+  const jitter = Math.floor(Math.random() * 3000);
+  console.log(`📖 Reading ${wordCount} words (~${((baseMs + jitter) / 1000).toFixed(1)}s)`);
+  return new Promise(r => setTimeout(r, baseMs + jitter));
+}
 
 // ========== Types ==========
 
@@ -105,69 +117,31 @@ async function stagehandRequest<T = unknown>(
 // ========== Core API Wrappers ==========
 
 /**
- * Navigate the browser to a URL using act() since /navigate may not exist.
- * Uses stagehandAct to tell the AI to navigate, then waits for page to load.
- */
-export async function stagehandNavigate(
-  sessionId: string,
-  url: string
-): Promise<StagehandResponse> {
-  console.log(`Stagehand: navigate to ${url}`);
-  // Use act() to navigate — more reliable than a dedicated /navigate endpoint
-  const result = await stagehandRequest("/act", { 
-    sessionId, 
-    action: `Navigate to the URL: ${url}`,
-    variables: { url }
-  }, 30000);
-  await longPause(); // Wait for page to fully load like a human would
-  return result;
-}
-
-/**
- * Execute an action via natural language instruction.
- * Examples: "Click the Login button", "Type 'hello' into the email field"
- */
-export async function stagehandAct(
-  sessionId: string,
-  instruction: string,
-  variables?: Record<string, string>
-): Promise<StagehandResponse> {
-  await shortPause(); // Brief human-like hesitation before acting
-  console.log(`Stagehand: act "${instruction}"`);
-  const result = await stagehandRequest("/act", {
-    sessionId,
-    action: instruction,
-    ...(variables ? { variables } : {}),
-  }, 30000);
-  await shortPause(); // Pause after action like a person watching the result
-  return result;
-}
-
-/**
- * Observe the current page to find interactive elements.
- * Returns a list of elements matching the instruction.
+ * Observe the current page — "look around" to understand UI layout.
+ * Always call this BEFORE acting to let the AI adapt to the current UI.
  */
 export async function stagehandObserve(
   sessionId: string,
   instruction: string
 ): Promise<StagehandResponse<ObserveElement[]>> {
-  console.log(`Stagehand: observe "${instruction}"`);
+  console.log(`👀 Observe: "${instruction}"`);
+  await microPause(); // human glance before looking
   return stagehandRequest<ObserveElement[]>("/observe", {
     sessionId,
     instruction,
-  }, 20000);
+  }, 25000);
 }
 
 /**
  * Extract structured data from the current page using AI.
- * Provide a natural language instruction and optional JSON schema.
  */
 export async function stagehandExtract<T = Record<string, unknown>>(
   sessionId: string,
   instruction: string,
   schema?: Record<string, unknown>
 ): Promise<StagehandResponse<ExtractResult<T>>> {
-  console.log(`Stagehand: extract "${instruction}"`);
+  console.log(`📊 Extract: "${instruction}"`);
+  await microPause();
   return stagehandRequest<ExtractResult<T>>("/extract", {
     sessionId,
     instruction,
@@ -175,7 +149,162 @@ export async function stagehandExtract<T = Record<string, unknown>>(
   }, 30000);
 }
 
-// ========== High-Level: Auto-Login via Stagehand ==========
+/**
+ * Execute an action via natural language — with human-like hesitation.
+ */
+export async function stagehandAct(
+  sessionId: string,
+  instruction: string,
+  variables?: Record<string, string>
+): Promise<StagehandResponse> {
+  await shortPause(); // hesitation before acting
+  console.log(`🖱️ Act: "${instruction}"`);
+  const result = await stagehandRequest("/act", {
+    sessionId,
+    action: instruction,
+    ...(variables ? { variables } : {}),
+  }, 30000);
+  await shortPause(); // watch the result
+  return result;
+}
+
+/**
+ * Navigate by clicking through UI elements like a human would.
+ * First observes the page to find nav elements, then clicks.
+ * Falls back to act-based URL navigation if UI click fails.
+ */
+export async function stagehandNavigate(
+  sessionId: string,
+  url: string
+): Promise<StagehandResponse> {
+  console.log(`🧭 Navigate to: ${url}`);
+
+  // If navigating to chats, try clicking through UI first
+  if (url.includes("/my/chats") || url.includes("/chats")) {
+    console.log("🧭 Trying UI navigation — looking for Messages/Chat icon...");
+    await microPause();
+
+    // Observe nav to find the right element
+    const navObserve = await stagehandObserve(
+      sessionId,
+      "Find the Messages, Chat, or Inbox icon/link in the navigation bar or sidebar menu"
+    );
+
+    if (navObserve.success && navObserve.data?.length) {
+      console.log(`🧭 Found ${navObserve.data.length} nav elements, clicking...`);
+      const clickResult = await stagehandAct(
+        sessionId,
+        "Click the Messages or Chat icon/link in the navigation to go to the chats/inbox page"
+      );
+      if (clickResult.success) {
+        await longPause(); // wait for page transition like a human
+        return clickResult;
+      }
+      console.warn("🧭 UI nav click failed, falling back to URL navigation");
+    }
+  }
+
+  // Fallback: use act() to navigate via URL
+  const result = await stagehandRequest("/act", {
+    sessionId,
+    action: `Navigate to the URL: ${url}`,
+    variables: { url }
+  }, 30000);
+  await longPause(); // wait for full page load
+  return result;
+}
+
+/**
+ * Scroll the page like a human scanning content.
+ */
+export async function stagehandScroll(
+  sessionId: string,
+  direction: "down" | "up" = "down",
+  context?: string
+): Promise<StagehandResponse> {
+  const desc = context || "the page";
+  console.log(`📜 Scrolling ${direction} through ${desc}...`);
+  await microPause();
+  return stagehandAct(
+    sessionId,
+    `Scroll ${direction} slowly through ${desc} to see more content`
+  );
+}
+
+/**
+ * Type text character-by-character with human-like rhythm.
+ * Breaks text into small chunks and types with pauses.
+ */
+export async function stagehandHumanType(
+  sessionId: string,
+  text: string,
+  fieldDescription: string
+): Promise<StagehandResponse> {
+  console.log(`⌨️ Human typing ${text.length} chars into "${fieldDescription}"`);
+
+  // First click/focus the field
+  await stagehandAct(sessionId, `Click on ${fieldDescription} to focus it`);
+  await microPause();
+
+  // For short texts (< 30 chars), type in one go but with delay
+  if (text.length < 30) {
+    await humanDelay(500, 1500); // small pre-type pause
+    const result = await stagehandAct(
+      sessionId,
+      `Type "${text}" into the currently focused ${fieldDescription}`
+    );
+    await shortPause(); // review what was typed
+    return result;
+  }
+
+  // For longer texts, type in chunks of 15-40 chars (at word boundaries)
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > 0) {
+    const chunkSize = Math.min(
+      15 + Math.floor(Math.random() * 25), // 15-40 chars
+      remaining.length
+    );
+    // Find nearest word boundary
+    let end = chunkSize;
+    if (end < remaining.length) {
+      const spaceIdx = remaining.lastIndexOf(' ', end);
+      if (spaceIdx > end * 0.5) end = spaceIdx + 1; // include the space
+    }
+    chunks.push(remaining.slice(0, end));
+    remaining = remaining.slice(end);
+  }
+
+  console.log(`⌨️ Typing in ${chunks.length} chunks...`);
+  let lastResult: StagehandResponse = { success: true };
+
+  for (let i = 0; i < chunks.length; i++) {
+    // Typing rhythm: 50-150ms per character equivalent
+    const typingDelay = chunks[i].length * (50 + Math.floor(Math.random() * 100));
+    await new Promise(r => setTimeout(r, typingDelay));
+
+    lastResult = await stagehandRequest("/act", {
+      sessionId,
+      action: `Type "${chunks[i]}" continuing from where the cursor is in the input field (append, do not clear)`,
+    }, 15000);
+
+    if (!lastResult.success) {
+      console.error(`⌨️ Typing chunk ${i + 1}/${chunks.length} failed`);
+      return lastResult;
+    }
+
+    // Occasional longer pauses (like thinking mid-sentence)
+    if (i < chunks.length - 1 && Math.random() < 0.3) {
+      await humanDelay(1500, 4000);
+    }
+  }
+
+  // Review what was typed
+  await shortPause();
+  return lastResult;
+}
+
+// ========== High-Level: Auto-Login ==========
 
 export interface StagehandLoginResult {
   success: boolean;
@@ -185,10 +314,6 @@ export interface StagehandLoginResult {
   isLoggedIn?: boolean;
 }
 
-/**
- * Perform auto-login to OnlyFans using Stagehand's AI-driven actions.
- * Replaces the 220-line CDP auto-login with ~30 lines of natural language.
- */
 export async function autoLoginViaStagehand(
   sessionId: string,
   username: string,
@@ -201,13 +326,15 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "navigate", error: nav.error };
     }
 
-    // Wait for page to settle (humanized)
-    await longPause();
+    // Step 2: Observe the page layout first
+    console.log("🔍 Observing page layout...");
+    await stagehandObserve(sessionId, "What is visible on this page? Is it a login form, a dashboard, a landing page, or something else?");
+    await mediumPause();
 
-    // Step 2: Check if already logged in
+    // Step 3: Check if already logged in
     const pageState = await stagehandExtract<{ isLoggedIn: boolean; hasLoginForm: boolean }>(
       sessionId,
-      "Check if the user is logged into OnlyFans. Look for signs of a logged-in dashboard (like a home feed, notifications icon, or profile menu) versus a login form with email/password fields.",
+      "Check if the user is logged into OnlyFans. Look for signs of a logged-in dashboard (home feed, notifications, profile menu) versus a login form with email/password fields.",
       {
         type: "object",
         properties: {
@@ -219,47 +346,33 @@ export async function autoLoginViaStagehand(
     );
 
     if (pageState.success && pageState.data?.data?.isLoggedIn) {
-      console.log("Stagehand: Already logged in, skipping login flow");
+      console.log("✅ Already logged in");
       return { success: true, method: "stagehand", step: "already_logged_in", isLoggedIn: true };
     }
 
-    // Step 3: Type username into email field
-    const typeEmail = await stagehandAct(
-      sessionId,
-      `Type '${username}' into the email or username input field on the login form`
-    );
-    if (!typeEmail.success) {
-      return { success: false, method: "stagehand", step: "type_email", error: typeEmail.error };
-    }
+    // Step 4: Type username with human typing
+    await stagehandHumanType(sessionId, username, "the email or username input field on the login form");
+    await mediumPause(); // pause between fields like a human
 
-    // Human-like pause between fields
+    // Step 5: Type password with human typing
+    await stagehandHumanType(sessionId, password, "the password input field on the login form");
+    await mediumPause();
 
-    // Step 4: Type password
-    const typePass = await stagehandAct(
-      sessionId,
-      `Type '${password}' into the password input field on the login form`
-    );
-    if (!typePass.success) {
-      return { success: false, method: "stagehand", step: "type_password", error: typePass.error };
-    }
-
-    // stagehandAct already includes humanized delays
-
-    // Step 5: Click login button
-    const clickLogin = await stagehandAct(
-      sessionId,
-      "Click the Log In or Sign In button to submit the login form"
-    );
+    // Step 6: Click login button
+    await stagehandObserve(sessionId, "Find the Log In or Sign In submit button on the form");
+    await shortPause();
+    const clickLogin = await stagehandAct(sessionId, "Click the Log In or Sign In button to submit the login form");
     if (!clickLogin.success) {
       return { success: false, method: "stagehand", step: "click_login", error: clickLogin.error };
     }
 
-    // Wait for login to process (human would watch the page)
+    // Wait for login processing
     await longPause();
 
+    // Step 7: Verify login
     const verifyLogin = await stagehandExtract<{ isLoggedIn: boolean }>(
       sessionId,
-      "Check if the user is now logged into OnlyFans. Look for dashboard elements, home feed, profile menu, or notifications icon that indicate a successful login.",
+      "Check if the user is now logged into OnlyFans. Look for dashboard elements, home feed, profile menu, or notifications.",
       {
         type: "object",
         properties: {
@@ -270,11 +383,10 @@ export async function autoLoginViaStagehand(
     );
 
     const loggedIn = verifyLogin.success && verifyLogin.data?.data?.isLoggedIn === true;
-
     return {
       success: true,
       method: "stagehand",
-      step: "login_clicked",
+      step: "login_complete",
       isLoggedIn: loggedIn,
     };
   } catch (err: unknown) {
@@ -306,21 +418,34 @@ interface ChatContext {
 }
 
 /**
- * Scrape the OnlyFans chat list using Stagehand AI extraction.
+ * Navigate to chats page using UI-first approach, then scan and extract conversations.
  */
 export async function scrapeChatListViaStagehand(
   sessionId: string
 ): Promise<StagehandResponse<{ conversations: ChatConversation[] }>> {
-  // Navigate to chats
+  // Step 1: Navigate to chats via UI
   const nav = await stagehandNavigate(sessionId, "https://onlyfans.com/my/chats");
   if (!nav.success) return { success: false, error: nav.error };
 
-  // Human-like page scan delay
-  await longPause();
+  // Step 2: Observe the chat page layout
+  console.log("👀 Scanning chat page layout...");
+  const pageLayout = await stagehandObserve(
+    sessionId,
+    "What elements are visible on this chat/messages page? Look for a list of conversations, unread badges, fan names, and message previews."
+  );
+  console.log(`👀 Found ${pageLayout.data?.length || 0} interactive elements on chat page`);
+  await mediumPause(); // human scanning the page
 
+  // Step 3: Scroll through chat list to see more conversations
+  await stagehandScroll(sessionId, "down", "the chat conversation list");
+  await shortPause();
+  await stagehandScroll(sessionId, "up", "back to the top of the chat list");
+  await mediumPause();
+
+  // Step 4: Extract conversations
   return stagehandExtract<{ conversations: ChatConversation[] }>(
     sessionId,
-    "Extract the list of chat conversations visible on this OnlyFans chats page. For each conversation, get the fan's display name, their last message preview text, whether it has an unread indicator/badge, and the unread count if visible. Return up to 20 conversations.",
+    "Extract the list of chat conversations visible on this page. For each conversation, get the fan's display name, their last message preview, whether it has an unread indicator/badge, and the unread count. Return up to 20 conversations.",
     {
       type: "object",
       properties: {
@@ -345,27 +470,58 @@ export async function scrapeChatListViaStagehand(
 }
 
 /**
- * Click into a specific conversation by fan name using Stagehand.
+ * Click into a specific conversation — observe first, then click with human timing.
  */
 export async function clickConversationViaStagehand(
   sessionId: string,
   fanName: string
 ): Promise<StagehandResponse> {
+  // Observe the conversation in the list first
+  console.log(`👀 Looking for "${fanName}" in chat list...`);
+  const findFan = await stagehandObserve(
+    sessionId,
+    `Find the chat conversation with "${fanName}" in the chat list. Look for their name, profile picture, or message preview.`
+  );
+
+  if (!findFan.success || !findFan.data?.length) {
+    // Maybe need to scroll to find them
+    console.log(`📜 "${fanName}" not visible, scrolling to find...`);
+    await stagehandScroll(sessionId, "down", "the chat list");
+    await shortPause();
+  }
+
+  await microPause(); // human hovering over the name
   return stagehandAct(
     sessionId,
-    `Click on the chat conversation with the fan named "${fanName}" in the chat list`
+    `Click on the chat conversation with the fan named "${fanName}" in the chat list to open it`
   );
 }
 
 /**
- * Read the current chat conversation context using Stagehand.
+ * Read the current chat conversation — observe layout, scroll to read, then extract.
  */
 export async function readChatContextViaStagehand(
   sessionId: string
 ): Promise<StagehandResponse<ChatContext>> {
-  return stagehandExtract<ChatContext>(
+  // Step 1: Observe the chat layout
+  console.log("👀 Observing open conversation layout...");
+  await stagehandObserve(
     sessionId,
-    "Extract the chat conversation currently open. Get the fan's name from the chat header, and the last 10 messages in order. For each message, determine if it was sent by the creator (owner/model) or the fan. Also identify the last message that was sent by the fan.",
+    "What is visible in this open chat conversation? Look for the fan's name in the header, message bubbles, the message input field, and any media or tips."
+  );
+  await shortPause();
+
+  // Step 2: Scroll up to see older messages, then back down
+  console.log("📜 Scrolling through message history...");
+  await stagehandScroll(sessionId, "up", "the message history to see older messages");
+  await mediumPause(); // reading older messages
+  await stagehandScroll(sessionId, "down", "back to the latest messages");
+  await shortPause();
+
+  // Step 3: Extract the conversation
+  const result = await stagehandExtract<ChatContext>(
+    sessionId,
+    "Extract the chat conversation. Get the fan's name from the header, the last 10 messages in order, and identify who sent each (creator/model or fan). Also get the most recent fan message.",
     {
       type: "object",
       properties: {
@@ -381,57 +537,67 @@ export async function readChatContextViaStagehand(
             required: ["role", "text"],
           },
         },
-        lastFanMessage: { type: "string", description: "The text of the most recent message sent by the fan" },
+        lastFanMessage: { type: "string", description: "The most recent message sent by the fan" },
       },
       required: ["fanName", "messages", "lastFanMessage"],
     }
   );
+
+  // Simulate reading the fan's last message
+  if (result.success && result.data?.data?.lastFanMessage) {
+    await readingPause(result.data.data.lastFanMessage);
+  }
+
+  return result;
 }
 
 /**
- * Type a reply into the chat input and click send using Stagehand.
- * Uses a multi-step approach: click input → type text → verify → click send → verify sent.
+ * Type a reply into the chat and send it — full human-like workflow:
+ * 1. Observe the input area
+ * 2. Click to focus
+ * 3. Type character-by-character with pauses
+ * 4. Re-read the typed message
+ * 5. Verify text is in input
+ * 6. Click send (with Enter fallback)
+ * 7. Verify message appeared in chat
  */
 export async function injectChatReplyViaStagehand(
   sessionId: string,
   replyText: string
 ): Promise<StagehandResponse<{ autoSent: boolean }>> {
-  console.log(`Stagehand: injecting chat reply (${replyText.length} chars)`);
+  console.log(`💬 Injecting reply (${replyText.length} chars)...`);
 
-  // Step 1: Click on the chat input to focus it
-  const focusResult = await stagehandAct(
+  // Step 1: Observe the input area first
+  const inputObserve = await stagehandObserve(
     sessionId,
-    "Click on the message input field or textarea at the bottom of the chat conversation to focus it"
+    "Find the message input field, textarea, or text box at the bottom of the chat where you can type a new message. Also look for the Send button."
   );
-  if (!focusResult.success) {
-    console.error("Stagehand: Failed to focus chat input:", focusResult.error);
-    return { success: false, error: `Could not focus chat input: ${focusResult.error}` };
-  }
-
-  // Human pause after clicking input
+  console.log(`👀 Found ${inputObserve.data?.length || 0} input-related elements`);
   await shortPause();
 
-  // Step 2: Type the message (use clear instruction with the exact text)
-  const typeResult = await stagehandAct(
+  // Step 2: Type with human rhythm
+  const typeResult = await stagehandHumanType(
     sessionId,
-    `Type the following text into the currently focused chat message input field: "${replyText}"`
+    replyText,
+    "the message input field or textarea at the bottom of the chat"
   );
   if (!typeResult.success) {
-    console.error("Stagehand: Failed to type reply:", typeResult.error);
+    console.error("❌ Failed to type reply:", typeResult.error);
     return { success: false, error: `Could not type reply: ${typeResult.error}` };
   }
 
-  // Human-like pause — person would re-read their message before sending
-  await mediumPause();
+  // Step 3: Re-read / review the typed message (like a human would)
+  console.log("📖 Re-reading typed message before sending...");
+  await readingPause(replyText);
 
-  // Step 3: Verify the text was actually entered
+  // Step 4: Verify text is actually in the input
   const verifyText = await stagehandExtract<{ hasText: boolean; inputText: string }>(
     sessionId,
-    "Check the chat message input field at the bottom. Is there text typed into it? Extract what text is currently in the input field.",
+    "Check the message input field at the bottom of the chat. Is there text typed into it? What text is currently in the input?",
     {
       type: "object",
       properties: {
-        hasText: { type: "boolean", description: "true if there is text in the input field" },
+        hasText: { type: "boolean", description: "true if there is text in the input" },
         inputText: { type: "string", description: "The text currently in the input field" },
       },
       required: ["hasText", "inputText"],
@@ -439,52 +605,56 @@ export async function injectChatReplyViaStagehand(
   );
 
   if (verifyText.success && !verifyText.data?.data?.hasText) {
-    console.warn("Stagehand: Text verification failed, retrying type...");
-    // Retry: click and type again
+    console.warn("⚠️ Text not detected in input, retrying type...");
     await stagehandAct(sessionId, "Click on the message input field to focus it");
-    await shortPause();
+    await microPause();
     await stagehandAct(sessionId, `Type "${replyText}" into the message input field`);
     await shortPause();
   }
 
-  // Step 4: Click the send button
+  // Step 5: Find and click the send button
+  console.log("🔍 Looking for Send button...");
+  await stagehandObserve(sessionId, "Find the Send button — it may be a paper plane icon, an arrow icon, or labeled 'Send'");
+  await microPause();
+
   const sendResult = await stagehandAct(
     sessionId,
-    "Click the Send button (it may be a paper plane icon or a button labeled 'Send') to submit the typed chat message"
+    "Click the Send button (paper plane icon or 'Send' label) to submit the typed chat message"
   );
 
   if (!sendResult.success) {
-    console.error("Stagehand: Failed to click send:", sendResult.error);
-    // Try pressing Enter as fallback
-    console.log("Stagehand: Trying Enter key as fallback...");
+    console.warn("⚠️ Send button click failed, trying Enter key...");
     const enterResult = await stagehandAct(
       sessionId,
-      "Press the Enter key to send the message in the chat input field"
+      "Press the Enter key to send the message in the chat input"
     );
     if (!enterResult.success) {
-      return { success: false, error: `Could not send message: ${sendResult.error}` };
+      return { success: false, error: `Could not send: ${sendResult.error}` };
     }
   }
 
-  // Human pause after sending — person would watch message appear
+  // Step 6: Watch the message appear (human would watch)
   await mediumPause();
 
-  // Step 5: Verify message was sent by checking if input is now empty
+  // Step 7: Verify message was sent
   const verifySent = await stagehandExtract<{ inputEmpty: boolean; messageSent: boolean }>(
     sessionId,
-    "Check if the chat message was sent successfully. The input field should now be empty, and the message should appear in the chat as the latest message from the creator/model.",
+    "Check if the message was sent. The input should be empty now, and the message should appear as the latest message in the chat from the creator/model side.",
     {
       type: "object",
       properties: {
-        inputEmpty: { type: "boolean", description: "true if the input field is now empty" },
-        messageSent: { type: "boolean", description: "true if the message appears in the chat as sent" },
+        inputEmpty: { type: "boolean", description: "true if input is now empty" },
+        messageSent: { type: "boolean", description: "true if message appears as sent in chat" },
       },
       required: ["inputEmpty", "messageSent"],
     }
   );
 
   const wasSent = verifySent.success && (verifySent.data?.data?.messageSent || verifySent.data?.data?.inputEmpty);
-  console.log(`Stagehand: Message injection result — sent: ${wasSent}`);
+  console.log(`💬 Message send result: ${wasSent ? '✅ sent' : '❓ uncertain'}`);
+
+  // Final human pause — watching the sent message
+  await shortPause();
 
   return {
     success: true,
