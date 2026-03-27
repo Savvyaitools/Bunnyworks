@@ -192,8 +192,8 @@ export async function autoLoginViaStagehand(
       return { success: false, method: "stagehand", step: "navigate", error: nav.error };
     }
 
-    // Wait for page to settle
-    await new Promise(r => setTimeout(r, 3000));
+    // Wait for page to settle (humanized)
+    await longPause();
 
     // Step 2: Check if already logged in
     const pageState = await stagehandExtract<{ isLoggedIn: boolean; hasLoginForm: boolean }>(
