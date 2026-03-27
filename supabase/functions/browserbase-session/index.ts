@@ -1910,29 +1910,19 @@ Deno.serve(async (req) => {
 
           console.log(`💬 Reply (${confidence}%): "${replyText.substring(0, 60)}..."`);
 
-          // Step D: Inject reply and send (with full human typing)
+          // Step D: Inject reply and send — CDP-first (reliable)
           let autoSent = false;
           let sendFailureReason: string | null = null;
 
-          if (useStagehand) {
-            const injectRes = await injectChatReplyViaStagehand(bbSid, replyText);
-            autoSent = injectRes.success && (injectRes.data?.autoSent ?? false);
-            sendFailureReason = injectRes.error || (injectRes.data?.autoSent ? null : "Stagehand could not confirm send");
-            if (!autoSent && injectRes.success) {
-              autoSent = await verifyReplySentViaCDP(replyText);
-              if (autoSent) sendFailureReason = null;
-            }
+          // Always use CDP for injection — Stagehand act endpoints return 404
+          const cdpInjectRes = await injectChatReplyViaCDP(BK, bbSid, replyText);
+          autoSent = cdpInjectRes.success && cdpInjectRes.autoSent;
+          if (!autoSent && cdpInjectRes.success) {
+            await new Promise(r => setTimeout(r, 2000));
+            autoSent = await verifyReplySentViaCDP(replyText);
           }
-
           if (!autoSent) {
-            const cdpInjectRes = await injectReplyViaCDP(replyText);
-            autoSent = cdpInjectRes.success && cdpInjectRes.autoSent;
-            if (!autoSent && cdpInjectRes.success) {
-              autoSent = await verifyReplySentViaCDP(replyText);
-            }
-            if (!autoSent) {
-              sendFailureReason = cdpInjectRes.reason || sendFailureReason || "Unable to click send button";
-            }
+            sendFailureReason = cdpInjectRes.reason || "Unable to click send button";
           }
 
           if (!autoSent) {
@@ -1942,8 +1932,7 @@ Deno.serve(async (req) => {
             stepResult.fanMessage = lastFanMsg;
             stepResult.error = `Reply generation worked but send failed${sendFailureReason ? `: ${sendFailureReason}` : ""}`;
             results.push(stepResult);
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
             continue;
           }
@@ -1971,12 +1960,10 @@ Deno.serve(async (req) => {
 
           // Go back to chats list for next conversation
           if (ci < toProcess.length - 1) {
-            // Human pause between conversations while staying within function runtime limits
             const gapMs = 12000 + Math.floor(Math.random() * 12000);
             console.log(`⏳ Waiting ${(gapMs / 1000).toFixed(0)}s before next conversation (${ci + 1}/${toProcess.length})...`);
             await new Promise(r => setTimeout(r, gapMs));
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 3000 + Math.floor(Math.random() * 4000)));
           }
         } catch (e: any) {
@@ -1985,8 +1972,7 @@ Deno.serve(async (req) => {
           results.push(stepResult);
           console.error(`❌ Error processing ${conv.fanName}: ${e.message}`);
           try {
-            if (useStagehand) await stagehandNavigate(bbSid, "https://onlyfans.com/my/chats");
-            else await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
             await new Promise(r => setTimeout(r, 3000));
           } catch {}
         }
