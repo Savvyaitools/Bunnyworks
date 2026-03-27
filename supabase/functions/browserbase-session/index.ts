@@ -1797,32 +1797,13 @@ Deno.serve(async (req) => {
         console.log(`\n━━━ Conversation ${ci + 1}/${toProcess.length}: ${conv.fanName} ━━━`);
 
         try {
-          // Step A: Click into conversation
-          if (useStagehand) {
-            const clickRes = await clickConversationViaStagehand(bbSid, conv.fanName);
-            if (!clickRes.success) {
-              stepResult.status = "skipped";
-              stepResult.error = `Could not open conversation: ${clickRes.error}`;
-              results.push(stepResult);
-              continue;
-            }
-          } else {
-            const clickScript = `(function() {
-              var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-              if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
-              var target = chatItems[${conv.index}];
-              if (!target) return JSON.stringify({ success: false, reason: 'Not found' });
-              var clickTarget = target.querySelector('a') || target;
-              try { clickTarget.click(); } catch(e) { target.click(); }
-              return JSON.stringify({ success: true });
-            })()`;
-            const clickRes = await executeCDPScript(BK, bbSid, clickScript, 8000);
-            if (!clickRes.data?.success) {
-              stepResult.status = "skipped";
-              stepResult.error = "Could not click conversation";
-              results.push(stepResult);
-              continue;
-            }
+          // Step A: Click into conversation — always use CDP (reliable, avoids profile link bug)
+          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName);
+          if (!clickRes.success) {
+            stepResult.status = "skipped";
+            stepResult.error = `Could not open conversation: ${clickRes.error}`;
+            results.push(stepResult);
+            continue;
           }
 
           // Human would take time to read the conversation (20-40s)
