@@ -418,7 +418,11 @@ export async function clickConversationViaCDP(
   conversationIndex?: number
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`🖱️ CDP: Clicking conversation for "${fanName}"...`);
-  const escapedName = fanName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escapedName = fanName
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, " ")
+    .replace(/\t/g, " ");
   const indexValue = Number.isFinite(conversationIndex as number) ? Number(conversationIndex) : -1;
 
   const clickScript = `(function() {
@@ -440,7 +444,7 @@ export async function clickConversationViaCDP(
     }
 
     var normalize = function(v) {
-      return (v || '').toLowerCase().replace(/\s+/g, ' ').replace(/[^\p{L}\p{N}@._\- ]/gu, '').trim();
+      return (v || '').toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9@._\- ]/g, '').trim();
     };
 
     var wantedRaw = '${escapedName}';
