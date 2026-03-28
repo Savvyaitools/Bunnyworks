@@ -327,54 +327,132 @@ async function stagehandRequest<T = unknown>(
 export async function clickConversationViaCDP(
   apiKey: string,
   sessionId: string,
-  fanName: string
+  fanName: string,
+  conversationIndex?: number
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`🖱️ CDP: Clicking conversation for "${fanName}"...`);
   const escapedName = fanName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const indexValue = Number.isFinite(conversationIndex as number) ? Number(conversationIndex) : -1;
 
   const clickScript = `(function() {
     var result = { success: false, clickedName: '', reason: '' };
-    var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-    if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+    var querySets = [
+      '.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item',
+      '[class*="chats"] [class*="item"], .b-users-list__item',
+      '.b-chat-list .b-list-item, [data-testid*="chat"] [data-testid*="item"]'
+    ];
 
+    var chatItems = [];
+    for (var qi = 0; qi < querySets.length && !chatItems.length; qi++) {
+      chatItems = Array.from(document.querySelectorAll(querySets[qi]));
+    }
+
+    if (!chatItems.length) {
+      result.reason = 'No chat list items found on page';
+      return JSON.stringify(result);
+    }
+
+    var normalize = function(v) {
+      return (v || '').toLowerCase().replace(/\s+/g, ' ').replace(/[^\p{L}\p{N}@._\- ]/gu, '').trim();
+    };
+
+    var wantedRaw = '${escapedName}';
+    var wanted = normalize(wantedRaw);
+    var wantedHandleMatch = wantedRaw.match(/@[\w._-]+/);
+    var wantedHandle = wantedHandleMatch ? wantedHandleMatch[0].toLowerCase() : '';
+    var wantedNameOnly = normalize(wantedRaw.replace(/@[\w._-]+/g, ''));
+
+    var byIndex = ${indexValue};
     var target = null;
-    for (var i = 0; i < chatItems.length; i++) {
-      var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
-      if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedName}'.toLowerCase()) {
-        target = chatItems[i];
-        result.clickedName = nameEl.innerText.trim();
-        break;
+
+    if (byIndex >= 0 && byIndex < chatItems.length) {
+      target = chatItems[byIndex];
+      var idxNameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
+      result.clickedName = idxNameEl ? idxNameEl.innerText.trim() : ('index_' + byIndex);
+    }
+
+    if (!target) {
+      for (var i = 0; i < chatItems.length; i++) {
+        var row = chatItems[i];
+        var rowText = normalize(row.innerText || row.textContent || '');
+        var nameEl = row.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
+        var nameText = normalize(nameEl ? nameEl.innerText : '');
+
+        var handleMatch = false;
+        if (wantedHandle) {
+          var rawText = ((row.innerText || row.textContent || '') + ' ' + (nameEl ? nameEl.innerText : '')).toLowerCase();
+          handleMatch = rawText.includes(wantedHandle);
+        }
+
+        var exactName = wanted && (nameText === wanted || rowText === wanted);
+        var containsName = wantedNameOnly && (rowText.includes(wantedNameOnly) || nameText.includes(wantedNameOnly));
+
+        if (handleMatch || exactName || containsName) {
+          target = row;
+          result.clickedName = (nameEl ? nameEl.innerText.trim() : rowText.slice(0, 80));
+          break;
+        }
       }
     }
+
     if (!target) {
       result.reason = 'Conversation not found for: ${escapedName}';
       return JSON.stringify(result);
     }
 
-    // IMPORTANT: Click the message preview area or the row itself — NOT the <a> tag
-    var preview = target.querySelector(
-      '.b-chats__item-text, [class*="preview"], [class*="last-message"], [class*="item__text"], [class*="message-preview"]'
-    );
-    var clickTarget = preview || target;
+    var clickCandidates = [
+      '.b-chats__item-text',
+      '.b-chats__item__text',
+      '.b-chats__item-content',
+      '.b-chats__item-info',
+      '[class*="preview"]',
+      '[class*="last-message"]',
+      '[class*="message-preview"]',
+      '[class*="item__text"]',
+      '[class*="body"]'
+    ];
 
-    // Avoid clicking any <a> element — those open profile pages
-    if (clickTarget.tagName === 'A') {
-      clickTarget = target;
+    var clickTarget = null;
+    for (var ci = 0; ci < clickCandidates.length && !clickTarget; ci++) {
+      var el = target.querySelector(clickCandidates[ci]);
+      if (el && !el.closest('a')) clickTarget = el;
     }
 
-    try {
-      clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-    } catch(e) {}
-    try { clickTarget.click(); } catch(e) {}
-    if (clickTarget !== target) {
-      try { target.click(); } catch(e) {}
+    if (!clickTarget) {
+      var descendants = Array.from(target.querySelectorAll('*'));
+      clickTarget = descendants.find(function(el) {
+        if (el.closest('a')) return false;
+        var rect = el.getBoundingClientRect();
+        var visible = rect.width > 8 && rect.height > 8;
+        if (!visible) return false;
+        var text = (el.innerText || el.textContent || '').trim();
+        return text.length > 0;
+      }) || target;
     }
 
+    var dispatchClick = function(el) {
+      try {
+        var rect = el.getBoundingClientRect();
+        var x = rect.left + Math.max(8, rect.width * 0.72);
+        var y = rect.top + Math.min(Math.max(8, rect.height * 0.5), rect.height - 8);
+        var pointed = document.elementFromPoint(x, y);
+        var finalEl = pointed && pointed.closest ? (pointed.closest('a') ? el : pointed) : el;
+
+        ['mousemove', 'mouseover', 'mousedown', 'mouseup', 'click'].forEach(function(type) {
+          finalEl.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }));
+        });
+        if (typeof finalEl.click === 'function') finalEl.click();
+      } catch (_) {
+        try { el.click(); } catch (_) {}
+      }
+    };
+
+    dispatchClick(clickTarget);
     result.success = true;
     return JSON.stringify(result);
   })()`;
 
-  const res = await executeCDPScript(apiKey, sessionId, clickScript, 10000);
+  const res = await executeCDPScript(apiKey, sessionId, clickScript, 12000);
   if (!res.success || !res.data?.success) {
     return { success: false, error: res.data?.reason || res.error || "CDP click failed" };
   }
