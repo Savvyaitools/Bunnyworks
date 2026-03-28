@@ -19,6 +19,8 @@ import {
   clickConversationViaCDP,
   injectChatReplyViaCDP,
   isStagehandAvailable,
+  initStagehandSession,
+  endStagehandSession,
 } from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
@@ -1546,12 +1548,14 @@ Deno.serve(async (req) => {
       const { data: batchCreator } = await svc.from("creators").select("name, niche").eq("id", batchCreatorId).single();
       const creatorName = batchCreator?.name || "Creator";
 
-      // ---- Try Stagehand-first approach ----
-      let chatList: any[] = [];
-      let useStagehand = true;
-
+      // ---- Initialize Stagehand session first ----
       try {
-        console.log("🤖 Marilyn batch_reply: Starting Stagehand workflow...");
+        console.log("🤖 Marilyn batch_reply: Initializing Stagehand session...");
+        const stagehandInit = await initStagehandSession(bbSid);
+        if (!stagehandInit.success) {
+          throw new Error(`Stagehand init failed: ${stagehandInit.error}`);
+        }
+        console.log("✅ Stagehand session ready, scraping chat list...");
         const chatListResult = await scrapeChatListViaStagehand(bbSid);
 
         if (chatListResult.success && chatListResult.data?.data?.conversations?.length) {
@@ -1824,6 +1828,9 @@ Deno.serve(async (req) => {
           } catch {}
         }
       }
+
+      // Clean up Stagehand session
+      try { await endStagehandSession(bbSid); } catch {}
 
       const sentCount = results.filter(r => r.status === "sent").length;
       return json({
