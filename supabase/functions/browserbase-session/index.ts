@@ -1829,6 +1829,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Clean up Stagehand session
+      try { await endStagehandSession(bbSid); } catch {}
+
       const sentCount = results.filter(r => r.status === "sent").length;
       return json({
         success: true,
