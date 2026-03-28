@@ -1499,7 +1499,7 @@ Deno.serve(async (req) => {
       // CDP-first approach — reliable DOM clicking that avoids profile links
       if (fanName) {
         console.log(`click_conversation: Using CDP for "${fanName}"...`);
-        const cdpClick = await clickConversationViaCDP(BK, bbSid, fanName as string);
+        const cdpClick = await clickConversationViaCDP(BK, bbSid, fanName as string, Number(conversationIndex));
         if (cdpClick.success) {
           return json({ data: { success: true, clickedName: fanName }, method: "cdp" });
         }
