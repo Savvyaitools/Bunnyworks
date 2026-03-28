@@ -203,15 +203,21 @@ export async function endStagehandSession(browserbaseSessionId: string): Promise
 
   try {
     const { apiKey, serverUrl } = getConfig();
-    await fetch(`${serverUrl}/sessions/${stagehandSessionId}/end`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({}),
-    });
-    console.log(`🔚 Stagehand session ended: ${stagehandSessionId.slice(0, 8)}...`);
+    const baseCandidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
+
+    for (const baseUrl of baseCandidates) {
+      const endRes = await fetch(`${baseUrl}/sessions/${stagehandSessionId}/end`, {
+        method: "POST",
+        headers: getStagehandHeaders(apiKey),
+        body: JSON.stringify({}),
+      });
+
+      if (endRes.ok) {
+        _resolvedStagehandBaseUrl = baseUrl;
+        console.log(`🔚 Stagehand session ended via ${baseUrl}: ${stagehandSessionId.slice(0, 8)}...`);
+        break;
+      }
+    }
   } catch (e) {
     console.warn("Failed to end Stagehand session:", e);
   } finally {
