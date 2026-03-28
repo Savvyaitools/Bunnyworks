@@ -148,6 +148,7 @@ export async function initStagehandSession(
           headers: getStagehandHeaders(apiKey, modelApiKey),
           body: JSON.stringify({
             browserbaseSessionID: browserbaseSessionId,
+            browserbaseSessionId: browserbaseSessionId,
             modelApiKey,
           }),
           signal: controller.signal,
