@@ -137,40 +137,51 @@ export async function initStagehandSession(
   const timer = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const res = await fetch(`${serverUrl}/sessions/start`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        browserbaseSessionID: browserbaseSessionId,
-        modelApiKey,
-      }),
-      signal: controller.signal,
-    });
+    const baseCandidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
+    let lastErr = "Unknown session start error";
 
-    const text = await res.text();
+    for (const baseUrl of baseCandidates) {
+      const startUrl = `${baseUrl}/sessions/start`;
+      try {
+        const res = await fetch(startUrl, {
+          method: "POST",
+          headers: getStagehandHeaders(apiKey, modelApiKey),
+          body: JSON.stringify({
+            browserbaseSessionID: browserbaseSessionId,
+            modelApiKey,
+          }),
+          signal: controller.signal,
+        });
 
-    if (!res.ok) {
-      console.error(`❌ Stagehand /sessions/start failed (${res.status}): ${text}`);
-      _stagehandAvailable = false;
-      return { success: false, error: `Session start failed (${res.status}): ${text}` };
+        const text = await res.text();
+
+        if (!res.ok) {
+          lastErr = `Session start failed (${res.status}) via ${baseUrl}: ${text.slice(0, 300)}`;
+          console.warn(`⚠️ Stagehand start miss @ ${baseUrl}: ${res.status}`);
+          continue;
+        }
+
+        let data: any;
+        try { data = JSON.parse(text); } catch { data = {}; }
+
+        const stagehandSessionId = data.sessionId || data.id || data.session_id || data?.data?.sessionId;
+        if (!stagehandSessionId) {
+          lastErr = `No sessionId returned from ${baseUrl}`;
+          continue;
+        }
+
+        _sessionCache.set(browserbaseSessionId, stagehandSessionId);
+        _stagehandAvailable = true;
+        _resolvedStagehandBaseUrl = baseUrl;
+        console.log(`✅ Stagehand session initialized via ${baseUrl}: ${stagehandSessionId.slice(0, 8)}...`);
+        return { success: true, stagehandSessionId };
+      } catch (err: unknown) {
+        lastErr = err instanceof Error ? err.message : String(err);
+      }
     }
 
-    let data: any;
-    try { data = JSON.parse(text); } catch { data = {}; }
-
-    const stagehandSessionId = data.sessionId || data.id || data.session_id;
-    if (!stagehandSessionId) {
-      console.error("❌ No sessionId in /sessions/start response:", text);
-      return { success: false, error: "No sessionId returned from /sessions/start" };
-    }
-
-    _sessionCache.set(browserbaseSessionId, stagehandSessionId);
-    _stagehandAvailable = true;
-    console.log(`✅ Stagehand session initialized: ${stagehandSessionId.slice(0, 8)}...`);
-    return { success: true, stagehandSessionId };
+    _stagehandAvailable = false;
+    return { success: false, error: lastErr };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     const isTimeout = msg.includes("abort");
