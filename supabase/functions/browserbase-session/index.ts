@@ -1544,6 +1544,7 @@ Deno.serve(async (req) => {
       const results: any[] = [];
       let automationMethod = "stagehand";
       let useStagehand = true;
+      let chatList: any[] = [];
 
       // Get creator info for AI context
       const { data: batchCreator } = await svc.from("creators").select("name, niche").eq("id", batchCreatorId).single();
