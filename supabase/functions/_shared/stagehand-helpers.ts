@@ -951,7 +951,7 @@ export async function clickConversationViaStagehand(
  */
 export async function readChatContextViaStagehand(
   browserbaseSessionId: string
-): Promise<StagehandResponse<ChatContext>> {
+): Promise<StagehandResponse<ExtractResult<ChatContext>>> {
   console.log("👀 Observing open conversation layout...");
   await stagehandObserve(
     browserbaseSessionId,
