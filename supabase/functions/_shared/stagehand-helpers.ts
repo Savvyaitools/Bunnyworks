@@ -3,15 +3,47 @@
  * Hybrid CDP+Stagehand: CDP-first for reliable DOM actions,
  * Stagehand for AI extraction when available.
  * 
+ * KEY FIX: Stagehand requires session initialization via POST /sessions/start
+ * before any act/extract/observe calls. The returned stagehand session ID
+ * (different from Browserbase session ID) must be used for all subsequent calls.
+ * 
  * Requires secrets: STAGEHAND_API_KEY, STAGEHAND_SERVER_URL
- * Also uses: BROWSERBASE_API_KEY via cdp-helpers
+ * Also uses: BROWSERBASE_API_KEY via cdp-helpers, LOVABLE_API_KEY as model key
  */
 
 import { executeCDPScript, navigateViaCDP } from "./cdp-helpers.ts";
 
-// ========== Stagehand Health Check ==========
+// ========== Session Management ==========
 
+/** Cache: browserbaseSessionId → stagehandSessionId */
+const _sessionCache = new Map<string, string>();
+
+/** Whether we've determined Stagehand is reachable this invocation */
 let _stagehandAvailable: boolean | null = null;
+
+// ========== Configuration ==========
+
+function getConfig() {
+  const apiKey = Deno.env.get("STAGEHAND_API_KEY");
+  const serverUrl = Deno.env.get("STAGEHAND_SERVER_URL");
+  if (!apiKey || !serverUrl) {
+    throw new Error("STAGEHAND_API_KEY and STAGEHAND_SERVER_URL must be configured");
+  }
+  return { apiKey, serverUrl: serverUrl.replace(/\/$/, "") };
+}
+
+function getModelApiKey(): string {
+  // Stagehand needs an LLM API key to power its AI vision.
+  // Try STAGEHAND_API_KEY first (if it's an OpenAI key), then LOVABLE_API_KEY
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const stagehandKey = Deno.env.get("STAGEHAND_API_KEY");
+  // If STAGEHAND_API_KEY looks like an OpenAI key, use it as model key too
+  if (stagehandKey?.startsWith("sk-")) return stagehandKey;
+  // Otherwise use Lovable AI key (works via gateway)
+  return lovableKey || stagehandKey || "";
+}
+
+// ========== Stagehand Health Check ==========
 
 export async function isStagehandAvailable(): Promise<boolean> {
   if (_stagehandAvailable !== null) return _stagehandAvailable;
@@ -30,6 +62,184 @@ export async function isStagehandAvailable(): Promise<boolean> {
   }
   console.log(`🔌 Stagehand available: ${_stagehandAvailable}`);
   return _stagehandAvailable;
+}
+
+// ========== Session Initialization (THE FIX) ==========
+
+/**
+ * Initialize a Stagehand session for a given Browserbase session.
+ * This MUST be called before any act/extract/observe calls.
+ * Returns the Stagehand session ID (different from Browserbase session ID).
+ */
+export async function initStagehandSession(
+  browserbaseSessionId: string
+): Promise<{ success: boolean; stagehandSessionId?: string; error?: string }> {
+  // Check cache first
+  const cached = _sessionCache.get(browserbaseSessionId);
+  if (cached) {
+    console.log(`✅ Reusing cached Stagehand session: ${cached.slice(0, 8)}...`);
+    return { success: true, stagehandSessionId: cached };
+  }
+
+  const { apiKey, serverUrl } = getConfig();
+  const modelApiKey = getModelApiKey();
+
+  console.log(`🚀 Initializing Stagehand session for BB session ${browserbaseSessionId.slice(0, 8)}...`);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const res = await fetch(`${serverUrl}/sessions/start`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        browserbaseSessionID: browserbaseSessionId,
+        modelApiKey,
+      }),
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      console.error(`❌ Stagehand /sessions/start failed (${res.status}): ${text}`);
+      _stagehandAvailable = false;
+      return { success: false, error: `Session start failed (${res.status}): ${text}` };
+    }
+
+    let data: any;
+    try { data = JSON.parse(text); } catch { data = {}; }
+
+    const stagehandSessionId = data.sessionId || data.id || data.session_id;
+    if (!stagehandSessionId) {
+      console.error("❌ No sessionId in /sessions/start response:", text);
+      return { success: false, error: "No sessionId returned from /sessions/start" };
+    }
+
+    _sessionCache.set(browserbaseSessionId, stagehandSessionId);
+    _stagehandAvailable = true;
+    console.log(`✅ Stagehand session initialized: ${stagehandSessionId.slice(0, 8)}...`);
+    return { success: true, stagehandSessionId };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isTimeout = msg.includes("abort");
+    console.error(`❌ Stagehand session init ${isTimeout ? "timed out" : "failed"}: ${msg}`);
+    _stagehandAvailable = false;
+    return { success: false, error: isTimeout ? "Session start timed out" : msg };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * End a Stagehand session. Call when done with automation.
+ */
+export async function endStagehandSession(browserbaseSessionId: string): Promise<void> {
+  const stagehandSessionId = _sessionCache.get(browserbaseSessionId);
+  if (!stagehandSessionId) return;
+
+  try {
+    const { apiKey, serverUrl } = getConfig();
+    await fetch(`${serverUrl}/sessions/${stagehandSessionId}/end`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({}),
+    });
+    console.log(`🔚 Stagehand session ended: ${stagehandSessionId.slice(0, 8)}...`);
+  } catch (e) {
+    console.warn("Failed to end Stagehand session:", e);
+  } finally {
+    _sessionCache.delete(browserbaseSessionId);
+  }
+}
+
+/**
+ * Get or create a Stagehand session for the given Browserbase session.
+ * Returns null if Stagehand is unavailable.
+ */
+async function getStagehandSessionId(browserbaseSessionId: string): Promise<string | null> {
+  const cached = _sessionCache.get(browserbaseSessionId);
+  if (cached) return cached;
+
+  const init = await initStagehandSession(browserbaseSessionId);
+  return init.success ? init.stagehandSessionId! : null;
+}
+
+// ========== Types ==========
+
+interface StagehandResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+interface ObserveElement {
+  selector: string;
+  description: string;
+  backendNodeId?: number;
+  method?: string;
+  arguments?: string[];
+}
+
+interface ExtractResult<T = Record<string, unknown>> {
+  data: T;
+}
+
+// ========== Base Request (FIXED: uses proper session URLs) ==========
+
+async function stagehandRequest<T = unknown>(
+  stagehandSessionId: string,
+  primitive: "act" | "observe" | "extract",
+  body: Record<string, unknown>,
+  timeoutMs = 30000
+): Promise<StagehandResponse<T>> {
+  const { apiKey, serverUrl } = getConfig();
+  const url = `${serverUrl}/sessions/${stagehandSessionId}/${primitive}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      console.error(`Stagehand ${primitive} failed (${res.status}): ${text.slice(0, 200)}`);
+      return { success: false, error: `Stagehand ${primitive} error (${res.status}): ${text.slice(0, 200)}` };
+    }
+
+    try {
+      const data = JSON.parse(text) as T;
+      return { success: true, data };
+    } catch {
+      return { success: true, data: text as unknown as T };
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    const error = message.includes("abort")
+      ? `Stagehand ${primitive} timed out after ${timeoutMs}ms`
+      : message;
+    console.error(`Stagehand ${primitive} error: ${error}`);
+    return { success: false, error };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ========== CDP-First Action Helpers ==========
@@ -66,7 +276,6 @@ export async function clickConversationViaCDP(
     }
 
     // IMPORTANT: Click the message preview area or the row itself — NOT the <a> tag
-    // The <a> tags inside conversation rows link to the fan's profile page
     var preview = target.querySelector(
       '.b-chats__item-text, [class*="preview"], [class*="last-message"], [class*="item__text"], [class*="message-preview"]'
     );
@@ -81,7 +290,6 @@ export async function clickConversationViaCDP(
       clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
     } catch(e) {}
     try { clickTarget.click(); } catch(e) {}
-    // Also click the row itself as backup
     if (clickTarget !== target) {
       try { target.click(); } catch(e) {}
     }
@@ -99,7 +307,6 @@ export async function clickConversationViaCDP(
 
 /**
  * Inject chat reply text and send via CDP.
- * Reusable helper extracted from inline batch_reply code.
  */
 export async function injectChatReplyViaCDP(
   apiKey: string,
@@ -158,29 +365,18 @@ export async function injectChatReplyViaCDP(
 
 // ========== Humanized Delay Helpers ==========
 
-/** Random delay between min and max ms */
 function humanDelay(minMs: number, maxMs: number): Promise<void> {
   const delay = minMs + Math.floor(Math.random() * (maxMs - minMs));
   console.log(`⏳ Human pause: ${(delay / 1000).toFixed(1)}s`);
   return new Promise(r => setTimeout(r, delay));
 }
 
-/** Micro pause — like a blink or glance */
 function microPause(): Promise<void> { return humanDelay(250, 700); }
-
-/** Short pause — reading a button label */
 function shortPause(): Promise<void> { return humanDelay(700, 1600); }
-
-/** Medium pause — scanning a page section */
 function mediumPause(): Promise<void> { return humanDelay(1600, 3200); }
-
-/** Long pause — reading content carefully */
 function longPause(): Promise<void> { return humanDelay(2800, 5200); }
-
-/** Extra long pause — between major actions */
 function extraLongPause(): Promise<void> { return humanDelay(6000, 11000); }
 
-/** Reading pause — scales with content length (~300ms per word) */
 function readingPause(text: string): Promise<void> {
   const wordCount = text.split(/\s+/).length;
   const baseMs = Math.max(900, wordCount * 140);
@@ -189,147 +385,24 @@ function readingPause(text: string): Promise<void> {
   return new Promise(r => setTimeout(r, baseMs + jitter));
 }
 
-// ========== Types ==========
-
-interface StagehandResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-interface ObserveElement {
-  selector: string;
-  description: string;
-  backendNodeId?: number;
-  method?: string;
-  arguments?: string[];
-}
-
-interface ExtractResult<T = Record<string, unknown>> {
-  data: T;
-}
-
-// ========== Configuration ==========
-
-function getConfig() {
-  const apiKey = Deno.env.get("STAGEHAND_API_KEY");
-  const serverUrl = Deno.env.get("STAGEHAND_SERVER_URL");
-  if (!apiKey || !serverUrl) {
-    throw new Error("STAGEHAND_API_KEY and STAGEHAND_SERVER_URL must be configured");
-  }
-  return { apiKey, serverUrl: serverUrl.replace(/\/$/, "") };
-}
-
-function unique<T>(items: T[]): T[] {
-  return [...new Set(items)];
-}
-
-function isSessionPrimitiveEndpoint(endpoint: string) {
-  return endpoint === "/act" || endpoint === "/observe" || endpoint === "/extract";
-}
-
-function buildRequestUrls(baseUrl: string, endpoint: string, sessionId?: string) {
-  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  const urls = [`${baseUrl}${normalizedEndpoint}`];
-
-  if (sessionId && isSessionPrimitiveEndpoint(normalizedEndpoint)) {
-    const primitive = normalizedEndpoint.slice(1); // act | observe | extract
-    urls.push(`${baseUrl}/sessions/${sessionId}/${primitive}`);
-    urls.push(`${baseUrl}/v1/sessions/${sessionId}/${primitive}`);
-    urls.push(`${baseUrl}/api/v1/sessions/${sessionId}/${primitive}`);
-  }
-
-  return unique(urls);
-}
-
-// ========== Base Request ==========
-
-async function stagehandRequest<T = unknown>(
-  endpoint: string,
-  body: Record<string, unknown>,
-  timeoutMs = 30000
-): Promise<StagehandResponse<T>> {
-  const { apiKey, serverUrl } = getConfig();
-  const sessionId = typeof body.sessionId === "string" ? body.sessionId : undefined;
-  const requestUrls = buildRequestUrls(serverUrl, endpoint, sessionId);
-  const bodyWithoutSession =
-    sessionId && isSessionPrimitiveEndpoint(endpoint.startsWith("/") ? endpoint : `/${endpoint}`)
-      ? Object.fromEntries(Object.entries(body).filter(([key]) => key !== "sessionId"))
-      : body;
-
-  let lastError = "Unknown Stagehand request error";
-
-  for (let i = 0; i < requestUrls.length; i++) {
-    const url = requestUrls[i];
-    const includesSessionInPath = !!(sessionId && url.includes(`/sessions/${sessionId}/`));
-    const payload = includesSessionInPath ? bodyWithoutSession : body;
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      const text = await res.text();
-
-      if (!res.ok) {
-        lastError = `Stagehand API error (${res.status}): ${text}`;
-        if (res.status === 404 && i < requestUrls.length - 1) {
-          console.warn(`Stagehand endpoint not found at ${url}, trying fallback path...`);
-          continue;
-        }
-        console.error(`Stagehand request failed at ${url}:`, text);
-        return { success: false, error: lastError };
-      }
-
-      try {
-        const data = JSON.parse(text) as T;
-        return { success: true, data };
-      } catch {
-        return { success: true, data: text as unknown as T };
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      lastError = message.includes("abort")
-        ? `Stagehand ${endpoint} timed out after ${timeoutMs}ms`
-        : message;
-      if (i < requestUrls.length - 1) {
-        console.warn(`Stagehand request failed at ${url}: ${lastError}. Trying fallback path...`);
-        continue;
-      }
-      return { success: false, error: lastError };
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  return { success: false, error: lastError };
-}
-
-// ========== Core API Wrappers ==========
+// ========== Core API Wrappers (FIXED: proper session routing) ==========
 
 /**
- * Observe the current page — "look around" to understand UI layout.
- * Always call this BEFORE acting to let the AI adapt to the current UI.
+ * Observe the current page. Requires an initialized Stagehand session.
+ * browserbaseSessionId is mapped to the internal Stagehand session automatically.
  */
 export async function stagehandObserve(
-  sessionId: string,
+  browserbaseSessionId: string,
   instruction: string
 ): Promise<StagehandResponse<ObserveElement[]>> {
+  const ssid = await getStagehandSessionId(browserbaseSessionId);
+  if (!ssid) return { success: false, error: "Stagehand session not available" };
+
   console.log(`👀 Observe: "${instruction}"`);
-  await microPause(); // human glance before looking
-  const result = await stagehandRequest<ObserveElement[] | { data?: ObserveElement[]; actions?: ObserveElement[]; elements?: ObserveElement[] }>("/observe", {
-    sessionId,
-    instruction,
-  }, 25000);
+  await microPause();
+  const result = await stagehandRequest<ObserveElement[] | { data?: ObserveElement[]; actions?: ObserveElement[]; elements?: ObserveElement[] }>(
+    ssid, "observe", { instruction }, 25000
+  );
 
   if (!result.success) return result as StagehandResponse<ObserveElement[]>;
 
@@ -345,17 +418,18 @@ export async function stagehandObserve(
  * Extract structured data from the current page using AI.
  */
 export async function stagehandExtract<T = Record<string, unknown>>(
-  sessionId: string,
+  browserbaseSessionId: string,
   instruction: string,
   schema?: Record<string, unknown>
 ): Promise<StagehandResponse<ExtractResult<T>>> {
+  const ssid = await getStagehandSessionId(browserbaseSessionId);
+  if (!ssid) return { success: false, error: "Stagehand session not available" };
+
   console.log(`📊 Extract: "${instruction}"`);
   await microPause();
-  const result = await stagehandRequest<ExtractResult<T> | T>("/extract", {
-    sessionId,
-    instruction,
-    ...(schema ? { schema } : {}),
-  }, 30000);
+  const result = await stagehandRequest<ExtractResult<T> | T>(
+    ssid, "extract", { instruction, ...(schema ? { schema } : {}) }, 30000
+  );
 
   if (!result.success) return result as StagehandResponse<ExtractResult<T>>;
 
@@ -363,26 +437,27 @@ export async function stagehandExtract<T = Record<string, unknown>>(
   if (payload && typeof payload === "object" && "data" in (payload as Record<string, unknown>)) {
     return { success: true, data: payload as ExtractResult<T> };
   }
-
   return { success: true, data: { data: payload as T } };
 }
 
 /**
- * Execute an action via natural language — with human-like hesitation.
+ * Execute an action via natural language.
  */
 export async function stagehandAct(
-  sessionId: string,
+  browserbaseSessionId: string,
   instruction: string,
   variables?: Record<string, string>
 ): Promise<StagehandResponse> {
-  await shortPause(); // hesitation before acting
+  const ssid = await getStagehandSessionId(browserbaseSessionId);
+  if (!ssid) return { success: false, error: "Stagehand session not available" };
+
+  await shortPause();
   console.log(`🖱️ Act: "${instruction}"`);
-  const result = await stagehandRequest("/act", {
-    sessionId,
-    action: instruction,
-    instruction,
-    ...(variables ? { variables } : {}),
-  }, 30000);
+  const result = await stagehandRequest(
+    ssid, "act",
+    { action: instruction, ...(variables ? { variables } : {}) },
+    30000
+  );
 
   if (result.success && result.data && typeof result.data === "object") {
     const payload = result.data as Record<string, unknown>;
@@ -394,54 +469,49 @@ export async function stagehandAct(
     }
   }
 
-  await shortPause(); // watch the result
+  await shortPause();
   return result;
 }
 
 /**
- * Navigate by clicking through UI elements like a human would.
- * First observes the page to find nav elements, then clicks.
- * Falls back to act-based URL navigation if UI click fails.
+ * Navigate to a URL. Tries UI-first for chats, falls back to act-based nav.
  */
 export async function stagehandNavigate(
-  sessionId: string,
+  browserbaseSessionId: string,
   url: string
 ): Promise<StagehandResponse> {
   console.log(`🧭 Navigate to: ${url}`);
 
-  // If navigating to chats, try clicking through UI first
+  // For chats, try clicking the nav icon first
   if (url.includes("/my/chats") || url.includes("/chats")) {
     console.log("🧭 Trying UI navigation — looking for Messages/Chat icon...");
     await microPause();
 
-    // Observe nav to find the right element
     const navObserve = await stagehandObserve(
-      sessionId,
+      browserbaseSessionId,
       "Find the Messages, Chat, or Inbox icon/link in the navigation bar or sidebar menu"
     );
 
     if (navObserve.success && navObserve.data?.length) {
       console.log(`🧭 Found ${navObserve.data.length} nav elements, clicking...`);
       const clickResult = await stagehandAct(
-        sessionId,
+        browserbaseSessionId,
         "Click the Messages or Chat icon/link in the navigation to go to the chats/inbox page"
       );
       if (clickResult.success) {
-        await mediumPause(); // wait for page transition like a human
+        await mediumPause();
         return clickResult;
       }
       console.warn("🧭 UI nav click failed, falling back to URL navigation");
     }
   }
 
-  // Fallback: use act() to navigate via URL
-  const result = await stagehandRequest("/act", {
-    sessionId,
-    action: `Navigate to the URL: ${url}`,
-    instruction: `Navigate to the URL: ${url}`,
-    variables: { url }
-  }, 30000);
-  await mediumPause(); // wait for full page load
+  // Fallback: use act to navigate
+  const result = await stagehandAct(
+    browserbaseSessionId,
+    `Navigate to the URL: ${url}`
+  );
+  await mediumPause();
   return result;
 }
 
@@ -449,7 +519,7 @@ export async function stagehandNavigate(
  * Scroll the page like a human scanning content.
  */
 export async function stagehandScroll(
-  sessionId: string,
+  browserbaseSessionId: string,
   direction: "down" | "up" = "down",
   context?: string
 ): Promise<StagehandResponse> {
@@ -457,50 +527,43 @@ export async function stagehandScroll(
   console.log(`📜 Scrolling ${direction} through ${desc}...`);
   await microPause();
   return stagehandAct(
-    sessionId,
+    browserbaseSessionId,
     `Scroll ${direction} slowly through ${desc} to see more content`
   );
 }
 
 /**
- * Type text character-by-character with human-like rhythm.
- * Breaks text into small chunks and types with pauses.
+ * Type text with human-like rhythm.
  */
 export async function stagehandHumanType(
-  sessionId: string,
+  browserbaseSessionId: string,
   text: string,
   fieldDescription: string
 ): Promise<StagehandResponse> {
   console.log(`⌨️ Human typing ${text.length} chars into "${fieldDescription}"`);
 
-  // First click/focus the field
-  await stagehandAct(sessionId, `Click on ${fieldDescription} to focus it`);
+  await stagehandAct(browserbaseSessionId, `Click on ${fieldDescription} to focus it`);
   await microPause();
 
-  // For short texts (< 30 chars), type in one go but with delay
   if (text.length < 30) {
-    await humanDelay(120, 400); // small pre-type pause
+    await humanDelay(120, 400);
     const result = await stagehandAct(
-      sessionId,
+      browserbaseSessionId,
       `Type "${text}" into the currently focused ${fieldDescription}`
     );
-    await shortPause(); // review what was typed
+    await shortPause();
     return result;
   }
 
-  // For longer texts, type in chunks of 20-55 chars (at word boundaries)
+  // Chunk longer texts
   const chunks: string[] = [];
   let remaining = text;
   while (remaining.length > 0) {
-    const chunkSize = Math.min(
-      20 + Math.floor(Math.random() * 35), // 20-55 chars
-      remaining.length
-    );
-    // Find nearest word boundary
+    const chunkSize = Math.min(20 + Math.floor(Math.random() * 35), remaining.length);
     let end = chunkSize;
     if (end < remaining.length) {
       const spaceIdx = remaining.lastIndexOf(' ', end);
-      if (spaceIdx > end * 0.5) end = spaceIdx + 1; // include the space
+      if (spaceIdx > end * 0.5) end = spaceIdx + 1;
     }
     chunks.push(remaining.slice(0, end));
     remaining = remaining.slice(end);
@@ -510,14 +573,14 @@ export async function stagehandHumanType(
   let lastResult: StagehandResponse = { success: true };
 
   for (let i = 0; i < chunks.length; i++) {
-    // Typing rhythm: 22-50ms per character equivalent
     const typingDelay = chunks[i].length * (22 + Math.floor(Math.random() * 28));
     await new Promise(r => setTimeout(r, typingDelay));
 
-    lastResult = await stagehandRequest("/act", {
-      sessionId,
+    const ssid = await getStagehandSessionId(browserbaseSessionId);
+    if (!ssid) return { success: false, error: "Stagehand session lost" };
+
+    lastResult = await stagehandRequest(ssid, "act", {
       action: `Type "${chunks[i]}" continuing from where the cursor is in the input field (append, do not clear)`,
-      instruction: `Type "${chunks[i]}" continuing from where the cursor is in the input field (append, do not clear)`,
     }, 15000);
 
     if (!lastResult.success) {
@@ -525,13 +588,11 @@ export async function stagehandHumanType(
       return lastResult;
     }
 
-    // Occasional short pauses (like thinking mid-sentence)
     if (i < chunks.length - 1 && Math.random() < 0.3) {
       await humanDelay(300, 1200);
     }
   }
 
-  // Review what was typed
   await shortPause();
   return lastResult;
 }
@@ -547,26 +608,32 @@ export interface StagehandLoginResult {
 }
 
 export async function autoLoginViaStagehand(
-  sessionId: string,
+  browserbaseSessionId: string,
   username: string,
   password: string
 ): Promise<StagehandLoginResult> {
   try {
-    // Step 1: Navigate to OnlyFans
-    const nav = await stagehandNavigate(sessionId, "https://onlyfans.com");
+    // Initialize Stagehand session first
+    const init = await initStagehandSession(browserbaseSessionId);
+    if (!init.success) {
+      return { success: false, method: "stagehand", step: "init", error: init.error };
+    }
+
+    // Navigate to OnlyFans
+    const nav = await stagehandNavigate(browserbaseSessionId, "https://onlyfans.com");
     if (!nav.success) {
       return { success: false, method: "stagehand", step: "navigate", error: nav.error };
     }
 
-    // Step 2: Observe the page layout first
+    // Observe page
     console.log("🔍 Observing page layout...");
-    await stagehandObserve(sessionId, "What is visible on this page? Is it a login form, a dashboard, a landing page, or something else?");
+    await stagehandObserve(browserbaseSessionId, "What is visible on this page? Is it a login form, a dashboard, or something else?");
     await mediumPause();
 
-    // Step 3: Check if already logged in
+    // Check if already logged in
     const pageState = await stagehandExtract<{ isLoggedIn: boolean; hasLoginForm: boolean }>(
-      sessionId,
-      "Check if the user is logged into OnlyFans. Look for signs of a logged-in dashboard (home feed, notifications, profile menu) versus a login form with email/password fields.",
+      browserbaseSessionId,
+      "Check if the user is logged into OnlyFans. Look for dashboard elements versus login form fields.",
       {
         type: "object",
         properties: {
@@ -582,29 +649,26 @@ export async function autoLoginViaStagehand(
       return { success: true, method: "stagehand", step: "already_logged_in", isLoggedIn: true };
     }
 
-    // Step 4: Type username with human typing
-    await stagehandHumanType(sessionId, username, "the email or username input field on the login form");
-    await mediumPause(); // pause between fields like a human
-
-    // Step 5: Type password with human typing
-    await stagehandHumanType(sessionId, password, "the password input field on the login form");
+    // Type credentials
+    await stagehandHumanType(browserbaseSessionId, username, "the email or username input field on the login form");
+    await mediumPause();
+    await stagehandHumanType(browserbaseSessionId, password, "the password input field on the login form");
     await mediumPause();
 
-    // Step 6: Click login button
-    await stagehandObserve(sessionId, "Find the Log In or Sign In submit button on the form");
+    // Click login
+    await stagehandObserve(browserbaseSessionId, "Find the Log In or Sign In submit button on the form");
     await shortPause();
-    const clickLogin = await stagehandAct(sessionId, "Click the Log In or Sign In button to submit the login form");
+    const clickLogin = await stagehandAct(browserbaseSessionId, "Click the Log In or Sign In button to submit the login form");
     if (!clickLogin.success) {
       return { success: false, method: "stagehand", step: "click_login", error: clickLogin.error };
     }
 
-    // Wait for login processing
     await longPause();
 
-    // Step 7: Verify login
+    // Verify login
     const verifyLogin = await stagehandExtract<{ isLoggedIn: boolean }>(
-      sessionId,
-      "Check if the user is now logged into OnlyFans. Look for dashboard elements, home feed, profile menu, or notifications.",
+      browserbaseSessionId,
+      "Check if the user is now logged into OnlyFans. Look for dashboard elements.",
       {
         type: "object",
         properties: {
@@ -615,12 +679,7 @@ export async function autoLoginViaStagehand(
     );
 
     const loggedIn = verifyLogin.success && verifyLogin.data?.data?.isLoggedIn === true;
-    return {
-      success: true,
-      method: "stagehand",
-      step: "login_complete",
-      isLoggedIn: loggedIn,
-    };
+    return { success: true, method: "stagehand", step: "login_complete", isLoggedIn: loggedIn };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Stagehand autoLogin error:", message);
@@ -650,33 +709,38 @@ interface ChatContext {
 }
 
 /**
- * Navigate to chats page using UI-first approach, then scan and extract conversations.
+ * Navigate to chats page and extract conversations.
+ * Requires Stagehand session to be initialized first.
  */
 export async function scrapeChatListViaStagehand(
-  sessionId: string
+  browserbaseSessionId: string
 ): Promise<StagehandResponse<{ conversations: ChatConversation[] }>> {
-  // Step 1: Navigate to chats via UI
-  const nav = await stagehandNavigate(sessionId, "https://onlyfans.com/my/chats");
+  // Ensure session is initialized
+  const init = await initStagehandSession(browserbaseSessionId);
+  if (!init.success) return { success: false, error: `Session init failed: ${init.error}` };
+
+  // Navigate
+  const nav = await stagehandNavigate(browserbaseSessionId, "https://onlyfans.com/my/chats");
   if (!nav.success) return { success: false, error: nav.error };
 
-  // Step 2: Observe the chat page layout
+  // Observe layout
   console.log("👀 Scanning chat page layout...");
   const pageLayout = await stagehandObserve(
-    sessionId,
+    browserbaseSessionId,
     "What elements are visible on this chat/messages page? Look for a list of conversations, unread badges, fan names, and message previews."
   );
   console.log(`👀 Found ${pageLayout.data?.length || 0} interactive elements on chat page`);
-  await mediumPause(); // human scanning the page
-
-  // Step 3: Scroll through chat list to see more conversations
-  await stagehandScroll(sessionId, "down", "the chat conversation list");
-  await shortPause();
-  await stagehandScroll(sessionId, "up", "back to the top of the chat list");
   await mediumPause();
 
-  // Step 4: Extract conversations
+  // Scroll to load more
+  await stagehandScroll(browserbaseSessionId, "down", "the chat conversation list");
+  await shortPause();
+  await stagehandScroll(browserbaseSessionId, "up", "back to the top of the chat list");
+  await mediumPause();
+
+  // Extract conversations
   return stagehandExtract<{ conversations: ChatConversation[] }>(
-    sessionId,
+    browserbaseSessionId,
     "Extract the list of chat conversations visible on this page. For each conversation, get the fan's display name, their last message preview, whether it has an unread indicator/badge, and the unread count. Return up to 20 conversations.",
     {
       type: "object",
@@ -702,60 +766,54 @@ export async function scrapeChatListViaStagehand(
 }
 
 /**
- * Click into a specific conversation — observe first, then click with human timing.
+ * Click into a conversation using Stagehand observe+act.
  */
 export async function clickConversationViaStagehand(
-  sessionId: string,
+  browserbaseSessionId: string,
   fanName: string
 ): Promise<StagehandResponse> {
-  // Observe the conversation in the list first
   console.log(`👀 Looking for "${fanName}" in chat list...`);
   const findFan = await stagehandObserve(
-    sessionId,
-    `Find the chat conversation with "${fanName}" in the chat list. Look for their name, profile picture, or message preview.`
+    browserbaseSessionId,
+    `Find the chat conversation row for "${fanName}" in the chat list. Look for their name and message preview area.`
   );
 
   if (!findFan.success || !findFan.data?.length) {
-    // Maybe need to scroll to find them
-    console.log(`📜 "${fanName}" not visible, scrolling to find...`);
-    await stagehandScroll(sessionId, "down", "the chat list");
+    console.log(`📜 "${fanName}" not visible, scrolling...`);
+    await stagehandScroll(browserbaseSessionId, "down", "the chat list");
     await shortPause();
   }
 
-  await microPause(); // human hovering over the name
-  // IMPORTANT: Click on the message preview text or the conversation row area —
-  // NOT on the fan's profile picture or username link, which opens their profile page.
+  await microPause();
+  // CRITICAL: Specific instruction to avoid profile link
   return stagehandAct(
-    sessionId,
+    browserbaseSessionId,
     `Click on the message preview text or the right side of the conversation row for "${fanName}" in the chat list. Do NOT click on their profile picture or their username/display name link — those open the profile page. Click on the message preview snippet or the timestamp area to open the conversation.`
   );
 }
 
 /**
- * Read the current chat conversation — observe layout, scroll to read, then extract.
+ * Read the current open chat conversation.
  */
 export async function readChatContextViaStagehand(
-  sessionId: string
+  browserbaseSessionId: string
 ): Promise<StagehandResponse<ChatContext>> {
-  // Step 1: Observe the chat layout
   console.log("👀 Observing open conversation layout...");
   await stagehandObserve(
-    sessionId,
-    "What is visible in this open chat conversation? Look for the fan's name in the header, message bubbles, the message input field, and any media or tips."
+    browserbaseSessionId,
+    "What is visible in this open chat conversation? Look for the fan's name, message bubbles, and the input field."
   );
   await shortPause();
 
-  // Step 2: Scroll up to see older messages, then back down
   console.log("📜 Scrolling through message history...");
-  await stagehandScroll(sessionId, "up", "the message history to see older messages");
-  await mediumPause(); // reading older messages
-  await stagehandScroll(sessionId, "down", "back to the latest messages");
+  await stagehandScroll(browserbaseSessionId, "up", "the message history");
+  await mediumPause();
+  await stagehandScroll(browserbaseSessionId, "down", "back to the latest messages");
   await shortPause();
 
-  // Step 3: Extract the conversation
   const result = await stagehandExtract<ChatContext>(
-    sessionId,
-    "Extract the chat conversation. Get the fan's name from the header, the last 10 messages in order, and identify who sent each (creator/model or fan). Also get the most recent fan message.",
+    browserbaseSessionId,
+    "Extract the chat conversation. Get the fan's name from the header, the last 10 messages, and identify who sent each (creator or fan). Also get the most recent fan message.",
     {
       type: "object",
       properties: {
@@ -777,7 +835,6 @@ export async function readChatContextViaStagehand(
     }
   );
 
-  // Simulate reading the fan's last message
   if (result.success && result.data?.data?.lastFanMessage) {
     await readingPause(result.data.data.lastFanMessage);
   }
@@ -786,33 +843,23 @@ export async function readChatContextViaStagehand(
 }
 
 /**
- * Type a reply into the chat and send it — full human-like workflow:
- * 1. Observe the input area
- * 2. Click to focus
- * 3. Type character-by-character with pauses
- * 4. Re-read the typed message
- * 5. Verify text is in input
- * 6. Click send (with Enter fallback)
- * 7. Verify message appeared in chat
+ * Type a reply and send it via Stagehand.
  */
 export async function injectChatReplyViaStagehand(
-  sessionId: string,
+  browserbaseSessionId: string,
   replyText: string
 ): Promise<StagehandResponse<{ autoSent: boolean }>> {
   console.log(`💬 Injecting reply (${replyText.length} chars)...`);
 
-  // Step 1: Observe the input area first
   const inputObserve = await stagehandObserve(
-    sessionId,
-    "Find the message input field, textarea, or text box at the bottom of the chat where you can type a new message. Also look for the Send button."
+    browserbaseSessionId,
+    "Find the message input field at the bottom of the chat and the Send button."
   );
   console.log(`👀 Found ${inputObserve.data?.length || 0} input-related elements`);
   await shortPause();
 
-  // Step 2: Type with human rhythm
   const typeResult = await stagehandHumanType(
-    sessionId,
-    replyText,
+    browserbaseSessionId, replyText,
     "the message input field or textarea at the bottom of the chat"
   );
   if (!typeResult.success) {
@@ -820,67 +867,59 @@ export async function injectChatReplyViaStagehand(
     return { success: false, error: `Could not type reply: ${typeResult.error}` };
   }
 
-  // Step 3: Re-read / review the typed message (like a human would)
   console.log("📖 Re-reading typed message before sending...");
   await readingPause(replyText);
 
-  // Step 4: Verify text is actually in the input
+  // Verify text in input
   const verifyText = await stagehandExtract<{ hasText: boolean; inputText: string }>(
-    sessionId,
-    "Check the message input field at the bottom of the chat. Is there text typed into it? What text is currently in the input?",
+    browserbaseSessionId,
+    "Check the message input field. Is there text typed into it?",
     {
       type: "object",
       properties: {
         hasText: { type: "boolean", description: "true if there is text in the input" },
-        inputText: { type: "string", description: "The text currently in the input field" },
+        inputText: { type: "string", description: "Text currently in the input field" },
       },
       required: ["hasText", "inputText"],
     }
   );
 
   if (verifyText.success && !verifyText.data?.data?.hasText) {
-    console.warn("⚠️ Text not detected in input, retrying type...");
-    await stagehandAct(sessionId, "Click on the message input field to focus it");
+    console.warn("⚠️ Text not detected, retrying type...");
+    await stagehandAct(browserbaseSessionId, "Click on the message input field to focus it");
     await microPause();
-    await stagehandAct(sessionId, `Type "${replyText}" into the message input field`);
+    await stagehandAct(browserbaseSessionId, `Type "${replyText}" into the message input field`);
     await shortPause();
   }
 
-  // Step 5: Find and click the send button
+  // Send
   console.log("🔍 Looking for Send button...");
-  await stagehandObserve(sessionId, "Find the Send button — it may be a paper plane icon, an arrow icon, or labeled 'Send'");
+  await stagehandObserve(browserbaseSessionId, "Find the Send button — paper plane icon, arrow icon, or 'Send' label");
   await microPause();
 
   let sendResult = await stagehandAct(
-    sessionId,
+    browserbaseSessionId,
     "Click the Send button (paper plane icon or 'Send' label) to submit the typed chat message"
   );
 
   if (!sendResult.success) {
     console.warn("⚠️ Send button click failed, trying Enter key...");
-    sendResult = await stagehandAct(
-      sessionId,
-      "Press the Enter key to send the message in the chat input"
-    );
+    sendResult = await stagehandAct(browserbaseSessionId, "Press the Enter key to send the message");
     if (!sendResult.success) {
-      console.warn("⚠️ Enter key send failed, trying alternate send instruction...");
-      sendResult = await stagehandAct(
-        sessionId,
-        "Find the chat composer send icon and click it once to send the current drafted message"
-      );
+      sendResult = await stagehandAct(browserbaseSessionId, "Find the chat composer send icon and click it");
     }
     if (!sendResult.success) {
       return { success: false, error: `Could not send: ${sendResult.error}` };
     }
   }
 
-  // Step 6/7: Watch and verify send with retries
+  // Verify send
   let wasSent = false;
   for (let attempt = 0; attempt < 2 && !wasSent; attempt++) {
     await shortPause();
     const verifySent = await stagehandExtract<{ inputEmpty: boolean; messageSent: boolean }>(
-      sessionId,
-      "Check if the drafted message was sent. The input should be empty and the message should appear as the newest outgoing message from the creator/model.",
+      browserbaseSessionId,
+      "Check if the drafted message was sent. The input should be empty and the message should appear as the newest outgoing message.",
       {
         type: "object",
         properties: {
@@ -892,16 +931,11 @@ export async function injectChatReplyViaStagehand(
     );
     wasSent = Boolean(verifySent.success && (verifySent.data?.data?.messageSent || verifySent.data?.data?.inputEmpty));
     if (!wasSent && attempt === 0) {
-      await stagehandAct(sessionId, "Click Send once more if the drafted message is still in the input field");
+      await stagehandAct(browserbaseSessionId, "Click Send once more if the drafted message is still in the input field");
     }
   }
   console.log(`💬 Message send result: ${wasSent ? '✅ sent' : '❓ uncertain'}`);
 
-  // Final human pause — watching the sent message
   await shortPause();
-
-  return {
-    success: true,
-    data: { autoSent: wasSent === true },
-  };
+  return { success: true, data: { autoSent: wasSent === true } };
 }
