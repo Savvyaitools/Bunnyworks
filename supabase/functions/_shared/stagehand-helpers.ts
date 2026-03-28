@@ -21,6 +21,9 @@ const _sessionCache = new Map<string, string>();
 /** Whether we've determined Stagehand is reachable this invocation */
 let _stagehandAvailable: boolean | null = null;
 
+/** Resolved Stagehand API base URL for this invocation */
+let _resolvedStagehandBaseUrl: string | null = null;
+
 // ========== Configuration ==========
 
 function getConfig() {
@@ -30,6 +33,33 @@ function getConfig() {
     throw new Error("STAGEHAND_API_KEY and STAGEHAND_SERVER_URL must be configured");
   }
   return { apiKey, serverUrl: serverUrl.replace(/\/$/, "") };
+}
+
+function getStagehandBaseCandidates(serverUrl: string, preferred?: string | null): string[] {
+  const normalized = serverUrl.replace(/\/$/, "");
+  const candidates = [
+    preferred || null,
+    normalized,
+    `${normalized}/v1`,
+    `${normalized}/api/v1`,
+    `${normalized}/api`,
+  ].filter(Boolean) as string[];
+
+  return Array.from(new Set(candidates.map((url) => url.replace(/\/$/, ""))));
+}
+
+function getStagehandHeaders(apiKey: string, modelApiKey?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${apiKey}`,
+    "x-bb-api-key": apiKey,
+  };
+
+  const projectId = Deno.env.get("BROWSERBASE_PROJECT_ID");
+  if (projectId) headers["x-bb-project-id"] = projectId;
+  if (modelApiKey) headers["x-model-api-key"] = modelApiKey;
+
+  return headers;
 }
 
 function getModelApiKey(): string {
