@@ -21,6 +21,9 @@ const _sessionCache = new Map<string, string>();
 /** Whether we've determined Stagehand is reachable this invocation */
 let _stagehandAvailable: boolean | null = null;
 
+/** Stagehand API mode resolved for this invocation */
+let _stagehandMode: "legacy" | "runner" | null = null;
+
 /** Resolved Stagehand API base URL for this invocation */
 let _resolvedStagehandBaseUrl: string | null = null;
 
@@ -62,6 +65,13 @@ function getStagehandHeaders(apiKey: string, modelApiKey?: string): Record<strin
   return headers;
 }
 
+function getRunnerHeaders(apiKey: string): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "x-api-key": apiKey,
+  };
+}
+
 function getModelApiKey(): string {
   // Stagehand needs an LLM API key to power its AI vision.
   // Try STAGEHAND_API_KEY first (if it's an OpenAI key), then LOVABLE_API_KEY
@@ -91,9 +101,27 @@ export async function isStagehandAvailable(): Promise<boolean> {
           signal: controller.signal,
         });
         if (res.ok) {
+          // Detect runner mode (POST /run) first; fallback to legacy sessions API mode.
+          try {
+            const probeRes = await fetch(`${baseUrl}/run`, {
+              method: "POST",
+              headers: getRunnerHeaders(apiKey),
+              body: JSON.stringify({}),
+              signal: controller.signal,
+            });
+            const probeText = await probeRes.text();
+            if (probeRes.status === 400 && probeText.includes("sessionId and instruction required")) {
+              _stagehandMode = "runner";
+            } else {
+              _stagehandMode = "legacy";
+            }
+          } catch {
+            _stagehandMode = "legacy";
+          }
+
           _resolvedStagehandBaseUrl = baseUrl;
           _stagehandAvailable = true;
-          console.log(`🔌 Stagehand available via ${baseUrl}`);
+          console.log(`🔌 Stagehand available via ${baseUrl} (mode=${_stagehandMode})`);
           return true;
         }
       } catch {
@@ -130,6 +158,17 @@ export async function initStagehandSession(
 
   const { apiKey, serverUrl } = getConfig();
   const modelApiKey = getModelApiKey();
+
+  if (_stagehandAvailable === null) {
+    await isStagehandAvailable();
+  }
+
+  if (_stagehandMode === "runner") {
+    _sessionCache.set(browserbaseSessionId, browserbaseSessionId);
+    _stagehandAvailable = true;
+    console.log(`✅ Stagehand runner mode active, using Browserbase session directly: ${browserbaseSessionId.slice(0, 8)}...`);
+    return { success: true, stagehandSessionId: browserbaseSessionId };
+  }
 
   console.log(`🚀 Initializing Stagehand session for BB session ${browserbaseSessionId.slice(0, 8)}...`);
 
@@ -272,6 +311,54 @@ async function stagehandRequest<T = unknown>(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    // Stagehand runner mode: POST /run with instruction + sessionId.
+    if (_stagehandMode === "runner") {
+      const instruction = String(body.instruction ?? body.action ?? "").trim();
+      if (!instruction) {
+        return { success: false, error: `Missing instruction for ${primitive}` };
+      }
+
+      let lastErr = "Unknown Stagehand runner error";
+      for (const baseUrl of baseCandidates) {
+        try {
+          const runnerBody: Record<string, unknown> = {
+            sessionId: stagehandSessionId,
+            browserbaseSessionID: stagehandSessionId,
+            instruction,
+            primitive,
+          };
+
+          if (primitive === "extract" && body.schema) runnerBody.schema = body.schema;
+          if (primitive === "act" && body.variables) runnerBody.variables = body.variables;
+
+          const res = await fetch(`${baseUrl}/run`, {
+            method: "POST",
+            headers: getRunnerHeaders(apiKey),
+            body: JSON.stringify(runnerBody),
+            signal: controller.signal,
+          });
+
+          const text = await res.text();
+          if (!res.ok) {
+            lastErr = `Stagehand runner ${primitive} error (${res.status}) via ${baseUrl}: ${text.slice(0, 220)}`;
+            continue;
+          }
+
+          _resolvedStagehandBaseUrl = baseUrl;
+          try {
+            const data = JSON.parse(text) as T;
+            return { success: true, data };
+          } catch {
+            return { success: true, data: text as unknown as T };
+          }
+        } catch (err: unknown) {
+          lastErr = err instanceof Error ? err.message : String(err);
+        }
+      }
+
+      return { success: false, error: lastErr };
+    }
+
     let lastErr = "Unknown Stagehand request error";
 
     for (const baseUrl of baseCandidates) {
@@ -331,7 +418,11 @@ export async function clickConversationViaCDP(
   conversationIndex?: number
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`🖱️ CDP: Clicking conversation for "${fanName}"...`);
-  const escapedName = fanName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escapedName = fanName
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, " ")
+    .replace(/\t/g, " ");
   const indexValue = Number.isFinite(conversationIndex as number) ? Number(conversationIndex) : -1;
 
   const clickScript = `(function() {
@@ -353,7 +444,7 @@ export async function clickConversationViaCDP(
     }
 
     var normalize = function(v) {
-      return (v || '').toLowerCase().replace(/\s+/g, ' ').replace(/[^\p{L}\p{N}@._\- ]/gu, '').trim();
+      return (v || '').toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9@._\- ]/g, '').trim();
     };
 
     var wantedRaw = '${escapedName}';
