@@ -1543,6 +1543,7 @@ Deno.serve(async (req) => {
       const maxReplies = Math.min(Number(batchLimit) || 5, 20);
       const results: any[] = [];
       let automationMethod = "stagehand";
+      let useStagehand = true;
 
       // Get creator info for AI context
       const { data: batchCreator } = await svc.from("creators").select("name, niche").eq("id", batchCreatorId).single();
