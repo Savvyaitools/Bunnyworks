@@ -266,35 +266,46 @@ async function stagehandRequest<T = unknown>(
   timeoutMs = 30000
 ): Promise<StagehandResponse<T>> {
   const { apiKey, serverUrl } = getConfig();
-  const url = `${serverUrl}/sessions/${stagehandSessionId}/${primitive}`;
+  const baseCandidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    let lastErr = "Unknown Stagehand request error";
 
-    const text = await res.text();
+    for (const baseUrl of baseCandidates) {
+      const url = `${baseUrl}/sessions/${stagehandSessionId}/${primitive}`;
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: getStagehandHeaders(apiKey),
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
 
-    if (!res.ok) {
-      console.error(`Stagehand ${primitive} failed (${res.status}): ${text.slice(0, 200)}`);
-      return { success: false, error: `Stagehand ${primitive} error (${res.status}): ${text.slice(0, 200)}` };
+        const text = await res.text();
+
+        if (!res.ok) {
+          lastErr = `Stagehand ${primitive} error (${res.status}) via ${baseUrl}: ${text.slice(0, 200)}`;
+          console.warn(`⚠️ Stagehand ${primitive} miss @ ${baseUrl}: ${res.status}`);
+          continue;
+        }
+
+        _resolvedStagehandBaseUrl = baseUrl;
+
+        try {
+          const data = JSON.parse(text) as T;
+          return { success: true, data };
+        } catch {
+          return { success: true, data: text as unknown as T };
+        }
+      } catch (err: unknown) {
+        lastErr = err instanceof Error ? err.message : String(err);
+      }
     }
 
-    try {
-      const data = JSON.parse(text) as T;
-      return { success: true, data };
-    } catch {
-      return { success: true, data: text as unknown as T };
-    }
+    return { success: false, error: lastErr };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     const error = message.includes("abort")
