@@ -21,6 +21,9 @@ const _sessionCache = new Map<string, string>();
 /** Whether we've determined Stagehand is reachable this invocation */
 let _stagehandAvailable: boolean | null = null;
 
+/** Resolved Stagehand API base URL for this invocation */
+let _resolvedStagehandBaseUrl: string | null = null;
+
 // ========== Configuration ==========
 
 function getConfig() {
@@ -30,6 +33,33 @@ function getConfig() {
     throw new Error("STAGEHAND_API_KEY and STAGEHAND_SERVER_URL must be configured");
   }
   return { apiKey, serverUrl: serverUrl.replace(/\/$/, "") };
+}
+
+function getStagehandBaseCandidates(serverUrl: string, preferred?: string | null): string[] {
+  const normalized = serverUrl.replace(/\/$/, "");
+  const candidates = [
+    preferred || null,
+    normalized,
+    `${normalized}/v1`,
+    `${normalized}/api/v1`,
+    `${normalized}/api`,
+  ].filter(Boolean) as string[];
+
+  return Array.from(new Set(candidates.map((url) => url.replace(/\/$/, ""))));
+}
+
+function getStagehandHeaders(apiKey: string, modelApiKey?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${apiKey}`,
+    "x-bb-api-key": apiKey,
+  };
+
+  const projectId = Deno.env.get("BROWSERBASE_PROJECT_ID");
+  if (projectId) headers["x-bb-project-id"] = projectId;
+  if (modelApiKey) headers["x-model-api-key"] = modelApiKey;
+
+  return headers;
 }
 
 function getModelApiKey(): string {
@@ -47,21 +77,38 @@ function getModelApiKey(): string {
 
 export async function isStagehandAvailable(): Promise<boolean> {
   if (_stagehandAvailable !== null) return _stagehandAvailable;
+
   try {
     const { serverUrl, apiKey } = getConfig();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${serverUrl}/health`, {
-      headers: { "Authorization": `Bearer ${apiKey}` },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    _stagehandAvailable = res.ok;
+    const candidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
+
+    for (const baseUrl of candidates) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const res = await fetch(`${baseUrl}/health`, {
+          headers: getStagehandHeaders(apiKey),
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          _resolvedStagehandBaseUrl = baseUrl;
+          _stagehandAvailable = true;
+          console.log(`🔌 Stagehand available via ${baseUrl}`);
+          return true;
+        }
+      } catch {
+        // continue to next candidate
+      } finally {
+        clearTimeout(timer);
+      }
+    }
   } catch {
-    _stagehandAvailable = false;
+    // ignore and return false below
   }
-  console.log(`🔌 Stagehand available: ${_stagehandAvailable}`);
-  return _stagehandAvailable;
+
+  _stagehandAvailable = false;
+  console.log("🔌 Stagehand unavailable (health checks failed)");
+  return false;
 }
 
 // ========== Session Initialization (THE FIX) ==========
@@ -90,40 +137,52 @@ export async function initStagehandSession(
   const timer = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const res = await fetch(`${serverUrl}/sessions/start`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        browserbaseSessionID: browserbaseSessionId,
-        modelApiKey,
-      }),
-      signal: controller.signal,
-    });
+    const baseCandidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
+    let lastErr = "Unknown session start error";
 
-    const text = await res.text();
+    for (const baseUrl of baseCandidates) {
+      const startUrl = `${baseUrl}/sessions/start`;
+      try {
+        const res = await fetch(startUrl, {
+          method: "POST",
+          headers: getStagehandHeaders(apiKey, modelApiKey),
+          body: JSON.stringify({
+            browserbaseSessionID: browserbaseSessionId,
+            browserbaseSessionId: browserbaseSessionId,
+            modelApiKey,
+          }),
+          signal: controller.signal,
+        });
 
-    if (!res.ok) {
-      console.error(`❌ Stagehand /sessions/start failed (${res.status}): ${text}`);
-      _stagehandAvailable = false;
-      return { success: false, error: `Session start failed (${res.status}): ${text}` };
+        const text = await res.text();
+
+        if (!res.ok) {
+          lastErr = `Session start failed (${res.status}) via ${baseUrl}: ${text.slice(0, 300)}`;
+          console.warn(`⚠️ Stagehand start miss @ ${baseUrl}: ${res.status}`);
+          continue;
+        }
+
+        let data: any;
+        try { data = JSON.parse(text); } catch { data = {}; }
+
+        const stagehandSessionId = data.sessionId || data.id || data.session_id || data?.data?.sessionId;
+        if (!stagehandSessionId) {
+          lastErr = `No sessionId returned from ${baseUrl}`;
+          continue;
+        }
+
+        _sessionCache.set(browserbaseSessionId, stagehandSessionId);
+        _stagehandAvailable = true;
+        _resolvedStagehandBaseUrl = baseUrl;
+        console.log(`✅ Stagehand session initialized via ${baseUrl}: ${stagehandSessionId.slice(0, 8)}...`);
+        return { success: true, stagehandSessionId };
+      } catch (err: unknown) {
+        lastErr = err instanceof Error ? err.message : String(err);
+      }
     }
 
-    let data: any;
-    try { data = JSON.parse(text); } catch { data = {}; }
-
-    const stagehandSessionId = data.sessionId || data.id || data.session_id;
-    if (!stagehandSessionId) {
-      console.error("❌ No sessionId in /sessions/start response:", text);
-      return { success: false, error: "No sessionId returned from /sessions/start" };
-    }
-
-    _sessionCache.set(browserbaseSessionId, stagehandSessionId);
-    _stagehandAvailable = true;
-    console.log(`✅ Stagehand session initialized: ${stagehandSessionId.slice(0, 8)}...`);
-    return { success: true, stagehandSessionId };
+    _stagehandAvailable = false;
+    return { success: false, error: lastErr };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     const isTimeout = msg.includes("abort");
@@ -144,15 +203,21 @@ export async function endStagehandSession(browserbaseSessionId: string): Promise
 
   try {
     const { apiKey, serverUrl } = getConfig();
-    await fetch(`${serverUrl}/sessions/${stagehandSessionId}/end`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({}),
-    });
-    console.log(`🔚 Stagehand session ended: ${stagehandSessionId.slice(0, 8)}...`);
+    const baseCandidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
+
+    for (const baseUrl of baseCandidates) {
+      const endRes = await fetch(`${baseUrl}/sessions/${stagehandSessionId}/end`, {
+        method: "POST",
+        headers: getStagehandHeaders(apiKey),
+        body: JSON.stringify({}),
+      });
+
+      if (endRes.ok) {
+        _resolvedStagehandBaseUrl = baseUrl;
+        console.log(`🔚 Stagehand session ended via ${baseUrl}: ${stagehandSessionId.slice(0, 8)}...`);
+        break;
+      }
+    }
   } catch (e) {
     console.warn("Failed to end Stagehand session:", e);
   } finally {
@@ -201,35 +266,46 @@ async function stagehandRequest<T = unknown>(
   timeoutMs = 30000
 ): Promise<StagehandResponse<T>> {
   const { apiKey, serverUrl } = getConfig();
-  const url = `${serverUrl}/sessions/${stagehandSessionId}/${primitive}`;
+  const baseCandidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    let lastErr = "Unknown Stagehand request error";
 
-    const text = await res.text();
+    for (const baseUrl of baseCandidates) {
+      const url = `${baseUrl}/sessions/${stagehandSessionId}/${primitive}`;
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: getStagehandHeaders(apiKey),
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
 
-    if (!res.ok) {
-      console.error(`Stagehand ${primitive} failed (${res.status}): ${text.slice(0, 200)}`);
-      return { success: false, error: `Stagehand ${primitive} error (${res.status}): ${text.slice(0, 200)}` };
+        const text = await res.text();
+
+        if (!res.ok) {
+          lastErr = `Stagehand ${primitive} error (${res.status}) via ${baseUrl}: ${text.slice(0, 200)}`;
+          console.warn(`⚠️ Stagehand ${primitive} miss @ ${baseUrl}: ${res.status}`);
+          continue;
+        }
+
+        _resolvedStagehandBaseUrl = baseUrl;
+
+        try {
+          const data = JSON.parse(text) as T;
+          return { success: true, data };
+        } catch {
+          return { success: true, data: text as unknown as T };
+        }
+      } catch (err: unknown) {
+        lastErr = err instanceof Error ? err.message : String(err);
+      }
     }
 
-    try {
-      const data = JSON.parse(text) as T;
-      return { success: true, data };
-    } catch {
-      return { success: true, data: text as unknown as T };
-    }
+    return { success: false, error: lastErr };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     const error = message.includes("abort")
@@ -251,54 +327,132 @@ async function stagehandRequest<T = unknown>(
 export async function clickConversationViaCDP(
   apiKey: string,
   sessionId: string,
-  fanName: string
+  fanName: string,
+  conversationIndex?: number
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`🖱️ CDP: Clicking conversation for "${fanName}"...`);
   const escapedName = fanName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const indexValue = Number.isFinite(conversationIndex as number) ? Number(conversationIndex) : -1;
 
   const clickScript = `(function() {
     var result = { success: false, clickedName: '', reason: '' };
-    var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-    if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+    var querySets = [
+      '.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item',
+      '[class*="chats"] [class*="item"], .b-users-list__item',
+      '.b-chat-list .b-list-item, [data-testid*="chat"] [data-testid*="item"]'
+    ];
 
+    var chatItems = [];
+    for (var qi = 0; qi < querySets.length && !chatItems.length; qi++) {
+      chatItems = Array.from(document.querySelectorAll(querySets[qi]));
+    }
+
+    if (!chatItems.length) {
+      result.reason = 'No chat list items found on page';
+      return JSON.stringify(result);
+    }
+
+    var normalize = function(v) {
+      return (v || '').toLowerCase().replace(/\s+/g, ' ').replace(/[^\p{L}\p{N}@._\- ]/gu, '').trim();
+    };
+
+    var wantedRaw = '${escapedName}';
+    var wanted = normalize(wantedRaw);
+    var wantedHandleMatch = wantedRaw.match(/@[\w._-]+/);
+    var wantedHandle = wantedHandleMatch ? wantedHandleMatch[0].toLowerCase() : '';
+    var wantedNameOnly = normalize(wantedRaw.replace(/@[\w._-]+/g, ''));
+
+    var byIndex = ${indexValue};
     var target = null;
-    for (var i = 0; i < chatItems.length; i++) {
-      var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
-      if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedName}'.toLowerCase()) {
-        target = chatItems[i];
-        result.clickedName = nameEl.innerText.trim();
-        break;
+
+    if (byIndex >= 0 && byIndex < chatItems.length) {
+      target = chatItems[byIndex];
+      var idxNameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
+      result.clickedName = idxNameEl ? idxNameEl.innerText.trim() : ('index_' + byIndex);
+    }
+
+    if (!target) {
+      for (var i = 0; i < chatItems.length; i++) {
+        var row = chatItems[i];
+        var rowText = normalize(row.innerText || row.textContent || '');
+        var nameEl = row.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
+        var nameText = normalize(nameEl ? nameEl.innerText : '');
+
+        var handleMatch = false;
+        if (wantedHandle) {
+          var rawText = ((row.innerText || row.textContent || '') + ' ' + (nameEl ? nameEl.innerText : '')).toLowerCase();
+          handleMatch = rawText.includes(wantedHandle);
+        }
+
+        var exactName = wanted && (nameText === wanted || rowText === wanted);
+        var containsName = wantedNameOnly && (rowText.includes(wantedNameOnly) || nameText.includes(wantedNameOnly));
+
+        if (handleMatch || exactName || containsName) {
+          target = row;
+          result.clickedName = (nameEl ? nameEl.innerText.trim() : rowText.slice(0, 80));
+          break;
+        }
       }
     }
+
     if (!target) {
       result.reason = 'Conversation not found for: ${escapedName}';
       return JSON.stringify(result);
     }
 
-    // IMPORTANT: Click the message preview area or the row itself — NOT the <a> tag
-    var preview = target.querySelector(
-      '.b-chats__item-text, [class*="preview"], [class*="last-message"], [class*="item__text"], [class*="message-preview"]'
-    );
-    var clickTarget = preview || target;
+    var clickCandidates = [
+      '.b-chats__item-text',
+      '.b-chats__item__text',
+      '.b-chats__item-content',
+      '.b-chats__item-info',
+      '[class*="preview"]',
+      '[class*="last-message"]',
+      '[class*="message-preview"]',
+      '[class*="item__text"]',
+      '[class*="body"]'
+    ];
 
-    // Avoid clicking any <a> element — those open profile pages
-    if (clickTarget.tagName === 'A') {
-      clickTarget = target;
+    var clickTarget = null;
+    for (var ci = 0; ci < clickCandidates.length && !clickTarget; ci++) {
+      var el = target.querySelector(clickCandidates[ci]);
+      if (el && !el.closest('a')) clickTarget = el;
     }
 
-    try {
-      clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-    } catch(e) {}
-    try { clickTarget.click(); } catch(e) {}
-    if (clickTarget !== target) {
-      try { target.click(); } catch(e) {}
+    if (!clickTarget) {
+      var descendants = Array.from(target.querySelectorAll('*'));
+      clickTarget = descendants.find(function(el) {
+        if (el.closest('a')) return false;
+        var rect = el.getBoundingClientRect();
+        var visible = rect.width > 8 && rect.height > 8;
+        if (!visible) return false;
+        var text = (el.innerText || el.textContent || '').trim();
+        return text.length > 0;
+      }) || target;
     }
 
+    var dispatchClick = function(el) {
+      try {
+        var rect = el.getBoundingClientRect();
+        var x = rect.left + Math.max(8, rect.width * 0.72);
+        var y = rect.top + Math.min(Math.max(8, rect.height * 0.5), rect.height - 8);
+        var pointed = document.elementFromPoint(x, y);
+        var finalEl = pointed && pointed.closest ? (pointed.closest('a') ? el : pointed) : el;
+
+        ['mousemove', 'mouseover', 'mousedown', 'mouseup', 'click'].forEach(function(type) {
+          finalEl.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }));
+        });
+        if (typeof finalEl.click === 'function') finalEl.click();
+      } catch (_) {
+        try { el.click(); } catch (_) {}
+      }
+    };
+
+    dispatchClick(clickTarget);
     result.success = true;
     return JSON.stringify(result);
   })()`;
 
-  const res = await executeCDPScript(apiKey, sessionId, clickScript, 10000);
+  const res = await executeCDPScript(apiKey, sessionId, clickScript, 12000);
   if (!res.success || !res.data?.success) {
     return { success: false, error: res.data?.reason || res.error || "CDP click failed" };
   }
@@ -714,7 +868,7 @@ interface ChatContext {
  */
 export async function scrapeChatListViaStagehand(
   browserbaseSessionId: string
-): Promise<StagehandResponse<{ conversations: ChatConversation[] }>> {
+): Promise<StagehandResponse<ExtractResult<{ conversations: ChatConversation[] }>>> {
   // Ensure session is initialized
   const init = await initStagehandSession(browserbaseSessionId);
   if (!init.success) return { success: false, error: `Session init failed: ${init.error}` };
@@ -797,7 +951,7 @@ export async function clickConversationViaStagehand(
  */
 export async function readChatContextViaStagehand(
   browserbaseSessionId: string
-): Promise<StagehandResponse<ChatContext>> {
+): Promise<StagehandResponse<ExtractResult<ChatContext>>> {
   console.log("👀 Observing open conversation layout...");
   await stagehandObserve(
     browserbaseSessionId,

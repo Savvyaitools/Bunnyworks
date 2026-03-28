@@ -1499,7 +1499,7 @@ Deno.serve(async (req) => {
       // CDP-first approach — reliable DOM clicking that avoids profile links
       if (fanName) {
         console.log(`click_conversation: Using CDP for "${fanName}"...`);
-        const cdpClick = await clickConversationViaCDP(BK, bbSid, fanName as string);
+        const cdpClick = await clickConversationViaCDP(BK, bbSid, fanName as string, Number(conversationIndex));
         if (cdpClick.success) {
           return json({ data: { success: true, clickedName: fanName }, method: "cdp" });
         }
@@ -1653,8 +1653,8 @@ Deno.serve(async (req) => {
         console.log(`\n━━━ Conversation ${ci + 1}/${toProcess.length}: ${conv.fanName} ━━━`);
 
         try {
-          // Step A: Click into conversation — always use CDP (reliable, avoids profile link bug)
-          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName);
+          // Step A: Click into conversation — CDP with name+index matching to avoid profile link bug
+          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName, Number(conv.index));
           if (!clickRes.success) {
             stepResult.status = "skipped";
             stepResult.error = `Could not open conversation: ${clickRes.error}`;
