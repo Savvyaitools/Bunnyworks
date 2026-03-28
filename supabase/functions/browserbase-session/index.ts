@@ -19,6 +19,8 @@ import {
   clickConversationViaCDP,
   injectChatReplyViaCDP,
   isStagehandAvailable,
+  initStagehandSession,
+  endStagehandSession,
 } from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
