@@ -77,21 +77,38 @@ function getModelApiKey(): string {
 
 export async function isStagehandAvailable(): Promise<boolean> {
   if (_stagehandAvailable !== null) return _stagehandAvailable;
+
   try {
     const { serverUrl, apiKey } = getConfig();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${serverUrl}/health`, {
-      headers: { "Authorization": `Bearer ${apiKey}` },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    _stagehandAvailable = res.ok;
+    const candidates = getStagehandBaseCandidates(serverUrl, _resolvedStagehandBaseUrl);
+
+    for (const baseUrl of candidates) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const res = await fetch(`${baseUrl}/health`, {
+          headers: getStagehandHeaders(apiKey),
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          _resolvedStagehandBaseUrl = baseUrl;
+          _stagehandAvailable = true;
+          console.log(`🔌 Stagehand available via ${baseUrl}`);
+          return true;
+        }
+      } catch {
+        // continue to next candidate
+      } finally {
+        clearTimeout(timer);
+      }
+    }
   } catch {
-    _stagehandAvailable = false;
+    // ignore and return false below
   }
-  console.log(`🔌 Stagehand available: ${_stagehandAvailable}`);
-  return _stagehandAvailable;
+
+  _stagehandAvailable = false;
+  console.log("🔌 Stagehand unavailable (health checks failed)");
+  return false;
 }
 
 // ========== Session Initialization (THE FIX) ==========
