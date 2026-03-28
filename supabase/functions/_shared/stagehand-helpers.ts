@@ -868,7 +868,7 @@ interface ChatContext {
  */
 export async function scrapeChatListViaStagehand(
   browserbaseSessionId: string
-): Promise<StagehandResponse<{ conversations: ChatConversation[] }>> {
+): Promise<StagehandResponse<ExtractResult<{ conversations: ChatConversation[] }>>> {
   // Ensure session is initialized
   const init = await initStagehandSession(browserbaseSessionId);
   if (!init.success) return { success: false, error: `Session init failed: ${init.error}` };
