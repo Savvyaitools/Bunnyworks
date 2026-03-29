@@ -313,6 +313,127 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ========== SAVE CONTEXT (keep session open) ==========
+    if (action === "save_context") {
+      const { sessionLinkId, browserbaseSessionId } = p;
+      if (!sessionLinkId || !browserbaseSessionId)
+        return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
+
+      const alive = await isSessionAlive(BK, browserbaseSessionId);
+      if (!alive) return json({ error: "Session is no longer alive. Use Save & Close instead." }, 400);
+
+      // Fetch the session link to get context id, creator id, platform, agency
+      const { data: link } = await svc
+        .from("creator_session_links")
+        .select("creator_id, platform, agency_id, browserbase_context_id, session_status, last_saved_at")
+        .eq("id", sessionLinkId)
+        .single();
+      if (!link) return json({ error: "Session link not found" }, 404);
+
+      const ctxId = link.browserbase_context_id;
+      if (!ctxId) return json({ error: "No context ID on session link. Cannot persist." }, 400);
+
+      console.log(`[save_context] Releasing session ${browserbaseSessionId} with persist=true to flush cookies...`);
+
+      // Step 1: Release the current session with persist=true — this flushes cookies into the context
+      try {
+        await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, {
+          method: "POST",
+          headers: bbH(BK),
+          body: JSON.stringify({ status: "REQUEST_RELEASE", persist: true }),
+        });
+        // Give Browserbase time to sync cookies into the context before re-opening
+        await new Promise((r) => setTimeout(r, 4000));
+      } catch (e) {
+        console.warn("[save_context] Release failed:", e);
+        return json({ error: "Failed to persist session cookies." }, 500);
+      }
+
+      // Mark DB as authenticated right after the persist
+      await svc
+        .from("creator_session_links")
+        .update({
+          session_status: "authenticated",
+          last_saved_at: new Date().toISOString(),
+          browserbase_session_id: null,
+          browserbase_live_url: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sessionLinkId);
+
+      // Step 2: Open a brand-new session from the same context so the user stays in the browser
+      console.log(`[save_context] Re-opening session from context ${ctxId}...`);
+      const proxyConfig = await getProxyConfig(svc, link.creator_id);
+      const { data: cr } = await svc
+        .from("creators")
+        .select("proxy_country, proxy_state, proxy_city, name")
+        .eq("id", link.creator_id)
+        .single();
+      const proxies = proxyConf(cr, proxyConfig);
+
+      const newSess = await bb(BK, "/sessions", {
+        method: "POST",
+        body: JSON.stringify(
+          sessionBody(BP, ctxId, proxies, {
+            timeout: 1800,
+            userMetadata: {
+              creatorId: link.creator_id,
+              agencyId: link.agency_id,
+              userId: uid,
+              platform: link.platform,
+              sessionType: "admin",
+            },
+          }),
+        ),
+      });
+      if (!newSess?.id)
+        return json({ error: "Re-open failed — no session ID returned. Context was saved successfully." }, 502);
+
+      const isReady = await waitForSessionReady(BK, newSess.id, 20000);
+      if (!isReady) return json({ error: "Re-open session timed out. Context was saved successfully." }, 502);
+
+      // Brief wait for context cookies to restore
+      await new Promise((r) => setTimeout(r, 6000));
+
+      const dbg = await bb(BK, `/sessions/${newSess.id}/debug`);
+      const newLiveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
+
+      // Update DB with new session
+      await svc
+        .from("creator_session_links")
+        .update({
+          browserbase_session_id: newSess.id,
+          browserbase_live_url: newLiveUrl,
+          session_status: "authenticated",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sessionLinkId);
+
+      // Close the old active_browser_session record and create a new one
+      await svc
+        .from("active_browser_sessions")
+        .update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] })
+        .eq("browserbase_session_id", browserbaseSessionId);
+      await svc.from("active_browser_sessions").insert({
+        session_link_id: sessionLinkId,
+        agency_id: link.agency_id,
+        browserbase_session_id: newSess.id,
+        browserbase_live_url: newLiveUrl,
+        embed_url: newLiveUrl,
+        session_type: "admin",
+        viewer_count: 1,
+        viewer_ids: [uid],
+      });
+
+      return json({
+        success: true,
+        contextSaved: true,
+        newSessionId: newSess.id,
+        newEmbedUrl: newLiveUrl,
+        message: "Context saved ✓ — session is still open with fresh credentials.",
+      });
+    }
+
     // ========== SAVE AND CLOSE ==========
     if (action === "save_and_close") {
       const { sessionLinkId, browserbaseSessionId } = p;
