@@ -1,36 +1,38 @@
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
 import {
-  corsHeaders, json, bb, bbH, isSessionAlive, waitForSessionReady,
-  PLATFORM_URLS, navigateViaCDP, checkLoginViaCDP, verifyCookiesRestored,
-  executeCDPScript, aiExtractEarnings, aiDetectLoginState,
-  proxyConf, sessionBody, resolveContext, preLoginSetup, STATE_TIMEZONES,
-  autoLoginViaCDP, getProxyConfig, injectStealthFingerprint,
+  corsHeaders,
+  json,
+  bb,
+  bbH,
+  isSessionAlive,
+  waitForSessionReady,
+  PLATFORM_URLS,
+  navigateViaCDP,
+  checkLoginViaCDP,
+  verifyCookiesRestored,
+  executeCDPScript,
+  aiExtractEarnings,
+  aiDetectLoginState,
+  proxyConf,
+  sessionBody,
+  resolveContext,
+  preLoginSetup,
+  STATE_TIMEZONES,
+  autoLoginViaCDP,
+  getProxyConfig,
+  injectStealthFingerprint,
 } from "../_shared/cdp-helpers.ts";
-import {
-  autoLoginViaStagehand,
-  scrapeChatListViaStagehand,
-  clickConversationViaStagehand,
-  readChatContextViaStagehand,
-  injectChatReplyViaStagehand,
-  stagehandNavigate,
-  stagehandObserve,
-  stagehandScroll,
-  stagehandHumanType,
-  clickConversationViaCDP,
-  injectChatReplyViaCDP,
-  isStagehandAvailable,
-  initStagehandSession,
-  endStagehandSession,
-} from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const BK = Deno.env.get("BROWSERBASE_API_KEY"), BP = Deno.env.get("BROWSERBASE_PROJECT_ID");
+    const BK = Deno.env.get("BROWSERBASE_API_KEY"),
+      BP = Deno.env.get("BROWSERBASE_PROJECT_ID");
     if (!BK || !BP) throw new Error("Browserbase credentials not configured");
-    const sUrl = Deno.env.get("SUPABASE_URL")!, sKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sUrl = Deno.env.get("SUPABASE_URL")!,
+      sKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const auth = req.headers.get("Authorization");
     const body = await req.json();
     const { action, ...p } = body;
@@ -54,9 +56,11 @@ Deno.serve(async (req) => {
       if (!profile || profile.user_type !== "agency" || profile.agency_id !== agencyId) {
         return json({ error: "Unauthorized: only agency owners can refresh contexts" }, 403);
       }
-      const { data: links } = await svc.from("creator_session_links")
+      const { data: links } = await svc
+        .from("creator_session_links")
         .select("id, creator_id, browserbase_context_id, platform")
-        .eq("agency_id", agencyId).eq("is_active", true);
+        .eq("agency_id", agencyId)
+        .eq("is_active", true);
       if (!links?.length) return json({ success: true, message: "No active session links found", refreshed: 0 });
 
       const results: any[] = [];
@@ -64,45 +68,84 @@ Deno.serve(async (req) => {
         try {
           const newCtx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
           if (!newCtx?.id) throw new Error("No context ID returned");
-          await svc.from("creator_session_links").update({
-            browserbase_context_id: newCtx.id, session_status: "pending",
-            browserbase_session_id: null, browserbase_live_url: null,
-            last_saved_at: null, updated_at: new Date().toISOString(),
-          }).eq("id", link.id);
-          results.push({ creatorId: link.creator_id, oldContext: link.browserbase_context_id, newContext: newCtx.id, status: "ok" });
+          await svc
+            .from("creator_session_links")
+            .update({
+              browserbase_context_id: newCtx.id,
+              session_status: "pending",
+              browserbase_session_id: null,
+              browserbase_live_url: null,
+              last_saved_at: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", link.id);
+          results.push({
+            creatorId: link.creator_id,
+            oldContext: link.browserbase_context_id,
+            newContext: newCtx.id,
+            status: "ok",
+          });
         } catch (err: any) {
           results.push({ creatorId: link.creator_id, status: "error", error: err.message });
         }
       }
-      return json({ success: true, refreshed: results.filter(r => r.status === "ok").length, total: links.length, results });
+      return json({
+        success: true,
+        refreshed: results.filter((r) => r.status === "ok").length,
+        total: links.length,
+        results,
+      });
     }
 
     // ========== CREATE ADMIN SESSION ==========
     if (action === "create_admin_session") {
       const { creatorId, platform, agencyId } = p;
       if (!creatorId || !platform || !agencyId) return json({ error: "creatorId, platform, agencyId required" }, 400);
-      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city, name").eq("id", creatorId).single();
+      const { data: cr } = await svc
+        .from("creators")
+        .select("proxy_country, proxy_state, proxy_city, name")
+        .eq("id", creatorId)
+        .single();
       const ctxId = await resolveContext(svc, BK, BP, creatorId, platform, agencyId, uid);
 
-      const { data: existingLink } = await svc.from("creator_session_links")
+      const { data: existingLink } = await svc
+        .from("creator_session_links")
         .select("id, session_status, browserbase_context_id, browserbase_session_id, last_saved_at")
-        .eq("creator_id", creatorId).eq("platform", platform).maybeSingle();
+        .eq("creator_id", creatorId)
+        .eq("platform", platform)
+        .maybeSingle();
 
       if (existingLink?.session_status === "authenticating" && existingLink?.browserbase_context_id) {
         if (existingLink.browserbase_session_id) {
           const alive = await isSessionAlive(BK, existingLink.browserbase_session_id);
           if (!alive) {
-            await svc.from("creator_session_links").update({
-              session_status: "authenticated", last_saved_at: existingLink.last_saved_at || new Date().toISOString(),
-              browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString(),
-            }).eq("id", existingLink.id);
+            await svc
+              .from("creator_session_links")
+              .update({
+                session_status: "authenticated",
+                last_saved_at: existingLink.last_saved_at || new Date().toISOString(),
+                browserbase_session_id: null,
+                browserbase_live_url: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingLink.id);
             existingLink.session_status = "authenticated";
           } else {
-            const { data: existingActive } = await svc.from("active_browser_sessions")
-              .select("embed_url").eq("browserbase_session_id", existingLink.browserbase_session_id)
-              .eq("is_active", true).maybeSingle();
+            const { data: existingActive } = await svc
+              .from("active_browser_sessions")
+              .select("embed_url")
+              .eq("browserbase_session_id", existingLink.browserbase_session_id)
+              .eq("is_active", true)
+              .maybeSingle();
             if (existingActive) {
-              return json({ success: true, sessionLinkId: existingLink.id, embedUrl: existingActive.embed_url, sessionId: existingLink.browserbase_session_id, contextId: existingLink.browserbase_context_id, reused: true });
+              return json({
+                success: true,
+                sessionLinkId: existingLink.id,
+                embedUrl: existingActive.embed_url,
+                sessionId: existingLink.browserbase_session_id,
+                contextId: existingLink.browserbase_context_id,
+                reused: true,
+              });
             }
           }
         }
@@ -112,91 +155,173 @@ Deno.serve(async (req) => {
       const proxies = proxyConf(cr, proxyConfig);
       const resolvedState = proxies[0]?.geolocation?.state || "TX";
       const stealthProfile = proxyConfig?.stealth_profile || null;
-      const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(
-        sessionBody(BP, ctxId, proxies, { timeout: 1800, userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" } })
-      ) });
+      const sess = await bb(BK, "/sessions", {
+        method: "POST",
+        body: JSON.stringify(
+          sessionBody(BP, ctxId, proxies, {
+            timeout: 1800,
+            userMetadata: { creatorId, agencyId, userId: uid, platform, sessionType: "admin" },
+          }),
+        ),
+      });
       if (!sess?.id) return json({ error: "Failed to create browser session — no session ID returned" }, 502);
 
       const isReady = await waitForSessionReady(BK, sess.id, 20000);
       if (!isReady) return json({ error: "Browser session failed to start. Please try again." }, 502);
 
       console.log("Waiting 8s for context cookie restoration...");
-      await new Promise(r => setTimeout(r, 8000));
+      await new Promise((r) => setTimeout(r, 8000));
 
       const hasSavedContext = Boolean(existingLink?.browserbase_context_id && existingLink?.last_saved_at);
       const wasAuthenticated = Boolean(
-        existingLink?.browserbase_context_id &&
-        (existingLink?.session_status === "authenticated" || hasSavedContext)
+        existingLink?.browserbase_context_id && (existingLink?.session_status === "authenticated" || hasSavedContext),
       );
       if (wasAuthenticated) {
-        const platformDomain = platform.toLowerCase() === "onlyfans" ? "onlyfans.com" : platform.toLowerCase() === "fansly" ? "fansly.com" : "fanvue.com";
+        const platformDomain =
+          platform.toLowerCase() === "onlyfans"
+            ? "onlyfans.com"
+            : platform.toLowerCase() === "fansly"
+              ? "fansly.com"
+              : "fanvue.com";
         const cookieCheck = await verifyCookiesRestored(BK, sess.id, platformDomain);
         if (cookieCheck.verified) {
           console.log(`Cookie restoration verified: ${cookieCheck.cookieCount} cookies ✓`);
         } else if (cookieCheck.cookieCount === 0) {
           await svc.from("browser_session_events").insert({
-            agency_id: agencyId, browserbase_session_id: sess.id, event_type: "cookie_restoration_failed",
-            severity: "warning", title: "Cookie Restoration Warning",
+            agency_id: agencyId,
+            browserbase_session_id: sess.id,
+            event_type: "cookie_restoration_failed",
+            severity: "warning",
+            title: "Cookie Restoration Warning",
             message: `No cookies found for ${platformDomain} after context restoration.`,
           });
         }
       }
 
-      try { await preLoginSetup(BK, sess.id, resolvedState); } catch (e) { console.warn("Pre-login setup failed (non-fatal):", e); }
+      try {
+        await preLoginSetup(BK, sess.id, resolvedState);
+      } catch (e) {
+        console.warn("Pre-login setup failed (non-fatal):", e);
+      }
 
       // Inject stealth fingerprint if enabled
       if (stealthProfile?.enabled !== false) {
-        try { await injectStealthFingerprint(BK, sess.id, stealthProfile?.enabled ? stealthProfile : undefined); } catch (e) { console.warn("Stealth injection failed (non-fatal):", e); }
+        try {
+          await injectStealthFingerprint(BK, sess.id, stealthProfile?.enabled ? stealthProfile : undefined);
+        } catch (e) {
+          console.warn("Stealth injection failed (non-fatal):", e);
+        }
       }
 
       const startUrl = PLATFORM_URLS[platform.toLowerCase()];
       if (startUrl) {
-        try { await navigateViaCDP(BK, sess.id, startUrl, { timeout: 30000 }); } catch (e) { console.warn("CDP auto-navigate failed (non-fatal):", e); }
+        try {
+          await navigateViaCDP(BK, sess.id, startUrl, { timeout: 30000 });
+        } catch (e) {
+          console.warn("CDP auto-navigate failed (non-fatal):", e);
+        }
       }
 
       let adminLoginVerified = true;
       if (wasAuthenticated && startUrl) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, 3000));
         try {
           const loginResult = await checkLoginViaCDP(BK, sess.id, { label: "Admin login" });
           adminLoginVerified = loginResult.isLoggedIn;
           if (!adminLoginVerified) {
             await svc.from("browser_session_events").insert({
-              agency_id: agencyId, browserbase_session_id: sess.id, event_type: "login_expired",
-              severity: "warning", title: "Login Expired",
+              agency_id: agencyId,
+              browserbase_session_id: sess.id,
+              event_type: "login_expired",
+              severity: "warning",
+              title: "Login Expired",
               message: `Creator session cookies may have expired. Please re-authenticate.`,
             });
           }
-        } catch (e) { console.warn("Admin login verification failed (non-fatal):", e); }
+        } catch (e) {
+          console.warn("Admin login verification failed (non-fatal):", e);
+        }
       }
 
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 1500));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
 
       let slId: string;
       let newStatus: string;
-      if (wasAuthenticated) { newStatus = adminLoginVerified ? "authenticated" : "pending"; }
-      else { newStatus = "authenticating"; }
+      if (wasAuthenticated) {
+        newStatus = adminLoginVerified ? "authenticated" : "pending";
+      } else {
+        newStatus = "authenticating";
+      }
 
       if (existingLink) {
-        const { data } = await svc.from("creator_session_links").update({ browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: newStatus, is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(), updated_at: new Date().toISOString() }).eq("id", existingLink.id).select("id").single();
+        const { data } = await svc
+          .from("creator_session_links")
+          .update({
+            browserbase_session_id: sess.id,
+            browserbase_context_id: ctxId,
+            browserbase_live_url: liveUrl,
+            session_status: newStatus,
+            is_active: true,
+            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingLink.id)
+          .select("id")
+          .single();
         slId = data!.id;
       } else {
-        const { data } = await svc.from("creator_session_links").insert({ creator_id: creatorId, agency_id: agencyId, platform, created_by: uid, encrypted_session: "browserbase", browserbase_session_id: sess.id, browserbase_context_id: ctxId, browserbase_live_url: liveUrl, session_status: "authenticating", is_active: true, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString() }).select("id").single();
+        const { data } = await svc
+          .from("creator_session_links")
+          .insert({
+            creator_id: creatorId,
+            agency_id: agencyId,
+            platform,
+            created_by: uid,
+            encrypted_session: "browserbase",
+            browserbase_session_id: sess.id,
+            browserbase_context_id: ctxId,
+            browserbase_live_url: liveUrl,
+            session_status: "authenticating",
+            is_active: true,
+            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .select("id")
+          .single();
         slId = data!.id;
       }
-      await svc.from("active_browser_sessions").insert({ session_link_id: slId, agency_id: agencyId, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "admin", viewer_count: 1, viewer_ids: [uid] });
-      return json({ success: true, sessionLinkId: slId, embedUrl: liveUrl, sessionId: sess.id, contextId: ctxId, loginVerified: adminLoginVerified });
+      await svc
+        .from("active_browser_sessions")
+        .insert({
+          session_link_id: slId,
+          agency_id: agencyId,
+          browserbase_session_id: sess.id,
+          browserbase_live_url: liveUrl,
+          embed_url: liveUrl,
+          session_type: "admin",
+          viewer_count: 1,
+          viewer_ids: [uid],
+        });
+      return json({
+        success: true,
+        sessionLinkId: slId,
+        embedUrl: liveUrl,
+        sessionId: sess.id,
+        contextId: ctxId,
+        loginVerified: adminLoginVerified,
+      });
     }
 
     // ========== SAVE AND CLOSE ==========
     if (action === "save_and_close") {
       const { sessionLinkId, browserbaseSessionId } = p;
-      if (!sessionLinkId || !browserbaseSessionId) return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
+      if (!sessionLinkId || !browserbaseSessionId)
+        return json({ error: "sessionLinkId and browserbaseSessionId required" }, 400);
       const alive = await isSessionAlive(BK, browserbaseSessionId);
 
-      const { data: prevLink } = await svc.from("creator_session_links")
+      const { data: prevLink } = await svc
+        .from("creator_session_links")
         .select("session_status, browserbase_context_id, last_saved_at")
         .eq("id", sessionLinkId)
         .single();
@@ -208,12 +333,19 @@ Deno.serve(async (req) => {
         try {
           const loginResult = await checkLoginViaCDP(BK, browserbaseSessionId, { label: "Save & Close" });
           isLoggedIn = loginResult.isLoggedIn;
-        } catch (e) { console.warn("Login check failed, defaulting to persist:", e); isLoggedIn = true; }
+        } catch (e) {
+          console.warn("Login check failed, defaulting to persist:", e);
+          isLoggedIn = true;
+        }
       } else if (prevLink?.session_status === "authenticated" || hadSavedContext) {
         isLoggedIn = true;
       }
 
-      const { data: sessionLink } = await svc.from("creator_session_links").select("creator_id, platform").eq("id", sessionLinkId).single();
+      const { data: sessionLink } = await svc
+        .from("creator_session_links")
+        .select("creator_id, platform")
+        .eq("id", sessionLinkId)
+        .single();
 
       // Earnings scrape before close
       let scrapedEarnings = null;
@@ -225,7 +357,15 @@ Deno.serve(async (req) => {
           const scrapeResult = await new Promise<{ json?: any; domText?: string }>((resolve) => {
             let done = false;
             const ws = new WebSocket(scrapeWsUrl);
-            const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({}); } }, 35000);
+            const timer = setTimeout(() => {
+              if (!done) {
+                done = true;
+                try {
+                  ws.close();
+                } catch {}
+                resolve({});
+              }
+            }, 35000);
             let mid = 1;
             let cdpSid: string | null = null;
             const pendingBodyRequests = new Map<number, string>();
@@ -249,15 +389,21 @@ Deno.serve(async (req) => {
               const id = mid++;
               const msg: any = { id, method, params };
               if (cdpSid) msg.sessionId = cdpSid;
-              try { ws.send(JSON.stringify(msg)); } catch {}
+              try {
+                ws.send(JSON.stringify(msg));
+              } catch {}
               return id;
             };
 
             const finish = () => {
               if (done) return;
-              done = true; clearTimeout(timer); if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
+              done = true;
+              clearTimeout(timer);
+              if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
               earningsJson = Object.keys(earningsAccumulator).length > 0 ? earningsAccumulator : null;
-              try { ws.close(); } catch {}
+              try {
+                ws.close();
+              } catch {}
               resolve({ json: earningsJson, domText });
             };
 
@@ -271,19 +417,24 @@ Deno.serve(async (req) => {
               domPollIds.add(id);
             };
 
-            ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+            ws.onopen = () => {
+              getTargetsId = send("Target.getTargets");
+            };
             ws.onmessage = (evt) => {
               try {
                 const msg = JSON.parse(evt.data);
                 if (msg.id === getTargetsId) {
                   const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
-                  if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
-                  else finish();
+                  if (page) {
+                    attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+                  } else finish();
                   return;
                 }
                 if (msg.id === attachId) {
                   cdpSid = msg.result?.sessionId;
-                  if (cdpSid) { networkEnableId = send("Network.enable", {}); }
+                  if (cdpSid) {
+                    networkEnableId = send("Network.enable", {});
+                  }
                   return;
                 }
                 if (msg.id === networkEnableId) {
@@ -292,15 +443,24 @@ Deno.serve(async (req) => {
                   return;
                 }
                 if (msg.id === navigateId) {
-                  if (!msg.error) { navigationConfirmed = true; setTimeout(() => startDomPoll(), 5000); }
-                  else finish();
+                  if (!msg.error) {
+                    navigationConfirmed = true;
+                    setTimeout(() => startDomPoll(), 5000);
+                  } else finish();
                   return;
                 }
                 if (msg.method === "Network.responseReceived") {
                   const resp = msg.params?.response;
                   const url = resp?.url || "";
                   const reqId = msg.params?.requestId;
-                  if (reqId && (url.includes("/api2/v2/earnings") || url.includes("/api2/v2/statics") || url.includes("/api2/v2/statistics") || url.includes("statements/earnings") || (url.includes("/chart") && url.includes("earning")))) {
+                  if (
+                    reqId &&
+                    (url.includes("/api2/v2/earnings") ||
+                      url.includes("/api2/v2/statics") ||
+                      url.includes("/api2/v2/statistics") ||
+                      url.includes("statements/earnings") ||
+                      (url.includes("/chart") && url.includes("earning")))
+                  ) {
                     const bodyMid = send("Network.getResponseBody", { requestId: reqId });
                     pendingBodyRequests.set(bodyMid, reqId);
                   }
@@ -312,10 +472,16 @@ Deno.serve(async (req) => {
                   if (body) {
                     try {
                       const parsed = JSON.parse(body);
-                      for (const key of Object.keys(parsed)) { earningsAccumulator[key] = parsed[key]; }
-                      xhrResponseCount++; xhrCaptured = true;
+                      for (const key of Object.keys(parsed)) {
+                        earningsAccumulator[key] = parsed[key];
+                      }
+                      xhrResponseCount++;
+                      xhrCaptured = true;
                       if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
-                      xhrFinishTimer = setTimeout(() => { earningsJson = earningsAccumulator; finish(); }, 3000);
+                      xhrFinishTimer = setTimeout(() => {
+                        earningsJson = earningsAccumulator;
+                        finish();
+                      }, 3000);
                     } catch {}
                   }
                   return;
@@ -324,9 +490,15 @@ Deno.serve(async (req) => {
                   domPollIds.delete(msg.id);
                   if (xhrCaptured) return;
                   const text = msg.result?.result?.value;
-                  if (typeof text === "string" && text.length > 200 && (/\$[\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text))) {
+                  if (
+                    typeof text === "string" &&
+                    text.length > 200 &&
+                    (/\$[\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text))
+                  ) {
                     domText = text;
-                    setTimeout(() => { if (!done && !xhrCaptured) finish(); }, 3000);
+                    setTimeout(() => {
+                      if (!done && !xhrCaptured) finish();
+                    }, 3000);
                     return;
                   }
                   startDomPoll();
@@ -339,7 +511,12 @@ Deno.serve(async (req) => {
           });
 
           // Parse results
-          let bestTotal = 0, tips = 0, subs = 0, messages = 0, referrals = 0, posts = 0;
+          let bestTotal = 0,
+            tips = 0,
+            subs = 0,
+            messages = 0,
+            referrals = 0,
+            posts = 0;
           let earningsSource = "none";
 
           if (scrapeResult.json) {
@@ -352,19 +529,25 @@ Deno.serve(async (req) => {
               return 0;
             };
             const totalNet = getNet(d.total || d.all);
-            tips = getNet(d.tips); subs = getNet(d.subscribes || d.subscriptions);
-            messages = getNet(d.messages || d.chat_messages); posts = getNet(d.post || d.posts);
+            tips = getNet(d.tips);
+            subs = getNet(d.subscribes || d.subscriptions);
+            messages = getNet(d.messages || d.chat_messages);
+            posts = getNet(d.post || d.posts);
             referrals = getNet(d.referrals);
             const streamsNet = getNet(d.stream || d.streams);
-            bestTotal = totalNet || (tips + subs + messages + posts + referrals + streamsNet);
+            bestTotal = totalNet || tips + subs + messages + posts + referrals + streamsNet;
           }
 
           if (bestTotal === 0 && scrapeResult.domText) {
             const aiEarnings = await aiExtractEarnings(scrapeResult.domText);
             if (aiEarnings && aiEarnings.total > 0) {
-              earningsSource = "ai"; bestTotal = aiEarnings.total; tips = aiEarnings.tips;
-              subs = aiEarnings.subscriptions; messages = aiEarnings.messages;
-              referrals = aiEarnings.referrals; posts = aiEarnings.posts;
+              earningsSource = "ai";
+              bestTotal = aiEarnings.total;
+              tips = aiEarnings.tips;
+              subs = aiEarnings.subscriptions;
+              messages = aiEarnings.messages;
+              referrals = aiEarnings.referrals;
+              posts = aiEarnings.posts;
             } else {
               earningsSource = "dom";
               const rawText = scrapeResult.domText;
@@ -372,22 +555,33 @@ Deno.serve(async (req) => {
                 for (const label of labels) {
                   const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
                   const nlMatch = rawText.match(nlPat);
-                  if (nlMatch) { const val = parseFloat(nlMatch[1].replace(/,/g, "")); if (!isNaN(val) && val > 0) return val; }
+                  if (nlMatch) {
+                    const val = parseFloat(nlMatch[1].replace(/,/g, ""));
+                    if (!isNaN(val) && val > 0) return val;
+                  }
                   const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
                   const inlineMatch = rawText.match(inlinePat);
-                  if (inlineMatch) { const val = parseFloat(inlineMatch[1].replace(/,/g, "")); if (!isNaN(val) && val > 0) return val; }
+                  if (inlineMatch) {
+                    const val = parseFloat(inlineMatch[1].replace(/,/g, ""));
+                    if (!isNaN(val) && val > 0) return val;
+                  }
                 }
                 return 0;
               };
               const totalEarnings = parseAmount(["total", "net", "earnings"]);
-              tips = parseAmount(["tips"]); subs = parseAmount(["subscriptions"]);
-              messages = parseAmount(["messages", "chat"]); referrals = parseAmount(["referrals"]); posts = parseAmount(["posts"]);
+              tips = parseAmount(["tips"]);
+              subs = parseAmount(["subscriptions"]);
+              messages = parseAmount(["messages", "chat"]);
+              referrals = parseAmount(["referrals"]);
+              posts = parseAmount(["posts"]);
               let fallbackTotal = 0;
               if (!totalEarnings) {
-                const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)].map(m => parseFloat(m[1].replace(/,/g, ""))).filter(v => !isNaN(v) && v > 0);
+                const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)]
+                  .map((m) => parseFloat(m[1].replace(/,/g, "")))
+                  .filter((v) => !isNaN(v) && v > 0);
                 if (allAmounts.length > 0) fallbackTotal = Math.max(...allAmounts);
               }
-              bestTotal = totalEarnings || (tips + subs + messages + referrals + posts) || fallbackTotal;
+              bestTotal = totalEarnings || tips + subs + messages + referrals + posts || fallbackTotal;
             }
           }
 
@@ -395,39 +589,90 @@ Deno.serve(async (req) => {
             const now = new Date();
             const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
             const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-            const { data: existing } = await svc.from("creator_earnings").select("id").eq("creator_id", sessionLink.creator_id).eq("period_start", periodStart).eq("period_end", periodEnd).maybeSingle();
+            const { data: existing } = await svc
+              .from("creator_earnings")
+              .select("id")
+              .eq("creator_id", sessionLink.creator_id)
+              .eq("period_start", periodStart)
+              .eq("period_end", periodEnd)
+              .maybeSingle();
             const earningsPayload = {
-              creator_id: sessionLink.creator_id, amount: bestTotal, tips: tips || 0,
-              subscriptions: subs || 0, messages_revenue: messages || 0, referrals: referrals || 0,
-              period_start: periodStart, period_end: periodEnd, platform: "onlyfans",
+              creator_id: sessionLink.creator_id,
+              amount: bestTotal,
+              tips: tips || 0,
+              subscriptions: subs || 0,
+              messages_revenue: messages || 0,
+              referrals: referrals || 0,
+              period_start: periodStart,
+              period_end: periodEnd,
+              platform: "onlyfans",
               notes: `Auto-scraped (${earningsSource}) on ${now.toISOString().split("T")[0]}`,
             };
-            if (existing) { await svc.from("creator_earnings").update(earningsPayload).eq("id", existing.id); }
-            else { await svc.from("creator_earnings").insert(earningsPayload); }
+            if (existing) {
+              await svc.from("creator_earnings").update(earningsPayload).eq("id", existing.id);
+            } else {
+              await svc.from("creator_earnings").insert(earningsPayload);
+            }
             scrapedEarnings = { total: bestTotal, tips, subscriptions: subs, messages, referrals };
           }
-        } catch (e: any) { console.warn(`Earnings scrape failed (non-fatal): ${e.message}`); }
+        } catch (e: any) {
+          console.warn(`Earnings scrape failed (non-fatal): ${e.message}`);
+        }
       }
 
-      // Update DB
-      if (isLoggedIn) {
-        await svc.from("creator_session_links").update({ session_status: "authenticated", last_saved_at: new Date().toISOString(), browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
-      } else if (hadSavedContext) {
-        // Keep previously saved context as authenticated when a live check is inconclusive.
-        await svc.from("creator_session_links").update({ session_status: "authenticated", browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
-      } else {
-        await svc.from("creator_session_links").update({ browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
-      }
-      await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("browserbase_session_id", browserbaseSessionId);
-
+      // Release session FIRST so Browserbase persists cookies while browser is still on the platform page
       if (alive) {
         try {
-          const releasePayload = !isLoggedIn && !hadSavedContext
-            ? { status: "REQUEST_RELEASE", persist: false }
-            : { status: "REQUEST_RELEASE" };
-          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify(releasePayload) });
-        } catch {}
+          const shouldPersist = isLoggedIn || hadSavedContext;
+          const releasePayload = shouldPersist
+            ? { status: "REQUEST_RELEASE", persist: true }
+            : { status: "REQUEST_RELEASE", persist: false };
+          console.log(`Releasing session ${browserbaseSessionId} with persist=${shouldPersist}`);
+          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, {
+            method: "POST",
+            headers: bbH(BK),
+            body: JSON.stringify(releasePayload),
+          });
+          // Wait for Browserbase to sync cookies into the context
+          if (shouldPersist) await new Promise((r) => setTimeout(r, 5000));
+        } catch (e) {
+          console.warn("Session release failed:", e);
+        }
       }
+
+      // Update DB after release
+      if (isLoggedIn) {
+        await svc
+          .from("creator_session_links")
+          .update({
+            session_status: "authenticated",
+            last_saved_at: new Date().toISOString(),
+            browserbase_session_id: null,
+            browserbase_live_url: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", sessionLinkId);
+      } else if (hadSavedContext) {
+        // Keep previously saved context as authenticated when a live check is inconclusive.
+        await svc
+          .from("creator_session_links")
+          .update({
+            session_status: "authenticated",
+            browserbase_session_id: null,
+            browserbase_live_url: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", sessionLinkId);
+      } else {
+        await svc
+          .from("creator_session_links")
+          .update({ browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() })
+          .eq("id", sessionLinkId);
+      }
+      await svc
+        .from("active_browser_sessions")
+        .update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] })
+        .eq("browserbase_session_id", browserbaseSessionId);
 
       const contextPreserved = isLoggedIn || hadSavedContext;
       return json({
@@ -435,7 +680,9 @@ Deno.serve(async (req) => {
         loginDetected: isLoggedIn,
         contextPreserved,
         message: contextPreserved
-          ? (scrapedEarnings ? `Login saved. Earnings scraped: $${scrapedEarnings.total}` : "Login saved.")
+          ? scrapedEarnings
+            ? `Login saved. Earnings scraped: $${scrapedEarnings.total}`
+            : "Login saved."
           : "Session closed. Cookies were NOT saved.",
         earnings: scrapedEarnings,
       });
@@ -445,51 +692,107 @@ Deno.serve(async (req) => {
     if (action === "check_and_recover_sessions") {
       const { agencyId } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
-      const { data: stuck } = await svc.from("creator_session_links").select("id, browserbase_session_id, browserbase_context_id, last_saved_at").eq("agency_id", agencyId).eq("session_status", "authenticating");
+      const { data: stuck } = await svc
+        .from("creator_session_links")
+        .select("id, browserbase_session_id, browserbase_context_id, last_saved_at")
+        .eq("agency_id", agencyId)
+        .eq("session_status", "authenticating");
       const recovered: string[] = [];
       for (const link of stuck || []) {
         let shouldRecover = false;
-        if (link.browserbase_session_id) { const alive = await isSessionAlive(BK, link.browserbase_session_id); if (!alive) shouldRecover = true; } else shouldRecover = true;
+        if (link.browserbase_session_id) {
+          const alive = await isSessionAlive(BK, link.browserbase_session_id);
+          if (!alive) shouldRecover = true;
+        } else shouldRecover = true;
         if (shouldRecover) {
-          await svc.from("creator_session_links").update({ session_status: link.browserbase_context_id ? "authenticated" : "pending", last_saved_at: link.last_saved_at || (link.browserbase_context_id ? new Date().toISOString() : null), browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", link.id);
+          await svc
+            .from("creator_session_links")
+            .update({
+              session_status: link.browserbase_context_id ? "authenticated" : "pending",
+              last_saved_at: link.last_saved_at || (link.browserbase_context_id ? new Date().toISOString() : null),
+              browserbase_session_id: null,
+              browserbase_live_url: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", link.id);
           recovered.push(link.id);
         }
       }
-      const { data: activeSessions } = await svc.from("active_browser_sessions").select("id, browserbase_session_id").eq("agency_id", agencyId).eq("is_active", true);
+      const { data: activeSessions } = await svc
+        .from("active_browser_sessions")
+        .select("id, browserbase_session_id")
+        .eq("agency_id", agencyId)
+        .eq("is_active", true);
       let cleanedActive = 0;
-      for (const s of activeSessions || []) { const alive = await isSessionAlive(BK, s.browserbase_session_id); if (!alive) { await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", s.id); cleanedActive++; } }
-      return json({ success: true, recoveredCount: recovered.length, recoveredIds: recovered, cleanedActiveSessions: cleanedActive });
+      for (const s of activeSessions || []) {
+        const alive = await isSessionAlive(BK, s.browserbase_session_id);
+        if (!alive) {
+          await svc
+            .from("active_browser_sessions")
+            .update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] })
+            .eq("id", s.id);
+          cleanedActive++;
+        }
+      }
+      return json({
+        success: true,
+        recoveredCount: recovered.length,
+        recoveredIds: recovered,
+        cleanedActiveSessions: cleanedActive,
+      });
     }
 
     // ========== SESSION POOLING: launch_chatter_session ==========
     if (action === "launch_chatter_session") {
-      const { sessionLinkId, chatterId } = p;
+      const { sessionLinkId, chatterId, isRestrictedDemo } = p;
       if (!sessionLinkId) return json({ error: "sessionLinkId required" }, 400);
-      const { data: link, error: le } = await svc.from("creator_session_links").select("*").eq("id", sessionLinkId).single();
+      const { data: link, error: le } = await svc
+        .from("creator_session_links")
+        .select("*")
+        .eq("id", sessionLinkId)
+        .single();
       if (le || !link) return json({ error: "Session link not found" }, 404);
       const { data: emp } = await svc.from("employees").select("id").eq("auth_user_id", uid).maybeSingle();
       if (!emp) return json({ error: "Employee not found" }, 403);
-      const { data: perm } = await svc.from("employee_of_permissions").select("*").eq("employee_id", emp.id).eq("creator_id", link.creator_id).maybeSingle();
+      const { data: perm } = await svc
+        .from("employee_of_permissions")
+        .select("*")
+        .eq("employee_id", emp.id)
+        .eq("creator_id", link.creator_id)
+        .maybeSingle();
       if (!perm) return json({ error: "Not authorized" }, 403);
       if (!link.is_active) return json({ error: "Session revoked" }, 400);
       if (new Date(link.expires_at) < new Date()) return json({ error: "Session expired" }, 400);
       if (!link.browserbase_context_id) return json({ error: "Not authenticated yet" }, 400);
 
       const permFlags = {
-        can_view_chats: perm.can_view_chats ?? false, can_send_messages: perm.can_send_messages ?? false,
-        can_send_mass_messages: perm.can_send_mass_messages ?? false, can_view_fans: perm.can_view_fans ?? false,
-        can_view_posts: perm.can_view_posts ?? false, can_create_posts: perm.can_create_posts ?? false,
-        can_view_vault: perm.can_view_vault ?? false, can_view_earnings: perm.can_view_earnings ?? false,
+        can_view_chats: perm.can_view_chats ?? false,
+        can_send_messages: perm.can_send_messages ?? false,
+        can_send_mass_messages: perm.can_send_mass_messages ?? false,
+        can_view_fans: perm.can_view_fans ?? false,
+        can_view_posts: perm.can_view_posts ?? false,
+        can_create_posts: perm.can_create_posts ?? false,
+        can_view_vault: perm.can_view_vault ?? false,
+        can_view_earnings: perm.can_view_earnings ?? false,
         can_view_notifications: perm.can_view_notifications ?? false,
+        isRestrictedDemo: isRestrictedDemo === true,
       };
 
-      const { data: agency } = await svc.from("agencies").select("browser_session_mode").eq("id", link.agency_id).single();
+      const { data: agency } = await svc
+        .from("agencies")
+        .select("browser_session_mode")
+        .eq("id", link.agency_id)
+        .single();
       const sessionMode = agency?.browser_session_mode || "shared";
 
-      const { data: existingSessions } = await svc.from("active_browser_sessions")
+      const { data: existingSessions } = await svc
+        .from("active_browser_sessions")
         .select("id, browserbase_session_id, embed_url, viewer_count, viewer_ids, session_link_id, chatter_id")
-        .eq("session_link_id", sessionLinkId).eq("is_active", true).eq("session_type", "chatter")
-        .order("started_at", { ascending: false }).limit(1);
+        .eq("session_link_id", sessionLinkId)
+        .eq("is_active", true)
+        .eq("session_type", "chatter")
+        .order("started_at", { ascending: false })
+        .limit(1);
       const existingSession = existingSessions?.[0];
 
       if (existingSession) {
@@ -497,41 +800,106 @@ Deno.serve(async (req) => {
         if (alive) {
           if (sessionMode === "exclusive") {
             let inUseBy = "another chatter";
-            if (existingSession.chatter_id) { const { data: ch } = await svc.from("chatters").select("name").eq("id", existingSession.chatter_id).maybeSingle(); if (ch) inUseBy = ch.name; }
+            if (existingSession.chatter_id) {
+              const { data: ch } = await svc
+                .from("chatters")
+                .select("name")
+                .eq("id", existingSession.chatter_id)
+                .maybeSingle();
+              if (ch) inUseBy = ch.name;
+            }
             return json({ error: `Session in use by ${inUseBy}. Please wait.`, code: "SESSION_IN_USE", inUseBy }, 409);
           }
           const currentViewerIds: string[] = existingSession.viewer_ids || [];
           const viewerId = chatterId || uid;
           if (!currentViewerIds.includes(viewerId)) currentViewerIds.push(viewerId);
-          await svc.from("active_browser_sessions").update({ viewer_count: currentViewerIds.length, viewer_ids: currentViewerIds, last_heartbeat_at: new Date().toISOString() }).eq("id", existingSession.id);
-          await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "join" });
-          return json({ success: true, embedUrl: existingSession.embed_url, sessionId: existingSession.browserbase_session_id, platform: link.platform, permissions: permFlags, joined: true, viewerCount: currentViewerIds.length });
+          await svc
+            .from("active_browser_sessions")
+            .update({
+              viewer_count: currentViewerIds.length,
+              viewer_ids: currentViewerIds,
+              last_heartbeat_at: new Date().toISOString(),
+            })
+            .eq("id", existingSession.id);
+          await svc
+            .from("session_access_logs")
+            .insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "join" });
+          return json({
+            success: true,
+            embedUrl: existingSession.embed_url,
+            sessionId: existingSession.browserbase_session_id,
+            platform: link.platform,
+            permissions: permFlags,
+            joined: true,
+            viewerCount: currentViewerIds.length,
+          });
         } else {
-          await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", existingSession.id);
+          await svc
+            .from("active_browser_sessions")
+            .update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] })
+            .eq("id", existingSession.id);
         }
       }
 
-      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city, name").eq("id", link.creator_id).single();
-      const { data: exts } = await svc.from("browser_extensions").select("browserbase_extension_id").eq("agency_id", link.agency_id).eq("is_active", true).eq("auto_inject", true);
+      const { data: cr } = await svc
+        .from("creators")
+        .select("proxy_country, proxy_state, proxy_city, name")
+        .eq("id", link.creator_id)
+        .single();
+      const { data: exts } = await svc
+        .from("browser_extensions")
+        .select("browserbase_extension_id")
+        .eq("agency_id", link.agency_id)
+        .eq("is_active", true)
+        .eq("auto_inject", true);
       const extIds = (exts || []).map((e: any) => e.browserbase_extension_id).filter(Boolean);
       const chatterProxyConfig = await getProxyConfig(svc, link.creator_id);
       const proxies = proxyConf(cr, chatterProxyConfig);
       const resolvedState = proxies[0]?.geolocation?.state || "TX";
       const chatterStealthProfile = chatterProxyConfig?.stealth_profile || null;
 
-      const cfg = sessionBody(BP, link.browserbase_context_id, proxies, { timeout: 3600, extensionId: extIds[0] || undefined, userMetadata: { creatorId: link.creator_id, agencyId: link.agency_id, chatterId: chatterId || uid, platform: link.platform, sessionType: "chatter" } });
+      const cfg = sessionBody(BP, link.browserbase_context_id, proxies, {
+        timeout: 3600,
+        extensionId: extIds[0] || undefined,
+        userMetadata: {
+          creatorId: link.creator_id,
+          agencyId: link.agency_id,
+          chatterId: chatterId || uid,
+          platform: link.platform,
+          sessionType: "chatter",
+        },
+      });
       const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(cfg) });
       if (!sess?.id) return json({ error: "Failed to create browser session" }, 502);
 
       const chatterReady = await waitForSessionReady(BK, sess.id, 20000);
       if (!chatterReady) return json({ error: "Browser session failed to start." }, 502);
 
-      await new Promise(r => setTimeout(r, 8000));
-      try { await preLoginSetup(BK, sess.id, resolvedState); } catch {}
+      await new Promise((r) => setTimeout(r, 8000));
+      try {
+        await preLoginSetup(BK, sess.id, resolvedState);
+      } catch {}
 
       // Inject stealth for chatter sessions too
       if (chatterStealthProfile?.enabled !== false) {
-        try { await injectStealthFingerprint(BK, sess.id, chatterStealthProfile?.enabled ? chatterStealthProfile : undefined); } catch (e) { console.warn("Chatter stealth injection failed (non-fatal):", e); }
+        try {
+          await injectStealthFingerprint(
+            BK,
+            sess.id,
+            chatterStealthProfile?.enabled ? chatterStealthProfile : undefined,
+          );
+        } catch (e) {
+          console.warn("Chatter stealth injection failed (non-fatal):", e);
+        }
+      }
+
+      // Inject permissions into the browser session so the Permission Guard extension can read them.
+      // This enforces role-based access restrictions (hiding sidebar, blocking pages).
+      const permissionInjectionScript = `window.__CREATOROS_PERMISSIONS__ = ${JSON.stringify(permFlags)}; console.log("CreatorOS permissions injected:", window.__CREATOROS_PERMISSIONS__);`;
+      try {
+        await executeCDPScript(BK, sess.id, permissionInjectionScript);
+      } catch (e) {
+        console.warn("Permission injection failed (non-fatal):", e);
       }
 
       const chatterStartUrl = PLATFORM_URLS[link.platform.toLowerCase()];
@@ -539,48 +907,117 @@ Deno.serve(async (req) => {
       if (chatterStartUrl) {
         try {
           await navigateViaCDP(BK, sess.id, chatterStartUrl, { timeout: 25000 });
-          await new Promise(r => setTimeout(r, 3000));
+          await new Promise((r) => setTimeout(r, 3000));
           const loginResult = await checkLoginViaCDP(BK, sess.id, { label: "Chatter login" });
           loginVerified = loginResult.isLoggedIn;
           if (!loginVerified) {
-            await svc.from("creator_session_links").update({ session_status: "pending", updated_at: new Date().toISOString() }).eq("id", sessionLinkId);
-            await svc.from("browser_session_events").insert({ agency_id: link.agency_id, session_link_id: sessionLinkId, browserbase_session_id: sess.id, event_type: "login_expired", severity: "warning", title: "Login Expired", message: `Creator session needs re-authentication.` });
+            await svc
+              .from("creator_session_links")
+              .update({ session_status: "pending", updated_at: new Date().toISOString() })
+              .eq("id", sessionLinkId);
+            await svc
+              .from("browser_session_events")
+              .insert({
+                agency_id: link.agency_id,
+                session_link_id: sessionLinkId,
+                browserbase_session_id: sess.id,
+                event_type: "login_expired",
+                severity: "warning",
+                title: "Login Expired",
+                message: `Creator session needs re-authentication.`,
+              });
           }
         } catch {}
       }
 
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 1500));
       const dbg = await bb(BK, `/sessions/${sess.id}/debug`);
       const liveUrl = dbg.pages?.[0]?.debuggerFullscreenUrl || dbg.debuggerFullscreenUrl;
       const viewerId = chatterId || uid;
-      await svc.from("active_browser_sessions").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, agency_id: link.agency_id, browserbase_session_id: sess.id, browserbase_live_url: liveUrl, embed_url: liveUrl, session_type: "chatter", viewer_count: 1, viewer_ids: [viewerId], last_heartbeat_at: new Date().toISOString() });
-      await svc.from("session_access_logs").insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });
-      return json({ success: true, embedUrl: liveUrl, sessionId: sess.id, platform: link.platform, permissions: permFlags, joined: false, viewerCount: 1, loginVerified });
+      await svc
+        .from("active_browser_sessions")
+        .insert({
+          session_link_id: sessionLinkId,
+          chatter_id: chatterId,
+          agency_id: link.agency_id,
+          browserbase_session_id: sess.id,
+          browserbase_live_url: liveUrl,
+          embed_url: liveUrl,
+          session_type: "chatter",
+          viewer_count: 1,
+          viewer_ids: [viewerId],
+          last_heartbeat_at: new Date().toISOString(),
+        });
+      await svc
+        .from("session_access_logs")
+        .insert({ session_link_id: sessionLinkId, chatter_id: chatterId, action: "launch" });
+      return json({
+        success: true,
+        embedUrl: liveUrl,
+        sessionId: sess.id,
+        platform: link.platform,
+        permissions: permFlags,
+        joined: false,
+        viewerCount: 1,
+        loginVerified,
+      });
     }
 
     // ========== TERMINATE SESSION ==========
     if (action === "terminate_session") {
       const { browserbaseSessionId, chatterId: terminatingChatterId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
-      const { data: session } = await svc.from("active_browser_sessions")
+      const { data: session } = await svc
+        .from("active_browser_sessions")
         .select("id, viewer_count, viewer_ids, session_link_id, session_type")
-        .eq("browserbase_session_id", browserbaseSessionId).eq("is_active", true).maybeSingle();
+        .eq("browserbase_session_id", browserbaseSessionId)
+        .eq("is_active", true)
+        .maybeSingle();
       if (session) {
         const currentViewerIds: string[] = session.viewer_ids || [];
         const viewerId = terminatingChatterId || uid;
         const updatedViewerIds = currentViewerIds.filter((id: string) => id !== viewerId);
         if (updatedViewerIds.length <= 0) {
-          try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
-          await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", session.id);
+          try {
+            await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, {
+              method: "POST",
+              headers: bbH(BK),
+              body: JSON.stringify({ status: "REQUEST_RELEASE", persist: true }),
+            });
+          } catch {}
+          await svc
+            .from("active_browser_sessions")
+            .update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] })
+            .eq("id", session.id);
           if (session.session_link_id) {
-            await svc.from("creator_session_links").update({ last_saved_at: new Date().toISOString(), browserbase_session_id: null, browserbase_live_url: null, updated_at: new Date().toISOString() }).eq("id", session.session_link_id);
+            await svc
+              .from("creator_session_links")
+              .update({
+                last_saved_at: new Date().toISOString(),
+                browserbase_session_id: null,
+                browserbase_live_url: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", session.session_link_id);
           }
         } else {
-          await svc.from("active_browser_sessions").update({ viewer_count: updatedViewerIds.length, viewer_ids: updatedViewerIds }).eq("id", session.id);
+          await svc
+            .from("active_browser_sessions")
+            .update({ viewer_count: updatedViewerIds.length, viewer_ids: updatedViewerIds })
+            .eq("id", session.id);
         }
       } else {
-        try { await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
-        await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString() }).eq("browserbase_session_id", browserbaseSessionId);
+        try {
+          await fetch(`${BB_API}/sessions/${browserbaseSessionId}`, {
+            method: "POST",
+            headers: bbH(BK),
+            body: JSON.stringify({ status: "REQUEST_RELEASE", persist: true }),
+          });
+        } catch {}
+        await svc
+          .from("active_browser_sessions")
+          .update({ is_active: false, ended_at: new Date().toISOString() })
+          .eq("browserbase_session_id", browserbaseSessionId);
       }
       return json({ success: true });
     }
@@ -589,32 +1026,70 @@ Deno.serve(async (req) => {
     if (action === "session_heartbeat") {
       const { browserbaseSessionId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
-      await svc.from("active_browser_sessions").update({ last_heartbeat_at: new Date().toISOString() }).eq("browserbase_session_id", browserbaseSessionId).eq("is_active", true);
+      await svc
+        .from("active_browser_sessions")
+        .update({ last_heartbeat_at: new Date().toISOString() })
+        .eq("browserbase_session_id", browserbaseSessionId)
+        .eq("is_active", true);
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const { data: stale } = await svc.from("active_browser_sessions").select("id, browserbase_session_id").eq("is_active", true).eq("session_type", "chatter").lt("last_heartbeat_at", fiveMinAgo);
-      for (const s of stale || []) { try { await fetch(`${BB_API}/sessions/${s.browserbase_session_id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {} await svc.from("active_browser_sessions").update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] }).eq("id", s.id); }
+      const { data: stale } = await svc
+        .from("active_browser_sessions")
+        .select("id, browserbase_session_id")
+        .eq("is_active", true)
+        .eq("session_type", "chatter")
+        .lt("last_heartbeat_at", fiveMinAgo);
+      for (const s of stale || []) {
+        try {
+          await fetch(`${BB_API}/sessions/${s.browserbase_session_id}`, {
+            method: "POST",
+            headers: bbH(BK),
+            body: JSON.stringify({ status: "REQUEST_RELEASE" }),
+          });
+        } catch {}
+        await svc
+          .from("active_browser_sessions")
+          .update({ is_active: false, ended_at: new Date().toISOString(), viewer_count: 0, viewer_ids: [] })
+          .eq("id", s.id);
+      }
       return json({ success: true });
     }
 
     if (action === "get_session_status") {
       const { browserbaseSessionId } = p;
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
-      try { const d = await bb(BK, `/sessions/${browserbaseSessionId}`); return json({ active: d.status === "RUNNING", status: d.status, createdAt: d.createdAt }); } catch { return json({ active: false, status: "UNKNOWN" }); }
+      try {
+        const d = await bb(BK, `/sessions/${browserbaseSessionId}`);
+        return json({ active: d.status === "RUNNING", status: d.status, createdAt: d.createdAt });
+      } catch {
+        return json({ active: false, status: "UNKNOWN" });
+      }
     }
 
     if (action === "get_session_recording") {
       if (!p.browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
-      try { return json({ success: true, recording: await bb(BK, `/sessions/${p.browserbaseSessionId}/recording`) }); } catch (e: any) { return json({ error: e.message }, 404); }
+      try {
+        return json({ success: true, recording: await bb(BK, `/sessions/${p.browserbaseSessionId}/recording`) });
+      } catch (e: any) {
+        return json({ error: e.message }, 404);
+      }
     }
 
     if (action === "get_session_logs") {
       if (!p.browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
-      try { return json({ success: true, logs: await bb(BK, `/sessions/${p.browserbaseSessionId}/logs`) }); } catch (e: any) { return json({ error: e.message }, 404); }
+      try {
+        return json({ success: true, logs: await bb(BK, `/sessions/${p.browserbaseSessionId}/logs`) });
+      } catch (e: any) {
+        return json({ error: e.message }, 404);
+      }
     }
 
     if (action === "get_session_downloads") {
       if (!p.browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
-      try { return json({ success: true, downloads: await bb(BK, `/sessions/${p.browserbaseSessionId}/downloads`) }); } catch (e: any) { return json({ error: e.message }, 404); }
+      try {
+        return json({ success: true, downloads: await bb(BK, `/sessions/${p.browserbaseSessionId}/downloads`) });
+      } catch (e: any) {
+        return json({ error: e.message }, 404);
+      }
     }
 
     // ========== NAVIGATE IN SESSION (CDP) ==========
@@ -623,12 +1098,18 @@ Deno.serve(async (req) => {
       if (!browserbaseSessionId) return json({ error: "browserbaseSessionId required" }, 400);
       if (!command) return json({ error: "command required" }, 400);
 
-      const result = await executeCDPScript(BK, browserbaseSessionId,
-        command === "goto" && url ? `(() => { window.location.href = '${url}'; return JSON.stringify({success:true}); })()`
-        : command === "back" ? `(() => { history.back(); return JSON.stringify({success:true}); })()`
-        : command === "forward" ? `(() => { history.forward(); return JSON.stringify({success:true}); })()`
-        : command === "reload" ? `(() => { location.reload(); return JSON.stringify({success:true}); })()`
-        : `JSON.stringify({success:false,error:"Invalid command"})`
+      const result = await executeCDPScript(
+        BK,
+        browserbaseSessionId,
+        command === "goto" && url
+          ? `(() => { window.location.href = '${url}'; return JSON.stringify({success:true}); })()`
+          : command === "back"
+            ? `(() => { history.back(); return JSON.stringify({success:true}); })()`
+            : command === "forward"
+              ? `(() => { history.forward(); return JSON.stringify({success:true}); })()`
+              : command === "reload"
+                ? `(() => { location.reload(); return JSON.stringify({success:true}); })()`
+                : `JSON.stringify({success:false,error:"Invalid command"})`,
       );
       return json(result);
     }
@@ -643,7 +1124,7 @@ Deno.serve(async (req) => {
       if (hideMore) cssRules.push('[data-name="more"], a[href="/more"] { display: none !important; }');
       if (cssRules.length === 0) return json({ success: true, message: "No restrictions to inject" });
 
-      const injectionScript = `(function() { if (document.getElementById('creatoros-sidebar-restrictions')) return JSON.stringify({success:true}); var style = document.createElement('style'); style.id = 'creatoros-sidebar-restrictions'; style.textContent = ${JSON.stringify(cssRules.join('\n'))}; (document.head || document.documentElement).appendChild(style); var obs = new MutationObserver(function() { if (!document.getElementById('creatoros-sidebar-restrictions')) { var s2 = document.createElement('style'); s2.id = 'creatoros-sidebar-restrictions'; s2.textContent = style.textContent; (document.head || document.documentElement).appendChild(s2); } }); obs.observe(document.documentElement, { childList: true, subtree: true }); return JSON.stringify({success:true}); })()`;
+      const injectionScript = `(function() { if (document.getElementById('creatoros-sidebar-restrictions')) return JSON.stringify({success:true}); var style = document.createElement('style'); style.id = 'creatoros-sidebar-restrictions'; style.textContent = ${JSON.stringify(cssRules.join("\n"))}; (document.head || document.documentElement).appendChild(style); var obs = new MutationObserver(function() { if (!document.getElementById('creatoros-sidebar-restrictions')) { var s2 = document.createElement('style'); s2.id = 'creatoros-sidebar-restrictions'; s2.textContent = style.textContent; (document.head || document.documentElement).appendChild(s2); } }); obs.observe(document.documentElement, { childList: true, subtree: true }); return JSON.stringify({success:true}); })()`;
       const result = await executeCDPScript(BK, bbSid, injectionScript);
       return json(result);
     }
@@ -658,28 +1139,60 @@ Deno.serve(async (req) => {
           for (const l of logs) {
             const m = typeof l === "string" ? l : JSON.stringify(l);
             const lo = m.toLowerCase();
-            if (lo.includes("captcha") || lo.includes("challenge") || lo.includes("recaptcha") || lo.includes("hcaptcha")) {
-              evts.push({ timestamp: l.timestamp || new Date().toISOString(), message: m, type: lo.includes("solved") || lo.includes("success") ? "captcha_solved" : "captcha_detected" });
+            if (
+              lo.includes("captcha") ||
+              lo.includes("challenge") ||
+              lo.includes("recaptcha") ||
+              lo.includes("hcaptcha")
+            ) {
+              evts.push({
+                timestamp: l.timestamp || new Date().toISOString(),
+                message: m,
+                type: lo.includes("solved") || lo.includes("success") ? "captcha_solved" : "captcha_detected",
+              });
             }
           }
         }
         if (evts.length > 0 && agencyId) {
-          await svc.from("browser_session_events").insert(evts.map(e => ({ agency_id: agencyId, session_link_id: sessionLinkId || null, browserbase_session_id: browserbaseSessionId, event_type: e.type, severity: e.type === "captcha_detected" ? "warning" : "info", title: e.type === "captcha_detected" ? "CAPTCHA Detected" : "CAPTCHA Solved", message: e.message, metadata: { timestamp: e.timestamp } })));
+          await svc
+            .from("browser_session_events")
+            .insert(
+              evts.map((e) => ({
+                agency_id: agencyId,
+                session_link_id: sessionLinkId || null,
+                browserbase_session_id: browserbaseSessionId,
+                event_type: e.type,
+                severity: e.type === "captcha_detected" ? "warning" : "info",
+                title: e.type === "captcha_detected" ? "CAPTCHA Detected" : "CAPTCHA Solved",
+                message: e.message,
+                metadata: { timestamp: e.timestamp },
+              })),
+            );
         }
         return json({ success: true, captchaEvents: evts, count: evts.length });
-      } catch (e: any) { return json({ error: e.message }, 500); }
+      } catch (e: any) {
+        return json({ error: e.message }, 500);
+      }
     }
 
     if (action === "upload_extension") {
       const { agencyId, name, description } = p;
       if (!name) return json({ error: "Extension name required" }, 400);
-      const { data, error } = await svc.from("browser_extensions").insert({ agency_id: agencyId, name, description: description || null }).select("id").single();
+      const { data, error } = await svc
+        .from("browser_extensions")
+        .insert({ agency_id: agencyId, name, description: description || null })
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
       return json({ success: true, extensionId: data.id });
     }
 
     if (action === "list_extensions") {
-      try { return json({ success: true, extensions: await bb(BK, `/extensions?projectId=${BP}`) }); } catch { return json({ success: true, extensions: [] }); }
+      try {
+        return json({ success: true, extensions: await bb(BK, `/extensions?projectId=${BP}`) });
+      } catch {
+        return json({ success: true, extensions: [] });
+      }
     }
 
     // ========== PROFILE WARMUP ==========
@@ -687,49 +1200,98 @@ Deno.serve(async (req) => {
       const { creatorId, agencyId, warmupType = "generic", contextId, keywords } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
       let bbContextId = contextId;
-      if (creatorId && !bbContextId) bbContextId = await resolveContext(svc, BK, BP, creatorId, "onlyfans", agencyId, uid);
+      if (creatorId && !bbContextId)
+        bbContextId = await resolveContext(svc, BK, BP, creatorId, "onlyfans", agencyId, uid);
       if (!bbContextId) return json({ error: "No context available" }, 400);
 
-      const { data: warmupRec } = await svc.from("creator_profile_warmups").insert({
-        creator_id: creatorId || null, agency_id: agencyId, browserbase_context_id: bbContextId,
-        status: "running", warmup_type: warmupType, total_sites: warmupType === "generic" ? 10 : warmupType === "research" ? 15 : 25,
-        started_at: new Date().toISOString(),
-      }).select("id").single();
+      const { data: warmupRec } = await svc
+        .from("creator_profile_warmups")
+        .insert({
+          creator_id: creatorId || null,
+          agency_id: agencyId,
+          browserbase_context_id: bbContextId,
+          status: "running",
+          warmup_type: warmupType,
+          total_sites: warmupType === "generic" ? 10 : warmupType === "research" ? 15 : 25,
+          started_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
       const warmupId = warmupRec!.id;
 
       let proxySettings = null;
       let warmupProxyConfig = null;
       if (creatorId) {
-        const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle();
+        const { data: cr } = await svc
+          .from("creators")
+          .select("proxy_country, proxy_state, proxy_city")
+          .eq("id", creatorId)
+          .maybeSingle();
         if (cr) proxySettings = cr;
         warmupProxyConfig = await getProxyConfig(svc, creatorId);
       }
 
       try {
         const proxies = proxySettings ? proxyConf(proxySettings, warmupProxyConfig) : [];
-        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessionBody(BP, bbContextId, proxies, { keepAlive: false, timeout: 600, userMetadata: { warmup: true, agencyId, creatorId } })) });
+        const sess = await bb(BK, "/sessions", {
+          method: "POST",
+          body: JSON.stringify(
+            sessionBody(BP, bbContextId, proxies, {
+              keepAlive: false,
+              timeout: 600,
+              userMetadata: { warmup: true, agencyId, creatorId },
+            }),
+          ),
+        });
         if (!sess?.id) throw new Error("Session creation failed");
         const sessReady = await waitForSessionReady(BK, sess.id, 15000);
         if (!sessReady) throw new Error("Session failed to start");
 
         let sitesVisited = 0;
-        const genericSites = ["https://www.google.com/search?q=best+movies+2026", "https://www.youtube.com", "https://www.reddit.com/r/popular", "https://www.amazon.com/s?k=headphones", "https://www.cnn.com", "https://weather.com", "https://www.wikipedia.org", "https://www.espn.com", "https://www.instagram.com", "https://www.x.com"];
+        const genericSites = [
+          "https://www.google.com/search?q=best+movies+2026",
+          "https://www.youtube.com",
+          "https://www.reddit.com/r/popular",
+          "https://www.amazon.com/s?k=headphones",
+          "https://www.cnn.com",
+          "https://weather.com",
+          "https://www.wikipedia.org",
+          "https://www.espn.com",
+          "https://www.instagram.com",
+          "https://www.x.com",
+        ];
         const targetSites = genericSites.slice(0, warmupType === "generic" ? 10 : 15);
 
         for (const siteUrl of targetSites) {
           try {
-            await navigateViaCDP(BK, sess.id, siteUrl, { timeout: 15000, evaluate: `window.scrollTo({top: Math.floor(Math.random()*800)+200, behavior:'smooth'})` });
-            await new Promise(r => setTimeout(r, 3000 + Math.floor(Math.random() * 5000)));
+            await navigateViaCDP(BK, sess.id, siteUrl, {
+              timeout: 15000,
+              evaluate: `window.scrollTo({top: Math.floor(Math.random()*800)+200, behavior:'smooth'})`,
+            });
+            await new Promise((r) => setTimeout(r, 3000 + Math.floor(Math.random() * 5000)));
             sitesVisited++;
-            if (sitesVisited % 3 === 0) await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            if (sitesVisited % 3 === 0)
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
           } catch {}
         }
 
-        try { await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
-        await svc.from("creator_profile_warmups").update({ status: "completed", sites_visited: sitesVisited, completed_at: new Date().toISOString() }).eq("id", warmupId);
+        try {
+          await fetch(`${BB_API}/sessions/${sess.id}`, {
+            method: "POST",
+            headers: bbH(BK),
+            body: JSON.stringify({ status: "REQUEST_RELEASE" }),
+          });
+        } catch {}
+        await svc
+          .from("creator_profile_warmups")
+          .update({ status: "completed", sites_visited: sitesVisited, completed_at: new Date().toISOString() })
+          .eq("id", warmupId);
         return json({ success: true, warmupId, sitesVisited, status: "completed" });
       } catch (e: any) {
-        await svc.from("creator_profile_warmups").update({ status: "failed", error_message: e.message, completed_at: new Date().toISOString() }).eq("id", warmupId);
+        await svc
+          .from("creator_profile_warmups")
+          .update({ status: "failed", error_message: e.message, completed_at: new Date().toISOString() })
+          .eq("id", warmupId);
         return json({ error: e.message, warmupId, status: "failed" }, 500);
       }
     }
@@ -737,12 +1299,43 @@ Deno.serve(async (req) => {
     if (action === "assign_pre_warm_profile") {
       const { profileId, creatorId, agencyId } = p;
       if (!profileId || !creatorId || !agencyId) return json({ error: "profileId, creatorId, agencyId required" }, 400);
-      const { data: profile } = await svc.from("pre_warmed_profiles").select("browserbase_context_id").eq("id", profileId).eq("status", "available").single();
+      const { data: profile } = await svc
+        .from("pre_warmed_profiles")
+        .select("browserbase_context_id")
+        .eq("id", profileId)
+        .eq("status", "available")
+        .single();
       if (!profile) return json({ error: "Pre-warm profile not found or assigned" }, 404);
-      await svc.from("pre_warmed_profiles").update({ assigned_creator_id: creatorId, status: "assigned" }).eq("id", profileId);
-      const { data: existingLink } = await svc.from("creator_session_links").select("id").eq("creator_id", creatorId).eq("platform", "onlyfans").maybeSingle();
-      if (existingLink) { await svc.from("creator_session_links").update({ browserbase_context_id: profile.browserbase_context_id, updated_at: new Date().toISOString() }).eq("id", existingLink.id); }
-      else { await svc.from("creator_session_links").insert({ creator_id: creatorId, agency_id: agencyId, platform: "onlyfans", created_by: uid, encrypted_session: "browserbase", browserbase_context_id: profile.browserbase_context_id, session_status: "pending", is_active: false, expires_at: new Date(Date.now() + 365*24*60*60*1000).toISOString() }); }
+      await svc
+        .from("pre_warmed_profiles")
+        .update({ assigned_creator_id: creatorId, status: "assigned" })
+        .eq("id", profileId);
+      const { data: existingLink } = await svc
+        .from("creator_session_links")
+        .select("id")
+        .eq("creator_id", creatorId)
+        .eq("platform", "onlyfans")
+        .maybeSingle();
+      if (existingLink) {
+        await svc
+          .from("creator_session_links")
+          .update({ browserbase_context_id: profile.browserbase_context_id, updated_at: new Date().toISOString() })
+          .eq("id", existingLink.id);
+      } else {
+        await svc
+          .from("creator_session_links")
+          .insert({
+            creator_id: creatorId,
+            agency_id: agencyId,
+            platform: "onlyfans",
+            created_by: uid,
+            encrypted_session: "browserbase",
+            browserbase_context_id: profile.browserbase_context_id,
+            session_status: "pending",
+            is_active: false,
+            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+      }
       return json({ success: true, contextId: profile.browserbase_context_id });
     }
 
@@ -750,43 +1343,115 @@ Deno.serve(async (req) => {
       const { creatorId, agencyId, contextId, durationHours = 4 } = p;
       if (!agencyId) return json({ error: "agencyId required" }, 400);
       let bbContextId = contextId;
-      if (creatorId && !bbContextId) bbContextId = await resolveContext(svc, BK, BP, creatorId, "onlyfans", agencyId, uid);
-      if (!bbContextId) { const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) }); bbContextId = ctx.id; }
+      if (creatorId && !bbContextId)
+        bbContextId = await resolveContext(svc, BK, BP, creatorId, "onlyfans", agencyId, uid);
+      if (!bbContextId) {
+        const ctx = await bb(BK, "/contexts", { method: "POST", body: JSON.stringify({ projectId: BP }) });
+        bbContextId = ctx.id;
+      }
 
       const totalSites = 60;
-      const { data: warmupRec } = await svc.from("creator_profile_warmups").insert({ creator_id: creatorId || null, agency_id: agencyId, browserbase_context_id: bbContextId, status: "running", warmup_type: "extended", total_sites: totalSites, started_at: new Date().toISOString() }).select("id").single();
+      const { data: warmupRec } = await svc
+        .from("creator_profile_warmups")
+        .insert({
+          creator_id: creatorId || null,
+          agency_id: agencyId,
+          browserbase_context_id: bbContextId,
+          status: "running",
+          warmup_type: "extended",
+          total_sites: totalSites,
+          started_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
       const warmupId = warmupRec!.id;
 
       let extProxySettings = null;
       let extProxyConfig = null;
-      if (creatorId) { const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", creatorId).maybeSingle(); if (cr) extProxySettings = cr; extProxyConfig = await getProxyConfig(svc, creatorId); }
+      if (creatorId) {
+        const { data: cr } = await svc
+          .from("creators")
+          .select("proxy_country, proxy_state, proxy_city")
+          .eq("id", creatorId)
+          .maybeSingle();
+        if (cr) extProxySettings = cr;
+        extProxyConfig = await getProxyConfig(svc, creatorId);
+      }
 
       try {
         const proxies = extProxySettings ? proxyConf(extProxySettings, extProxyConfig) : [];
         const timeoutSec = Math.min(durationHours * 3600, 14400);
-        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify(sessionBody(BP, bbContextId, proxies, { keepAlive: true, timeout: timeoutSec, userMetadata: { warmup: true, extended: true, agencyId, creatorId } })) });
+        const sess = await bb(BK, "/sessions", {
+          method: "POST",
+          body: JSON.stringify(
+            sessionBody(BP, bbContextId, proxies, {
+              keepAlive: true,
+              timeout: timeoutSec,
+              userMetadata: { warmup: true, extended: true, agencyId, creatorId },
+            }),
+          ),
+        });
         if (!sess?.id) throw new Error("Session creation failed");
         const ready = await waitForSessionReady(BK, sess.id, 20000);
         if (!ready) throw new Error("Session failed to start");
 
         let sitesVisited = 0;
         const EXTENDED_SITES = [
-          "https://www.google.com/search?q=best+restaurants+near+me", "https://www.google.com/search?q=weather+today",
-          "https://www.youtube.com", "https://www.youtube.com/feed/trending", "https://www.reddit.com", "https://www.reddit.com/r/popular",
-          "https://www.x.com", "https://www.instagram.com", "https://www.tiktok.com", "https://www.facebook.com",
-          "https://www.amazon.com/s?k=headphones", "https://www.amazon.com/s?k=running+shoes",
-          "https://www.ebay.com", "https://www.walmart.com", "https://www.target.com", "https://www.bestbuy.com",
-          "https://www.cnn.com", "https://www.bbc.com/news", "https://www.reuters.com", "https://news.google.com",
-          "https://www.netflix.com", "https://www.twitch.tv", "https://www.spotify.com", "https://www.imdb.com",
-          "https://weather.com", "https://www.google.com/maps", "https://www.wikipedia.org", "https://www.espn.com",
-          "https://www.github.com", "https://stackoverflow.com", "https://www.medium.com", "https://www.quora.com",
-          "https://www.yahoo.com/finance", "https://www.coinbase.com", "https://www.booking.com", "https://www.airbnb.com",
-          "https://www.expedia.com", "https://www.webmd.com", "https://www.healthline.com", "https://www.yelp.com",
-          "https://www.pinterest.com", "https://www.tumblr.com", "https://www.discord.com",
-          "https://www.patreon.com", "https://ko-fi.com", "https://linktr.ee",
-          "https://www.craigslist.org", "https://www.etsy.com", "https://www.zillow.com",
-          "https://www.linkedin.com", "https://www.nba.com", "https://www.foxnews.com",
-          "https://www.nytimes.com", "https://www.hulu.com", "https://www.bankofamerica.com",
+          "https://www.google.com/search?q=best+restaurants+near+me",
+          "https://www.google.com/search?q=weather+today",
+          "https://www.youtube.com",
+          "https://www.youtube.com/feed/trending",
+          "https://www.reddit.com",
+          "https://www.reddit.com/r/popular",
+          "https://www.x.com",
+          "https://www.instagram.com",
+          "https://www.tiktok.com",
+          "https://www.facebook.com",
+          "https://www.amazon.com/s?k=headphones",
+          "https://www.amazon.com/s?k=running+shoes",
+          "https://www.ebay.com",
+          "https://www.walmart.com",
+          "https://www.target.com",
+          "https://www.bestbuy.com",
+          "https://www.cnn.com",
+          "https://www.bbc.com/news",
+          "https://www.reuters.com",
+          "https://news.google.com",
+          "https://www.netflix.com",
+          "https://www.twitch.tv",
+          "https://www.spotify.com",
+          "https://www.imdb.com",
+          "https://weather.com",
+          "https://www.google.com/maps",
+          "https://www.wikipedia.org",
+          "https://www.espn.com",
+          "https://www.github.com",
+          "https://stackoverflow.com",
+          "https://www.medium.com",
+          "https://www.quora.com",
+          "https://www.yahoo.com/finance",
+          "https://www.coinbase.com",
+          "https://www.booking.com",
+          "https://www.airbnb.com",
+          "https://www.expedia.com",
+          "https://www.webmd.com",
+          "https://www.healthline.com",
+          "https://www.yelp.com",
+          "https://www.pinterest.com",
+          "https://www.tumblr.com",
+          "https://www.discord.com",
+          "https://www.patreon.com",
+          "https://ko-fi.com",
+          "https://linktr.ee",
+          "https://www.craigslist.org",
+          "https://www.etsy.com",
+          "https://www.zillow.com",
+          "https://www.linkedin.com",
+          "https://www.nba.com",
+          "https://www.foxnews.com",
+          "https://www.nytimes.com",
+          "https://www.hulu.com",
+          "https://www.bankofamerica.com",
         ];
         const shuffled = [...EXTENDED_SITES].sort(() => Math.random() - 0.5).slice(0, totalSites);
         const SCROLL_SCRIPTS = [
@@ -797,19 +1462,38 @@ Deno.serve(async (req) => {
 
         for (const siteUrl of shuffled) {
           try {
-            await navigateViaCDP(BK, sess.id, siteUrl, { timeout: 20000, evaluate: SCROLL_SCRIPTS[Math.floor(Math.random() * SCROLL_SCRIPTS.length)] });
-            await new Promise(r => setTimeout(r, 5000 + Math.floor(Math.random() * 25000)));
+            await navigateViaCDP(BK, sess.id, siteUrl, {
+              timeout: 20000,
+              evaluate: SCROLL_SCRIPTS[Math.floor(Math.random() * SCROLL_SCRIPTS.length)],
+            });
+            await new Promise((r) => setTimeout(r, 5000 + Math.floor(Math.random() * 25000)));
             sitesVisited++;
-            if (sitesVisited % 3 === 0) await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
+            if (sitesVisited % 3 === 0)
+              await svc.from("creator_profile_warmups").update({ sites_visited: sitesVisited }).eq("id", warmupId);
           } catch {}
         }
 
-        try { await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
-        await svc.from("creator_profile_warmups").update({ status: "completed", sites_visited: sitesVisited, completed_at: new Date().toISOString() }).eq("id", warmupId);
-        await svc.from("pre_warmed_profiles").update({ warmup_count: sitesVisited, last_warmed_at: new Date().toISOString() }).eq("browserbase_context_id", bbContextId);
+        try {
+          await fetch(`${BB_API}/sessions/${sess.id}`, {
+            method: "POST",
+            headers: bbH(BK),
+            body: JSON.stringify({ status: "REQUEST_RELEASE" }),
+          });
+        } catch {}
+        await svc
+          .from("creator_profile_warmups")
+          .update({ status: "completed", sites_visited: sitesVisited, completed_at: new Date().toISOString() })
+          .eq("id", warmupId);
+        await svc
+          .from("pre_warmed_profiles")
+          .update({ warmup_count: sitesVisited, last_warmed_at: new Date().toISOString() })
+          .eq("browserbase_context_id", bbContextId);
         return json({ success: true, warmupId, sitesVisited, status: "completed", durationHours });
       } catch (e: any) {
-        await svc.from("creator_profile_warmups").update({ status: "failed", error_message: e.message, completed_at: new Date().toISOString() }).eq("id", warmupId);
+        await svc
+          .from("creator_profile_warmups")
+          .update({ status: "failed", error_message: e.message, completed_at: new Date().toISOString() })
+          .eq("id", warmupId);
         return json({ error: e.message, warmupId, status: "failed" }, 500);
       }
     }
@@ -829,10 +1513,7 @@ Deno.serve(async (req) => {
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
       if (!text) return json({ error: "text required" }, 400);
 
-      const escapedText = (text as string)
-        .replace(/\\/g, "\\\\")
-        .replace(/'/g, "\\'")
-        .replace(/\n/g, "\\n");
+      const escapedText = (text as string).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
 
       const injectScript = `(function() {
         var text = '${escapedText}';
@@ -989,9 +1670,11 @@ Deno.serve(async (req) => {
       if (!sessionLinkId) return json({ error: "sessionLinkId required" }, 400);
 
       // Get session link to find creator_id
-      const { data: link } = await svc.from("creator_session_links")
+      const { data: link } = await svc
+        .from("creator_session_links")
         .select("creator_id, platform, agency_id")
-        .eq("id", sessionLinkId).single();
+        .eq("id", sessionLinkId)
+        .single();
       if (!link) return json({ error: "Session link not found" }, 404);
 
       // Verify caller belongs to this agency
@@ -1002,11 +1685,14 @@ Deno.serve(async (req) => {
       try {
         const contextLogin = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login precheck" });
         if (contextLogin.isLoggedIn) {
-          await svc.from("creator_session_links").update({
-            session_status: "authenticated",
-            last_saved_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }).eq("id", sessionLinkId);
+          await svc
+            .from("creator_session_links")
+            .update({
+              session_status: "authenticated",
+              last_saved_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", sessionLinkId);
           return json({ success: true, step: "already_logged_in_context", loginVerified: true });
         }
       } catch (e) {
@@ -1019,14 +1705,17 @@ Deno.serve(async (req) => {
       try {
         console.log("Auto-login: Navigating to platform for cookie check...");
         await navigateViaCDP(BK, bbSid, platformUrl, { timeout: 20000 });
-        await new Promise(r => setTimeout(r, 4000));
+        await new Promise((r) => setTimeout(r, 4000));
         const retryLogin = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login retry after nav" });
         if (retryLogin.isLoggedIn) {
-          await svc.from("creator_session_links").update({
-            session_status: "authenticated",
-            last_saved_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }).eq("id", sessionLinkId);
+          await svc
+            .from("creator_session_links")
+            .update({
+              session_status: "authenticated",
+              last_saved_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", sessionLinkId);
           return json({ success: true, step: "already_logged_in_context", loginVerified: true });
         }
       } catch (e) {
@@ -1034,7 +1723,8 @@ Deno.serve(async (req) => {
       }
 
       // Get credentials from creator_credential_submissions
-      const { data: creds } = await svc.from("creator_credential_submissions")
+      const { data: creds } = await svc
+        .from("creator_credential_submissions")
         .select("username, encrypted_password")
         .eq("creator_id", link.creator_id)
         .eq("platform", link.platform)
@@ -1045,10 +1735,14 @@ Deno.serve(async (req) => {
 
       if (!creds) {
         // No credentials and context didn't work — give actionable guidance
-        return json({
-          error: "Login session expired and no saved credentials found. Please either log in manually in the browser window, or submit credentials from the Creator's Platform Accounts tab.",
-          step: "no_credentials",
-        }, 404);
+        return json(
+          {
+            error:
+              "Login session expired and no saved credentials found. Please either log in manually in the browser window, or submit credentials from the Creator's Platform Accounts tab.",
+            step: "no_credentials",
+          },
+          404,
+        );
       }
 
       // The password is stored as base64-encoded (simple obfuscation)
@@ -1060,57 +1754,30 @@ Deno.serve(async (req) => {
       }
 
       console.log(`Auto-login: Starting for creator ${link.creator_id} on ${link.platform}`);
+      const result = await autoLoginViaCDP(BK, bbSid, creds.username, password);
+      console.log(`Auto-login result:`, JSON.stringify(result));
 
-      // Try Stagehand first (AI-driven), fall back to CDP (selector-based)
-      let result: any;
-      let loginMethod = "unknown";
-
-      try {
-        console.log("Auto-login: Attempting Stagehand (AI-driven)...");
-        const stagehandResult = await autoLoginViaStagehand(bbSid, creds.username, password);
-        loginMethod = "stagehand";
-        console.log(`Auto-login Stagehand result:`, JSON.stringify(stagehandResult));
-
-        if (stagehandResult.success && stagehandResult.isLoggedIn) {
-          await svc.from("creator_session_links").update({
-            session_status: "authenticated",
-            updated_at: new Date().toISOString(),
-          }).eq("id", sessionLinkId);
-          return json({ ...stagehandResult, loginVerified: true, loginMethod });
-        }
-
-        // Stagehand clicked login but couldn't verify — still return
-        if (stagehandResult.success) {
-          result = stagehandResult;
-        } else {
-          throw new Error(stagehandResult.error || "Stagehand login failed");
-        }
-      } catch (stagehandErr: any) {
-        console.warn(`Auto-login: Stagehand failed (${stagehandErr.message}), falling back to CDP...`);
-
-        // Fallback to CDP auto-login
-        result = await autoLoginViaCDP(BK, bbSid, creds.username, password);
-        loginMethod = "cdp";
-        console.log(`Auto-login CDP result:`, JSON.stringify(result));
-
-        if (result.success && result.step === "login_clicked") {
-          await new Promise(r => setTimeout(r, 5000));
-          try {
-            const loginCheck = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login verify" });
-            if (loginCheck.isLoggedIn) {
-              await svc.from("creator_session_links").update({
+      if (result.success && result.step === "login_clicked") {
+        // Wait a moment then check login status
+        await new Promise((r) => setTimeout(r, 5000));
+        try {
+          const loginCheck = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login verify" });
+          if (loginCheck.isLoggedIn) {
+            await svc
+              .from("creator_session_links")
+              .update({
                 session_status: "authenticated",
                 updated_at: new Date().toISOString(),
-              }).eq("id", sessionLinkId);
-            }
-            return json({ ...result, loginVerified: loginCheck.isLoggedIn, loginMethod });
-          } catch (e) {
-            console.warn("Post-login verification failed:", e);
+              })
+              .eq("id", sessionLinkId);
           }
+          return json({ ...result, loginVerified: loginCheck.isLoggedIn });
+        } catch (e) {
+          console.warn("Post-login verification failed:", e);
         }
       }
 
-      return json({ ...result, loginMethod });
+      return json(result);
     }
 
     // ========== SCRAPE FAN ANALYTICS (CDP) ==========
@@ -1127,7 +1794,15 @@ Deno.serve(async (req) => {
       const fanData = await new Promise<any>((resolve) => {
         let done = false;
         const ws = new WebSocket(scrapeWsUrl);
-        const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({ error: "timeout" }); } }, 60000);
+        const timer = setTimeout(() => {
+          if (!done) {
+            done = true;
+            try {
+              ws.close();
+            } catch {}
+            resolve({ error: "timeout" });
+          }
+        }, 60000);
         let mid = 1;
         let cdpSid: string | null = null;
         let getTargetsId: number | null = null;
@@ -1144,30 +1819,41 @@ Deno.serve(async (req) => {
           const id = mid++;
           const msg: any = { id, method, params };
           if (cdpSid) msg.sessionId = cdpSid;
-          try { ws.send(JSON.stringify(msg)); } catch {}
+          try {
+            ws.send(JSON.stringify(msg));
+          } catch {}
           return id;
         };
 
         const finish = (result: any) => {
           if (done) return;
-          done = true; clearTimeout(timer); if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
-          try { ws.close(); } catch {}
+          done = true;
+          clearTimeout(timer);
+          if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
+          try {
+            ws.close();
+          } catch {}
           resolve(result);
         };
 
-        ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+        ws.onopen = () => {
+          getTargetsId = send("Target.getTargets");
+        };
         ws.onmessage = (evt) => {
           try {
             const msg = JSON.parse(evt.data);
             if (msg.id === getTargetsId) {
               const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
-              if (page) { attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true }); }
-              else finish({ error: "No page target found" });
+              if (page) {
+                attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+              } else finish({ error: "No page target found" });
               return;
             }
             if (msg.id === attachId) {
               cdpSid = msg.result?.sessionId;
-              if (cdpSid) { networkEnableId = send("Network.enable", {}); }
+              if (cdpSid) {
+                networkEnableId = send("Network.enable", {});
+              }
               return;
             }
             if (msg.id === networkEnableId) {
@@ -1223,17 +1909,18 @@ Deno.serve(async (req) => {
               const resp = msg.params?.response;
               const url = resp?.url || "";
               const reqId = msg.params?.requestId;
-              if (reqId && (
-                url.includes("/api2/v2/subscriptions") ||
-                url.includes("/api2/v2/lists") ||
-                url.includes("/api2/v2/users") ||
-                url.includes("/api2/v2/chats") ||
-                url.includes("/api2/v2/earnings") ||
-                url.includes("/api2/v2/statistics") ||
-                url.includes("/api2/v2/statics") ||
-                url.includes("/api2/v2/subscribers") ||
-                url.includes("/api2/v2/fans")
-              )) {
+              if (
+                reqId &&
+                (url.includes("/api2/v2/subscriptions") ||
+                  url.includes("/api2/v2/lists") ||
+                  url.includes("/api2/v2/users") ||
+                  url.includes("/api2/v2/chats") ||
+                  url.includes("/api2/v2/earnings") ||
+                  url.includes("/api2/v2/statistics") ||
+                  url.includes("/api2/v2/statics") ||
+                  url.includes("/api2/v2/subscribers") ||
+                  url.includes("/api2/v2/fans"))
+              ) {
                 const bodyMid = send("Network.getResponseBody", { requestId: reqId });
                 pendingBodyRequests.set(bodyMid, url);
               }
@@ -1247,15 +1934,22 @@ Deno.serve(async (req) => {
                 try {
                   const parsed = JSON.parse(body);
                   // Determine data type from URL
-                  const key = sourceUrl.includes("subscri") ? "subscribers"
-                    : sourceUrl.includes("fans") ? "fans"
-                    : sourceUrl.includes("chat") ? "chats"
-                    : sourceUrl.includes("earning") ? "earnings"
-                    : sourceUrl.includes("statistic") || sourceUrl.includes("statics") ? "statistics"
-                    : sourceUrl.includes("lists") ? "lists"
-                    : sourceUrl.includes("users") ? "users"
-                    : `api_${xhrCount}`;
-                  
+                  const key = sourceUrl.includes("subscri")
+                    ? "subscribers"
+                    : sourceUrl.includes("fans")
+                      ? "fans"
+                      : sourceUrl.includes("chat")
+                        ? "chats"
+                        : sourceUrl.includes("earning")
+                          ? "earnings"
+                          : sourceUrl.includes("statistic") || sourceUrl.includes("statics")
+                            ? "statistics"
+                            : sourceUrl.includes("lists")
+                              ? "lists"
+                              : sourceUrl.includes("users")
+                                ? "users"
+                                : `api_${xhrCount}`;
+
                   if (accumulated[key] && Array.isArray(accumulated[key]) && Array.isArray(parsed)) {
                     accumulated[key] = [...accumulated[key], ...parsed];
                   } else {
@@ -1263,7 +1957,10 @@ Deno.serve(async (req) => {
                   }
                   xhrCount++;
                   if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
-                  xhrFinishTimer = setTimeout(() => finish({ success: true, source: "xhr", data: accumulated, xhrCount }), 5000);
+                  xhrFinishTimer = setTimeout(
+                    () => finish({ success: true, source: "xhr", data: accumulated, xhrCount }),
+                    5000,
+                  );
                 } catch {}
               }
               return;
@@ -1278,7 +1975,8 @@ Deno.serve(async (req) => {
                   if (xhrCount > 0) return; // let XHR finish timer handle it
                   finish({ success: true, source: "dom", data: domResult, xhrCount: 0 });
                 } catch {
-                  if (xhrCount === 0) finish({ success: true, source: "dom_raw", data: { pageText: text }, xhrCount: 0 });
+                  if (xhrCount === 0)
+                    finish({ success: true, source: "dom_raw", data: { pageText: text }, xhrCount: 0 });
                 }
               }
               return;
@@ -1286,57 +1984,64 @@ Deno.serve(async (req) => {
           } catch {}
         };
         ws.onerror = () => finish({ error: "WebSocket error" });
-        ws.onclose = () => { if (!done) finish({ error: "WebSocket closed early", data: accumulated, xhrCount }); };
+        ws.onclose = () => {
+          if (!done) finish({ error: "WebSocket closed early", data: accumulated, xhrCount });
+        };
       });
 
       // Process and store extracted fan data
       if (fanData.success && fanData.data) {
         const d = fanData.data;
-        
+
         // Process subscribers/fans from XHR
         const rawFans = d.subscribers || d.fans || d.users || [];
-        const fansArray = Array.isArray(rawFans) ? rawFans : (rawFans.list || rawFans.data || []);
-        
+        const fansArray = Array.isArray(rawFans) ? rawFans : rawFans.list || rawFans.data || [];
+
         let upsertedCount = 0;
         for (const fan of fansArray.slice(0, 200)) {
           try {
             const fanPayload: any = {
               agency_id: agencyId,
               platform_user_id: String(fan.id || fan.userId || fan.user_id || `unknown_${upsertedCount}`),
-              username: fan.username || fan.name || fan.user?.username || '',
-              display_name: fan.name || fan.displayName || fan.user?.name || '',
+              username: fan.username || fan.name || fan.user?.username || "",
+              display_name: fan.name || fan.displayName || fan.user?.name || "",
               total_spent: parseFloat(fan.subscribedPrice || fan.totalSpent || fan.total_spent || 0),
               is_active: fan.subscribedIsExpiredNow === false || fan.isActive !== false,
-              platform: 'onlyfans',
+              platform: "onlyfans",
             };
             if (creatorId) fanPayload.creator_id = creatorId;
-            if (fan.subscribedOnData || fan.subscribedOn) fanPayload.subscribed_at = fan.subscribedOnData || fan.subscribedOn;
+            if (fan.subscribedOnData || fan.subscribedOn)
+              fanPayload.subscribed_at = fan.subscribedOnData || fan.subscribedOn;
             if (fan.renewedAt || fan.renewOn) fanPayload.renew_on = fan.renewedAt || fan.renewOn;
 
             await svc.from("of_fans").upsert(fanPayload, { onConflict: "agency_id,platform_user_id" });
             upsertedCount++;
-          } catch (e) { console.warn("Fan upsert failed:", e); }
+          } catch (e) {
+            console.warn("Fan upsert failed:", e);
+          }
         }
 
         // Process chat data
         const rawChats = d.chats || [];
-        const chatsArray = Array.isArray(rawChats) ? rawChats : (rawChats.list || rawChats.data || []);
+        const chatsArray = Array.isArray(rawChats) ? rawChats : rawChats.list || rawChats.data || [];
         let chatCount = 0;
         for (const chat of chatsArray.slice(0, 200)) {
           try {
             const chatPayload: any = {
               agency_id: agencyId,
               platform_chat_id: String(chat.id || chat.chatId || `chat_${chatCount}`),
-              fan_username: chat.withUser?.username || chat.username || '',
+              fan_username: chat.withUser?.username || chat.username || "",
               last_message_at: chat.lastMessage?.createdAt || chat.updatedAt || new Date().toISOString(),
               message_count: chat.messagesCount || chat.messageCount || 0,
-              platform: 'onlyfans',
+              platform: "onlyfans",
             };
             if (creatorId) chatPayload.creator_id = creatorId;
 
             await svc.from("of_chats").upsert(chatPayload, { onConflict: "agency_id,platform_chat_id" });
             chatCount++;
-          } catch (e) { console.warn("Chat upsert failed:", e); }
+          } catch (e) {
+            console.warn("Chat upsert failed:", e);
+          }
         }
 
         return json({
@@ -1364,19 +2069,29 @@ Deno.serve(async (req) => {
 
       const testProxyConfig = await getProxyConfig(svc, testCreatorId);
       if (!testProxyConfig || testProxyConfig.provider === "browserbase") {
-        return json({ error: "No custom proxy configured for this creator. Default proxy does not need testing." }, 400);
+        return json(
+          { error: "No custom proxy configured for this creator. Default proxy does not need testing." },
+          400,
+        );
       }
 
-      const { data: cr } = await svc.from("creators").select("proxy_country, proxy_state, proxy_city").eq("id", testCreatorId).single();
+      const { data: cr } = await svc
+        .from("creators")
+        .select("proxy_country, proxy_state, proxy_city")
+        .eq("id", testCreatorId)
+        .single();
       const proxies = proxyConf(cr, testProxyConfig);
 
       let testSessId: string | null = null;
       try {
-        const sess = await bb(BK, "/sessions", { method: "POST", body: JSON.stringify({
-          projectId: BP,
-          proxies,
-          ...(ENABLE_ADVANCED_STEALTH ? { browserSettings: { advancedStealth: true, os: "windows" } } : {}),
-        }) });
+        const sess = await bb(BK, "/sessions", {
+          method: "POST",
+          body: JSON.stringify({
+            projectId: BP,
+            proxies,
+            ...(ENABLE_ADVANCED_STEALTH ? { browserSettings: { advancedStealth: true, os: "windows" } } : {}),
+          }),
+        });
         if (!sess?.id) return json({ error: "Failed to create test session" }, 502);
         testSessId = sess.id;
 
@@ -1415,37 +2130,38 @@ Deno.serve(async (req) => {
         }
 
         // Release session
-        try { await fetch(`${BB_API}/sessions/${sess.id}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {}
+        try {
+          await fetch(`${BB_API}/sessions/${sess.id}`, {
+            method: "POST",
+            headers: bbH(BK),
+            body: JSON.stringify({ status: "REQUEST_RELEASE" }),
+          });
+        } catch {}
 
         return json({ success: true, ip, geo, provider: testProxyConfig.provider });
       } catch (e: any) {
-        if (testSessId) { try { await fetch(`${BB_API}/sessions/${testSessId}`, { method: "POST", headers: bbH(BK), body: JSON.stringify({ status: "REQUEST_RELEASE" }) }); } catch {} }
+        if (testSessId) {
+          try {
+            await fetch(`${BB_API}/sessions/${testSessId}`, {
+              method: "POST",
+              headers: bbH(BK),
+              body: JSON.stringify({ status: "REQUEST_RELEASE" }),
+            });
+          } catch {}
+        }
         return json({ error: e.message, ip: null, geo: null }, 500);
       }
     }
 
-    // ========== MARILYN: SCRAPE CHAT LIST (STAGEHAND-FIRST + CDP FALLBACK) ==========
+    // ========== MARILYN: SCRAPE CHAT LIST (CDP) ==========
     if (action === "scrape_chat_list") {
       const { browserbaseSessionId: bbSid } = p;
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
 
-      // Try Stagehand first
-      try {
-        console.log("scrape_chat_list: Attempting Stagehand...");
-        const stagehandResult = await scrapeChatListViaStagehand(bbSid);
-        if (stagehandResult.success && stagehandResult.data?.data?.conversations?.length) {
-          console.log(`Stagehand: scraped ${stagehandResult.data.data.conversations.length} conversations`);
-          return json({ data: stagehandResult.data.data, method: "stagehand" });
-        }
-        throw new Error(stagehandResult.error || "Empty result from Stagehand");
-      } catch (stagehandErr: any) {
-        console.warn(`scrape_chat_list Stagehand failed: ${stagehandErr.message}, falling back to CDP`);
-      }
-
-      // CDP fallback
+      // Navigate to chats page first
       try {
         await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
-        await new Promise(r => setTimeout(r, 4000));
+        await new Promise((r) => setTimeout(r, 4000)); // Wait for DOM to settle
       } catch (e) {
         console.warn("Chat list navigation failed:", e);
       }
@@ -1454,6 +2170,7 @@ Deno.serve(async (req) => {
         var result = { conversations: [], totalCount: 0, currentUrl: window.location.href };
         var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
         if (!chatItems.length) {
+          // Fallback selectors
           chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
         }
         chatItems.forEach(function(el, index) {
@@ -1467,6 +2184,7 @@ Deno.serve(async (req) => {
             var badgeText = unreadBadge.innerText.trim();
             isUnread = badgeText !== '' && badgeText !== '0';
           }
+          // Also check if the item has an unread class
           if (!isUnread) {
             isUnread = el.classList.contains('m-unread') || el.classList.contains('b-chats__item--unread') || el.className.includes('unread');
           }
@@ -1487,54 +2205,72 @@ Deno.serve(async (req) => {
       })()`;
 
       const result = await executeCDPScript(BK, bbSid, scrapeScript, 15000);
-      return json({ ...result, method: "cdp" });
+      return json(result);
     }
 
-    // ========== MARILYN: CLICK CONVERSATION (STAGEHAND-FIRST + CDP FALLBACK) ==========
+    // ========== MARILYN: CLICK CONVERSATION (CDP) ==========
     if (action === "click_conversation") {
       const { browserbaseSessionId: bbSid, conversationIndex, fanName } = p;
       if (!bbSid) return json({ error: "browserbaseSessionId required" }, 400);
-      if (conversationIndex === undefined && !fanName) return json({ error: "conversationIndex or fanName required" }, 400);
+      if (conversationIndex === undefined && !fanName)
+        return json({ error: "conversationIndex or fanName required" }, 400);
 
-      // CDP-first approach — reliable DOM clicking that avoids profile links
-      if (fanName) {
-        console.log(`click_conversation: Using CDP for "${fanName}"...`);
-        const cdpClick = await clickConversationViaCDP(BK, bbSid, fanName as string, Number(conversationIndex));
-        if (cdpClick.success) {
-          return json({ data: { success: true, clickedName: fanName }, method: "cdp" });
-        }
-        console.warn(`click_conversation CDP failed: ${cdpClick.error}`);
-      }
-
-      // Index-based fallback (no fanName provided)
+      const escapedFanName = fanName ? String(fanName).replace(/'/g, "\\'") : "";
       const clickScript = `(function() {
         var result = { success: false, clickedName: '', reason: '' };
         var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-        if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+        if (!chatItems.length) {
+          chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+        }
+        var target = null;
+        var targetName = '';
+        ${
+          fanName
+            ? `
+        // Find by fan name
+        for (var i = 0; i < chatItems.length; i++) {
+          var nameEl = chatItems[i].querySelector('.g-user-name, .b-username, [class*="user-name"]');
+          if (nameEl && nameEl.innerText.trim().toLowerCase() === '${escapedFanName}'.toLowerCase()) {
+            target = chatItems[i];
+            targetName = nameEl.innerText.trim();
+            break;
+          }
+        }`
+            : `
+        // Find by index
         var idx = ${conversationIndex || 0};
-        if (idx >= chatItems.length) { result.reason = 'Index out of range'; return JSON.stringify(result); }
-        var target = chatItems[idx];
-        var nameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"]');
-        result.clickedName = nameEl ? nameEl.innerText.trim() : 'index_' + idx;
-        // Click the preview/row body — NOT the <a> profile link
-        var preview = target.querySelector('.b-chats__item-text, [class*="preview"], [class*="last-message"]');
-        var clickTarget = preview || target;
-        if (clickTarget.tagName === 'A') clickTarget = target;
-        try { clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch(e) {}
-        try { clickTarget.click(); } catch(e) {}
-        if (clickTarget !== target) { try { target.click(); } catch(e) {} }
+        if (idx < chatItems.length) {
+          target = chatItems[idx];
+          var nameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"]');
+          targetName = nameEl ? nameEl.innerText.trim() : 'index_' + idx;
+        }`
+        }
+        if (!target) {
+          result.reason = 'Conversation not found';
+          return JSON.stringify(result);
+        }
+        // Click the conversation
+        var clickTarget = target.querySelector('a') || target;
+        try {
+          clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+          clickTarget.click();
+        } catch (e) {
+          target.click();
+        }
         result.success = true;
+        result.clickedName = targetName;
         return JSON.stringify(result);
       })()`;
 
       const result = await executeCDPScript(BK, bbSid, clickScript, 10000);
-      return json({ ...result, method: "cdp" });
+      return json(result);
     }
 
-    // ========== MARILYN: BATCH REPLY (STAGEHAND-FIRST + CDP FALLBACK) ==========
+    // ========== MARILYN: BATCH REPLY (ORCHESTRATOR) ==========
     if (action === "batch_reply") {
       const { browserbaseSessionId: bbSid, creatorId: batchCreatorId, agencyId: batchAgencyId, limit: batchLimit } = p;
-      if (!bbSid || !batchCreatorId || !batchAgencyId) return json({ error: "browserbaseSessionId, creatorId, agencyId required" }, 400);
+      if (!bbSid || !batchCreatorId || !batchAgencyId)
+        return json({ error: "browserbaseSessionId, creatorId, agencyId required" }, 400);
 
       // Verify agency ownership
       const { data: batchProfile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
@@ -1542,193 +2278,115 @@ Deno.serve(async (req) => {
 
       const maxReplies = Math.min(Number(batchLimit) || 5, 20);
       const results: any[] = [];
-      let automationMethod = "stagehand";
-      let useStagehand = true;
-      let chatList: any[] = [];
+      let navigatedToChats = false;
+
+      // Step 1: Navigate to chats
+      try {
+        await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
+        await new Promise((r) => setTimeout(r, 4000));
+        navigatedToChats = true;
+      } catch (e) {
+        return json({ error: "Failed to navigate to chats page", detail: String(e) }, 500);
+      }
+
+      // Step 2: Scrape chat list
+      const scrapeScript = `(function() {
+        var result = { conversations: [] };
+        var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
+        if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+        chatItems.forEach(function(el, index) {
+          var nameEl = el.querySelector('.g-user-name, .b-username, [class*="user-name"]');
+          var unreadBadge = el.querySelector('.b-chats__item-unread, [class*="unread"], .b-counter, .b-badge');
+          var isUnread = false;
+          if (unreadBadge) {
+            var badgeText = unreadBadge.innerText.trim();
+            isUnread = badgeText !== '' && badgeText !== '0';
+          }
+          if (!isUnread) isUnread = el.classList.contains('m-unread') || el.className.includes('unread');
+          if (nameEl && isUnread) {
+            result.conversations.push({ index: index, fanName: nameEl.innerText.trim() });
+          }
+        });
+        return JSON.stringify(result);
+      })()`;
+
+      const chatListResult = await executeCDPScript(BK, bbSid, scrapeScript, 15000);
+      const chatList = chatListResult.data?.conversations || [];
+
+      if (!chatList.length) {
+        return json({ success: true, message: "No unread conversations found", repliesSent: 0, results: [] });
+      }
 
       // Get creator info for AI context
       const { data: batchCreator } = await svc.from("creators").select("name, niche").eq("id", batchCreatorId).single();
       const creatorName = batchCreator?.name || "Creator";
 
-      // ---- Initialize Stagehand session first ----
-      try {
-        console.log("🤖 Marilyn batch_reply: Initializing Stagehand session...");
-        const stagehandInit = await initStagehandSession(bbSid);
-        if (!stagehandInit.success) {
-          throw new Error(`Stagehand init failed: ${stagehandInit.error}`);
-        }
-        console.log("✅ Stagehand session ready, scraping chat list...");
-        const chatListResult = await scrapeChatListViaStagehand(bbSid);
-
-        if (chatListResult.success && chatListResult.data?.data?.conversations?.length) {
-          const extractedConversations = chatListResult.data.data.conversations;
-          chatList = extractedConversations.filter((c: any) => c.isUnread || Number(c.unreadCount || 0) > 0);
-          if (!chatList.length) {
-            throw new Error("Stagehand did not detect unread conversations");
-          }
-          console.log(`✅ Found ${chatList.length} unread conversations`);
-        } else {
-          throw new Error(chatListResult.error || "No conversations found via Stagehand");
-        }
-      } catch (stagehandErr: any) {
-        console.warn(`⚠️ Stagehand chat scrape failed: ${stagehandErr.message}, falling back to CDP...`);
-        useStagehand = false;
-        automationMethod = "cdp";
-
-        // CDP fallback: Navigate and scrape
-        try {
-          await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
-          await new Promise(r => setTimeout(r, 20000));
-        } catch (e) {
-          return json({ error: "Failed to navigate to chats page", detail: String(e) }, 500);
-        }
-
-        const scrapeScript = `(function() {
-          var result = { conversations: [] };
-          var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-          if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
-          chatItems.forEach(function(el, index) {
-            var nameEl = el.querySelector('.g-user-name, .b-username, [class*="user-name"]');
-            var unreadBadge = el.querySelector('.b-chats__item-unread, [class*="unread"], .b-counter, .b-badge');
-            var isUnread = false;
-            if (unreadBadge) {
-              var badgeText = unreadBadge.innerText.trim();
-              isUnread = badgeText !== '' && badgeText !== '0';
-            }
-            if (!isUnread) isUnread = el.classList.contains('m-unread') || el.className.includes('unread');
-            if (nameEl && isUnread) {
-              result.conversations.push({ index: index, fanName: nameEl.innerText.trim() });
-            }
-          });
-          return JSON.stringify(result);
-        })()`;
-
-        const cdpChatList = await executeCDPScript(BK, bbSid, scrapeScript, 15000);
-        chatList = cdpChatList.data?.conversations || [];
-      }
-
-      if (!chatList.length) {
-        return json({ success: true, message: "No unread conversations found", repliesSent: 0, results: [], automationMethod });
-      }
-
-      // Process conversations
+      // Step 3: Loop through unread conversations
       const toProcess = chatList.slice(0, maxReplies);
-      console.log(`📋 Processing ${toProcess.length} conversations...`);
-
-      const verifyReplySentViaCDP = async (replyText: string) => {
-        const escapedSnippet = replyText
-          .slice(0, 80)
-          .replace(/\\/g, "\\\\")
-          .replace(/'/g, "\\'")
-          .replace(/\n/g, " ")
-          .trim();
-
-        const verifyScript = `(function() {
-          var result = { sent: false, matchedText: '' };
-          var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
-          if (!msgEls.length) return JSON.stringify(result);
-          var own = Array.from(msgEls).filter(function(el) {
-            return el.classList.contains('b-chat__message--owner') || !!el.closest('[class*="message--owner"]');
-          });
-          if (!own.length) return JSON.stringify(result);
-          var latest = own[own.length - 1];
-          var textEl = latest.querySelector('.b-chat__message__text, [class*="message__text"]');
-          var txt = (textEl ? textEl.innerText : latest.innerText || '').trim();
-          if (!txt) return JSON.stringify(result);
-          result.matchedText = txt;
-          var probe = '${escapedSnippet}'.toLowerCase();
-          result.sent = probe.length > 8 ? txt.toLowerCase().includes(probe) : txt.length > 0;
-          return JSON.stringify(result);
-        })()`;
-
-        const verifyRes = await executeCDPScript(BK, bbSid, verifyScript, 10000);
-        return Boolean(verifyRes.success && verifyRes.data?.sent);
-      };
-
-      // injectReplyViaCDP is now imported from stagehand-helpers.ts
 
       for (let ci = 0; ci < toProcess.length; ci++) {
         const conv = toProcess[ci];
-        const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null, method: automationMethod };
-        console.log(`\n━━━ Conversation ${ci + 1}/${toProcess.length}: ${conv.fanName} ━━━`);
+        const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null };
 
         try {
-          // Step A: Click into conversation — CDP with name+index matching to avoid profile link bug
-          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName, Number(conv.index));
-          if (!clickRes.success) {
+          // 3a: Click into conversation
+          const clickScript = `(function() {
+            var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
+            if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
+            var target = chatItems[${conv.index}];
+            if (!target) return JSON.stringify({ success: false, reason: 'Not found' });
+            var clickTarget = target.querySelector('a') || target;
+            try { clickTarget.click(); } catch(e) { target.click(); }
+            return JSON.stringify({ success: true });
+          })()`;
+          const clickRes = await executeCDPScript(BK, bbSid, clickScript, 8000);
+          if (!clickRes.data?.success) {
             stepResult.status = "skipped";
-            stepResult.error = `Could not open conversation: ${clickRes.error}`;
+            stepResult.error = "Could not click conversation";
             results.push(stepResult);
             continue;
           }
 
-          // Human would take time to read the conversation (20-40s)
-          await new Promise(r => setTimeout(r, 6000 + Math.floor(Math.random() * 6000)));
+          // Wait for chat to load
+          await new Promise((r) => setTimeout(r, 2000 + Math.floor(Math.random() * 2000)));
 
-          // Step B: Read chat context
-          let lastFanMsg = "";
-
-          if (useStagehand) {
-            const chatCtx = await readChatContextViaStagehand(bbSid);
-            if (chatCtx.success && chatCtx.data?.data?.lastFanMessage) {
-              lastFanMsg = chatCtx.data.data.lastFanMessage;
-              console.log(`📩 Fan message: "${lastFanMsg.substring(0, 60)}..."`);
-            } else {
-              const readScript = `(function() {
-                var result = { messages: [], fanName: '' };
-                var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
-                if (header) result.fanName = header.innerText.trim();
-                var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
-                var msgs = Array.from(msgEls).slice(-10);
-                msgs.forEach(function(el) {
-                  var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
-                  var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
-                  var text = textEl ? textEl.innerText.trim() : '';
-                  if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
-                });
-                var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
-                result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
-                return JSON.stringify(result);
-              })()`;
-              const chatContextFallback = await executeCDPScript(BK, bbSid, readScript, 10000);
-              lastFanMsg = chatContextFallback.data?.lastFanMessage || "";
-            }
-          } else {
-            const readScript = `(function() {
-              var result = { messages: [], fanName: '' };
-              var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
-              if (header) result.fanName = header.innerText.trim();
-              var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
-              var msgs = Array.from(msgEls).slice(-10);
-              msgs.forEach(function(el) {
-                var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
-                var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
-                var text = textEl ? textEl.innerText.trim() : '';
-                if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
-              });
-              var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
-              result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
-              return JSON.stringify(result);
-            })()`;
-            const chatContext = await executeCDPScript(BK, bbSid, readScript, 10000);
-            lastFanMsg = chatContext.data?.lastFanMessage || "";
-          }
+          // 3b: Read chat context
+          const readScript = `(function() {
+            var result = { messages: [], fanName: '' };
+            var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
+            if (header) result.fanName = header.innerText.trim();
+            var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
+            var msgs = Array.from(msgEls).slice(-10);
+            msgs.forEach(function(el) {
+              var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
+              var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
+              var text = textEl ? textEl.innerText.trim() : '';
+              if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
+            });
+            var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
+            result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
+            return JSON.stringify(result);
+          })()`;
+          const chatContext = await executeCDPScript(BK, bbSid, readScript, 10000);
+          const lastFanMsg = chatContext.data?.lastFanMessage;
 
           if (!lastFanMsg) {
             stepResult.status = "skipped";
-            stepResult.error = "No fan message found";
+            stepResult.error = "No fan message found in conversation";
             results.push(stepResult);
-            // Navigate back with human pacing
+            // Go back to chats list
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
+            await new Promise((r) => setTimeout(r, 2000));
             continue;
           }
 
-          // Step C: Call ai-chatter for reply (human "thinking" time)
-          console.log("🧠 Generating AI reply...");
+          // 3c: Call ai-chatter for reply
           const aiRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-chatter`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": auth },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: auth,
+            },
             body: JSON.stringify({
               action: "generate_reply",
               fanMessage: lastFanMsg,
@@ -1743,7 +2401,7 @@ Deno.serve(async (req) => {
             stepResult.error = `AI chatter returned ${aiRes.status}`;
             results.push(stepResult);
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2500)));
+            await new Promise((r) => setTimeout(r, 2000));
             continue;
           }
 
@@ -1757,43 +2415,47 @@ Deno.serve(async (req) => {
             stepResult.confidence = confidence;
             results.push(stepResult);
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
+            await new Promise((r) => setTimeout(r, 2000));
             continue;
           }
 
-          console.log(`💬 Reply (${confidence}%): "${replyText.substring(0, 60)}..."`);
+          // 3d: Inject reply text and send
+          const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
+          const injectScript = `(function() {
+            var text = '${escapedReply}';
+            var result = { success: false, autoSent: false };
+            var input = document.querySelector('textarea[id="new_post_text_input"]') || document.querySelector('.b-chat__input textarea') || document.querySelector('.b-chat-message-input textarea') || document.querySelector('[contenteditable="true"]');
+            if (!input) { result.reason = 'No input found'; return JSON.stringify(result); }
+            if (input.tagName === 'TEXTAREA') {
+              var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+              if (nativeSetter) nativeSetter.call(input, text);
+              else input.value = text;
+            } else {
+              input.focus();
+              input.textContent = text;
+            }
+            try { input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text })); } catch(_) { input.dispatchEvent(new Event('input', { bubbles: true })); }
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.focus();
+            // Click send
+            setTimeout(function() {
+              var sendBtn = document.querySelector('.b-chat__btn-submit') || document.querySelector('button[type="submit"]') || document.querySelector('[class*="send"] button');
+              if (sendBtn) {
+                try { sendBtn.removeAttribute('disabled'); } catch(_) {}
+                sendBtn.click();
+                result.autoSent = true;
+              }
+            }, 500);
+            result.success = true;
+            return JSON.stringify(result);
+          })()`;
 
-          // Step D: Inject reply and send — CDP-first (reliable)
-          let autoSent = false;
-          let sendFailureReason: string | null = null;
-
-          // Always use CDP for injection — Stagehand act endpoints return 404
-          const cdpInjectRes = await injectChatReplyViaCDP(BK, bbSid, replyText);
-          autoSent = cdpInjectRes.success && cdpInjectRes.autoSent;
-          if (!autoSent && cdpInjectRes.success) {
-            await new Promise(r => setTimeout(r, 2000));
-            autoSent = await verifyReplySentViaCDP(replyText);
-          }
-          if (!autoSent) {
-            sendFailureReason = cdpInjectRes.reason || "Unable to click send button";
-          }
-
-          if (!autoSent) {
-            stepResult.status = "error";
-            stepResult.reply = replyText;
-            stepResult.confidence = confidence;
-            stepResult.fanMessage = lastFanMsg;
-            stepResult.error = `Reply generation worked but send failed${sendFailureReason ? `: ${sendFailureReason}` : ""}`;
-            results.push(stepResult);
-            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 10000 + Math.floor(Math.random() * 15000)));
-            continue;
-          }
+          const injectRes = await executeCDPScript(BK, bbSid, injectScript, 10000);
 
           stepResult.status = "sent";
           stepResult.reply = replyText;
           stepResult.confidence = confidence;
-          stepResult.autoSent = autoSent;
+          stepResult.autoSent = injectRes.data?.autoSent || false;
           stepResult.fanMessage = lastFanMsg;
 
           // Log to ai_suggestions_log
@@ -1806,42 +2468,37 @@ Deno.serve(async (req) => {
               selected_index: 0,
               final_message: replyText,
             });
-          } catch (e) { console.warn("Failed to log suggestion:", e); }
+          } catch (e) {
+            console.warn("Failed to log suggestion:", e);
+          }
 
           results.push(stepResult);
-          console.log(`✅ Reply sent to ${conv.fanName}`);
 
-          // Go back to chats list for next conversation
+          // 3e: Go back to chats list for next conversation
           if (ci < toProcess.length - 1) {
-            const gapMs = 12000 + Math.floor(Math.random() * 12000);
-            console.log(`⏳ Waiting ${(gapMs / 1000).toFixed(0)}s before next conversation (${ci + 1}/${toProcess.length})...`);
-            await new Promise(r => setTimeout(r, gapMs));
+            await new Promise((r) => setTimeout(r, 2000 + Math.floor(Math.random() * 4000))); // Random delay 2-6s
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 3000 + Math.floor(Math.random() * 4000)));
+            await new Promise((r) => setTimeout(r, 3000));
           }
         } catch (e: any) {
           stepResult.status = "error";
           stepResult.error = e.message;
           results.push(stepResult);
-          console.error(`❌ Error processing ${conv.fanName}: ${e.message}`);
+          // Try to recover
           try {
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise((r) => setTimeout(r, 2000));
           } catch {}
         }
       }
 
-      // Clean up Stagehand session
-      try { await endStagehandSession(bbSid); } catch {}
-
-      const sentCount = results.filter(r => r.status === "sent").length;
+      const sentCount = results.filter((r) => r.status === "sent").length;
       return json({
         success: true,
         repliesSent: sentCount,
         totalProcessed: results.length,
         totalUnread: chatList.length,
         results,
-        automationMethod,
       });
     }
 
