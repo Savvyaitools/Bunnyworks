@@ -2402,30 +2402,35 @@ Deno.serve(async (req) => {
       if (!bbSid || !batchCreatorId || !batchAgencyId)
         return json({ error: "browserbaseSessionId, creatorId, agencyId required" }, 400);
 
-      // Verify agency ownership
       const { data: batchProfile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
       if (!batchProfile || batchProfile.agency_id !== batchAgencyId) return json({ error: "Unauthorized" }, 403);
 
       const maxReplies = Math.min(Number(batchLimit) || 5, 20);
       const results: any[] = [];
-      let navigatedToChats = false;
+      const humanPause = (minMs: number, maxMs: number) =>
+        new Promise((r) => setTimeout(r, minMs + Math.floor(Math.random() * Math.max(1, maxMs - minMs))));
 
-      // Step 1: Navigate to chats
       try {
         await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 20000 });
-        await new Promise((r) => setTimeout(r, 4000));
-        navigatedToChats = true;
+        await humanPause(3500, 5500);
       } catch (e) {
         return json({ error: "Failed to navigate to chats page", detail: String(e) }, 500);
       }
 
-      // Step 2: Scrape chat list
+      const stagehandHealthy = await isStagehandAvailable();
+      if (stagehandHealthy) {
+        const initRes = await initStagehandSession(bbSid);
+        if (!initRes.success) {
+          console.warn("Stagehand init failed for batch_reply:", initRes.error);
+        }
+      }
+
       const scrapeScript = `(function() {
         var result = { conversations: [] };
         var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
         if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
         chatItems.forEach(function(el, index) {
-          var nameEl = el.querySelector('.g-user-name, .b-username, [class*="user-name"]');
+          var nameEl = el.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
           var unreadBadge = el.querySelector('.b-chats__item-unread, [class*="unread"], .b-counter, .b-badge');
           var isUnread = false;
           if (unreadBadge) {
@@ -2442,66 +2447,91 @@ Deno.serve(async (req) => {
 
       const chatListResult = await executeCDPScript(BK, bbSid, scrapeScript, 15000);
       const chatList = chatListResult.data?.conversations || [];
-
       if (!chatList.length) {
         return json({ success: true, message: "No unread conversations found", repliesSent: 0, results: [] });
       }
 
-      // Get creator info for AI context
       const { data: batchCreator } = await svc.from("creators").select("name, niche").eq("id", batchCreatorId).single();
       const creatorName = batchCreator?.name || "Creator";
-
-      // Step 3: Loop through unread conversations
       const toProcess = chatList.slice(0, maxReplies);
 
       for (let ci = 0; ci < toProcess.length; ci++) {
         const conv = toProcess[ci];
-        const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null };
+        const stepResult: any = {
+          fanName: conv.fanName,
+          status: "pending",
+          reply: null,
+          error: null,
+          usedStagehand: false,
+        };
 
         try {
-          // 3a: Click into conversation (uses hardened helper that avoids <a> profile links)
-          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName, conv.index);
+          let openMethod: "cdp" | "stagehand" = "cdp";
+          let clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName, conv.index);
+
+          if (!clickRes.success && stagehandHealthy) {
+            const stagehandClick = await clickConversationViaStagehand(bbSid, conv.fanName);
+            if (stagehandClick.success) {
+              clickRes = { success: true };
+              openMethod = "stagehand";
+              stepResult.usedStagehand = true;
+            } else {
+              clickRes = { success: false, error: stagehandClick.error || clickRes.error };
+            }
+          }
+
           if (!clickRes.success) {
             stepResult.status = "skipped";
-            stepResult.error = `Could not open conversation: ${clickRes.error || 'CDP click failed'}`;
+            stepResult.error = `Could not open conversation: ${clickRes.error || "CDP click failed"}`;
             results.push(stepResult);
             continue;
           }
 
-          // Wait for chat to load (humanized delay 3-6s)
-          await new Promise((r) => setTimeout(r, 3000 + Math.floor(Math.random() * 3000)));
+          await humanPause(openMethod === "stagehand" ? 4500 : 3000, openMethod === "stagehand" ? 7000 : 5500);
 
-          // 3b: Read chat context
-          const readScript = `(function() {
-            var result = { messages: [], fanName: '' };
-            var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
-            if (header) result.fanName = header.innerText.trim();
-            var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
-            var msgs = Array.from(msgEls).slice(-10);
-            msgs.forEach(function(el) {
-              var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
-              var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
-              var text = textEl ? textEl.innerText.trim() : '';
-              if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
-            });
-            var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
-            result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
-            return JSON.stringify(result);
-          })()`;
-          const chatContext = await executeCDPScript(BK, bbSid, readScript, 10000);
-          const lastFanMsg = chatContext.data?.lastFanMessage;
+          let lastFanMsg = "";
+          let verifiedOpen = false;
 
-          if (!lastFanMsg) {
+          if (stagehandHealthy) {
+            const stagehandContext = await readChatContextViaStagehand(bbSid);
+            if (stagehandContext.success && stagehandContext.data?.data?.lastFanMessage) {
+              lastFanMsg = stagehandContext.data.data.lastFanMessage;
+              verifiedOpen = true;
+              stepResult.usedStagehand = true;
+            }
+          }
+
+          if (!verifiedOpen) {
+            const readScript = `(function() {
+              var result = { messages: [], fanName: '' };
+              var header = document.querySelector('.b-chat__header-name, .g-user-name, [class*="chat-header"] .g-user-name');
+              if (header) result.fanName = header.innerText.trim();
+              var msgEls = document.querySelectorAll('.b-chat__message, [class*="b-chat__message"]');
+              var msgs = Array.from(msgEls).slice(-10);
+              msgs.forEach(function(el) {
+                var isOwn = el.classList.contains('b-chat__message--owner') || el.closest('[class*="message--owner"]');
+                var textEl = el.querySelector('.b-chat__message__text, [class*="message__text"]');
+                var text = textEl ? textEl.innerText.trim() : '';
+                if (text) result.messages.push({ role: isOwn ? 'creator' : 'fan', text: text });
+              });
+              var fanMsgs = result.messages.filter(function(m) { return m.role === 'fan'; });
+              result.lastFanMessage = fanMsgs.length > 0 ? fanMsgs[fanMsgs.length - 1].text : '';
+              return JSON.stringify(result);
+            })()`;
+            const chatContext = await executeCDPScript(BK, bbSid, readScript, 12000);
+            lastFanMsg = chatContext.data?.lastFanMessage || "";
+            verifiedOpen = Boolean(lastFanMsg);
+          }
+
+          if (!verifiedOpen || !lastFanMsg) {
             stepResult.status = "skipped";
-            stepResult.error = "No fan message found in conversation";
+            stepResult.error = "Conversation did not open or no fan message found";
             results.push(stepResult);
-            // Go back to chats list
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise((r) => setTimeout(r, 2000));
+            await humanPause(3500, 6000);
             continue;
           }
 
-          // 3c: Call ai-chatter for reply
           const aiRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-chatter`, {
             method: "POST",
             headers: {
@@ -2522,7 +2552,7 @@ Deno.serve(async (req) => {
             stepResult.error = `AI chatter returned ${aiRes.status}`;
             results.push(stepResult);
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise((r) => setTimeout(r, 2000));
+            await humanPause(3500, 6000);
             continue;
           }
 
@@ -2536,20 +2566,41 @@ Deno.serve(async (req) => {
             stepResult.confidence = confidence;
             results.push(stepResult);
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise((r) => setTimeout(r, 2000));
+            await humanPause(3500, 6000);
             continue;
           }
 
-          // 3d: Inject reply text and send (uses hardened helper with 12+ send selectors)
-          const injectRes = await injectChatReplyViaCDP(BK, bbSid, replyText);
+          let injectRes = await injectChatReplyViaCDP(BK, bbSid, replyText);
+          if ((!injectRes.success || !injectRes.autoSent) && stagehandHealthy) {
+            const stagehandSend = await injectChatReplyViaStagehand(bbSid, replyText);
+            if (stagehandSend.success) {
+              injectRes = {
+                success: true,
+                autoSent: Boolean(stagehandSend.data?.autoSent),
+                reason: stagehandSend.data?.autoSent ? "stagehand_verified_send" : "stagehand_uncertain",
+              };
+              stepResult.usedStagehand = true;
+            }
+          }
+
+          if (!injectRes.success || !injectRes.autoSent) {
+            stepResult.status = "error";
+            stepResult.error = injectRes.reason || "Reply text was injected but send was not verified";
+            stepResult.reply = replyText;
+            stepResult.confidence = confidence;
+            stepResult.fanMessage = lastFanMsg;
+            results.push(stepResult);
+            await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
+            await humanPause(4000, 7000);
+            continue;
+          }
 
           stepResult.status = "sent";
           stepResult.reply = replyText;
           stepResult.confidence = confidence;
-          stepResult.autoSent = injectRes.autoSent || false;
+          stepResult.autoSent = true;
           stepResult.fanMessage = lastFanMsg;
 
-          // Log to ai_suggestions_log
           try {
             await svc.from("ai_suggestions_log").insert({
               agency_id: batchAgencyId,
@@ -2565,22 +2616,18 @@ Deno.serve(async (req) => {
 
           results.push(stepResult);
 
-          // 3e: Go back to chats list for next conversation (humanized delays)
           if (ci < toProcess.length - 1) {
-            // Post-send reading pause 5-10s
-            await new Promise((r) => setTimeout(r, 5000 + Math.floor(Math.random() * 5000)));
+            await humanPause(5000, 9000);
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            // Wait for chat list to load 4-8s
-            await new Promise((r) => setTimeout(r, 4000 + Math.floor(Math.random() * 4000)));
+            await humanPause(4000, 7000);
           }
         } catch (e: any) {
           stepResult.status = "error";
           stepResult.error = e.message;
           results.push(stepResult);
-          // Try to recover
           try {
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise((r) => setTimeout(r, 2000));
+            await humanPause(3000, 5000);
           } catch {}
         }
       }
@@ -2591,6 +2638,7 @@ Deno.serve(async (req) => {
         repliesSent: sentCount,
         totalProcessed: results.length,
         totalUnread: chatList.length,
+        stagehandAvailable: stagehandHealthy,
         results,
       });
     }
