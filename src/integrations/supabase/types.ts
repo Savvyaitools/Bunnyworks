@@ -983,6 +983,132 @@ export type Database = {
           },
         ]
       }
+      chatter_auto_reply_rules: {
+        Row: {
+          agency_id: string | null
+          created_at: string | null
+          creator_id: string | null
+          id: string
+          is_active: boolean | null
+          response_template: string
+          trigger_pattern: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          response_template: string
+          trigger_pattern: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          response_template?: string
+          trigger_pattern?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_auto_reply_rules_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_auto_reply_rules_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_auto_reply_rules_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatter_message_log: {
+        Row: {
+          agency_id: string | null
+          confidence: number | null
+          created_at: string | null
+          creator_id: string | null
+          fan_message: string | null
+          fan_name: string | null
+          id: string
+          reply_text: string | null
+          rule_id: string | null
+          was_auto_reply: boolean | null
+          was_sent: boolean | null
+        }
+        Insert: {
+          agency_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          creator_id?: string | null
+          fan_message?: string | null
+          fan_name?: string | null
+          id?: string
+          reply_text?: string | null
+          rule_id?: string | null
+          was_auto_reply?: boolean | null
+          was_sent?: boolean | null
+        }
+        Update: {
+          agency_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          creator_id?: string | null
+          fan_message?: string | null
+          fan_name?: string | null
+          id?: string
+          reply_text?: string | null
+          rule_id?: string | null
+          was_auto_reply?: boolean | null
+          was_sent?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_message_log_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_message_log_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_message_log_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_message_log_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "chatter_auto_reply_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatter_shifts: {
         Row: {
           chatter_id: string
