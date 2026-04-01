@@ -408,8 +408,9 @@ async function stagehandRequest<T = unknown>(
 // ========== CDP-First Action Helpers ==========
 
 /**
- * Click a conversation row by fan name using CDP.
- * CRITICAL: Clicks the row body/preview — NOT the <a> profile link.
+ * Click a conversation row by fan name using CDP protocol-level Input.dispatchMouseEvent.
+ * CRITICAL: Uses CDP Input events (trusted/isTrusted=true) instead of JS synthetic events.
+ * This is the ONLY way to trigger OnlyFans' SPA navigation reliably.
  */
 export async function clickConversationViaCDP(
   apiKey: string,
@@ -425,8 +426,9 @@ export async function clickConversationViaCDP(
     .replace(/\t/g, " ");
   const indexValue = Number.isFinite(conversationIndex as number) ? Number(conversationIndex) : -1;
 
-  const clickScript = `(function() {
-    var result = { success: false, clickedName: '', reason: '' };
+  // This script finds the element and returns its CENTER COORDINATES for CDP protocol click
+  const coordScript = `(function() {
+    var result = { found: false, x: 0, y: 0, clickedName: '', reason: '' };
     var querySets = [
       '.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item',
       '[class*="chats"] [class*="item"], .b-users-list__item',
@@ -439,29 +441,31 @@ export async function clickConversationViaCDP(
     }
 
     if (!chatItems.length) {
-      result.reason = 'No chat list items found on page';
+      result.reason = 'No chat list items found on page (URL: ' + location.href + ')';
       return JSON.stringify(result);
     }
 
     var normalize = function(v) {
-      return (v || '').toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9@._\- ]/g, '').trim();
+      return (v || '').toLowerCase().replace(/\\s+/g, ' ').replace(/[^a-z0-9@._\\- ]/g, '').trim();
     };
 
     var wantedRaw = '${escapedName}';
     var wanted = normalize(wantedRaw);
-    var wantedHandleMatch = wantedRaw.match(/@[\w._-]+/);
+    var wantedHandleMatch = wantedRaw.match(/@[\\w._-]+/);
     var wantedHandle = wantedHandleMatch ? wantedHandleMatch[0].toLowerCase() : '';
-    var wantedNameOnly = normalize(wantedRaw.replace(/@[\w._-]+/g, ''));
+    var wantedNameOnly = normalize(wantedRaw.replace(/@[\\w._-]+/g, ''));
 
     var byIndex = ${indexValue};
     var target = null;
 
+    // Try by index first
     if (byIndex >= 0 && byIndex < chatItems.length) {
       target = chatItems[byIndex];
       var idxNameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
       result.clickedName = idxNameEl ? idxNameEl.innerText.trim() : ('index_' + byIndex);
     }
 
+    // Fallback: search by name/handle
     if (!target) {
       for (var i = 0; i < chatItems.length; i++) {
         var row = chatItems[i];
@@ -487,10 +491,11 @@ export async function clickConversationViaCDP(
     }
 
     if (!target) {
-      result.reason = 'Conversation not found for: ${escapedName}';
+      result.reason = 'Conversation not found for: ${escapedName} (total items: ' + chatItems.length + ')';
       return JSON.stringify(result);
     }
 
+    // Find the best non-<a> click target and return its coordinates
     var clickCandidates = [
       '.b-chats__item-text',
       '.b-chats__item__text',
@@ -510,43 +515,40 @@ export async function clickConversationViaCDP(
     }
 
     if (!clickTarget) {
+      // Fallback: find any visible non-link descendant
       var descendants = Array.from(target.querySelectorAll('*'));
       clickTarget = descendants.find(function(el) {
         if (el.closest('a')) return false;
         var rect = el.getBoundingClientRect();
-        var visible = rect.width > 8 && rect.height > 8;
-        if (!visible) return false;
-        var text = (el.innerText || el.textContent || '').trim();
-        return text.length > 0;
-      }) || target;
+        return rect.width > 8 && rect.height > 8;
+      }) || null;
     }
 
-    var dispatchClick = function(el) {
-      try {
-        var rect = el.getBoundingClientRect();
-        var x = rect.left + Math.max(8, rect.width * 0.72);
-        var y = rect.top + Math.min(Math.max(8, rect.height * 0.5), rect.height - 8);
-        var pointed = document.elementFromPoint(x, y);
-        var finalEl = pointed && pointed.closest ? (pointed.closest('a') ? el : pointed) : el;
+    // Last resort: use the row itself but offset away from avatar/link area
+    if (!clickTarget) clickTarget = target;
 
-        ['mousemove', 'mouseover', 'mousedown', 'mouseup', 'click'].forEach(function(type) {
-          finalEl.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }));
-        });
-        if (typeof finalEl.click === 'function') finalEl.click();
-      } catch (_) {
-        try { el.click(); } catch (_) {}
-      }
-    };
-
-    dispatchClick(clickTarget);
-    result.success = true;
+    var rect = clickTarget.getBoundingClientRect();
+    // Click in the right-center area of the element to avoid avatar/link on the left
+    result.x = Math.round(rect.left + Math.max(rect.width * 0.6, 50));
+    result.y = Math.round(rect.top + rect.height * 0.5);
+    result.found = true;
+    result.targetTag = clickTarget.tagName;
+    result.targetClass = (clickTarget.className || '').toString().slice(0, 100);
     return JSON.stringify(result);
   })()`;
 
-  const res = await executeCDPScript(apiKey, sessionId, clickScript, 12000);
-  if (!res.success || !res.data?.success) {
-    return { success: false, error: res.data?.reason || res.error || "CDP click failed" };
+  // Use CDP protocol-level click (Input.dispatchMouseEvent) — trusted browser event
+  const res = await executeCDPClickAtCoords(apiKey, sessionId, coordScript, 15000);
+
+  if (!res.success) {
+    return { success: false, error: res.error || "CDP protocol click failed" };
   }
+
+  if (!res.data?.found) {
+    return { success: false, error: res.data?.reason || "Element not found" };
+  }
+
+  console.log(`✅ CDP protocol click sent for "${res.data.clickedName}" at (${res.data.x}, ${res.data.y}) on <${res.data.targetTag}>`);
   return { success: true };
 }
 
