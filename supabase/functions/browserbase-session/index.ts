@@ -22,6 +22,10 @@ import {
   getProxyConfig,
   injectStealthFingerprint,
 } from "../_shared/cdp-helpers.ts";
+import {
+  clickConversationViaCDP,
+  injectChatReplyViaCDP,
+} from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
 
