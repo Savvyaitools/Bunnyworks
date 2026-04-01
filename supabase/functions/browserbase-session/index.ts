@@ -2560,11 +2560,13 @@ Deno.serve(async (req) => {
 
           results.push(stepResult);
 
-          // 3e: Go back to chats list for next conversation
+          // 3e: Go back to chats list for next conversation (humanized delays)
           if (ci < toProcess.length - 1) {
-            await new Promise((r) => setTimeout(r, 2000 + Math.floor(Math.random() * 4000))); // Random delay 2-6s
+            // Post-send reading pause 5-10s
+            await new Promise((r) => setTimeout(r, 5000 + Math.floor(Math.random() * 5000)));
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise((r) => setTimeout(r, 3000));
+            // Wait for chat list to load 4-8s
+            await new Promise((r) => setTimeout(r, 4000 + Math.floor(Math.random() * 4000)));
           }
         } catch (e: any) {
           stepResult.status = "error";
