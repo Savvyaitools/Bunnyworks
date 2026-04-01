@@ -2463,8 +2463,8 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Wait for chat to load
-          await new Promise((r) => setTimeout(r, 2000 + Math.floor(Math.random() * 2000)));
+          // Wait for chat to load (humanized delay 3-6s)
+          await new Promise((r) => setTimeout(r, 3000 + Math.floor(Math.random() * 3000)));
 
           // 3b: Read chat context
           const readScript = `(function() {
