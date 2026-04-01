@@ -554,6 +554,8 @@ export async function clickConversationViaCDP(
 
 /**
  * Inject chat reply text and send via CDP.
+ * Step 1: Inject text via Runtime.evaluate (JS)
+ * Step 2: Click send button via CDP Input.dispatchMouseEvent (trusted click)
  */
 export async function injectChatReplyViaCDP(
   apiKey: string,
@@ -563,9 +565,10 @@ export async function injectChatReplyViaCDP(
   console.log("💬 CDP: Injecting reply (" + replyText.length + " chars)...");
   const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
 
+  // Step 1: Inject text into input field
   const injectScript = "(function() {" +
     "var text = '" + escapedReply + "';" +
-    "var result = { success: false, autoSent: false, reason: '', inputMode: '', sendStrategy: '' };" +
+    "var result = { success: false, reason: '', inputMode: '' };" +
     "var textareaSelectors = ['textarea[id=\"new_post_text_input\"]','.b-chat__input textarea','.b-chat-message-input textarea','.b-make-post__wrapper textarea','.b-make-post__textarea textarea','[class*=\"chat-input\"] textarea'];" +
     "var editableSelectors = ['.b-chat__input [contenteditable=\"true\"]','[contenteditable=\"true\"][class*=\"chat\"]','[data-testid*=\"chat\"] [contenteditable=\"true\"]','[role=\"textbox\"][contenteditable=\"true\"]','.ProseMirror[contenteditable=\"true\"]'];" +
     "var pickFirst = function(selectors) { for (var i = 0; i < selectors.length; i++) { var el = document.querySelector(selectors[i]); if (el) return el; } return null; };" +
@@ -584,29 +587,94 @@ export async function injectChatReplyViaCDP(
     "  result.inputMode = 'contenteditable';" +
     "}" +
     "dispatchInputEvents(input); input.focus();" +
-    "var isVisible = function(el) { if (!el) return false; var style = window.getComputedStyle(el); if (style.display === 'none' || style.visibility === 'hidden') return false; var rect = el.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; };" +
-    "var clickButton = function(btn) { try { btn.removeAttribute('disabled'); } catch (_) {} try { btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window })); } catch (_) {} try { btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window })); } catch (_) {} try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch (_) {} try { btn.click(); } catch (_) {} };" +
-    "var findSendButton = function() {" +
-    "  var selectors = ['.b-chat__btn-submit','button.b-btn-send-message','button[data-testid*=\"send\"]','button[aria-label*=\"Send\"]','button[aria-label*=\"send\"]','.b-chat-message-input button[type=\"submit\"]','.b-chat__input button[type=\"submit\"]','form button[type=\"submit\"]','button[class*=\"send\"]','button[class*=\"submit\"]','[aria-label*=\"paper plane\"]','[title*=\"Send\"]'];" +
-    "  for (var i = 0; i < selectors.length; i++) { var nodes = document.querySelectorAll(selectors[i]); for (var j = 0; j < nodes.length; j++) { if (isVisible(nodes[j])) return nodes[j]; } } return null;" +
-    "};" +
-    "var sendBtn = findSendButton();" +
-    "if (sendBtn) { clickButton(sendBtn); result.success = true; result.autoSent = true; result.sendStrategy = 'button_click'; return JSON.stringify(result); }" +
-    "var form = input.closest ? input.closest('form') : null;" +
-    "if (form && typeof form.requestSubmit === 'function') { try { form.requestSubmit(); result.success = true; result.autoSent = true; result.sendStrategy = 'form_submit'; return JSON.stringify(result); } catch (_) {} }" +
-    "try { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true })); input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true })); } catch (_) {}" +
-    "result.success = true; result.autoSent = false; result.sendStrategy = 'enter_fallback'; result.reason = 'Send button not found, only text injection confirmed';" +
+    "result.success = true;" +
     "return JSON.stringify(result);" +
     "})()";
 
-  const res = await executeCDPScript(apiKey, sessionId, injectScript, 12000);
-  if (!res.success) {
-    return { success: false, autoSent: false, reason: res.error || "CDP injection failed" };
+  const injectRes = await executeCDPScript(apiKey, sessionId, injectScript, 12000);
+  if (!injectRes.success || !injectRes.data?.success) {
+    return { success: false, autoSent: false, reason: injectRes.data?.reason || injectRes.error || "Text injection failed" };
   }
+  console.log(`✅ Text injected (${injectRes.data.inputMode}), now clicking send button...`);
+
+  // Small pause to let framework react to input
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 500));
+
+  // Step 2: Find send button and return its coordinates for CDP protocol click
+  const sendBtnScript = `(function() {
+    var result = { found: false, x: 0, y: 0, reason: '', strategy: '' };
+    var isVisible = function(el) {
+      if (!el) return false;
+      var style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      var rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    var selectors = [
+      '.b-chat__btn-submit',
+      'button.b-btn-send-message',
+      'button[data-testid*="send"]',
+      'button[aria-label*="Send"]',
+      'button[aria-label*="send"]',
+      '.b-chat-message-input button[type="submit"]',
+      '.b-chat__input button[type="submit"]',
+      'form button[type="submit"]',
+      'button[class*="send"]',
+      'button[class*="submit"]',
+      '[aria-label*="paper plane"]',
+      '[title*="Send"]'
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var nodes = document.querySelectorAll(selectors[i]);
+      for (var j = 0; j < nodes.length; j++) {
+        if (isVisible(nodes[j])) {
+          var rect = nodes[j].getBoundingClientRect();
+          result.found = true;
+          result.x = Math.round(rect.left + rect.width / 2);
+          result.y = Math.round(rect.top + rect.height / 2);
+          result.strategy = 'button_' + selectors[i].slice(0, 40);
+          try { nodes[j].removeAttribute('disabled'); } catch (_) {}
+          return JSON.stringify(result);
+        }
+      }
+    }
+    // Fallback: try Enter key via form submit
+    result.reason = 'No visible send button found, will try Enter key';
+    result.strategy = 'enter_fallback';
+    return JSON.stringify(result);
+  })()`;
+
+  const sendRes = await executeCDPClickAtCoords(apiKey, sessionId, sendBtnScript, 12000);
+
+  if (sendRes.success && sendRes.data?.found && sendRes.data?.protocolClick) {
+    console.log(`✅ Send button clicked via CDP protocol at (${sendRes.data.x}, ${sendRes.data.y})`);
+    return { success: true, autoSent: true, reason: sendRes.data.strategy };
+  }
+
+  // Fallback: try Enter key via CDP Input.dispatchKeyEvent
+  console.log("⚠️ Send button not found, trying Enter key fallback...");
+  const enterScript = `(function() {
+    var input = document.querySelector('textarea:focus, [contenteditable="true"]:focus, .b-chat__input textarea, .b-chat__input [contenteditable="true"]');
+    if (input) input.focus();
+    return JSON.stringify({ ready: !!input });
+  })()`;
+  await executeCDPScript(apiKey, sessionId, enterScript, 5000);
+
+  // We can't send Input.dispatchKeyEvent through executeCDPScript, so use JS fallback
+  const enterFallbackScript = `(function() {
+    var input = document.querySelector('textarea:focus, [contenteditable="true"]:focus, .b-chat__input textarea, .b-chat__input [contenteditable="true"]');
+    if (!input) return JSON.stringify({ sent: false });
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    return JSON.stringify({ sent: true });
+  })()`;
+  const enterRes = await executeCDPScript(apiKey, sessionId, enterFallbackScript, 5000);
+
   return {
-    success: Boolean(res.data?.success),
-    autoSent: Boolean(res.data?.autoSent),
-    reason: res.data?.reason || undefined,
+    success: true,
+    autoSent: Boolean(enterRes.data?.sent),
+    reason: enterRes.data?.sent ? "enter_key_fallback" : "text_injected_only",
   };
 }
 
