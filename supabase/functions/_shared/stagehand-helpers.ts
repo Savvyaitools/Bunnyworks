@@ -458,42 +458,41 @@ export async function clickConversationViaCDP(
     var byIndex = ${indexValue};
     var target = null;
 
-    // Try by index first
-    if (byIndex >= 0 && byIndex < chatItems.length) {
+    // Search by exact name/handle first because unread rows can shift after each reply.
+    for (var i = 0; i < chatItems.length && !target; i++) {
+      var row = chatItems[i];
+      var rowText = normalize(row.innerText || row.textContent || '');
+      var nameEl = row.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
+      var nameText = normalize(nameEl ? nameEl.innerText : '');
+
+      var handleMatch = false;
+      if (wantedHandle) {
+        var rawText = ((row.innerText || row.textContent || '') + ' ' + (nameEl ? nameEl.innerText : '')).toLowerCase();
+        handleMatch = rawText.includes(wantedHandle);
+      }
+
+      var exactName = wanted && (nameText === wanted || rowText === wanted);
+      var containsName = wantedNameOnly && (rowText.includes(wantedNameOnly) || nameText.includes(wantedNameOnly));
+
+      if (handleMatch || exactName || containsName) {
+        target = row;
+        result.clickedName = (nameEl ? nameEl.innerText.trim() : rowText.slice(0, 80));
+      }
+    }
+
+    // Fallback to the scraped index only if name matching fails.
+    if (!target && byIndex >= 0 && byIndex < chatItems.length) {
       target = chatItems[byIndex];
       var idxNameEl = target.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
       result.clickedName = idxNameEl ? idxNameEl.innerText.trim() : ('index_' + byIndex);
-    }
-
-    // Fallback: search by name/handle
-    if (!target) {
-      for (var i = 0; i < chatItems.length; i++) {
-        var row = chatItems[i];
-        var rowText = normalize(row.innerText || row.textContent || '');
-        var nameEl = row.querySelector('.g-user-name, .b-username, [class*="user-name"], [class*="username"]');
-        var nameText = normalize(nameEl ? nameEl.innerText : '');
-
-        var handleMatch = false;
-        if (wantedHandle) {
-          var rawText = ((row.innerText || row.textContent || '') + ' ' + (nameEl ? nameEl.innerText : '')).toLowerCase();
-          handleMatch = rawText.includes(wantedHandle);
-        }
-
-        var exactName = wanted && (nameText === wanted || rowText === wanted);
-        var containsName = wantedNameOnly && (rowText.includes(wantedNameOnly) || nameText.includes(wantedNameOnly));
-
-        if (handleMatch || exactName || containsName) {
-          target = row;
-          result.clickedName = (nameEl ? nameEl.innerText.trim() : rowText.slice(0, 80));
-          break;
-        }
-      }
     }
 
     if (!target) {
       result.reason = 'Conversation not found for: ${escapedName} (total items: ' + chatItems.length + ')';
       return JSON.stringify(result);
     }
+
+    try { target.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (_) {}
 
     // Find the best non-<a> click target and return its coordinates
     var clickCandidates = [
@@ -528,8 +527,13 @@ export async function clickConversationViaCDP(
     if (!clickTarget) clickTarget = target;
 
     var rect = clickTarget.getBoundingClientRect();
+    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+      try { clickTarget.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (_) {}
+      rect = clickTarget.getBoundingClientRect();
+    }
+
     // Click in the right-center area of the element to avoid avatar/link on the left
-    result.x = Math.round(rect.left + Math.max(rect.width * 0.6, 50));
+    result.x = Math.round(rect.left + Math.max(rect.width * 0.7, 64));
     result.y = Math.round(rect.top + rect.height * 0.5);
     result.found = true;
     result.targetTag = clickTarget.tagName;
