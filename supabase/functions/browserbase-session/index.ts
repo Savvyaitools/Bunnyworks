@@ -2541,7 +2541,7 @@ Deno.serve(async (req) => {
           stepResult.status = "sent";
           stepResult.reply = replyText;
           stepResult.confidence = confidence;
-          stepResult.autoSent = injectRes.data?.autoSent || false;
+          stepResult.autoSent = injectRes.autoSent || false;
           stepResult.fanMessage = lastFanMsg;
 
           // Log to ai_suggestions_log
