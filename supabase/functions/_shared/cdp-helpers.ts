@@ -615,6 +615,111 @@ export async function executeCDPScript(
   });
 }
 
+/**
+ * CDP protocol-level click: finds element coords via JS, then clicks via Input.dispatchMouseEvent.
+ * This produces a TRUSTED browser click (isTrusted=true) unlike JS synthetic events.
+ */
+export async function executeCDPClickAtCoords(
+  apiKey: string,
+  sessionId: string,
+  coordScript: string,
+  timeout = 15000
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  return new Promise((resolve) => {
+    let mid = 1;
+    let resolved = false;
+    const ws = new WebSocket(
+      `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`
+    );
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        try { ws.close(); } catch {}
+        resolve({ success: false, error: "Timeout" });
+      }
+    }, timeout);
+
+    const send = (method: string, params: Record<string, unknown> = {}, sid?: string) => {
+      const id = mid++;
+      const msg: any = { id, method, params };
+      if (sid) msg.sessionId = sid;
+      ws.send(JSON.stringify(msg));
+      return id;
+    };
+
+    let getTargetsId: number | null = null;
+    let attachId: number | null = null;
+    let evalId: number | null = null;
+    let mouseDownId: number | null = null;
+    let mouseUpId: number | null = null;
+    let cdpSessionId: string | null = null;
+    let coordData: any = null;
+
+    ws.onopen = () => {
+      getTargetsId = send("Target.getTargets");
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data as string);
+
+        if (msg.id === getTargetsId && msg.result?.targetInfos) {
+          const page = msg.result.targetInfos.find((t: any) => t.type === "page");
+          if (page) {
+            attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+          } else {
+            resolved = true; clearTimeout(timer); ws.close();
+            resolve({ success: false, error: "No page target" });
+          }
+        } else if (msg.id === attachId && msg.result?.sessionId) {
+          cdpSessionId = msg.result.sessionId;
+          // Step 1: Run JS to find element and return its click coordinates
+          evalId = send("Runtime.evaluate", { expression: coordScript, returnByValue: true }, cdpSessionId);
+        } else if (msg.id === evalId) {
+          const val = msg.result?.result?.value;
+          try { coordData = JSON.parse(val); } catch { coordData = {}; }
+
+          if (!coordData?.found || !coordData?.x || !coordData?.y) {
+            resolved = true; clearTimeout(timer); ws.close();
+            resolve({ success: true, data: coordData });
+            return;
+          }
+
+          // Step 2: CDP Input.dispatchMouseEvent — mousePressed
+          console.log(`🖱️ CDP protocol click at (${coordData.x}, ${coordData.y})`);
+          mouseDownId = send("Input.dispatchMouseEvent", {
+            type: "mousePressed",
+            x: coordData.x,
+            y: coordData.y,
+            button: "left",
+            clickCount: 1,
+          }, cdpSessionId!);
+        } else if (msg.id === mouseDownId) {
+          // Step 3: mouseReleased
+          mouseUpId = send("Input.dispatchMouseEvent", {
+            type: "mouseReleased",
+            x: coordData.x,
+            y: coordData.y,
+            button: "left",
+            clickCount: 1,
+          }, cdpSessionId!);
+        } else if (msg.id === mouseUpId) {
+          resolved = true; clearTimeout(timer); ws.close();
+          resolve({ success: true, data: { ...coordData, protocolClick: true } });
+        }
+      } catch {}
+    };
+
+    ws.onerror = () => {
+      if (!resolved) {
+        resolved = true; clearTimeout(timer);
+        resolve({ success: false, error: "WebSocket error" });
+      }
+    };
+  });
+}
+
+
 // ========== AI-Powered Detection ==========
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
