@@ -2458,7 +2458,7 @@ Deno.serve(async (req) => {
           const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName, conv.index);
           if (!clickRes.success) {
             stepResult.status = "skipped";
-            stepResult.error = "Could not click conversation";
+            stepResult.error = `Could not open conversation: ${clickRes.error || 'CDP click failed'}`;
             results.push(stepResult);
             continue;
           }
