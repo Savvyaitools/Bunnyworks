@@ -22,6 +22,10 @@ import {
   getProxyConfig,
   injectStealthFingerprint,
 } from "../_shared/cdp-helpers.ts";
+import {
+  clickConversationViaCDP,
+  injectChatReplyViaCDP,
+} from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
 
@@ -2450,26 +2454,17 @@ Deno.serve(async (req) => {
         const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null };
 
         try {
-          // 3a: Click into conversation
-          const clickScript = `(function() {
-            var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-            if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
-            var target = chatItems[${conv.index}];
-            if (!target) return JSON.stringify({ success: false, reason: 'Not found' });
-            var clickTarget = target.querySelector('a') || target;
-            try { clickTarget.click(); } catch(e) { target.click(); }
-            return JSON.stringify({ success: true });
-          })()`;
-          const clickRes = await executeCDPScript(BK, bbSid, clickScript, 8000);
-          if (!clickRes.data?.success) {
+          // 3a: Click into conversation (uses hardened helper that avoids <a> profile links)
+          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName, conv.index);
+          if (!clickRes.success) {
             stepResult.status = "skipped";
-            stepResult.error = "Could not click conversation";
+            stepResult.error = `Could not open conversation: ${clickRes.error || 'CDP click failed'}`;
             results.push(stepResult);
             continue;
           }
 
-          // Wait for chat to load
-          await new Promise((r) => setTimeout(r, 2000 + Math.floor(Math.random() * 2000)));
+          // Wait for chat to load (humanized delay 3-6s)
+          await new Promise((r) => setTimeout(r, 3000 + Math.floor(Math.random() * 3000)));
 
           // 3b: Read chat context
           const readScript = `(function() {
@@ -2540,43 +2535,13 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // 3d: Inject reply text and send
-          const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
-          const injectScript = `(function() {
-            var text = '${escapedReply}';
-            var result = { success: false, autoSent: false };
-            var input = document.querySelector('textarea[id="new_post_text_input"]') || document.querySelector('.b-chat__input textarea') || document.querySelector('.b-chat-message-input textarea') || document.querySelector('[contenteditable="true"]');
-            if (!input) { result.reason = 'No input found'; return JSON.stringify(result); }
-            if (input.tagName === 'TEXTAREA') {
-              var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-              if (nativeSetter) nativeSetter.call(input, text);
-              else input.value = text;
-            } else {
-              input.focus();
-              input.textContent = text;
-            }
-            try { input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text })); } catch(_) { input.dispatchEvent(new Event('input', { bubbles: true })); }
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.focus();
-            // Click send
-            setTimeout(function() {
-              var sendBtn = document.querySelector('.b-chat__btn-submit') || document.querySelector('button[type="submit"]') || document.querySelector('[class*="send"] button');
-              if (sendBtn) {
-                try { sendBtn.removeAttribute('disabled'); } catch(_) {}
-                sendBtn.click();
-                result.autoSent = true;
-              }
-            }, 500);
-            result.success = true;
-            return JSON.stringify(result);
-          })()`;
-
-          const injectRes = await executeCDPScript(BK, bbSid, injectScript, 10000);
+          // 3d: Inject reply text and send (uses hardened helper with 12+ send selectors)
+          const injectRes = await injectChatReplyViaCDP(BK, bbSid, replyText);
 
           stepResult.status = "sent";
           stepResult.reply = replyText;
           stepResult.confidence = confidence;
-          stepResult.autoSent = injectRes.data?.autoSent || false;
+          stepResult.autoSent = injectRes.autoSent || false;
           stepResult.fanMessage = lastFanMsg;
 
           // Log to ai_suggestions_log
@@ -2595,11 +2560,13 @@ Deno.serve(async (req) => {
 
           results.push(stepResult);
 
-          // 3e: Go back to chats list for next conversation
+          // 3e: Go back to chats list for next conversation (humanized delays)
           if (ci < toProcess.length - 1) {
-            await new Promise((r) => setTimeout(r, 2000 + Math.floor(Math.random() * 4000))); // Random delay 2-6s
+            // Post-send reading pause 5-10s
+            await new Promise((r) => setTimeout(r, 5000 + Math.floor(Math.random() * 5000)));
             await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/chats", { timeout: 15000 });
-            await new Promise((r) => setTimeout(r, 3000));
+            // Wait for chat list to load 4-8s
+            await new Promise((r) => setTimeout(r, 4000 + Math.floor(Math.random() * 4000)));
           }
         } catch (e: any) {
           stepResult.status = "error";
