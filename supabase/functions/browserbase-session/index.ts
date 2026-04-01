@@ -2454,18 +2454,9 @@ Deno.serve(async (req) => {
         const stepResult: any = { fanName: conv.fanName, status: "pending", reply: null, error: null };
 
         try {
-          // 3a: Click into conversation
-          const clickScript = `(function() {
-            var chatItems = document.querySelectorAll('.b-chats__item, .b-chat-list__item, [class*="chat-list"] li, .m-chats-list-item');
-            if (!chatItems.length) chatItems = document.querySelectorAll('[class*="chats"] [class*="item"], .b-users-list__item');
-            var target = chatItems[${conv.index}];
-            if (!target) return JSON.stringify({ success: false, reason: 'Not found' });
-            var clickTarget = target.querySelector('a') || target;
-            try { clickTarget.click(); } catch(e) { target.click(); }
-            return JSON.stringify({ success: true });
-          })()`;
-          const clickRes = await executeCDPScript(BK, bbSid, clickScript, 8000);
-          if (!clickRes.data?.success) {
+          // 3a: Click into conversation (uses hardened helper that avoids <a> profile links)
+          const clickRes = await clickConversationViaCDP(BK, bbSid, conv.fanName, conv.index);
+          if (!clickRes.success) {
             stepResult.status = "skipped";
             stepResult.error = "Could not click conversation";
             results.push(stepResult);
