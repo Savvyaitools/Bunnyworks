@@ -2535,38 +2535,8 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // 3d: Inject reply text and send
-          const escapedReply = replyText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
-          const injectScript = `(function() {
-            var text = '${escapedReply}';
-            var result = { success: false, autoSent: false };
-            var input = document.querySelector('textarea[id="new_post_text_input"]') || document.querySelector('.b-chat__input textarea') || document.querySelector('.b-chat-message-input textarea') || document.querySelector('[contenteditable="true"]');
-            if (!input) { result.reason = 'No input found'; return JSON.stringify(result); }
-            if (input.tagName === 'TEXTAREA') {
-              var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-              if (nativeSetter) nativeSetter.call(input, text);
-              else input.value = text;
-            } else {
-              input.focus();
-              input.textContent = text;
-            }
-            try { input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text })); } catch(_) { input.dispatchEvent(new Event('input', { bubbles: true })); }
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.focus();
-            // Click send
-            setTimeout(function() {
-              var sendBtn = document.querySelector('.b-chat__btn-submit') || document.querySelector('button[type="submit"]') || document.querySelector('[class*="send"] button');
-              if (sendBtn) {
-                try { sendBtn.removeAttribute('disabled'); } catch(_) {}
-                sendBtn.click();
-                result.autoSent = true;
-              }
-            }, 500);
-            result.success = true;
-            return JSON.stringify(result);
-          })()`;
-
-          const injectRes = await executeCDPScript(BK, bbSid, injectScript, 10000);
+          // 3d: Inject reply text and send (uses hardened helper with 12+ send selectors)
+          const injectRes = await injectChatReplyViaCDP(BK, bbSid, replyText);
 
           stepResult.status = "sent";
           stepResult.reply = replyText;
