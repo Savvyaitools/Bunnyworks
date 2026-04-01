@@ -11,7 +11,7 @@
  * Also uses: BROWSERBASE_API_KEY via cdp-helpers, LOVABLE_API_KEY as model key
  */
 
-import { executeCDPScript, navigateViaCDP } from "./cdp-helpers.ts";
+import { executeCDPScript, executeCDPClickAtCoords, navigateViaCDP } from "./cdp-helpers.ts";
 
 // ========== Session Management ==========
 
