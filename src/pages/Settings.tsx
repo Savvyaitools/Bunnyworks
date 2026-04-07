@@ -161,6 +161,51 @@ export default function Settings() {
 
                 <Separator className="bg-border" />
 
+                {/* Agency Branding Section - only for agency owners */}
+                {profile?.user_type === "agency" && (
+                  <>
+                    <div className="p-5 rounded-xl bg-muted/30 border border-border space-y-4">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground mb-1">Agency Branding</p>
+                        <p className="text-xs text-muted-foreground">
+                          This name and logo appear on creator applications, portals, and all whitelabeled pages.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-5">
+                        <LogoUpload
+                          currentLogoUrl={logoUrl}
+                          agencyName={agency?.name || "Agency"}
+                          onUploadComplete={() => {}}
+                          onDelete={deleteLogo}
+                          uploading={logoUploading}
+                          size="lg"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <Label htmlFor="profileAgencyName" className="text-muted-foreground">Agency Name</Label>
+                          <Input
+                            id="profileAgencyName"
+                            value={agencyData.name}
+                            onChange={(e) => setAgencyData({ ...agencyData, name: e.target.value })}
+                            className="bg-muted/50 border-border focus:border-primary"
+                            placeholder="Your agency name"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateAgency({ name: agencyData.name })}
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? "Saving..." : "Update Branding"}
+                        </Button>
+                      </div>
+                    </div>
+                    <Separator className="bg-border" />
+                  </>
+                )}
+
                 <div className="flex items-center gap-6">
                   <UserAvatar 
                     name={profile?.full_name || "User"} 

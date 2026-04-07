@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgency } from "@/hooks/useAgency";
 
 import { toast } from "sonner";
 
@@ -42,6 +43,7 @@ export function PortalSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const { profile, signOut } = useAuth();
+  const { agency } = useAgency();
   
   const isCollapsed = state === "collapsed";
 
@@ -50,6 +52,9 @@ export function PortalSidebar() {
     toast.success("Signed out successfully");
     navigate("/auth");
   };
+
+  const agencyLogoUrl = agency?.logo_url;
+  const agencyName = agency?.name || "Creator Portal";
 
   return (
     <Sidebar 
@@ -62,14 +67,18 @@ export function PortalSidebar() {
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Logo */}
-            <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center shadow-glow-sm">
-              <User className="h-5 w-5 text-accent-foreground" />
-            </div>
+            {/* Agency Logo */}
+            {agencyLogoUrl ? (
+              <img src={agencyLogoUrl} alt={agencyName} className="w-9 h-9 rounded-lg object-contain" />
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center shadow-glow-sm">
+                <User className="h-5 w-5 text-accent-foreground" />
+              </div>
+            )}
             {!isCollapsed && (
               <div className="animate-fade-in">
-                <h1 className="font-semibold text-foreground">Creator Portal</h1>
-                <p className="text-xs text-muted-foreground">Your Dashboard</p>
+                <h1 className="font-semibold text-foreground truncate max-w-[140px]">{agencyName}</h1>
+                <p className="text-xs text-muted-foreground">Creator Portal</p>
               </div>
             )}
           </div>
