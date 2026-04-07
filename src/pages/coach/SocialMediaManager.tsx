@@ -79,6 +79,62 @@ export default function SocialMediaManager() {
   const [creatorSocialUrl, setCreatorSocialUrl] = useState("");
   const [nicheContentPlan, setNicheContentPlan] = useState<NicheContentPlan[]>([]);
   const [researchingNiche, setResearchingNiche] = useState(false);
+  const [selectedIdeas, setSelectedIdeas] = useState<Set<number>>(new Set());
+  const [pushingToPlans, setPushingToPlans] = useState(false);
+
+  const toggleIdeaSelection = (index: number) => {
+    setSelectedIdeas(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const toggleAllIdeas = () => {
+    if (selectedIdeas.size === nicheContentPlan.length) {
+      setSelectedIdeas(new Set());
+    } else {
+      setSelectedIdeas(new Set(nicheContentPlan.map((_, i) => i)));
+    }
+  };
+
+  const pushSelectedToContentPlans = async () => {
+    if (!selectedCreator || selectedIdeas.size === 0 || !profile?.agency_id) {
+      toast.error("Select a creator and at least one idea");
+      return;
+    }
+    setPushingToPlans(true);
+    try {
+      const items = Array.from(selectedIdeas).map(i => nicheContentPlan[i]);
+      const socialPlatformMap: Record<string, string> = {
+        instagram: "Instagram", tiktok: "TikTok", twitter: "Twitter",
+        reddit: "Reddit", youtube: "YouTube", threads: "Threads",
+        snapchat: "Snapchat",
+      };
+      const rows = items.map((item, idx) => ({
+        title: item.reference_title,
+        description: `**Why it works:** ${item.what_works}\n\n**How to recreate:** ${item.recreation_prompt}${item.reference_url ? `\n\nReference: ${item.reference_url}` : ""}${item.reference_video_url ? `\nVideo: ${item.reference_video_url}` : ""}${item.hashtags?.length ? `\n\nHashtags: ${item.hashtags.map(t => `#${t}`).join(" ")}` : ""}`,
+        creator_id: selectedCreator,
+        agency_id: profile.agency_id,
+        platform: socialPlatformMap[item.platform.toLowerCase()] || item.platform,
+        status: "planned",
+        content_category: "social" as const,
+        board_column: "to_do",
+        board_position: idx,
+      }));
+
+      const { error } = await supabase.from("content_plans").insert(rows);
+      if (error) throw error;
+      toast.success(`${rows.length} idea(s) added to Content Plans`);
+      setSelectedIdeas(new Set());
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add ideas to content plans");
+    } finally {
+      setPushingToPlans(false);
+    }
+  };
 
   // Look up the OF account ID for the selected creator
   const { data: ofAccountId } = useQuery({
