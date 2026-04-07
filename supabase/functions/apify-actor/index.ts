@@ -34,13 +34,21 @@ serve(async (req) => {
     // Encode actor ID for URL (e.g., "clockworks/free-tiktok-scraper" → "clockworks~free-tiktok-scraper")
     const encodedActorId = actorId.replace("/", "~");
 
+    // Sanitize hashtags if present — Apify rejects special chars like #, !, ?, etc.
+    const sanitizedInput = { ...(input || {}) };
+    if (Array.isArray(sanitizedInput.hashtags)) {
+      sanitizedInput.hashtags = sanitizedInput.hashtags
+        .map((tag: string) => tag.replace(/[!?.,:;\-+=*&%$#@/\\~^|<>()\[\]{}"'`\s]/g, ""))
+        .filter((tag: string) => tag.length > 0);
+    }
+
     // Start actor run and wait for it to finish (synchronous call)
     const runRes = await fetch(
       `${APIFY_BASE}/acts/${encodedActorId}/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}&timeout=${timeoutSecs || 120}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input || {}),
+        body: JSON.stringify(sanitizedInput),
       }
     );
 
