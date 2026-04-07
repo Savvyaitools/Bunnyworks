@@ -64,7 +64,7 @@ export default function CreatorApplication() {
         return;
       }
 
-      const agencyData = data as unknown as { name: string; logo_url: string | null };
+      const agencyData = data[0] as { id: string; name: string; logo_url: string | null };
       setAgencyName(agencyData.name);
       setAgencyLogo(agencyData.logo_url);
       setLoading(false);
