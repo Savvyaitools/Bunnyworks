@@ -69,6 +69,18 @@ export interface CreateApplicationInput {
   skills?: string[];
   bio?: string;
   notes?: string;
+  alias?: string;
+  location?: string;
+  occupation?: string;
+  hobbies?: string;
+  character_traits?: string[];
+  turn_ons?: string;
+  boundaries?: string;
+  content_types?: string[];
+  niche?: string[];
+  attracted_to?: string;
+  favorite_music?: string;
+  favorite_food?: string;
 }
 
 export function usePendingApplications() {
