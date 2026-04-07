@@ -54,8 +54,12 @@ export default function Applications() {
   const { agency } = useAgency();
   
   const getBaseUrl = () => {
-    // Always use the current domain (bunnyworks.io in production)
-    return window.location.origin;
+    const origin = window.location.origin;
+    // Use custom domain in production, fallback to current origin for dev/preview
+    if (origin.includes('lovable') || origin.includes('lovableproject')) {
+      return 'https://bunnyworks.io';
+    }
+    return origin;
   };
   
   const baseUrl = getBaseUrl();
