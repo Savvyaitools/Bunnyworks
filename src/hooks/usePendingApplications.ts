@@ -28,6 +28,19 @@ export interface PendingApplication {
   skills: string[] | null;
   bio: string | null;
   notes: string | null;
+  alias: string | null;
+  location: string | null;
+  occupation: string | null;
+  hobbies: string | null;
+  character_traits: string[] | null;
+  turn_ons: string | null;
+  boundaries: string | null;
+  content_types: string[] | null;
+  niche: string[] | null;
+  attracted_to: string | null;
+  favorite_music: string | null;
+  favorite_food: string | null;
+  persona_data: Record<string, unknown> | null;
   status: ApplicationStatus;
   rejection_reason: string | null;
   submitted_at: string;
@@ -56,6 +69,18 @@ export interface CreateApplicationInput {
   skills?: string[];
   bio?: string;
   notes?: string;
+  alias?: string;
+  location?: string;
+  occupation?: string;
+  hobbies?: string;
+  character_traits?: string[];
+  turn_ons?: string;
+  boundaries?: string;
+  content_types?: string[];
+  niche?: string[];
+  attracted_to?: string;
+  favorite_music?: string;
+  favorite_food?: string;
 }
 
 export function usePendingApplications() {
@@ -102,6 +127,18 @@ export function usePendingApplications() {
           twitter_url: application.twitter_url,
           snapchat_url: application.snapchat_url,
           notes: application.notes,
+          alias: application.alias,
+          location: application.location,
+          occupation: application.occupation,
+          hobbies: application.hobbies,
+          character_traits: application.character_traits,
+          turn_ons: application.turn_ons,
+          boundaries: application.boundaries,
+          content_types: application.content_types,
+          niche: application.niche,
+          attracted_to: application.attracted_to,
+          favorite_music: application.favorite_music,
+          favorite_food: application.favorite_food,
           status: "Onboarding",
         })
         .select()
