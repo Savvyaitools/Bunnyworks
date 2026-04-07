@@ -56,12 +56,9 @@ export default function CreatorApplication() {
       }
 
       const { data, error: fetchError } = await supabase
-        .from("agencies_public" as any)
-        .select("name, logo_url")
-        .eq("id", agencyId)
-        .single();
+        .rpc("get_agency_public_info", { agency_uuid: agencyId });
 
-      if (fetchError || !data) {
+      if (fetchError || !data || data.length === 0) {
         setError("Agency not found. This link may be invalid.");
         setLoading(false);
         return;
