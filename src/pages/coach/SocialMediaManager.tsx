@@ -10,8 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
    Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings, Play
+   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings, Play, CheckSquare
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { TatumAPISettings } from "@/components/tatum/TatumAPISettings";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -78,6 +80,62 @@ export default function SocialMediaManager() {
   const [creatorSocialUrl, setCreatorSocialUrl] = useState("");
   const [nicheContentPlan, setNicheContentPlan] = useState<NicheContentPlan[]>([]);
   const [researchingNiche, setResearchingNiche] = useState(false);
+  const [selectedIdeas, setSelectedIdeas] = useState<Set<number>>(new Set());
+  const [pushingToPlans, setPushingToPlans] = useState(false);
+
+  const toggleIdeaSelection = (index: number) => {
+    setSelectedIdeas(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const toggleAllIdeas = () => {
+    if (selectedIdeas.size === nicheContentPlan.length) {
+      setSelectedIdeas(new Set());
+    } else {
+      setSelectedIdeas(new Set(nicheContentPlan.map((_, i) => i)));
+    }
+  };
+
+  const pushSelectedToContentPlans = async () => {
+    if (!selectedCreator || selectedIdeas.size === 0 || !profile?.agency_id) {
+      toast.error("Select a creator and at least one idea");
+      return;
+    }
+    setPushingToPlans(true);
+    try {
+      const items = Array.from(selectedIdeas).map(i => nicheContentPlan[i]);
+      const socialPlatformMap: Record<string, string> = {
+        instagram: "Instagram", tiktok: "TikTok", twitter: "Twitter",
+        reddit: "Reddit", youtube: "YouTube", threads: "Threads",
+        snapchat: "Snapchat",
+      };
+      const rows = items.map((item, idx) => ({
+        title: item.reference_title,
+        description: `**Why it works:** ${item.what_works}\n\n**How to recreate:** ${item.recreation_prompt}${item.reference_url ? `\n\nReference: ${item.reference_url}` : ""}${item.reference_video_url ? `\nVideo: ${item.reference_video_url}` : ""}${item.hashtags?.length ? `\n\nHashtags: ${item.hashtags.map(t => `#${t}`).join(" ")}` : ""}`,
+        creator_id: selectedCreator,
+        agency_id: profile.agency_id,
+        platform: socialPlatformMap[item.platform.toLowerCase()] || item.platform,
+        status: "planned",
+        content_category: "social" as const,
+        board_column: "to_do",
+        board_position: idx,
+      }));
+
+      const { error } = await supabase.from("content_plans").insert(rows);
+      if (error) throw error;
+      toast.success(`${rows.length} idea(s) added to Content Plans`);
+      setSelectedIdeas(new Set());
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add ideas to content plans");
+    } finally {
+      setPushingToPlans(false);
+    }
+  };
 
   // Look up the OF account ID for the selected creator
   const { data: ofAccountId } = useQuery({
@@ -604,25 +662,59 @@ export default function SocialMediaManager() {
             {/* Niche Content Plan Results */}
             {nicheContentPlan.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <Crosshair className="h-4 w-4 text-primary" />
-                  Content Plan — {nicheContentPlan.length} Reference Ideas
-                </h3>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Crosshair className="h-4 w-4 text-primary" />
+                    Content Plan — {nicheContentPlan.length} Reference Ideas
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" onClick={toggleAllIdeas} className="text-xs gap-1.5 h-8">
+                      <CheckSquare className="h-3.5 w-3.5" />
+                      {selectedIdeas.size === nicheContentPlan.length ? "Deselect All" : "Select All"}
+                    </Button>
+                    {selectedIdeas.size > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={pushSelectedToContentPlans}
+                        disabled={pushingToPlans}
+                        className="text-xs gap-1.5 h-8"
+                      >
+                        {pushingToPlans ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        Add {selectedIdeas.size} to Content Plan
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 {nicheContentPlan.map((item, i) => (
-                  <Card key={i} className="border-l-4 border-l-primary/60 hover:shadow-md transition-shadow">
+                  <Card
+                    key={i}
+                    className={cn(
+                      "border-l-4 hover:shadow-md transition-shadow cursor-pointer",
+                      selectedIdeas.has(i) ? "border-l-primary ring-1 ring-primary/30 bg-primary/5" : "border-l-primary/60"
+                    )}
+                    onClick={() => toggleIdeaSelection(i)}
+                  >
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="text-xs capitalize">{item.platform}</Badge>
-                            <Badge variant="secondary" className="text-[10px] gap-1">
-                              <TrendingUp className="h-2.5 w-2.5" />
-                              {item.estimated_engagement}
-                            </Badge>
+                        <div className="flex items-start gap-3 flex-1">
+                          <Checkbox
+                            checked={selectedIdeas.has(i)}
+                            onCheckedChange={() => toggleIdeaSelection(i)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs capitalize">{item.platform}</Badge>
+                              <Badge variant="secondary" className="text-[10px] gap-1">
+                                <TrendingUp className="h-2.5 w-2.5" />
+                                {item.estimated_engagement}
+                              </Badge>
+                            </div>
+                            <h4 className="font-semibold text-sm">{item.reference_title}</h4>
                           </div>
-                          <h4 className="font-semibold text-sm">{item.reference_title}</h4>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                           {item.reference_video_url && (
                             <Button size="sm" variant="default" className="gap-1.5 text-xs" asChild>
                               <a href={item.reference_video_url} target="_blank" rel="noopener noreferrer">
@@ -641,7 +733,7 @@ export default function SocialMediaManager() {
                           )}
                         </div>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 pl-7">
                         <div>
                           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Why it works</p>
                           <p className="text-xs text-muted-foreground leading-relaxed">{item.what_works}</p>
@@ -652,7 +744,7 @@ export default function SocialMediaManager() {
                         </div>
                       </div>
                       {item.hashtags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 pl-7">
                           {item.hashtags.map((tag, j) => (
                             <span key={j} className="text-xs text-primary">#{tag}</span>
                           ))}
