@@ -5088,6 +5088,14 @@ export type Database = {
         Args: { p_agency_id: string }
         Returns: number
       }
+      get_agency_public_info: {
+        Args: { agency_uuid: string }
+        Returns: {
+          id: string
+          logo_url: string
+          name: string
+        }[]
+      }
       get_user_agency_id: { Args: never; Returns: string }
       has_role: {
         Args: {

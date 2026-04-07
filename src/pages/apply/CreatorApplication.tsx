@@ -56,18 +56,15 @@ export default function CreatorApplication() {
       }
 
       const { data, error: fetchError } = await supabase
-        .from("agencies_public" as any)
-        .select("name, logo_url")
-        .eq("id", agencyId)
-        .single();
+        .rpc("get_agency_public_info", { agency_uuid: agencyId });
 
-      if (fetchError || !data) {
+      if (fetchError || !data || data.length === 0) {
         setError("Agency not found. This link may be invalid.");
         setLoading(false);
         return;
       }
 
-      const agencyData = data as unknown as { name: string; logo_url: string | null };
+      const agencyData = data[0] as { id: string; name: string; logo_url: string | null };
       setAgencyName(agencyData.name);
       setAgencyLogo(agencyData.logo_url);
       setLoading(false);
