@@ -4109,18 +4109,30 @@ export type Database = {
       pending_applications: {
         Row: {
           agency_id: string
+          alias: string | null
           application_type: string
+          attracted_to: string | null
           bio: string | null
+          boundaries: string | null
+          character_traits: string[] | null
+          content_types: string[] | null
           created_at: string
           department_preference: string | null
           email: string
           experience: string | null
+          favorite_food: string | null
+          favorite_music: string | null
           followers: string | null
+          hobbies: string | null
           id: string
           instagram_url: string | null
+          location: string | null
           name: string
+          niche: string[] | null
           notes: string | null
+          occupation: string | null
           onlyfans_url: string | null
+          persona_data: Json | null
           phone: string | null
           platform: string | null
           rejection_reason: string | null
@@ -4132,23 +4144,36 @@ export type Database = {
           status: string
           submitted_at: string
           tiktok_url: string | null
+          turn_ons: string | null
           twitter_url: string | null
           updated_at: string
         }
         Insert: {
           agency_id: string
+          alias?: string | null
           application_type: string
+          attracted_to?: string | null
           bio?: string | null
+          boundaries?: string | null
+          character_traits?: string[] | null
+          content_types?: string[] | null
           created_at?: string
           department_preference?: string | null
           email: string
           experience?: string | null
+          favorite_food?: string | null
+          favorite_music?: string | null
           followers?: string | null
+          hobbies?: string | null
           id?: string
           instagram_url?: string | null
+          location?: string | null
           name: string
+          niche?: string[] | null
           notes?: string | null
+          occupation?: string | null
           onlyfans_url?: string | null
+          persona_data?: Json | null
           phone?: string | null
           platform?: string | null
           rejection_reason?: string | null
@@ -4160,23 +4185,36 @@ export type Database = {
           status?: string
           submitted_at?: string
           tiktok_url?: string | null
+          turn_ons?: string | null
           twitter_url?: string | null
           updated_at?: string
         }
         Update: {
           agency_id?: string
+          alias?: string | null
           application_type?: string
+          attracted_to?: string | null
           bio?: string | null
+          boundaries?: string | null
+          character_traits?: string[] | null
+          content_types?: string[] | null
           created_at?: string
           department_preference?: string | null
           email?: string
           experience?: string | null
+          favorite_food?: string | null
+          favorite_music?: string | null
           followers?: string | null
+          hobbies?: string | null
           id?: string
           instagram_url?: string | null
+          location?: string | null
           name?: string
+          niche?: string[] | null
           notes?: string | null
+          occupation?: string | null
           onlyfans_url?: string | null
+          persona_data?: Json | null
           phone?: string | null
           platform?: string | null
           rejection_reason?: string | null
@@ -4188,6 +4226,7 @@ export type Database = {
           status?: string
           submitted_at?: string
           tiktok_url?: string | null
+          turn_ons?: string | null
           twitter_url?: string | null
           updated_at?: string
         }
