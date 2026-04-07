@@ -13,6 +13,7 @@ import {
    DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings, Play, CheckSquare
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { TatumAPISettings } from "@/components/tatum/TatumAPISettings";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
