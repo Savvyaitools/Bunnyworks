@@ -54,19 +54,7 @@ export default function Applications() {
   const { agency } = useAgency();
   
   const getBaseUrl = () => {
-    // If agency has a website configured, use it (ensuring https://)
-    if (agency?.website) {
-      const website = agency.website.trim();
-      if (website.startsWith('http://') || website.startsWith('https://')) {
-        return website.replace(/\/$/, ''); // Remove trailing slash
-      }
-      return `https://${website}`.replace(/\/$/, '');
-    }
-    // Use production URL if available (for deployed apps)
-    const productionUrl = import.meta.env.VITE_PRODUCTION_URL;
-    if (productionUrl) {
-      return productionUrl.replace(/\/$/, '');
-    }
+    // Always use the current domain (bunnyworks.io in production)
     return window.location.origin;
   };
   
