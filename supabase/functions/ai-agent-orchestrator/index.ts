@@ -236,6 +236,14 @@ If engagement is healthy, return [].`;
 
 // ─── Action Executors ──────────────────────────────────────────────
 async function executeActions(supabase: any, agencyId: string, runId: string, actions: any[]): Promise<number> {
+  // Auto-dismiss alerts older than 7 days to prevent alert fatigue
+  await supabase
+    .from('ai_performance_alerts')
+    .update({ is_dismissed: true })
+    .eq('agency_id', agencyId)
+    .eq('is_dismissed', false)
+    .lt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
   let count = 0;
   for (const action of actions) {
     try {
