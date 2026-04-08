@@ -123,7 +123,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/of-ai/voice-generator", element: <AIVoiceGenerator />, auth: ["agency"] },
   { path: "/of-ai/comfyui", element: <ComfyUI />, auth: ["agency"] },
   { path: "/of-ai/manager", element: <FlickManager />, auth: ["agency"] },
-  { path: "/of-ai/coach", element: <CoachPBFPage />, auth: ["agency"] },
+  
   { path: "/fan-analytics", element: <FanAnalytics />, auth: ["agency"] },
 ];
 
