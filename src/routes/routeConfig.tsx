@@ -152,6 +152,7 @@ export const redirectRoutes: { from: string; to: string }[] = [
   { from: "/agent-hub", to: "/of-ai" },
   { from: "/coach-pbf", to: "/of-ai" },
   { from: "/felix", to: "/of-ai" },
+  { from: "/of-ai/coach", to: "/of-ai" },
   { from: "/coach/social-media", to: "/of-ai/social-media" },
   { from: "/coach/ai-chatter", to: "/of-ai/chatter" },
   { from: "/employees", to: "/team" },
