@@ -9,9 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink, Users, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { SessionRecordingViewer } from "./SessionRecordingViewer";
-import { SessionLogsViewer } from "./SessionLogsViewer";
-import { SessionDownloadsViewer } from "./SessionDownloadsViewer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
 import { invokeBrowserAction } from "@/lib/browserbase";
@@ -88,15 +85,14 @@ export function BrowserSessionsDashboard() {
   }
 
   if (viewerPanel) {
-    if (viewerPanel.type === "recording") {
-      return <SessionRecordingViewer browserbaseSessionId={viewerPanel.sessionId} sessionLabel={viewerPanel.label} onClose={() => setViewerPanel(null)} />;
-    }
-    if (viewerPanel.type === "logs") {
-      return <SessionLogsViewer browserbaseSessionId={viewerPanel.sessionId} sessionLabel={viewerPanel.label} onClose={() => setViewerPanel(null)} />;
-    }
-    if (viewerPanel.type === "downloads") {
-      return <SessionDownloadsViewer browserbaseSessionId={viewerPanel.sessionId} sessionLabel={viewerPanel.label} onClose={() => setViewerPanel(null)} />;
-    }
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <p className="text-muted-foreground">Viewing {viewerPanel.type} for {viewerPanel.label}</p>
+          <Button variant="outline" className="mt-4" onClick={() => setViewerPanel(null)}>Back</Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (sessionLinks.length === 0) {

@@ -63,7 +63,6 @@ const AIImageGenerator = lazy(() => import("@/pages/coach/AIImageGenerator"));
 const AIVoiceGenerator = lazy(() => import("@/pages/coach/AIVoiceGenerator"));
 const ComfyUI = lazy(() => import("@/pages/coach/ComfyUI"));
 const FlickManager = lazy(() => import("@/pages/coach/FlickManager"));
-const CoachPBFPage = lazy(() => import("@/pages/coach/CoachPBF"));
 
 // Application pages
 const CreatorApplication = lazy(() => import("@/pages/apply/CreatorApplication"));
@@ -124,7 +123,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/of-ai/voice-generator", element: <AIVoiceGenerator />, auth: ["agency"] },
   { path: "/of-ai/comfyui", element: <ComfyUI />, auth: ["agency"] },
   { path: "/of-ai/manager", element: <FlickManager />, auth: ["agency"] },
-  { path: "/of-ai/coach", element: <CoachPBFPage />, auth: ["agency"] },
+  
   { path: "/fan-analytics", element: <FanAnalytics />, auth: ["agency"] },
 ];
 
@@ -153,6 +152,7 @@ export const redirectRoutes: { from: string; to: string }[] = [
   { from: "/agent-hub", to: "/of-ai" },
   { from: "/coach-pbf", to: "/of-ai" },
   { from: "/felix", to: "/of-ai" },
+  { from: "/of-ai/coach", to: "/of-ai" },
   { from: "/coach/social-media", to: "/of-ai/social-media" },
   { from: "/coach/ai-chatter", to: "/of-ai/chatter" },
   { from: "/employees", to: "/team" },

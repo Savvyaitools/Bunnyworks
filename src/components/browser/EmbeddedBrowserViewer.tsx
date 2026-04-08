@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn } from "lucide-react";
-import { IzzyOverlay } from "./IzzyOverlay";
+
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { invokeBrowserAction } from "@/lib/browserbase";
@@ -311,10 +311,6 @@ export function EmbeddedBrowserViewer({
         />
       </div>
 
-      {/* Marylin Monroe AI Floating Overlay */}
-      {creatorId && (
-        <IzzyOverlay creatorId={creatorId} creatorName={title} iframeRef={iframeRef} browserbaseSessionId={bbSessionId} />
-      )}
     </div>
   );
 }
