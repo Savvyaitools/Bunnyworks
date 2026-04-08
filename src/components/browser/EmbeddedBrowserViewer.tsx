@@ -311,10 +311,6 @@ export function EmbeddedBrowserViewer({
         />
       </div>
 
-      {/* Marylin Monroe AI Floating Overlay */}
-      {creatorId && (
-        <IzzyOverlay creatorId={creatorId} creatorName={title} iframeRef={iframeRef} browserbaseSessionId={bbSessionId} />
-      )}
     </div>
   );
 }
