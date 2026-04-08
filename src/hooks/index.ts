@@ -8,8 +8,8 @@
  * - Employees: useEmployees, useChatters, useChatterProfiles, useChatterShifts, useChatterTimeLogs, useEmployeeBonuses, useEmployeeKPIs, useEmployeeOFPermissions, useEmployeePayroll, useTeamMembers
  * - Content:   useContentFiles, useContentPlanMedia, useCustomRequests, useSOPDocuments
  * - Comms:     useMessages, useInternalMessages, useNotifications, usePushNotifications
- * - AI:        useFelix, useIzzy, useAgentAlerts, useAgentGoals, useAgentMemories, useAgentRuns
- * - Browser:   useBrowserFeatures, useBrowserSessions, useProfileWarmups, useSessionHeartbeat
+ * - AI:        useFelix, useIzzy
+ * - Browser:   useBrowserFeatures, useBrowserSessions, useSessionHeartbeat
  * - Analytics: useDashboardStats, useFanAnalytics (via useTrackingLinks)
  * - Tasks:     useTasks, useCalendarEvents, useQCAssignments
  * - Invoicing: useInvoices
