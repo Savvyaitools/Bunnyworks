@@ -65,4 +65,4 @@ export const StatCard = memo(function StatCard({
       )}
     </Wrapper>
   );
-}
+});
