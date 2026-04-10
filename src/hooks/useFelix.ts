@@ -174,7 +174,8 @@ export function useFelix() {
         content: data.response,
         timestamp: new Date(),
         queryType: data.queryType,
-        dataAccessed: data.dataAccessed
+        dataAccessed: data.dataAccessed,
+        actionsExecuted: data.actionsExecuted,
       };
       
       setMessages(prev => [...prev, assistantMessage]);
