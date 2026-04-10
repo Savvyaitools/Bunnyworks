@@ -11,10 +11,10 @@ import { cn } from "@/lib/utils";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
    Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings, Play, CheckSquare
+   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Play, CheckSquare
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TatumAPISettings } from "@/components/tatum/TatumAPISettings";
+
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,12 +68,8 @@ export default function SocialMediaManager() {
   const [selectedCreator, setSelectedCreator] = useState<string>("");
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState<string>("instagram");
-  const [generating, setGenerating] = useState(false);
-  const [generatedPosts, setGeneratedPosts] = useState<GeneratedPost[]>([]);
   const [analyzingStrategy, setAnalyzingStrategy] = useState(false);
   const [strategyInsights, setStrategyInsights] = useState<StrategyInsight[]>([]);
-  const [contentCalendar, setContentCalendar] = useState<GeneratedPost[]>([]);
-  const [generatingCalendar, setGeneratingCalendar] = useState(false);
   const [scanningTrends, setScanningTrends] = useState(false);
   const [trends, setTrends] = useState<TrendItem[]>([]);
   const [nicheQuery, setNicheQuery] = useState("");
@@ -193,21 +189,6 @@ export default function SocialMediaManager() {
     refetchInterval: 60000,
   });
 
-  const generatePosts = async () => {
-    if (!topic.trim()) { toast.error("Please enter a topic or theme"); return; }
-    setGenerating(true);
-    try {
-      const creator = creators?.find(c => c.id === selectedCreator);
-      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
-        body: { action: "generate_posts", topic, platform, creatorName: creator?.name || "the creator", creatorNiche: "general", creatorPersona: creator?.persona || "", agencyId: profile?.agency_id, creatorId: selectedCreator || undefined, ofAccountId: ofAccountId || undefined },
-      });
-      if (error) throw error;
-      setGeneratedPosts(data.posts || []);
-      toast.success(`Generated ${data.posts?.length || 0} post ideas`);
-    } catch (err) { toast.error("Failed to generate posts"); console.error(err); }
-    finally { setGenerating(false); }
-  };
-
   const analyzeStrategy = async () => {
     setAnalyzingStrategy(true);
     try {
@@ -220,20 +201,6 @@ export default function SocialMediaManager() {
       toast.success("Strategy analysis complete");
     } catch (err) { toast.error("Failed to analyze strategy"); console.error(err); }
     finally { setAnalyzingStrategy(false); }
-  };
-
-  const generateCalendar = async () => {
-    setGeneratingCalendar(true);
-    try {
-      const creator = creators?.find(c => c.id === selectedCreator);
-      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
-        body: { action: "generate_calendar", creatorName: creator?.name || "the creator", creatorNiche: "general", platform, days: 7, agencyId: profile?.agency_id, creatorId: selectedCreator || undefined, ofAccountId: ofAccountId || undefined },
-      });
-      if (error) throw error;
-      setContentCalendar(data.calendar || []);
-      toast.success("7-day content calendar generated");
-    } catch (err) { toast.error("Failed to generate calendar"); console.error(err); }
-    finally { setGeneratingCalendar(false); }
   };
 
   const scanTrends = async () => {
@@ -497,113 +464,10 @@ export default function SocialMediaManager() {
             <TabsTrigger value="trends" className="gap-1.5">
               <Flame className="h-4 w-4" /> Viral Discovery
             </TabsTrigger>
-            <TabsTrigger value="generate" className="gap-1.5">
-              <Sparkles className="h-4 w-4" /> Content Plan Builder
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-1.5">
-              <Calendar className="h-4 w-4" /> Ideas Queue
-            </TabsTrigger>
             <TabsTrigger value="strategy" className="gap-1.5">
               <BarChart3 className="h-4 w-4" /> Optimization
             </TabsTrigger>
-            <TabsTrigger value="api-settings" className="gap-1.5">
-              <Settings className="h-4 w-4" /> API Settings
-            </TabsTrigger>
           </TabsList>
-
-          {/* Generate Posts Tab */}
-          <TabsContent value="generate" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Generate Post Ideas</CardTitle>
-                <CardDescription>Describe a topic or theme and AI will create platform-optimized posts</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea placeholder="e.g. New photo set teaser, behind the scenes content, fan engagement poll..." value={topic} onChange={e => setTopic(e.target.value)} rows={3} />
-                <Button onClick={generatePosts} disabled={generating}>
-                  {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                  {generating ? "Generating..." : "Generate Posts"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {generatedPosts.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {generatedPosts.map((post, i) => (
-                  <Card key={i} className="border-primary/20">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline">{post.platform}</Badge>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" /> Best: {post.bestTime}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm whitespace-pre-wrap">{post.caption}</p>
-                      {post.hashtags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {post.hashtags.map((tag, j) => (
-                            <Badge key={j} variant="secondary" className="text-xs">#{tag}</Badge>
-                          ))}
-                        </div>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => {
-                        navigator.clipboard.writeText(post.caption + "\n\n" + post.hashtags.map(t => `#${t}`).join(" "));
-                        toast.success("Copied to clipboard");
-                      }}>Copy</Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Content Calendar Tab */}
-          <TabsContent value="calendar" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">7-Day Content Calendar</CardTitle>
-                <CardDescription>AI generates a full week of scheduled content ideas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={generateCalendar} disabled={generatingCalendar}>
-                  {generatingCalendar ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calendar className="h-4 w-4 mr-2" />}
-                  {generatingCalendar ? "Generating..." : "Generate 7-Day Calendar"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {contentCalendar.length > 0 && (
-              <div className="space-y-3">
-                {contentCalendar.map((post, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4 flex items-start gap-4">
-                      <div className="flex flex-col items-center min-w-[60px] text-center">
-                        <span className="text-xs text-muted-foreground">Day {i + 1}</span>
-                        <Clock className="h-4 w-4 text-primary mt-1" />
-                        <span className="text-xs mt-1">{post.bestTime}</span>
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{post.platform}</Badge>
-                          <Badge variant="secondary">{post.contentType}</Badge>
-                        </div>
-                        <p className="text-sm">{post.caption}</p>
-                        {post.hashtags?.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {post.hashtags.map((tag, j) => (
-                              <span key={j} className="text-xs text-primary">#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
 
           {/* Trends Tab */}
           <TabsContent value="trends" className="space-y-6">
@@ -869,10 +733,6 @@ export default function SocialMediaManager() {
             )}
           </TabsContent>
 
-          {/* API Settings Tab */}
-          <TabsContent value="api-settings" className="space-y-4">
-            <TatumAPISettings />
-          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
