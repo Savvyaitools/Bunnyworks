@@ -4,6 +4,12 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgency } from '@/hooks/useAgency';
 
+interface ExecutedAction {
+  tool: string;
+  result: string;
+  success: boolean;
+}
+
 interface FelixMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -11,6 +17,7 @@ interface FelixMessage {
   timestamp: Date;
   queryType?: string;
   dataAccessed?: string[];
+  actionsExecuted?: ExecutedAction[];
 }
 
 interface Conversation {
