@@ -12,8 +12,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
 import { useAgency } from "@/hooks/useAgency";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Link } from "react-router-dom";
 import type { CreatorEarningsSummary } from "@/components/dashboard/CreatorEarningsBreakdown";
+import { memo } from "react";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -48,7 +50,7 @@ interface QuickStatProps {
   trend?: { value: string; positive: boolean };
 }
 
-function QuickStat({ title, value, subtext, icon: Icon, color, href, trend }: QuickStatProps) {
+const QuickStat = memo(function QuickStat({ title, value, subtext, icon: Icon, color, href, trend }: QuickStatProps) {
   const colorMap = {
     success: {
       icon: "bg-success/12 text-success",
@@ -116,27 +118,15 @@ function QuickStat({ title, value, subtext, icon: Icon, color, href, trend }: Qu
     return <Link to={href} className="block">{content}</Link>;
   }
   return content;
-}
+});
 
 const Index = () => {
   const { agency, isLoading: agencyLoading } = useAgency();
   const commissionRate = agency?.commission_rate ?? 0.3;
   const agencyId = agency?.id;
 
-  // Fetch creators count
-  const { data: creatorsCount } = useQuery({
-    queryKey: ["creators-count", agencyId],
-    enabled: Boolean(agencyId),
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("creators")
-        .select("*", { count: "exact", head: true })
-        .eq("agency_id", agencyId)
-        .eq("status", "Active");
-      if (error) throw error;
-      return count || 0;
-    },
-  });
+  // Use consolidated dashboard stats for counts
+  const { data: dashStats } = useDashboardStats();
 
   // Fetch total revenue with per-creator breakdown
   const { data: revenueData, isLoading: revenueLoading } = useQuery({
@@ -228,20 +218,6 @@ const Index = () => {
     },
   });
 
-  // Fetch employees count
-  const { data: employeesCount } = useQuery({
-    queryKey: ["employees-count", agencyId],
-    enabled: Boolean(agencyId),
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("employees")
-        .select("*", { count: "exact", head: true })
-        .eq("agency_id", agencyId)
-        .eq("status", "Active");
-      if (error) throw error;
-      return count || 0;
-    },
-  });
 
   const grossRevenue = revenueData?.grossTotal || revenueData?.netTotal || 0;
   const netRevenue = revenueData?.netTotal || 0;
@@ -319,14 +295,14 @@ const Index = () => {
               />
               <QuickStat
                 title="Active Creators"
-                value={creatorsCount || 0}
+                value={dashStats?.activeCreators || 0}
                 icon={Users}
                 color="accent"
                 href="/creators"
               />
               <QuickStat
                 title="Team Members"
-                value={employeesCount || 0}
+                value={dashStats?.activeEmployees || 0}
                 icon={UserCog}
                 color="warning"
                 href="/team"

@@ -8,6 +8,7 @@ setupGlobalErrorHandlers();
 
 // Force service worker update & clear stale caches on every load
 if ("serviceWorker" in navigator) {
+  let reloading = false;
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     registrations.forEach((reg) => {
       reg.update();
@@ -16,9 +17,11 @@ if ("serviceWorker" in navigator) {
       }
     });
   });
-  // Listen for new SW activating and reload
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    window.location.reload();
+    if (!reloading) {
+      reloading = true;
+      window.location.reload();
+    }
   });
 }
 
