@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { 
   Share2, Calendar, BarChart3, Sparkles, Clock, TrendingUp, 
    Instagram, Twitter, Send, Loader2, Plus, Eye, ThumbsUp, MessageCircle,
-   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Settings, Play, CheckSquare
+   DollarSign, Users, Flame, Globe, Search, ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Play, CheckSquare
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
