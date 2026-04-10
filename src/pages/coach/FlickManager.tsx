@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MarkdownRenderer } from "@/components/ai/MarkdownRenderer";
-import { Bot, Send, Loader2, UserCog, ClipboardCheck, CalendarCheck, BarChart3, Plus } from "lucide-react";
+import { Bot, Send, Loader2, UserCog, ClipboardCheck, CalendarCheck, BarChart3, Plus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +13,18 @@ import { useAgency } from "@/hooks/useAgency";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+interface ExecutedAction {
+  tool: string;
+  result: string;
+  success: boolean;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  actionsExecuted?: ExecutedAction[];
 }
 
 const quickActions = [
@@ -64,7 +71,7 @@ export default function FlickManager() {
 
       setMessages(prev => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: data.response, timestamp: new Date() },
+        { id: crypto.randomUUID(), role: "assistant", content: data.response, timestamp: new Date(), actionsExecuted: data.actionsExecuted },
       ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to get response";
@@ -155,7 +162,15 @@ export default function FlickManager() {
                   )}
                   <div className={cn("max-w-[80%] rounded-lg p-3", m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted/50 border border-border")}>
                     {m.role === "assistant" ? <MarkdownRenderer content={m.content} /> : <p className="text-sm whitespace-pre-wrap">{m.content}</p>}
-                    <span className="text-xs opacity-70 mt-2 block">{format(m.timestamp, "h:mm a")}</span>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-xs opacity-70">{format(m.timestamp, "h:mm a")}</span>
+                      {m.actionsExecuted && m.actionsExecuted.length > 0 && (
+                        <Badge variant="outline" className="text-xs py-0 h-5 gap-1 border-green-500/50 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {m.actionsExecuted.filter(a => a.success).length} action{m.actionsExecuted.filter(a => a.success).length !== 1 ? 's' : ''} executed
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
