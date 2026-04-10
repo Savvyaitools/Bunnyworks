@@ -60,13 +60,9 @@ export function useIzzy({ creatorId, accountId, fanId }: UseIzzyOptions) {
       setError(message);
       
       if (message.includes('Rate limit')) {
-        toast.error('Too many requests', {
-          description: 'Please wait a moment before trying again.',
-        });
+        toast.error('Too many requests', { description: 'Please wait a moment before trying again.' });
       } else if (message.includes('credits')) {
-        toast.error('AI Credits Exhausted', {
-          description: 'Please add credits to continue using Marylin Monroe.',
-        });
+        toast.error('AI Credits Exhausted', { description: 'Please add credits to continue using Marylin Monroe.' });
       }
       
       return [];
