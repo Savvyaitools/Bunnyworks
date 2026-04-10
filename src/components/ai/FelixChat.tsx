@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { Bot, Send, Loader2, Sparkles, BarChart3, TrendingUp, AlertTriangle, Trash2, Plus, MessageSquare, Clock } from "lucide-react";
+import { Bot, Send, Loader2, Sparkles, BarChart3, TrendingUp, AlertTriangle, Trash2, Plus, MessageSquare, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
