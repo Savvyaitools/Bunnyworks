@@ -194,13 +194,19 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
                     ) : (
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <span className="text-xs opacity-70">
                         {format(message.timestamp, "h:mm a")}
                       </span>
                       {message.dataAccessed && message.dataAccessed.length > 0 && (
                         <Badge variant="outline" className="text-xs py-0 h-5">
                           {message.dataAccessed.length} sources
+                        </Badge>
+                      )}
+                      {message.actionsExecuted && message.actionsExecuted.length > 0 && (
+                        <Badge variant="outline" className="text-xs py-0 h-5 gap-1 border-green-500/50 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {message.actionsExecuted.filter(a => a.success).length} action{message.actionsExecuted.filter(a => a.success).length !== 1 ? 's' : ''} executed
                         </Badge>
                       )}
                     </div>
