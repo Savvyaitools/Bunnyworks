@@ -68,12 +68,9 @@ export default function SocialMediaManager() {
   const [selectedCreator, setSelectedCreator] = useState<string>("");
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState<string>("instagram");
-  const [generating, setGenerating] = useState(false);
-  const [generatedPosts, setGeneratedPosts] = useState<GeneratedPost[]>([]);
   const [analyzingStrategy, setAnalyzingStrategy] = useState(false);
   const [strategyInsights, setStrategyInsights] = useState<StrategyInsight[]>([]);
-  const [contentCalendar, setContentCalendar] = useState<GeneratedPost[]>([]);
-  const [generatingCalendar, setGeneratingCalendar] = useState(false);
+  const [scanningTrends, setScanningTrends] = useState(false);
   const [scanningTrends, setScanningTrends] = useState(false);
   const [trends, setTrends] = useState<TrendItem[]>([]);
   const [nicheQuery, setNicheQuery] = useState("");
@@ -193,21 +190,6 @@ export default function SocialMediaManager() {
     refetchInterval: 60000,
   });
 
-  const generatePosts = async () => {
-    if (!topic.trim()) { toast.error("Please enter a topic or theme"); return; }
-    setGenerating(true);
-    try {
-      const creator = creators?.find(c => c.id === selectedCreator);
-      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
-        body: { action: "generate_posts", topic, platform, creatorName: creator?.name || "the creator", creatorNiche: "general", creatorPersona: creator?.persona || "", agencyId: profile?.agency_id, creatorId: selectedCreator || undefined, ofAccountId: ofAccountId || undefined },
-      });
-      if (error) throw error;
-      setGeneratedPosts(data.posts || []);
-      toast.success(`Generated ${data.posts?.length || 0} post ideas`);
-    } catch (err) { toast.error("Failed to generate posts"); console.error(err); }
-    finally { setGenerating(false); }
-  };
-
   const analyzeStrategy = async () => {
     setAnalyzingStrategy(true);
     try {
@@ -220,20 +202,6 @@ export default function SocialMediaManager() {
       toast.success("Strategy analysis complete");
     } catch (err) { toast.error("Failed to analyze strategy"); console.error(err); }
     finally { setAnalyzingStrategy(false); }
-  };
-
-  const generateCalendar = async () => {
-    setGeneratingCalendar(true);
-    try {
-      const creator = creators?.find(c => c.id === selectedCreator);
-      const { data, error } = await supabase.functions.invoke("ai-social-media-manager", {
-        body: { action: "generate_calendar", creatorName: creator?.name || "the creator", creatorNiche: "general", platform, days: 7, agencyId: profile?.agency_id, creatorId: selectedCreator || undefined, ofAccountId: ofAccountId || undefined },
-      });
-      if (error) throw error;
-      setContentCalendar(data.calendar || []);
-      toast.success("7-day content calendar generated");
-    } catch (err) { toast.error("Failed to generate calendar"); console.error(err); }
-    finally { setGeneratingCalendar(false); }
   };
 
   const scanTrends = async () => {
