@@ -295,14 +295,14 @@ const Index = () => {
               />
               <QuickStat
                 title="Active Creators"
-                value={creatorsCount || 0}
+                value={dashStats?.activeCreators || 0}
                 icon={Users}
                 color="accent"
                 href="/creators"
               />
               <QuickStat
                 title="Team Members"
-                value={employeesCount || 0}
+                value={dashStats?.activeEmployees || 0}
                 icon={UserCog}
                 color="warning"
                 href="/team"
