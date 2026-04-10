@@ -71,7 +71,6 @@ export default function SocialMediaManager() {
   const [analyzingStrategy, setAnalyzingStrategy] = useState(false);
   const [strategyInsights, setStrategyInsights] = useState<StrategyInsight[]>([]);
   const [scanningTrends, setScanningTrends] = useState(false);
-  const [scanningTrends, setScanningTrends] = useState(false);
   const [trends, setTrends] = useState<TrendItem[]>([]);
   const [nicheQuery, setNicheQuery] = useState("");
   const [creatorSocialUrl, setCreatorSocialUrl] = useState("");
