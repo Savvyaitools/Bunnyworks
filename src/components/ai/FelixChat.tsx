@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { Bot, Send, Loader2, Sparkles, BarChart3, TrendingUp, AlertTriangle, Trash2, Plus, MessageSquare, Clock } from "lucide-react";
+import { Bot, Send, Loader2, Sparkles, BarChart3, TrendingUp, AlertTriangle, Trash2, Plus, MessageSquare, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -194,13 +194,19 @@ export function FelixChat({ className, compact = false }: FelixChatProps) {
                     ) : (
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <span className="text-xs opacity-70">
                         {format(message.timestamp, "h:mm a")}
                       </span>
                       {message.dataAccessed && message.dataAccessed.length > 0 && (
                         <Badge variant="outline" className="text-xs py-0 h-5">
                           {message.dataAccessed.length} sources
+                        </Badge>
+                      )}
+                      {message.actionsExecuted && message.actionsExecuted.length > 0 && (
+                        <Badge variant="outline" className="text-xs py-0 h-5 gap-1 border-green-500/50 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {message.actionsExecuted.filter(a => a.success).length} action{message.actionsExecuted.filter(a => a.success).length !== 1 ? 's' : ''} executed
                         </Badge>
                       )}
                     </div>
