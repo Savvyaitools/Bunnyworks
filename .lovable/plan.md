@@ -1,45 +1,52 @@
 
 
-# Fix Creator Onboarding Form — Data Mapping & Login URL Issues
+# Investigation Results: Backend Errors
 
-## Issues Found
+## Findings
 
-### 1. Login URL Points to Wrong Route
-Both `CreatorCard.tsx` (line 48) and `AccountCreationDialog.tsx` (line 59) use `/auth` as the login URL. But `/auth` is for **agency owners**. Creators should be directed to `/customer-portal` (the Creator Portal). The URL correctly uses `window.location.origin` which resolves to `bunnyworks.io` on the custom domain — that part is fine.
+Three categories of issues are generating recurring errors in the database logs:
 
-### 2. Form Data Dropped on Submit
-The `handleSubmit` in `Creators.tsx` (lines 42-64) **hardcodes most fields to null** even though the form collects them. These fields are lost:
-- `alias` → hardcoded `null` (should use `data.alias`)
-- `phone` → hardcoded `null` (should use `data.phone`)
-- `notes` → hardcoded `null` (should use `data.notes`)
-- `onlyfans_url`, `instagram_url`, `twitter_url`, `tiktok_url` → all `null`
-- All questionnaire fields (`location`, `occupation`, `hair_color`, `eye_color`, `body_type`, `height`, `weight`, `bra_size`, `favorite_food`, `favorite_music`, `character_traits`, `hobbies`, `niche`, `creator_references`, `content_types`, `fetish_content`, `favorite_position`, `turn_ons`, `attracted_to`, `boundaries`, and all boolean toggles) → completely missing from the submit payload
+### 1. Ghost Cron Jobs Calling Missing Functions (ERROR — every few minutes)
+Two cron jobs reference database functions that **do not exist**:
 
-The database **does have columns** for all these fields, so they just need to be passed through.
+| Cron Job (ID) | Schedule | Calls | Status |
+|---|---|---|---|
+| `mark-overdue-items-incomplete` (#4) | Every 15 min | `public.move_overdue_to_incomplete()` | **MISSING** — errors every 15 min |
+| `refresh-dashboard-stats` (#5) | Every 5 min | `public.refresh_dashboard_stats()` | **MISSING** — errors every 5 min |
 
-### 3. Persona Not Displayed on Creator Card
-The `CreatorCard` component never renders `creator.persona`. The data is saved to the DB but invisible on the card.
+These are generating **hundreds of Postgres ERROR logs per day**. The dashboard stats hook already has a fallback (individual queries), so no user-facing breakage — but it pollutes logs and wastes resources.
+
+### 2. Ghost Cron Jobs Calling Missing Edge Functions
+Two cron jobs call edge functions that **do not exist** in the codebase:
+
+| Cron Job (ID) | Calls | Status |
+|---|---|---|
+| `auto-retry-stuck-imports` (#1) | `auto-retry-imports` edge function | **NOT DEPLOYED** — runs every minute |
+| `sync-onlyfans-earnings-daily` (#2) | `sync-onlyfans-earnings` edge function | **NOT DEPLOYED** — no logs at all |
+
+These silently fail with no visible errors but waste network calls.
+
+### 3. Missing Materialized View
+The `agency_dashboard_stats` materialized view doesn't exist. The dashboard hook's fallback fires individual queries every time, which works but is slower than intended.
+
+---
 
 ## Plan
 
-### Step 1: Fix Login URLs
-- `CreatorCard.tsx` line 48: Change `/auth` to `/customer-portal`
-- `AccountCreationDialog.tsx` line 59: Use `/customer-portal` when `userType === "creator"`, keep `/auth` for employees
+### Step 1: Drop the 4 orphaned cron jobs
+Create a migration to remove cron jobs #1, #2, #4, and #5 since their targets don't exist:
+```sql
+SELECT cron.unschedule('auto-retry-stuck-imports');
+SELECT cron.unschedule('sync-onlyfans-earnings-daily');
+SELECT cron.unschedule('mark-overdue-items-incomplete');
+SELECT cron.unschedule('refresh-dashboard-stats');
+```
 
-### Step 2: Pass All Form Fields Through on Submit
-Update `handleSubmit` in `Creators.tsx` to map every form field to the `createCreator` call:
-- `alias`, `phone`, `notes`, social URLs from form data
-- All questionnaire fields: appearance, personality, content preferences, boundaries, boolean toggles
-- Array fields (`character_traits`, `niche`, `content_types`, `fetish_content`) need comma-split into arrays since the DB stores them as `TEXT[]`
+### Step 2: Create the materialized view + refresh function (optional)
+If desired, create `agency_dashboard_stats` as a proper materialized view and `refresh_dashboard_stats()` function, then re-enable the cron job. Otherwise, the fallback queries work fine and we just leave it removed.
 
-### Step 3: Show Persona on Creator Card
-Add a persona snippet below the creator name/alias section in `CreatorCard.tsx`. Display it as a truncated italic line (e.g., first 60 chars) so it's visible at a glance.
+### Step 3: Verify remaining cron jobs are healthy
+The remaining 7 cron jobs (#3, #6-#12) all reference valid targets. No action needed.
 
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/pages/Creators.tsx` | Map all form fields to `createCreator` payload |
-| `src/components/creators/CreatorCard.tsx` | Fix login URL to `/customer-portal`, display persona |
-| `src/components/shared/AccountCreationDialog.tsx` | Fix login URL based on `userType` |
+**Impact**: Eliminates ~400+ daily Postgres errors and ~1,440 wasted HTTP calls/day from the ghost cron jobs.
 
