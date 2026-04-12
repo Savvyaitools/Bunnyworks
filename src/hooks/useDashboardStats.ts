@@ -27,28 +27,6 @@ export function useDashboardStats() {
     enabled: Boolean(agencyId),
     staleTime: 1000 * 60 * 2, // 2 min — materialized view data
     queryFn: async (): Promise<DashboardStats> => {
-      // Try materialized view first (single query)
-      const { data: mvData, error: mvError } = await supabase
-        .from("agency_dashboard_stats" as any)
-        .select("*")
-        .eq("agency_id", agencyId!)
-        .maybeSingle() as { data: any; error: any };
-
-      if (!mvError && mvData) {
-        return {
-          activeCreators: Number(mvData.active_creators) || 0,
-          activeEmployees: Number(mvData.active_employees) || 0,
-          totalNetRevenue: Number(mvData.total_net_revenue) || 0,
-          totalTips: Number(mvData.total_tips) || 0,
-          totalSubscriptions: Number(mvData.total_subscriptions) || 0,
-          totalMessagesRevenue: Number(mvData.total_messages_revenue) || 0,
-          totalReferrals: Number(mvData.total_referrals) || 0,
-          activeTasks: Number(mvData.active_tasks) || 0,
-          activeSessions: Number(mvData.active_sessions) || 0,
-        };
-      }
-
-      // Fallback: parallel count queries
       const [creatorsRes, employeesRes] = await Promise.all([
         supabase.from("creators").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).eq("status", "Active"),
         supabase.from("employees").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).eq("status", "Active"),

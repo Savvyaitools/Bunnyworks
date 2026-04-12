@@ -35,6 +35,47 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // Verify caller identity — must be authenticated and in the same agency as the target user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const { data: { user: caller }, error: authError } = await anonClient.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+
+    if (authError || !caller) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify caller and target are in the same agency
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("agency_id")
+      .in("id", [caller.id, user_id]);
+
+    const callerProfile = profiles?.find((p: any) => p.agency_id);
+    const targetProfile = profiles?.find((p: any) => p.agency_id);
+
+    if (
+      !callerProfile || !targetProfile ||
+      !profiles || profiles.length < 2 ||
+      profiles[0].agency_id !== profiles[1].agency_id
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: cross-agency notification not allowed" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Fetch all push subscriptions for this user
     const { data: subscriptions, error: subError } = await supabase
       .from("push_subscriptions")
