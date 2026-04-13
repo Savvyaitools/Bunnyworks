@@ -290,7 +290,7 @@ serve(async (req) => {
     if (!query || typeof query !== 'string') return jsonError('Invalid query');
     const trimmedQuery = query.trim();
     if (trimmedQuery.length < 3) return jsonError('Query too short');
-    if (trimmedQuery.length > 2000) return jsonError('Query too long');
+    if (trimmedQuery.length > 500) return jsonError('Query too long (max 500 characters)');
     for (const p of SUSPICIOUS_PATTERNS) {
       if (p.test(trimmedQuery)) return jsonError('I can only help with agency analytics and management questions.');
     }
