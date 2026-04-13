@@ -80,6 +80,22 @@ export function LandingNav() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25, duration: 0.5 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Link to="/workshop">
+                <Button
+                  size="sm"
+                  className="relative rounded-full px-5 font-medium bg-[hsl(330,100%,60%)] hover:bg-[hsl(330,100%,65%)] text-white shadow-[0_0_20px_hsl(330,100%,60%/0.5),0_0_40px_hsl(330,100%,60%/0.25)] animate-pulse"
+                >
+                  🐰 AI Workshop
+                </Button>
+              </Link>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3, duration: 0.5 }}
             >
               <Link to="/auth">
