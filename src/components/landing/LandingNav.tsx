@@ -10,6 +10,7 @@ const mainNavLinks = [
   { label: "Compare", href: "#comparison", isExternal: true },
   { label: "AI Tools", href: "#tools", isExternal: true },
   { label: "Pricing", href: "#pricing", isExternal: true },
+  { label: "AI Workshop", href: "/workshop", isExternal: false },
 ];
 
 export function LandingNav() {
@@ -43,22 +44,55 @@ export function LandingNav() {
           </motion.div>
 
           <div className="hidden md:flex items-center gap-6 lg:gap-8">
-            {mainNavLinks.map((link, i) => (
-              <motion.a
-                key={link.label}
-                href={link.href}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 relative"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.05, duration: 0.4 }}
-                whileHover={{ y: -1 }}
-              >
-                {link.label}
-              </motion.a>
-            ))}
+            {mainNavLinks.map((link, i) =>
+              link.isExternal ? (
+                <motion.a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 relative"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.05, duration: 0.4 }}
+                  whileHover={{ y: -1 }}
+                >
+                  {link.label}
+                </motion.a>
+              ) : (
+                <motion.div
+                  key={link.label}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.05, duration: 0.4 }}
+                  whileHover={{ y: -1 }}
+                >
+                  <Link
+                    to={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 relative"
+                  >
+                    {link.label}
+                  </Link>
+                </motion.div>
+              )
+            )}
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25, duration: 0.5 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Link to="/workshop">
+                <Button
+                  size="sm"
+                  className="relative rounded-full px-5 font-medium bg-[hsl(330,100%,60%)] hover:bg-[hsl(330,100%,65%)] text-white shadow-[0_0_20px_hsl(330,100%,60%/0.5),0_0_40px_hsl(330,100%,60%/0.25)] animate-pulse"
+                >
+                  🐰 AI Workshop
+                </Button>
+              </Link>
+            </motion.div>
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}

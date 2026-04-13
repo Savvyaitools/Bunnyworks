@@ -70,6 +70,7 @@ const EmployeeApplication = lazy(() => import("@/pages/apply/EmployeeApplication
 
 // Public pages
 const CreatorLinkPage = lazy(() => import("@/pages/CreatorLinkPage"));
+const Workshop = lazy(() => import("@/pages/Workshop"));
 
 export type UserType = "agency" | "creator" | "employee";
 
@@ -92,6 +93,7 @@ export const publicRoutes: RouteConfig[] = [
   { path: "/apply/creator/:agencyId", element: <CreatorApplication /> },
   { path: "/apply/employee/:agencyId", element: <EmployeeApplication /> },
   { path: "/l/:slug", element: <CreatorLinkPage /> },
+  { path: "/workshop", element: <Workshop /> },
 ];
 
 /** Agency-only routes */
