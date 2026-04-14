@@ -13,7 +13,8 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function BrowserSync() {
   const { profile, user } = useAuth();
   const userEmail = profile?.email || user?.email;
-  const isUnlocked = userEmail?.toLowerCase() === "testing26@gmail.com";
+  const WHITELISTED_EMAILS = ["testing26@gmail.com", "peetrovicnemanja@gmail.com"];
+  const isUnlocked = WHITELISTED_EMAILS.includes(userEmail?.toLowerCase() ?? "");
 
   if (!isUnlocked) {
     return (

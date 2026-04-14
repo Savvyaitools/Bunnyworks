@@ -98,7 +98,7 @@ const bottomNavItems = [
 ];
 
 const LOCKED_URLS = new Set(["/browser-sync"]);
-const WHITELISTED_EMAIL = "testing26@gmail.com";
+const WHITELISTED_EMAILS = new Set(["testing26@gmail.com", "peetrovicnemanja@gmail.com"]);
 
 function NavSection({ items, location, isCollapsed, userEmail }: { items: typeof mainNavItems; location: ReturnType<typeof useLocation>; isCollapsed: boolean; userEmail?: string }) {
   return (
