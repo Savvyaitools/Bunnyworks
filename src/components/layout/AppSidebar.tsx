@@ -98,14 +98,14 @@ const bottomNavItems = [
 ];
 
 const LOCKED_URLS = new Set(["/browser-sync"]);
-const WHITELISTED_EMAIL = "testing26@gmail.com";
+const WHITELISTED_EMAILS = new Set(["testing26@gmail.com", "peetrovicnemanja@gmail.com"]);
 
 function NavSection({ items, location, isCollapsed, userEmail }: { items: typeof mainNavItems; location: ReturnType<typeof useLocation>; isCollapsed: boolean; userEmail?: string }) {
   return (
     <SidebarMenu>
       {items.map((item) => {
         const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
-        const isLocked = LOCKED_URLS.has(item.url) && userEmail?.toLowerCase() !== WHITELISTED_EMAIL;
+        const isLocked = LOCKED_URLS.has(item.url) && !WHITELISTED_EMAILS.has(userEmail?.toLowerCase() ?? "");
         
         if (isLocked) {
           return (
