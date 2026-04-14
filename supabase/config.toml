@@ -73,3 +73,6 @@ verify_jwt = false
 
 [functions.paypal-order]
 verify_jwt = false
+
+[functions.paypal-client-id]
+verify_jwt = false
