@@ -739,6 +739,38 @@ document.querySelectorAll('a[href="#pricing"]').forEach(a => a.addEventListener(
 // PAYPAL
 const EDGE_FN_BASE = "https://rforophgmeiueauuxhga.supabase.co/functions/v1/paypal-order";
 const CLIENT_ID_URL = "https://rforophgmeiueauuxhga.supabase.co/functions/v1/paypal-client-id";
+const PAYPAL_SDK_URL = "https://www.paypal.com/sdk/js";
+
+function loadPayPalSdk(clientId) {
+  return new Promise((resolve, reject) => {
+    if (window.paypal?.Buttons) {
+      resolve(window.paypal);
+      return;
+    }
+
+    const existingScript = document.querySelector('script[data-paypal-sdk="true"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => {
+        if (window.paypal?.Buttons) resolve(window.paypal);
+        else reject(new Error("PayPal SDK loaded but PayPal buttons are unavailable"));
+      }, { once: true });
+      existingScript.addEventListener('error', () => reject(new Error("Failed to load PayPal SDK")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `${PAYPAL_SDK_URL}?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture`;
+    script.async = true;
+    script.dataset.sdkIntegrationSource = "integrationbuilder_sc";
+    script.dataset.paypalSdk = "true";
+    script.onload = () => {
+      if (window.paypal?.Buttons) resolve(window.paypal);
+      else reject(new Error("PayPal SDK loaded but PayPal buttons are unavailable"));
+    };
+    script.onerror = () => reject(new Error("Failed to load PayPal SDK"));
+    document.head.appendChild(script);
+  });
+}
 
 async function initPayPal() {
   try {
@@ -746,40 +778,38 @@ async function initPayPal() {
     const { clientId } = await res.json();
     if (!clientId) { resultMsg("PayPal not configured"); return; }
 
-    const script = document.createElement("script");
-    script.src = `https://sdk.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
-    script.dataset.sdkIntegrationSource = "integrationbuilder_sc";
-    script.onload = () => {
-      window.paypal.Buttons({
-        style: { shape:"rect", layout:"vertical", color:"blue", label:"paypal" },
-        message: { amount: 500 },
-        async createOrder() {
-          try {
-            const r = await fetch(EDGE_FN_BASE, { method:"POST", headers:{"Content-Type":"application/json"} });
-            const d = await r.json();
-            if(d.id) return d.id;
-            const e = d?.details?.[0];
-            throw new Error(e ? `${e.issue} ${e.description}` : JSON.stringify(d));
-          } catch(e){ console.error(e); resultMsg(`Could not initiate PayPal Checkout...<br>${e}`); }
-        },
-        async onApprove(data, actions) {
-          try {
-            const r = await fetch(`${EDGE_FN_BASE}?orderId=${data.orderID}`, { method:"POST", headers:{"Content-Type":"application/json"} });
-            const d = await r.json();
-            const e = d?.details?.[0];
-            if(e?.issue==="INSTRUMENT_DECLINED") return actions.restart();
-            if(e) throw new Error(`${e.description} (${d.debug_id})`);
-            if(!d.purchase_units) throw new Error(JSON.stringify(d));
-            const tx = d?.purchase_units?.[0]?.payments?.captures?.[0] || d?.purchase_units?.[0]?.payments?.authorizations?.[0];
-            resultMsg(`Transaction ${tx.status}: ${tx.id}`);
-            console.log("Capture result", d);
-          } catch(e){ console.error(e); resultMsg(`Sorry, your transaction could not be processed...<br>${e}`); }
-        },
-      }).render("#paypal-button-container");
-    };
-    script.onerror = () => resultMsg("Failed to load PayPal SDK");
-    document.head.appendChild(script);
-  } catch(e) { console.error(e); resultMsg("Failed to initialize PayPal"); }
+    const paypal = await loadPayPalSdk(clientId);
+
+    await paypal.Buttons({
+      style: { shape:"rect", layout:"vertical", color:"blue", label:"paypal" },
+      message: { amount: 500 },
+      async createOrder() {
+        try {
+          const r = await fetch(EDGE_FN_BASE, { method:"POST", headers:{"Content-Type":"application/json"} });
+          const d = await r.json();
+          if(d.id) return d.id;
+          const e = d?.details?.[0];
+          throw new Error(e ? `${e.issue} ${e.description}` : JSON.stringify(d));
+        } catch(e){ console.error(e); resultMsg(`Could not initiate PayPal Checkout...<br>${e}`); }
+      },
+      async onApprove(data, actions) {
+        try {
+          const r = await fetch(`${EDGE_FN_BASE}?orderId=${data.orderID}`, { method:"POST", headers:{"Content-Type":"application/json"} });
+          const d = await r.json();
+          const e = d?.details?.[0];
+          if(e?.issue==="INSTRUMENT_DECLINED") return actions.restart();
+          if(e) throw new Error(`${e.description} (${d.debug_id})`);
+          if(!d.purchase_units) throw new Error(JSON.stringify(d));
+          const tx = d?.purchase_units?.[0]?.payments?.captures?.[0] || d?.purchase_units?.[0]?.payments?.authorizations?.[0];
+          resultMsg(`Transaction ${tx.status}: ${tx.id}`);
+          console.log("Capture result", d);
+        } catch(e){ console.error(e); resultMsg(`Sorry, your transaction could not be processed...<br>${e}`); }
+      },
+    }).render("#paypal-button-container");
+  } catch(e) {
+    console.error(e);
+    resultMsg(e instanceof Error ? e.message : "Failed to initialize PayPal");
+  }
 }
 initPayPal();
 function resultMsg(m){ document.querySelector("#result-message").innerHTML = m; }
