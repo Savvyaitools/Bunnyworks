@@ -70,3 +70,6 @@ verify_jwt = false
 
 [functions.sync-social-stats]
 verify_jwt = false
+
+[functions.paypal-order]
+verify_jwt = false
