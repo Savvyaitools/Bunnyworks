@@ -105,7 +105,7 @@ function NavSection({ items, location, isCollapsed, userEmail }: { items: typeof
     <SidebarMenu>
       {items.map((item) => {
         const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
-        const isLocked = LOCKED_URLS.has(item.url) && userEmail?.toLowerCase() !== WHITELISTED_EMAIL;
+        const isLocked = LOCKED_URLS.has(item.url) && !WHITELISTED_EMAILS.has(userEmail?.toLowerCase() ?? "");
         
         if (isLocked) {
           return (
