@@ -31,9 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const profileFetchRef = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string): Promise<Profile | null> => {
-    // Deduplicate: skip if we're already fetching for this user
-    if (profileFetchRef.current === userId) return null;
+  const fetchProfile = async (userId: string, force = false): Promise<Profile | null> => {
+    // Deduplicate: skip if we're already fetching for this user (unless forced)
+    if (!force && profileFetchRef.current === userId && profile) return profile;
     profileFetchRef.current = userId;
 
     const { data, error } = await supabase
@@ -63,8 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           // Skip if getSession already handled this same user
           if (initialSessionHandled && event === "INITIAL_SESSION") return;
+          const forceRefresh = event === "SIGNED_IN" || event === "TOKEN_REFRESHED";
           setTimeout(() => {
-            fetchProfile(session.user.id);
+            fetchProfile(session.user.id, forceRefresh);
           }, 0);
         } else {
           profileFetchRef.current = null;
