@@ -39,29 +39,36 @@ export default function Creators() {
   });
 
   const handleSubmit = async (data: CreatorFormValues) => {
-    const creatorResult = await createCreator({
-      name: data.name,
-      email: data.email,
-      phone: null,
-      avatar_seed: data.name.toLowerCase().split(" ")[0],
-      avatar_url: null,
-      status: "Active",
-      revenue: 0,
-      platform: data.platform || null,
-      followers: data.followers || null,
-      notes: null,
-      alias: null,
-      online_status: false,
-      manager_id: null,
-      onlyfans_url: null,
-      instagram_url: null,
-      tiktok_url: null,
-      twitter_url: null,
-      snapchat_url: null,
-      commission_rate: null,
-      auth_user_id: null,
-      persona: data.persona || null,
-    });
+    let creatorResult;
+    try {
+      creatorResult = await createCreator({
+        name: data.name,
+        email: data.email,
+        phone: null,
+        avatar_seed: data.name.toLowerCase().split(" ")[0],
+        avatar_url: null,
+        status: "Active",
+        revenue: 0,
+        platform: data.platform || null,
+        followers: data.followers || null,
+        notes: null,
+        alias: null,
+        online_status: false,
+        manager_id: null,
+        onlyfans_url: null,
+        instagram_url: null,
+        tiktok_url: null,
+        twitter_url: null,
+        snapchat_url: null,
+        commission_rate: null,
+        auth_user_id: null,
+        persona: data.persona || null,
+      });
+    } catch (error: any) {
+      console.error("Failed to create creator:", error);
+      toast.error(error?.message || "Failed to create creator. Please try logging out and back in.");
+      return;
+    }
 
     // If password provided, create the auth account via edge function
     if (data.password && data.password.length >= 8 && creatorResult) {
