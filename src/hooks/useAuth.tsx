@@ -63,8 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           // Skip if getSession already handled this same user
           if (initialSessionHandled && event === "INITIAL_SESSION") return;
+          const forceRefresh = event === "SIGNED_IN" || event === "TOKEN_REFRESHED";
           setTimeout(() => {
-            fetchProfile(session.user.id);
+            fetchProfile(session.user.id, forceRefresh);
           }, 0);
         } else {
           profileFetchRef.current = null;
