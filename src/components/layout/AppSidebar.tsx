@@ -24,7 +24,7 @@ import {
   ChevronDown,
   Command,
   BarChart3,
-  Lock as LockIcon,
+  
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {

@@ -1,4 +1,4 @@
-import { Monitor, Bell, MapPin, Globe, Lock } from "lucide-react";
+import { Monitor, Bell, MapPin, Globe } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
