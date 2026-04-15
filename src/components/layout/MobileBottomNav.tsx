@@ -85,9 +85,6 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const { profile, user, signOut } = useAuth();
-  const userEmail = profile?.email || user?.email;
-  const WHITELISTED_EMAILS = new Set(["testing26@gmail.com", "peetrovicnemanja@gmail.com"]);
-  const isFeatureLocked = (url: string) => url === "/browser-sync" && !WHITELISTED_EMAILS.has(userEmail?.toLowerCase() ?? "");
   const { activeSession, minimized } = useActiveBrowserSession();
 
   // Hide bottom nav when browser session is open full-screen

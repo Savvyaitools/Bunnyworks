@@ -7,35 +7,7 @@ import { CaptchaAlertsFeed } from "@/components/browser/CaptchaAlertsFeed";
 import { ProxyGeoSettings } from "@/components/browser/ProxyGeoSettings";
 import { ProxyProviderManager } from "@/components/browser/ProxyProviderManager";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent } from "@/components/ui/card";
-
 export default function BrowserSync() {
-  const { profile, user } = useAuth();
-  const userEmail = profile?.email || user?.email;
-  const WHITELISTED_EMAILS = ["testing26@gmail.com", "peetrovicnemanja@gmail.com"];
-  const isUnlocked = WHITELISTED_EMAILS.includes(userEmail?.toLowerCase() ?? "");
-
-  if (!isUnlocked) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="max-w-md w-full border-border/50">
-            <CardContent className="flex flex-col items-center gap-4 py-12">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                <Lock className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h2 className="text-xl font-semibold text-foreground">Feature Locked</h2>
-              <p className="text-sm text-muted-foreground text-center">
-                Platform Access is restricted. Contact your admin to request access.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
       <div className="space-y-6">

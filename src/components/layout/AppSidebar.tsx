@@ -97,31 +97,11 @@ const bottomNavItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-const LOCKED_URLS = new Set(["/browser-sync"]);
-const WHITELISTED_EMAILS = new Set(["testing26@gmail.com", "peetrovicnemanja@gmail.com"]);
-
-function NavSection({ items, location, isCollapsed, userEmail }: { items: typeof mainNavItems; location: ReturnType<typeof useLocation>; isCollapsed: boolean; userEmail?: string }) {
+function NavSection({ items, location, isCollapsed }: { items: typeof mainNavItems; location: ReturnType<typeof useLocation>; isCollapsed: boolean }) {
   return (
     <SidebarMenu>
       {items.map((item) => {
         const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
-        const isLocked = LOCKED_URLS.has(item.url) && !WHITELISTED_EMAILS.has(userEmail?.toLowerCase() ?? "");
-        
-        if (isLocked) {
-          return (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <button
-                  onClick={() => toast("Feature locked", { description: "Contact admin for access." })}
-                  className="nav-item w-full justify-start opacity-50 cursor-not-allowed"
-                >
-                  <LockIcon className="h-5 w-5 shrink-0" />
-                  {!isCollapsed && <span className="flex-1">{item.title}</span>}
-                </button>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          );
-        }
 
         return (
           <SidebarMenuItem key={item.title}>
