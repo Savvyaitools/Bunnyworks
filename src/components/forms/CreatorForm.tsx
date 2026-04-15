@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { User, Globe, FileText, Link2, Heart, Sparkles, Camera, Eye, EyeOff, RefreshCw, Copy } from "lucide-react";
+import { User, Link2, Heart, Sparkles, Camera, Eye, EyeOff, RefreshCw, Copy } from "lucide-react";
 import { generatePassword, copyToClipboard } from "@/lib/passwordUtils";
 import { toast } from "sonner";
 

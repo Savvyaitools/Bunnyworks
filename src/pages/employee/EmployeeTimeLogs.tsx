@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmployeeLayout } from "@/components/employee/EmployeeLayout";
 import { cn } from "@/lib/utils";
-import { format, parseISO, startOfWeek, endOfWeek, isThisWeek } from "date-fns";
+import { format, parseISO, isThisWeek } from "date-fns";
 
 interface TimeLog {
   id: string;

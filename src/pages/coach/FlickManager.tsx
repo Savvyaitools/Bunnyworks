@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MarkdownRenderer } from "@/components/ai/MarkdownRenderer";
-import { Bot, Send, Loader2, UserCog, ClipboardCheck, CalendarCheck, BarChart3, Plus, CheckCircle2 } from "lucide-react";
+import { Send, Loader2, UserCog, ClipboardCheck, CalendarCheck, BarChart3, Plus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";

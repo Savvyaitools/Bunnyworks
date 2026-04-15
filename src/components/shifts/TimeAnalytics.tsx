@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useChatterTimeLogs } from "@/hooks/useChatterTimeLogs";
 import { getAvatarUrl } from "@/lib/formatters";
-import { format, startOfWeek, endOfWeek, parseISO } from "date-fns";
 
 export function TimeAnalytics() {
   const { timeLogs, loading, getAllChatterStats } = useChatterTimeLogs();

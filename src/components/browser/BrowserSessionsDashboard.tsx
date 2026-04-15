@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useBrowserSessions, SessionLink } from "@/hooks/useBrowserSessions";
+import { useBrowserSessions } from "@/hooks/useBrowserSessions";
 import { useCaptchaCheck } from "@/hooks/useBrowserFeatures";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

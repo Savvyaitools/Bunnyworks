@@ -1,5 +1,5 @@
 import { useAgencyScopedCRUD } from "./useAgencyScopedCRUD";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 
 export interface TrackingLink {
   id: string;

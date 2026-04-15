@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Calendar, X, Upload, Image, Video, Download, Trash2, FileUp, Heart, Sparkles, MessageCircle, MessageSquare, Instagram, Music, Twitter, Youtube } from "lucide-react";
+import { Calendar, X, Upload, Image, Video, Download, Trash2, FileUp, Heart, Sparkles, MessageCircle, MessageSquare, Instagram, Music, Twitter, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +20,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+
 import { useContentPlanMedia, ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
 import { useAgency } from "@/hooks/useAgency";
 import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban";

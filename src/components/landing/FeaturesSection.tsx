@@ -1,7 +1,6 @@
 import { Users, DollarSign, TrendingUp, Monitor, Shield, Lock, Zap, Calendar, MessageSquare, FileText, Smartphone, Globe, BarChart3, Clock } from "lucide-react";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
 import { motion } from "framer-motion";
-import { AnimatedCounter } from "./AnimationPrimitives";
 
 const features = [
   { icon: Users, title: "Unified Team Management", description: "Creators, chatters, and employees in one system with role-based access and per-creator permissions.", stat: "40+" , statLabel: "features" },

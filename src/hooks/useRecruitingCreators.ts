@@ -2,7 +2,7 @@ import { useAgencyScopedCRUD } from "./useAgencyScopedCRUD";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 
 export type RecruitingStatus = "prospecting" | "contacted" | "interviewed" | "approved" | "rejected";
 

@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { 
   MessageSquare, Bot, Sparkles, Shield, Clock, AlertTriangle,
   Send, Loader2, Check, X, Zap, UserCheck, BrainCircuit, ArrowLeft
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreators } from "@/hooks/useCreators";
 import { toast } from "sonner";

@@ -48,7 +48,7 @@ interface DiscoveredCreator {
 }
 import { useRecruitingCreators } from "@/hooks/useRecruitingCreators";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+
 import {
   Collapsible,
   CollapsibleContent,

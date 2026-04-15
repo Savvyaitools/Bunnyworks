@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Link2, ExternalLink } from "lucide-react";
+import { Link2 } from "lucide-react";
 
 interface TrackingLink {
   id: string;
