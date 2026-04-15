@@ -16,7 +16,7 @@ import {
   ClipboardList,
   BookOpen,
   HelpCircle,
-  Lock as LockIcon,
+  
   Bell,
   Settings,
   LogOut,
@@ -85,9 +85,6 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const { profile, user, signOut } = useAuth();
-  const userEmail = profile?.email || user?.email;
-  const WHITELISTED_EMAILS = new Set(["testing26@gmail.com", "peetrovicnemanja@gmail.com"]);
-  const isFeatureLocked = (url: string) => url === "/browser-sync" && !WHITELISTED_EMAILS.has(userEmail?.toLowerCase() ?? "");
   const { activeSession, minimized } = useActiveBrowserSession();
 
   // Hide bottom nav when browser session is open full-screen
@@ -141,21 +138,18 @@ export function MobileBottomNav() {
                               <div className="space-y-0.5">
                                 {section.items.map((item) => {
                                   const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
-                                  const locked = isFeatureLocked(item.url);
                                   return (
                                     <button
                                       key={item.url}
-                                      onClick={() => locked ? toast("Feature locked", { description: "Contact admin for access." }) : handleNavigate(item.url)}
+                                      onClick={() => handleNavigate(item.url)}
                                       className={cn(
                                         "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-colors",
-                                        locked
-                                          ? "opacity-50 cursor-not-allowed text-muted-foreground"
-                                          : isActive
-                                            ? "bg-primary/10 text-primary font-medium"
-                                            : "text-foreground hover:bg-muted/50"
+                                        isActive
+                                          ? "bg-primary/10 text-primary font-medium"
+                                          : "text-foreground hover:bg-muted/50"
                                       )}
                                     >
-                                      {locked ? <LockIcon className="h-4 w-4 shrink-0" /> : <item.icon className="h-4 w-4 shrink-0" />}
+                                      <item.icon className="h-4 w-4 shrink-0" />
                                       <span>{item.title}</span>
                                     </button>
                                   );
