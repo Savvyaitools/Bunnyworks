@@ -1,7 +1,7 @@
 import { TrendingUp, CalendarDays, MessageSquare, FileText } from "lucide-react";
 import { PortalLayout } from "@/components/portal";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+
 import { cn } from "@/lib/utils";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 

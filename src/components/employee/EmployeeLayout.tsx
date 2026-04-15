@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Calendar, LogOut, User, BarChart3, MessagesSquare, Globe, Users } from "lucide-react";
+import { Home, LogOut, BarChart3, MessagesSquare, Globe, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

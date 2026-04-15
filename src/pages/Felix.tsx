@@ -2,18 +2,18 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import {
   Bot, Brain, Share2, MessagesSquare, ArrowRight, Sparkles, UserCog,
   CheckCircle2, Clock, ListTodo, TrendingUp, MessageCircle, FileText,
   Activity, CircleDot, AlertCircle, ImageIcon, Mic, Workflow
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { FelixChat } from "@/components/ai/FelixChat";
-import { useState, useMemo } from "react";
+
+import { useMemo } from "react";
 import { useTasks } from "@/hooks/useTasks";
 import { useCreators } from "@/hooks/useCreators";
-import { useChatters } from "@/hooks/useChatters";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAgency } from "@/hooks/useAgency";
@@ -443,7 +443,6 @@ export default function Felix() {
             <AgentCard key={agent.name} {...agent} onClick={() => handleAgentClick(agent)} />
           ))}
         </motion.div>
-
 
         {/* Task Overview */}
         <TaskOverview tasks={tasks} />

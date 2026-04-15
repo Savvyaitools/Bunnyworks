@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Check, Inbox, Trash2, ExternalLink } from "lucide-react";
+import { Check, Inbox, Trash2, ExternalLink } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

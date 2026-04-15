@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
 import { motion } from "framer-motion";
-import { FloatingParticles, MagneticHover, AnimatedCounter } from "./AnimationPrimitives";
+import { FloatingParticles, MagneticHover } from "./AnimationPrimitives";
 
 const testimonials = [
   { name: "Marcus T.", role: "Agency Owner, 35+ Creators", content: "Before BunnyWorksOS, I was spending 15 hours a week on spreadsheets. Now it's all automated. I've scaled from 15 to 35 creators without adding a single admin hire.", rating: 5, highlight: "15 hrs/week saved" },

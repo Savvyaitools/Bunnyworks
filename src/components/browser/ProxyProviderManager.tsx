@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useCreators } from "@/hooks/useCreators";
 import { useProxyConfigs, ProxyConfig } from "@/hooks/useProxyConfigs";
 import { useAgency } from "@/hooks/useAgency";
-import { Globe, Shield, Save, TestTube, Loader2 } from "lucide-react";
+import { Globe, Save, TestTube, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 

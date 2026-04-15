@@ -1,7 +1,7 @@
-import { Brain, Wand2, Bot, MessageSquare, Mic, Image, ArrowRight } from "lucide-react";
+import { Brain, Wand2, Bot, MessageSquare, Mic, Image } from "lucide-react";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
 import { motion } from "framer-motion";
-import { FloatingParticles, AnimatedCounter } from "./AnimationPrimitives";
+import { FloatingParticles } from "./AnimationPrimitives";
 
 const aiAgents = [
   {

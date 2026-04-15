@@ -4,7 +4,6 @@
  */
 
 import { lazy } from "react";
-import { Navigate } from "react-router-dom";
 
 // Eager-loaded pages
 import Landing from "@/pages/Landing";

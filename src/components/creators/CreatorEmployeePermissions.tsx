@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEmployees } from "@/hooks/useEmployees";
-import { useOFPermissionsManagement, PERMISSION_PRESETS } from "@/hooks/useEmployeeOFPermissions";
+import { useOFPermissionsManagement } from "@/hooks/useEmployeeOFPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 

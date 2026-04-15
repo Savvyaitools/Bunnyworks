@@ -1,4 +1,4 @@
-import { Trophy, Award, Medal, DollarSign, TrendingUp } from "lucide-react";
+import { Trophy, Award, Medal, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
