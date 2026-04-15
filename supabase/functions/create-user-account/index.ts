@@ -14,7 +14,10 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("authorization");
+
+    console.log("Auth header present:", !!authHeader);
 
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -23,25 +26,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify the calling user is an agency owner
-    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    // Verify the calling user
+    const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { authorization: authHeader } },
     });
 
-    const { data: { user: callerUser }, error: userError } = await callerClient.auth.getUser();
-    if (userError || !callerUser) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("getClaims error:", claimsError);
+      return new Response(JSON.stringify({ error: "Unauthorized - invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const caller = { id: callerUser.id };
 
-    const { data: callerProfile } = await callerClient
+    const callerId = claimsData.claims.sub;
+    console.log("Caller ID:", callerId);
+
+    const { data: callerProfile, error: profileError } = await callerClient
       .from("profiles")
       .select("user_type, agency_id")
-      .eq("id", caller.id)
+      .eq("id", callerId)
       .single();
+
+    console.log("Profile lookup:", { callerProfile, profileError: profileError?.message });
 
     if (!callerProfile || callerProfile.user_type !== "agency") {
       return new Response(JSON.stringify({ error: "Only agency owners can create accounts" }), {
@@ -68,7 +78,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create user using admin API (does NOT affect calling user's session)
+    // Create user using admin API
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -89,6 +99,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log("User created successfully:", newUser.user.id);
 
     return new Response(
       JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email } }),
