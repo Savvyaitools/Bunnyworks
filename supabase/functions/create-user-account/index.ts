@@ -17,8 +17,6 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("authorization");
 
-    console.log("Auth header present:", !!authHeader);
-
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -26,14 +24,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify the calling user
+    // Verify the calling user's token
     const anonClient = createClient(supabaseUrl, anonKey);
     const { data: { user: callerUser }, error: authError } = await anonClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
 
     if (authError || !callerUser) {
-      console.error("getUser error:", authError);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -41,12 +38,11 @@ Deno.serve(async (req) => {
     }
 
     const callerId = callerUser.id;
-    console.log("Caller ID:", callerId);
 
-    // Use admin client for profile lookup (bypasses RLS) and user creation
+    // Use admin client to bypass RLS for profile lookup + user creation
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: callerProfiles, error: profileError } = await adminClient
+    const { data: callerProfiles } = await adminClient
       .from("profiles")
       .select("user_type, agency_id")
       .eq("id", callerId)
@@ -54,7 +50,29 @@ Deno.serve(async (req) => {
 
     const callerProfile = callerProfiles?.[0] ?? null;
 
-    console.log("Profile lookup:", { callerProfile, profileError: profileError?.message });
+    if (!callerProfile || callerProfile.user_type !== "agency") {
+      return new Response(JSON.stringify({ error: "Only agency owners can create accounts" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { email, password, fullName, userType, agencyId } = await req.json();
+
+    if (!email || !password || !fullName || !userType) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const targetAgencyId = agencyId || callerProfile.agency_id;
+    if (targetAgencyId !== callerProfile.agency_id) {
+      return new Response(JSON.stringify({ error: "Agency mismatch" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
@@ -68,21 +86,17 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      console.error("Create user error:", createError);
       return new Response(JSON.stringify({ error: createError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("User created successfully:", newUser.user.id);
-
     return new Response(
       JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email } }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Unexpected error:", err);
     return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
