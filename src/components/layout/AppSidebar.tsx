@@ -176,7 +176,7 @@ export function AppSidebar() {
         {/* Main navigation */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <NavSection items={mainNavItems} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
+            <NavSection items={mainNavItems} location={location} isCollapsed={isCollapsed} />
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -186,7 +186,7 @@ export function AppSidebar() {
             return (
               <SidebarGroup key={section.label}>
                 <SidebarGroupContent>
-                  <NavSection items={section.items} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
+                  <NavSection items={section.items} location={location} isCollapsed={isCollapsed} />
                 </SidebarGroupContent>
               </SidebarGroup>
             );
@@ -201,7 +201,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarGroup>
                   <SidebarGroupContent>
-                    <NavSection items={section.items} location={location} isCollapsed={isCollapsed} userEmail={userEmail} />
+                    <NavSection items={section.items} location={location} isCollapsed={isCollapsed} />
                   </SidebarGroupContent>
                 </SidebarGroup>
               </CollapsibleContent>
