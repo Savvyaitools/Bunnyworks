@@ -34,6 +34,9 @@ verify_jwt = false
 [functions.retry-of-syncs]
 verify_jwt = false
 
+[functions.create-user-account]
+verify_jwt = false
+
 [functions.ai-izzy-suggest]
 verify_jwt = false
 
