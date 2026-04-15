@@ -43,7 +43,10 @@ Deno.serve(async (req) => {
     const callerId = callerUser.id;
     console.log("Caller ID:", callerId);
 
-    const { data: callerProfiles, error: profileError } = await anonClient
+    // Use admin client for profile lookup (bypasses RLS) and user creation
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    const { data: callerProfiles, error: profileError } = await adminClient
       .from("profiles")
       .select("user_type, agency_id")
       .eq("id", callerId)
@@ -52,34 +55,6 @@ Deno.serve(async (req) => {
     const callerProfile = callerProfiles?.[0] ?? null;
 
     console.log("Profile lookup:", { callerProfile, profileError: profileError?.message });
-
-    if (!callerProfile || callerProfile.user_type !== "agency") {
-      return new Response(JSON.stringify({ error: "Only agency owners can create accounts" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { email, password, fullName, userType, agencyId } = await req.json();
-
-    if (!email || !password || !fullName || !userType) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Ensure the agency_id matches the caller's agency
-    const targetAgencyId = agencyId || callerProfile.agency_id;
-    if (targetAgencyId !== callerProfile.agency_id) {
-      return new Response(JSON.stringify({ error: "Agency mismatch" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Create user using admin API
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
