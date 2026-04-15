@@ -702,7 +702,7 @@ footer p { font-size: 12px; color: var(--muted); margin-top: 3px; }
 <div class="sticky-bar" id="sbar">
   <div class="sb-text">
     <strong>BunnyWorks AI Workshop</strong>
-    <span><del>$1,000</del> → $500 · April 20th</span>
+    <span><del>$1,000</del> → $500 · May 1st</span>
   </div>
   <a href="#pricing" class="sb-btn" id="sbar-btn">Get Access →</a>
 </div>
@@ -710,7 +710,7 @@ footer p { font-size: 12px; color: var(--muted); margin-top: 3px; }
 <script>
 // COUNTDOWN
 function tick(){
-  const ms = Math.max(0, new Date('2026-04-20T00:00:00') - new Date());
+  const ms = Math.max(0, new Date('2026-05-01T00:00:00') - new Date());
   const pad = n => String(Math.floor(n)).padStart(2,'0');
   document.getElementById('cd-d').textContent = pad(ms/86400000);
   document.getElementById('cd-h').textContent = pad(ms%86400000/3600000);
@@ -806,7 +806,7 @@ async function initPayPal() {
           if(e) throw new Error(`${e.description} (${d.debug_id})`);
           if(!d.purchase_units) throw new Error(JSON.stringify(d));
           const tx = d?.purchase_units?.[0]?.payments?.captures?.[0] || d?.purchase_units?.[0]?.payments?.authorizations?.[0];
-          resultMsg(`Transaction ${tx.status}: ${tx.id}`);
+          resultMsg(`✅ Payment successful! Thank you for joining the workshop.<br><br><a href="https://discord.gg/B86Eq7cG" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:var(--pink);color:#fff;text-decoration:none;border-radius:10px;padding:12px 22px;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;box-shadow:0 0 18px rgba(255,61,154,0.28);margin-top:8px;">🎉 Join Our Discord Community →</a>`);
           console.log("Capture result", d);
         } catch(e){ console.error(e); resultMsg(`Sorry, your transaction could not be processed...<br>${e}`); }
       },
