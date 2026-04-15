@@ -27,25 +27,23 @@ Deno.serve(async (req) => {
     }
 
     // Verify the calling user
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { authorization: authHeader } },
-    });
+    const anonClient = createClient(supabaseUrl, anonKey);
+    const { data: { user: callerUser }, error: authError } = await anonClient.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
-    
-    if (claimsError || !claimsData?.claims) {
-      console.error("getClaims error:", claimsError);
-      return new Response(JSON.stringify({ error: "Unauthorized - invalid token" }), {
+    if (authError || !callerUser) {
+      console.error("getUser error:", authError);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const callerId = claimsData.claims.sub;
+    const callerId = callerUser.id;
     console.log("Caller ID:", callerId);
 
-    const { data: callerProfile, error: profileError } = await callerClient
+    const { data: callerProfile, error: profileError } = await anonClient
       .from("profiles")
       .select("user_type, agency_id")
       .eq("id", callerId)
