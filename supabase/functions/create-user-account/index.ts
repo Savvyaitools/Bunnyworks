@@ -43,11 +43,13 @@ Deno.serve(async (req) => {
     const callerId = callerUser.id;
     console.log("Caller ID:", callerId);
 
-    const { data: callerProfile, error: profileError } = await anonClient
+    const { data: callerProfiles, error: profileError } = await anonClient
       .from("profiles")
       .select("user_type, agency_id")
       .eq("id", callerId)
-      .single();
+      .limit(1);
+
+    const callerProfile = callerProfiles?.[0] ?? null;
 
     console.log("Profile lookup:", { callerProfile, profileError: profileError?.message });
 
