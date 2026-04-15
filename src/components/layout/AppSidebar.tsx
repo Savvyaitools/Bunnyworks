@@ -123,7 +123,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const { profile, user, signOut } = useAuth();
-  const userEmail = profile?.email || user?.email;
+  
   const { unreadCount } = useNotifications();
   const isCollapsed = state === "collapsed";
 
