@@ -2136,6 +2136,253 @@ Deno.serve(async (req) => {
       return json({ success: true, earnings: null, message: "No earnings data found on the page" });
     }
 
+    // ========== SCRAPE EARNINGS HISTORY (CDP-FIRST, MULTI-MONTH) ==========
+    // Walks the OnlyFans earnings page month-by-month for the last N calendar months,
+    // intercepts the /api2/v2/.../earnings XHR, and stores each as a separate
+    // creator_earnings row keyed on (period_start, period_end).
+    if (action === "scrape_earnings_history") {
+      const { browserbaseSessionId: bbSid, creatorId, agencyId, monthsBack = 3 } = p;
+      if (!bbSid || !creatorId || !agencyId)
+        return json({ error: "browserbaseSessionId, creatorId, agencyId required" }, 400);
+
+      const { data: profile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
+      if (!profile || profile.agency_id !== agencyId) return json({ error: "Unauthorized" }, 403);
+
+      const alive = await isSessionAlive(BK, bbSid);
+      if (!alive) return json({ error: "Session is not active" }, 400);
+
+      const months = Math.min(Math.max(Number(monthsBack) || 3, 1), 12);
+      const now = new Date();
+      const periods: { start: string; end: string; label: string; year: number; month: number }[] = [];
+      // Include current month + N prior months
+      for (let i = months; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const start = new Date(year, month, 1).toISOString().split("T")[0];
+        const end = new Date(year, month + 1, 0).toISOString().split("T")[0];
+        const label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+        periods.push({ start, end, label, year, month });
+      }
+
+      console.log(`📅 Scraping earnings history for creator ${creatorId} — ${periods.length} months`);
+
+      const wsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${bbSid}`;
+      const results: Array<{ period: string; total: number; tips: number; subs: number; messages: number; referrals: number; source: string; error?: string }> = [];
+
+      // Helper: open a single CDP session and reuse for all months
+      const cdp = await new Promise<{
+        send: (m: string, p?: any) => Promise<any>;
+        listenXhr: (urlMatch: (u: string) => boolean, ms: number) => Promise<any[]>;
+        navigate: (url: string) => Promise<void>;
+        readDom: (chars?: number) => Promise<string>;
+        close: () => void;
+      } | null>((resolve) => {
+        const ws = new WebSocket(wsUrl);
+        let mid = 1;
+        let cdpSid: string | null = null;
+        const pending = new Map<number, (v: any) => void>();
+        const xhrListeners: Array<{ match: (u: string) => boolean; bodies: any[]; pendingBodies: Set<number> }> = [];
+        let opened = false;
+        const openTimer = setTimeout(() => { if (!opened) { try { ws.close(); } catch {} resolve(null); } }, 15000);
+
+        const sendRaw = (method: string, params: any = {}) => {
+          const id = mid++;
+          const msg: any = { id, method, params };
+          if (cdpSid) msg.sessionId = cdpSid;
+          return new Promise<any>((res) => {
+            pending.set(id, res);
+            try { ws.send(JSON.stringify(msg)); } catch { res(null); }
+          });
+        };
+
+        ws.onopen = async () => {
+          const targets = await sendRaw("Target.getTargets");
+          const page = (targets?.result?.targetInfos || []).find((t: any) => t.type === "page");
+          if (!page) { try { ws.close(); } catch {} return resolve(null); }
+          const att = await sendRaw("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+          cdpSid = att?.result?.sessionId;
+          if (!cdpSid) { try { ws.close(); } catch {} return resolve(null); }
+          await sendRaw("Network.enable");
+          await sendRaw("Page.enable");
+          opened = true;
+          clearTimeout(openTimer);
+          resolve({
+            send: sendRaw,
+            navigate: async (url: string) => {
+              await sendRaw("Page.navigate", { url });
+              await new Promise((r) => setTimeout(r, 4500));
+            },
+            readDom: async (chars = 8000) => {
+              const r = await sendRaw("Runtime.evaluate", {
+                expression: `document.body ? document.body.innerText.substring(0, ${chars}) : ''`,
+                returnByValue: true,
+              });
+              return r?.result?.result?.value || "";
+            },
+            listenXhr: (match, ms) =>
+              new Promise((res) => {
+                const slot = { match, bodies: [] as any[], pendingBodies: new Set<number>() };
+                xhrListeners.push(slot);
+                setTimeout(() => {
+                  const idx = xhrListeners.indexOf(slot);
+                  if (idx >= 0) xhrListeners.splice(idx, 1);
+                  res(slot.bodies);
+                }, ms);
+              }),
+            close: () => { try { ws.close(); } catch {} },
+          });
+        };
+
+        ws.onmessage = async (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.id && pending.has(msg.id)) {
+              const r = pending.get(msg.id)!;
+              pending.delete(msg.id);
+              r(msg);
+              return;
+            }
+            if (msg.method === "Network.responseReceived") {
+              const url = msg.params?.response?.url || "";
+              const reqId = msg.params?.requestId;
+              for (const slot of xhrListeners) {
+                if (slot.match(url) && reqId) {
+                  const bodyId = mid++;
+                  slot.pendingBodies.add(bodyId);
+                  const m: any = { id: bodyId, method: "Network.getResponseBody", params: { requestId: reqId } };
+                  if (cdpSid) m.sessionId = cdpSid;
+                  pending.set(bodyId, (resp: any) => {
+                    slot.pendingBodies.delete(bodyId);
+                    const body = resp?.result?.body;
+                    if (body) {
+                      try { slot.bodies.push(JSON.parse(body)); } catch {}
+                    }
+                  });
+                  try { ws.send(JSON.stringify(m)); } catch {}
+                }
+              }
+            }
+          } catch {}
+        };
+        ws.onerror = () => { if (!opened) resolve(null); };
+        ws.onclose = () => { if (!opened) resolve(null); };
+      });
+
+      if (!cdp) return json({ success: false, error: "Could not open CDP session" });
+
+      try {
+        for (const p of periods) {
+          // OnlyFans uses a date-range URL on the earnings page. Try CDP-driven
+          // navigation first — if the API responds, we capture XHR. Otherwise we
+          // fall back to scraping the rendered DOM.
+          const url = `https://onlyfans.com/my/statistics/statements/earnings?from=${p.start}&to=${p.end}`;
+          const xhrPromise = cdp.listenXhr(
+            (u) =>
+              u.includes("/api2/v2/earnings") ||
+              u.includes("/api2/v2/statics") ||
+              u.includes("/api2/v2/statistics") ||
+              (u.includes("statements/earnings")),
+            8000
+          );
+          await cdp.navigate(url);
+          const bodies = await xhrPromise;
+
+          let total = 0, tips = 0, subs = 0, messages = 0, referrals = 0, posts = 0;
+          let source: "xhr" | "dom" | "ai" | "none" = "none";
+
+          if (bodies.length > 0) {
+            source = "xhr";
+            const merged: any = {};
+            for (const b of bodies) {
+              const d = b?.data || b;
+              for (const k of Object.keys(d || {})) merged[k] = d[k];
+            }
+            const getNet = (obj: any): number => {
+              if (typeof obj === "number") return obj;
+              if (obj?.total !== undefined) return Number(obj.total) || 0;
+              if (obj?.net !== undefined) return Number(obj.net) || 0;
+              return 0;
+            };
+            const totalNet = getNet(merged.total || merged.all);
+            tips = getNet(merged.tips);
+            subs = getNet(merged.subscribes || merged.subscriptions);
+            messages = getNet(merged.messages || merged.chat_messages);
+            posts = getNet(merged.post || merged.posts);
+            referrals = getNet(merged.referrals);
+            total = totalNet || tips + subs + messages + posts + referrals;
+          }
+
+          if (total === 0) {
+            // DOM fallback
+            const dom = await cdp.readDom();
+            const lower = dom.toLowerCase();
+            if (
+              lower.includes("sign in to onlyfans") ||
+              lower.includes("log in to onlyfans")
+            ) {
+              results.push({ period: p.label, total: 0, tips: 0, subs: 0, messages: 0, referrals: 0, source: "logged-out", error: "Login expired" });
+              break;
+            }
+            const ai = await aiExtractEarnings(dom);
+            if (ai && ai.total > 0) {
+              source = "ai";
+              total = ai.total;
+              tips = ai.tips;
+              subs = ai.subscriptions;
+              messages = ai.messages;
+              referrals = ai.referrals;
+              posts = ai.posts;
+            } else {
+              source = "dom";
+            }
+          }
+
+          if (total > 0) {
+            const { data: existing } = await svc
+              .from("creator_earnings")
+              .select("id")
+              .eq("creator_id", creatorId)
+              .eq("period_start", p.start)
+              .eq("period_end", p.end)
+              .maybeSingle();
+            const payload = {
+              creator_id: creatorId,
+              amount: total,
+              tips: tips || 0,
+              subscriptions: subs || 0,
+              messages_revenue: messages || 0,
+              referrals: referrals || 0,
+              period_start: p.start,
+              period_end: p.end,
+              platform: "onlyfans",
+              notes: `History scrape (${source}) on ${new Date().toISOString().split("T")[0]} — ${p.label}`,
+            };
+            if (existing) await svc.from("creator_earnings").update(payload).eq("id", existing.id);
+            else await svc.from("creator_earnings").insert(payload);
+          }
+
+          results.push({ period: p.label, total, tips, subs, messages, referrals, source });
+        }
+
+        // Refresh creator.revenue with the most-recent month total
+        const latest = results[results.length - 1];
+        if (latest && latest.total > 0) {
+          await svc.from("creators").update({ revenue: latest.total }).eq("id", creatorId);
+        }
+      } finally {
+        cdp.close();
+      }
+
+      const captured = results.filter((r) => r.total > 0).length;
+      return json({
+        success: captured > 0,
+        monthsScanned: results.length,
+        monthsCaptured: captured,
+        results,
+      });
+    }
+
     // ========== SCRAPE FAN ANALYTICS (CDP) ==========
     if (action === "scrape_fan_analytics") {
       const { browserbaseSessionId: bbSid, creatorId, agencyId } = p;
