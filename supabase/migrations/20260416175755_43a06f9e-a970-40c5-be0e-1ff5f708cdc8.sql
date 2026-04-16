@@ -1,0 +1,1 @@
+DELETE FROM public.creator_earnings WHERE creator_id='b1a5112a-84c5-4ac8-bac7-32bb575f6f7f' AND period_start='2026-04-01' AND amount=349.85; UPDATE public.creators SET revenue=0 WHERE id='b1a5112a-84c5-4ac8-bac7-32bb575f6f7f';

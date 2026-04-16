@@ -2088,6 +2088,25 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Validate login state — reject if redirected to login wall
+      const textBlob = (scrapeResult.domText || "").toLowerCase();
+      const looksLoggedOut =
+        textBlob.includes("sign in to onlyfans") ||
+        textBlob.includes("log in to onlyfans") ||
+        textBlob.includes("create your account") ||
+        (textBlob.includes("sign up") && textBlob.includes("log in") && textBlob.length < 3000);
+      if (looksLoggedOut) {
+        return json({ success: false, earnings: null, message: "Login expired — re-authenticate the creator session before scraping earnings." }, 200);
+      }
+
+      // Sanity check: OnlyFans creators with revenue almost always have non-zero subscriptions.
+      // If total > 0 but subs == 0 AND messages dominate suspiciously, it's probably partial chart data.
+      const looksPartial = bestTotal > 0 && subs === 0 && tips === 0 && referrals === 0 && messages === bestTotal;
+      if (looksPartial) {
+        console.warn(`Rejecting partial earnings scrape: total=${bestTotal}, only messages had data`);
+        return json({ success: false, earnings: null, message: "Scraped data looks incomplete (only messages revenue captured). Try again or scrape from the Statements page directly." }, 200);
+      }
+
       if (bestTotal > 0) {
         const now = new Date();
         const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
