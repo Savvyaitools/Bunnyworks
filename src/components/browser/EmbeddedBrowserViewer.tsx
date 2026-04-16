@@ -146,6 +146,46 @@ export function EmbeddedBrowserViewer({
     }
   }, [bbSessionId, sessionLinkId]);
 
+  const { agencyId } = useAgency();
+  const [marylinLoading, setMarylinLoading] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  const handleMarylinReply = useCallback(async () => {
+    if (!bbSessionId || !creatorId) {
+      toast.error("Session info missing for Marylin");
+      return;
+    }
+    setMarylinLoading(true);
+    try {
+      const r = await invokeBrowserAction("batch_reply", { browserbaseSessionId: bbSessionId, creatorId, agencyId, limit: 5 });
+      toast.success(`Marylin replied to ${r.repliesSent || 0}/${r.totalProcessed || 0} conversations`);
+    } catch (err: any) {
+      toast.error("Marylin failed: " + (err.message || "Unknown error"));
+    } finally {
+      setMarylinLoading(false);
+    }
+  }, [bbSessionId, creatorId, agencyId]);
+
+  const handleAnalyticsScrape = useCallback(async () => {
+    if (!bbSessionId || !creatorId) {
+      toast.error("Session info missing for analytics");
+      return;
+    }
+    setAnalyticsLoading(true);
+    try {
+      const r = await invokeBrowserAction("stagehand_scrape_analytics", { browserbaseSessionId: bbSessionId, creatorId, agencyId });
+      if (r.earnings) {
+        toast.success(`Analytics: $${r.earnings.total?.toLocaleString()}` + (r.subscribers ? ` | ${r.subscribers.totalSubscribers} subs` : ""));
+      } else {
+        toast.info("No analytics data found");
+      }
+    } catch (err: any) {
+      toast.error("Analytics failed: " + (err.message || "Unknown error"));
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [bbSessionId, creatorId, agencyId]);
+
   // Derive display URL from platform
   const displayUrl = platform?.toLowerCase() === "fansly" 
     ? "fansly.com" 
