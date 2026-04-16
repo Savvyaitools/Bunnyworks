@@ -9,13 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { useInternalMessages } from "@/hooks/useInternalMessages";
 import { useTeamMembers, TeamMember } from "@/hooks/useTeamMembers";
 import { useAuth } from "@/hooks/useAuth";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   MessageBubble, 
   ChatInput, 
   MessagingEmptyState 
-} from "@/components/messaging";
+} from "@/components/messaging/MessageBubble";
 
 export default function InternalMessages() {
   const [searchQuery, setSearchQuery] = useState("");

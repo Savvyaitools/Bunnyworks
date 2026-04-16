@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
 import { useCreators } from "@/hooks/useCreators";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   MessageBubble, 
   ChatInput, 
   ConversationItem, 
   MessagingEmptyState 
-} from "@/components/messaging";
+} from "@/components/messaging/MessageBubble";
 
 interface Conversation {
   id: string;

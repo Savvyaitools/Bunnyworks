@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Download, Eye, DollarSign, Clock, CheckCircle2 } from "lucide-react";
-import { PortalLayout } from "@/components/portal";
+import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

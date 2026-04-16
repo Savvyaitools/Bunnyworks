@@ -48,7 +48,7 @@ import { useChatterTimeLogs } from "@/hooks/useChatterTimeLogs";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useQCAssignments } from "@/hooks/useQCAssignments";
 import { useCreatorAssignments } from "@/hooks/useCreatorAssignments";
-import { TimeAnalytics } from "@/components/shifts";
+import { TimeAnalytics } from "@/components/shifts/TimeAnalytics";
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
 import { toast } from "sonner";
 

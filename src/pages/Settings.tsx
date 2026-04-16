@@ -14,7 +14,7 @@ import { useAgencyLogo } from "@/hooks/useAgencyLogo";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { LogoUpload } from "@/components/shared/LogoUpload";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscriptionTiers";
 import { PageHeader } from "@/components/shared/PageHeader";

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Search, FolderOpen, Image, Video, FileText, Download, Eye, MoreVertical, Grid, List, Trash2, ChevronLeft, Folder, Play } from "lucide-react";
-import { PortalLayout } from "@/components/portal";
+import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

@@ -3,7 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgency } from "@/hooks/useAgency";
 import { Loader2 } from "lucide-react";
-import { AgencyOnboardingWizard } from "@/components/onboarding";
+import { AgencyOnboardingWizard } from "@/components/onboarding/AgencyOnboardingWizard";
 
 /**
  * Client-side route protection for UX purposes.
