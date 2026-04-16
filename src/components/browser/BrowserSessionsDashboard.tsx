@@ -181,7 +181,7 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
           <div key={link.id} className="rounded-lg border bg-muted/30 p-3 space-y-3">
             {/* Header: avatar + name + status */}
             <div className="flex items-center gap-3">
-              <UserAvatar name={link.creator?.name || "?"} className="h-9 w-9" />
+              <UserAvatar name={link.creator?.name || "?"} avatarUrl={link.creator?.avatar_url} className="h-9 w-9" />
               <div className="flex-1 min-w-0">
                 <span className="font-medium text-sm truncate block">
                   {link.creator?.name || "Unknown"}

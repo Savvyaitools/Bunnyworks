@@ -17,6 +17,7 @@ interface Conversation {
   id: string;
   name: string;
   avatar: string;
+  avatarUrl: string | null;
   online: boolean;
 }
 
@@ -117,6 +118,7 @@ export default function Messages() {
                   id={convo.id}
                   name={convo.name}
                   avatarSeed={convo.avatar}
+                  avatarUrl={convo.avatarUrl}
                   subtitle="Click to start chatting"
                   badge="Creator"
                   badgeVariant="creator"
@@ -148,6 +150,7 @@ export default function Messages() {
                   <UserAvatar
                     name={currentConvo.name}
                     avatarSeed={currentConvo.avatar}
+                    avatarUrl={currentConvo.avatarUrl}
                     showOnlineStatus
                     isOnline={currentConvo.online}
                   />
