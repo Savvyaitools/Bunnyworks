@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink, Users, Loader2 } from "lucide-react";
+import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink, Users, Loader2, DollarSign } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
@@ -56,6 +56,26 @@ export function BrowserSessionsDashboard() {
     },
     onError: (err: Error) => {
       toast.error(`Fan scrape failed: ${err.message}`);
+    },
+  });
+
+  const scrapeEarnings = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId }: { browserbaseSessionId: string; creatorId: string }) => {
+      return await invokeBrowserAction("scrape_earnings", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.earnings) {
+        toast.success(`Earnings scraped: $${data.earnings.total?.toLocaleString()} (${data.source})`);
+      } else {
+        toast.info(data.message || "No earnings data found");
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(`Earnings scrape failed: ${err.message}`);
     },
   });
 
@@ -139,6 +159,7 @@ export function BrowserSessionsDashboard() {
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
+            scrapeEarnings={scrapeEarnings}
           />
         ) : (
           <DesktopSessionTable
@@ -150,6 +171,7 @@ export function BrowserSessionsDashboard() {
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
+            scrapeEarnings={scrapeEarnings}
           />
         )}
       </CardContent>
@@ -167,9 +189,10 @@ interface SessionListProps {
   setViewerPanel: (panel: ViewerPanel | null) => void;
   onRejoinSession: (activeSession: any, link: any) => void;
   scrapeFans: any;
+  scrapeEarnings: any;
 }
 
-function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
+function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans, scrapeEarnings }: SessionListProps) {
   return (
     <div className="space-y-3">
       {sessionLinks.map((link) => {
