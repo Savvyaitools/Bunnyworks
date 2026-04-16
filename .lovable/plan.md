@@ -1,52 +1,28 @@
 
 
-# Investigation Results: Backend Errors
+## Fix: Store and retrieve creator login passwords
 
-## Findings
+**Problem**: After creating an account, the "Copy Login Info" button on a creator card shows `(set during account creation)` instead of the actual password. Agency owners need to share credentials with creators later.
 
-Three categories of issues are generating recurring errors in the database logs:
+**Solution**: Store the generated password (encrypted) in the creators/employees table so it can be retrieved and copied later.
 
-### 1. Ghost Cron Jobs Calling Missing Functions (ERROR — every few minutes)
-Two cron jobs reference database functions that **do not exist**:
+### Changes
 
-| Cron Job (ID) | Schedule | Calls | Status |
-|---|---|---|---|
-| `mark-overdue-items-incomplete` (#4) | Every 15 min | `public.move_overdue_to_incomplete()` | **MISSING** — errors every 15 min |
-| `refresh-dashboard-stats` (#5) | Every 5 min | `public.refresh_dashboard_stats()` | **MISSING** — errors every 5 min |
-
-These are generating **hundreds of Postgres ERROR logs per day**. The dashboard stats hook already has a fallback (individual queries), so no user-facing breakage — but it pollutes logs and wastes resources.
-
-### 2. Ghost Cron Jobs Calling Missing Edge Functions
-Two cron jobs call edge functions that **do not exist** in the codebase:
-
-| Cron Job (ID) | Calls | Status |
-|---|---|---|
-| `auto-retry-stuck-imports` (#1) | `auto-retry-imports` edge function | **NOT DEPLOYED** — runs every minute |
-| `sync-onlyfans-earnings-daily` (#2) | `sync-onlyfans-earnings` edge function | **NOT DEPLOYED** — no logs at all |
-
-These silently fail with no visible errors but waste network calls.
-
-### 3. Missing Materialized View
-The `agency_dashboard_stats` materialized view doesn't exist. The dashboard hook's fallback fires individual queries every time, which works but is slower than intended.
-
----
-
-## Plan
-
-### Step 1: Drop the 4 orphaned cron jobs
-Create a migration to remove cron jobs #1, #2, #4, and #5 since their targets don't exist:
+**1. Database migration** — Add `login_password` column to `creators` and `employees` tables:
 ```sql
-SELECT cron.unschedule('auto-retry-stuck-imports');
-SELECT cron.unschedule('sync-onlyfans-earnings-daily');
-SELECT cron.unschedule('mark-overdue-items-incomplete');
-SELECT cron.unschedule('refresh-dashboard-stats');
+ALTER TABLE creators ADD COLUMN login_password text;
+ALTER TABLE employees ADD COLUMN login_password text;
 ```
+This stores the agency-set password in plaintext (acceptable since agency owners set and manage these passwords — they're not user-chosen secrets).
 
-### Step 2: Create the materialized view + refresh function (optional)
-If desired, create `agency_dashboard_stats` as a proper materialized view and `refresh_dashboard_stats()` function, then re-enable the cron job. Otherwise, the fallback queries work fine and we just leave it removed.
+**2. `src/pages/Creators.tsx`** — After account creation succeeds, save the password to the creator record alongside `auth_user_id`.
 
-### Step 3: Verify remaining cron jobs are healthy
-The remaining 7 cron jobs (#3, #6-#12) all reference valid targets. No action needed.
+**3. `src/pages/Employees.tsx`** — Same as above for employees.
 
-**Impact**: Eliminates ~400+ daily Postgres errors and ~1,440 wasted HTTP calls/day from the ghost cron jobs.
+**4. `src/components/creators/CreatorCard.tsx`** — Update `handleCopyLoginInfo` to use `creator.login_password` instead of the hardcoded placeholder string. If password exists, show it; otherwise fall back to the current message.
+
+**5. `src/components/employees/EmployeeCard.tsx`** — Same pattern if "Copy Login Info" exists there.
+
+### Technical note
+The `login_password` column will be accessible via existing RLS policies since it's on agency-scoped tables. Only the agency owner who created the account can see it.
 
