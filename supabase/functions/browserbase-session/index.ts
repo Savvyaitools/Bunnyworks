@@ -1910,6 +1910,212 @@ Deno.serve(async (req) => {
       return json(result);
     }
 
+    // ========== SCRAPE EARNINGS (ON-DEMAND) ==========
+    if (action === "scrape_earnings") {
+      const { browserbaseSessionId: bbSid, creatorId, agencyId } = p;
+      if (!bbSid || !creatorId || !agencyId) return json({ error: "browserbaseSessionId, creatorId, and agencyId required" }, 400);
+
+      const { data: profile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
+      if (!profile || profile.agency_id !== agencyId) return json({ error: "Unauthorized" }, 403);
+
+      const alive = await isSessionAlive(BK, bbSid);
+      if (!alive) return json({ error: "Session is not active" }, 400);
+
+      console.log(`On-demand earnings scrape for creator ${creatorId}...`);
+      const scrapeWsUrl = `wss://connect.browserbase.com?apiKey=${BK}&sessionId=${bbSid}`;
+
+      const scrapeResult = await new Promise<{ json?: any; domText?: string }>((resolve) => {
+        let done = false;
+        const ws = new WebSocket(scrapeWsUrl);
+        const timer = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch {} resolve({}); } }, 35000);
+        let mid = 1;
+        let cdpSid: string | null = null;
+        const pendingBodyRequests = new Map<number, string>();
+        const domPollIds = new Set<number>();
+        const earningsAccumulator: Record<string, any> = {};
+        let earningsJson: any = null;
+        let domText = "";
+        let xhrCaptured = false;
+        let xhrResponseCount = 0;
+        let xhrFinishTimer: ReturnType<typeof setTimeout> | null = null;
+        let navigationConfirmed = false;
+        let domPollCount = 0;
+        const MAX_DOM_POLLS = 7;
+        let getTargetsId: number | null = null;
+        let attachId: number | null = null;
+        let networkEnableId: number | null = null;
+        let pageEnableId: number | null = null;
+        let navigateId: number | null = null;
+
+        const send = (method: string, params: Record<string, unknown> = {}) => {
+          const id = mid++;
+          const msg: any = { id, method, params };
+          if (cdpSid) msg.sessionId = cdpSid;
+          try { ws.send(JSON.stringify(msg)); } catch {}
+          return id;
+        };
+        const finish = () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
+          earningsJson = Object.keys(earningsAccumulator).length > 0 ? earningsAccumulator : null;
+          try { ws.close(); } catch {}
+          resolve({ json: earningsJson, domText });
+        };
+        const startDomPoll = () => {
+          if (xhrCaptured || done || domPollCount >= MAX_DOM_POLLS) return;
+          domPollCount++;
+          const id = send("Runtime.evaluate", { expression: `document.body ? document.body.innerText.substring(0, 8000) : ''`, returnByValue: true });
+          domPollIds.add(id);
+        };
+        ws.onopen = () => { getTargetsId = send("Target.getTargets"); };
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.id === getTargetsId) {
+              const page = (msg.result?.targetInfos || []).find((t: any) => t.type === "page");
+              if (page) attachId = send("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+              else finish();
+              return;
+            }
+            if (msg.id === attachId) { cdpSid = msg.result?.sessionId; if (cdpSid) networkEnableId = send("Network.enable", {}); return; }
+            if (msg.id === networkEnableId) { pageEnableId = send("Page.enable", {}); navigateId = send("Page.navigate", { url: "https://onlyfans.com/my/statistics/statements/earnings" }); return; }
+            if (msg.id === navigateId) { if (!msg.error) { navigationConfirmed = true; setTimeout(() => startDomPoll(), 5000); } else finish(); return; }
+            if (msg.method === "Network.responseReceived") {
+              const resp = msg.params?.response;
+              const url = resp?.url || "";
+              const reqId = msg.params?.requestId;
+              if (reqId && (url.includes("/api2/v2/earnings") || url.includes("/api2/v2/statics") || url.includes("/api2/v2/statistics") || url.includes("statements/earnings") || (url.includes("/chart") && url.includes("earning")))) {
+                const bodyMid = send("Network.getResponseBody", { requestId: reqId });
+                pendingBodyRequests.set(bodyMid, reqId);
+              }
+              return;
+            }
+            if (pendingBodyRequests.has(msg.id)) {
+              pendingBodyRequests.delete(msg.id);
+              const body = msg.result?.body;
+              if (body) {
+                try {
+                  const parsed = JSON.parse(body);
+                  for (const key of Object.keys(parsed)) earningsAccumulator[key] = parsed[key];
+                  xhrResponseCount++;
+                  xhrCaptured = true;
+                  if (xhrFinishTimer) clearTimeout(xhrFinishTimer);
+                  xhrFinishTimer = setTimeout(() => { earningsJson = earningsAccumulator; finish(); }, 3000);
+                } catch {}
+              }
+              return;
+            }
+            if (domPollIds.has(msg.id)) {
+              domPollIds.delete(msg.id);
+              if (xhrCaptured) return;
+              const text = msg.result?.result?.value;
+              if (typeof text === "string" && text.length > 200 && (/\$[\d,]+/.test(text) || /(?:subscriptions|tips|messages|earnings)/i.test(text))) {
+                domText = text;
+                setTimeout(() => { if (!done && !xhrCaptured) finish(); }, 3000);
+                return;
+              }
+              startDomPoll();
+              return;
+            }
+          } catch {}
+        };
+        ws.onerror = () => finish();
+        ws.onclose = () => finish();
+      });
+
+      // Parse results
+      let bestTotal = 0, tips = 0, subs = 0, messages = 0, referrals = 0, posts = 0;
+      let earningsSource = "none";
+
+      if (scrapeResult.json) {
+        earningsSource = "xhr";
+        const d = scrapeResult.json.data || scrapeResult.json;
+        const getNet = (obj: any): number => {
+          if (typeof obj === "number") return obj;
+          if (obj?.total !== undefined) return Number(obj.total) || 0;
+          if (obj?.net !== undefined) return Number(obj.net) || 0;
+          return 0;
+        };
+        const totalNet = getNet(d.total || d.all);
+        tips = getNet(d.tips);
+        subs = getNet(d.subscribes || d.subscriptions);
+        messages = getNet(d.messages || d.chat_messages);
+        posts = getNet(d.post || d.posts);
+        referrals = getNet(d.referrals);
+        const streamsNet = getNet(d.stream || d.streams);
+        bestTotal = totalNet || tips + subs + messages + posts + referrals + streamsNet;
+      }
+
+      if (bestTotal === 0 && scrapeResult.domText) {
+        const aiEarnings = await aiExtractEarnings(scrapeResult.domText);
+        if (aiEarnings && aiEarnings.total > 0) {
+          earningsSource = "ai";
+          bestTotal = aiEarnings.total;
+          tips = aiEarnings.tips;
+          subs = aiEarnings.subscriptions;
+          messages = aiEarnings.messages;
+          referrals = aiEarnings.referrals;
+          posts = aiEarnings.posts;
+        } else {
+          earningsSource = "dom";
+          const rawText = scrapeResult.domText;
+          const parseAmount = (labels: string[]): number => {
+            for (const label of labels) {
+              const nlPat = new RegExp(label + `\\s*\\n\\s*\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+              const nlMatch = rawText.match(nlPat);
+              if (nlMatch) { const val = parseFloat(nlMatch[1].replace(/,/g, "")); if (!isNaN(val) && val > 0) return val; }
+              const inlinePat = new RegExp(label + `[:\\s]+\\$\\s*([\\d,]+\\.?\\d*)`, "i");
+              const inlineMatch = rawText.match(inlinePat);
+              if (inlineMatch) { const val = parseFloat(inlineMatch[1].replace(/,/g, "")); if (!isNaN(val) && val > 0) return val; }
+            }
+            return 0;
+          };
+          const totalEarnings = parseAmount(["total", "net", "earnings"]);
+          tips = parseAmount(["tips"]);
+          subs = parseAmount(["subscriptions"]);
+          messages = parseAmount(["messages", "chat"]);
+          referrals = parseAmount(["referrals"]);
+          posts = parseAmount(["posts"]);
+          let fallbackTotal = 0;
+          if (!totalEarnings) {
+            const allAmounts = [...rawText.matchAll(/\$\s*([\d,]+\.?\d{0,2})/g)].map((m) => parseFloat(m[1].replace(/,/g, ""))).filter((v) => !isNaN(v) && v > 0);
+            if (allAmounts.length > 0) fallbackTotal = Math.max(...allAmounts);
+          }
+          bestTotal = totalEarnings || tips + subs + messages + referrals + posts || fallbackTotal;
+        }
+      }
+
+      if (bestTotal > 0) {
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+        const { data: existing } = await svc.from("creator_earnings").select("id").eq("creator_id", creatorId).eq("period_start", periodStart).eq("period_end", periodEnd).maybeSingle();
+        const earningsPayload = {
+          creator_id: creatorId,
+          amount: bestTotal,
+          tips: tips || 0,
+          subscriptions: subs || 0,
+          messages_revenue: messages || 0,
+          referrals: referrals || 0,
+          period_start: periodStart,
+          period_end: periodEnd,
+          platform: "onlyfans",
+          notes: `On-demand scrape (${earningsSource}) on ${now.toISOString().split("T")[0]}`,
+        };
+        if (existing) await svc.from("creator_earnings").update(earningsPayload).eq("id", existing.id);
+        else await svc.from("creator_earnings").insert(earningsPayload);
+
+        // Also update creator revenue
+        await svc.from("creators").update({ revenue: bestTotal }).eq("id", creatorId);
+
+        return json({ success: true, earnings: { total: bestTotal, tips, subscriptions: subs, messages, referrals, posts }, source: earningsSource });
+      }
+
+      return json({ success: true, earnings: null, message: "No earnings data found on the page" });
+    }
+
     // ========== SCRAPE FAN ANALYTICS (CDP) ==========
     if (action === "scrape_fan_analytics") {
       const { browserbaseSessionId: bbSid, creatorId, agencyId } = p;
