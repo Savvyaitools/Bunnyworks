@@ -181,6 +181,7 @@ export default function Messages() {
                         timestamp={message.created_at}
                         isOwn={message.sender_type === "agency"}
                         read={message.read}
+                        onDelete={() => deleteMessage(message.id)}
                       />
                     ))
                   )}
