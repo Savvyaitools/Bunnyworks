@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn } from "lucide-react";
+import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn, MessageSquare, BarChart3, Loader2 } from "lucide-react";
 
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { invokeBrowserAction } from "@/lib/browserbase";
 import { toast } from "sonner";
+import { useAgency } from "@/hooks/useAgency";
 
 export interface BrowserPermissions {
   can_view_chats: boolean;
@@ -145,6 +146,46 @@ export function EmbeddedBrowserViewer({
     }
   }, [bbSessionId, sessionLinkId]);
 
+  const { agencyId } = useAgency();
+  const [marylinLoading, setMarylinLoading] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  const handleMarylinReply = useCallback(async () => {
+    if (!bbSessionId || !creatorId) {
+      toast.error("Session info missing for Marylin");
+      return;
+    }
+    setMarylinLoading(true);
+    try {
+      const r = await invokeBrowserAction("batch_reply", { browserbaseSessionId: bbSessionId, creatorId, agencyId, limit: 5 });
+      toast.success(`Marylin replied to ${r.repliesSent || 0}/${r.totalProcessed || 0} conversations`);
+    } catch (err: any) {
+      toast.error("Marylin failed: " + (err.message || "Unknown error"));
+    } finally {
+      setMarylinLoading(false);
+    }
+  }, [bbSessionId, creatorId, agencyId]);
+
+  const handleAnalyticsScrape = useCallback(async () => {
+    if (!bbSessionId || !creatorId) {
+      toast.error("Session info missing for analytics");
+      return;
+    }
+    setAnalyticsLoading(true);
+    try {
+      const r = await invokeBrowserAction("stagehand_scrape_analytics", { browserbaseSessionId: bbSessionId, creatorId, agencyId });
+      if (r.earnings) {
+        toast.success(`Analytics: $${r.earnings.total?.toLocaleString()}` + (r.subscribers ? ` | ${r.subscribers.totalSubscribers} subs` : ""));
+      } else {
+        toast.info("No analytics data found");
+      }
+    } catch (err: any) {
+      toast.error("Analytics failed: " + (err.message || "Unknown error"));
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [bbSessionId, creatorId, agencyId]);
+
   // Derive display URL from platform
   const displayUrl = platform?.toLowerCase() === "fansly" 
     ? "fansly.com" 
@@ -224,6 +265,16 @@ export function EmbeddedBrowserViewer({
                   <LogIn className="h-3 w-3" />
                   {autoLoginLoading ? "Logging in..." : "Auto Login"}
                 </Button>
+              )}
+              {creatorId && bbSessionId && (
+                <>
+                  <Button size="sm" variant="outline" onClick={handleMarylinReply} disabled={marylinLoading} className="text-xs h-7 px-2 gap-1" title="Marylin Auto-Reply">
+                    {marylinLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Marylin
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleAnalyticsScrape} disabled={analyticsLoading} className="text-xs h-7 px-2 gap-1" title="AI Analytics Scrape">
+                    {analyticsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <BarChart3 className="h-3 w-3" />} Analytics
+                  </Button>
+                </>
               )}
               {viewerCount > 1 && (
                 <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 h-5 shrink-0">
