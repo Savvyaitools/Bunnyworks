@@ -305,6 +305,76 @@ async function executeTool(
       return { success: true, message: `✅ ${plans.length} content plans created successfully.`, data };
     }
 
+    case "send_message_to_creator": {
+      if (!validateCreator(args.creator_id)) return { success: false, message: "Creator not found in your agency." };
+      const conversationId = `creator-${args.creator_id}`;
+      const { data: creatorData } = await supabase.from('creators').select('name').eq('id', args.creator_id).single();
+      const senderName = args.sender_name || 'Agency AI Assistant';
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_type: 'agency',
+        sender_name: senderName,
+        content: args.message,
+        read: false,
+        agency_id: agencyId,
+      });
+      if (error) return { success: false, message: `Failed to send message: ${error.message}` };
+      return { success: true, message: `✅ Message sent to ${creatorData?.name || 'creator'} via portal messaging.` };
+    }
+
+    case "search_niche_trends": {
+      const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
+      if (!APIFY_API_TOKEN) return { success: false, message: "Search service not configured." };
+      const searchPlatform = args.platform || 'tiktok';
+      const searchLimit = Math.min(args.limit || 10, 15);
+      const cleanQuery = (args.query || '').replace(/[#@!$%^&*()+=\[\]{};:'"<>?/\\|`~]/g, '').trim();
+      
+      try {
+        let actorId = 'clockworks/free-tiktok-scraper';
+        let input: any = { searchQueries: [cleanQuery], maxProfilesPerQuery: 0, resultsPerPage: searchLimit };
+        
+        if (searchPlatform === 'instagram') {
+          actorId = 'apify/instagram-scraper';
+          input = { search: cleanQuery, resultsType: 'posts', resultsLimit: searchLimit };
+        } else if (searchPlatform === 'twitter') {
+          actorId = 'quacker/twitter-scraper';
+          input = { searchTerms: [cleanQuery], maxTweets: searchLimit, sort: 'Top' };
+        } else if (searchPlatform === 'reddit') {
+          actorId = 'trudax/reddit-scraper-lite';
+          input = { searches: [{ term: cleanQuery, sort: 'relevance', time: 'week' }], maxItems: searchLimit };
+        }
+
+        const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_API_TOKEN}&waitForFinish=60`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        });
+
+        if (!runResponse.ok) return { success: false, message: `Search failed (${runResponse.status})` };
+        const runData = await runResponse.json();
+        const datasetId = runData?.data?.defaultDatasetId;
+        if (!datasetId) return { success: false, message: "No results found." };
+
+        const itemsResp = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_API_TOKEN}&limit=${searchLimit}`);
+        const items = await itemsResp.json();
+        
+        const results = (items || []).slice(0, searchLimit).map((item: any) => ({
+          title: item.text || item.caption || item.title || item.full_text || 'Untitled',
+          url: item.webVideoUrl || item.url || item.shortUrl || item.postUrl || '',
+          engagement: item.diggCount || item.likesCount || item.likes || 0,
+          platform: searchPlatform,
+        }));
+
+        return { 
+          success: true, 
+          message: `🔍 Found ${results.length} trending results for "${args.query}" on ${searchPlatform}.`,
+          data: results,
+        };
+      } catch (e) {
+        return { success: false, message: `Search error: ${e instanceof Error ? e.message : 'Unknown'}` };
+      }
+    }
+
     default:
       return { success: false, message: `Unknown tool: ${toolName}` };
   }
