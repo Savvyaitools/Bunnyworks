@@ -1,19 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, MoreVertical, ArrowLeft } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessages, useUnreadMessages } from "@/hooks/useMessages";
 import { useCreators } from "@/hooks/useCreators";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { 
-  MessageBubble, 
-  ChatInput, 
-  ConversationItem, 
-  MessagingEmptyState 
-} from "@/components/messaging";
+import { MessageBubble } from "@/components/messaging/MessageBubble";
+import { ChatInput } from "@/components/messaging/ChatInput";
+import { ConversationItem } from "@/components/messaging/ConversationItem";
+import { MessagingEmptyState } from "@/components/messaging/EmptyState";
 
 interface Conversation {
   id: string;

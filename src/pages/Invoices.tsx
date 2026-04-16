@@ -4,7 +4,7 @@ import {
   TrendingUp, TrendingDown, Clock, CheckCircle2, X, Receipt, CreditCard,
   Megaphone, Monitor, MoreHorizontal,
 } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

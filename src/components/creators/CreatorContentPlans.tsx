@@ -23,7 +23,7 @@ import { toast } from "sonner";
 
 import { useContentPlanMedia, ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
 import { useAgency } from "@/hooks/useAgency";
-import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban";
+import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban/KanbanBoard";
 import { LinkifyText } from "@/components/shared/LinkifyText";
 
 interface ContentPlan {

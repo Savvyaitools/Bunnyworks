@@ -1,7 +1,7 @@
 import { DollarSign, Users, UserCog, TrendingUp, ArrowUpRight, Activity, BarChart3, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { LiveActivityFeed } from "@/components/dashboard/LiveActivityFeed";
 import { DashboardTasks } from "@/components/dashboard/DashboardTasks";
 import { DashboardAIInsights } from "@/components/dashboard/DashboardAIInsights";

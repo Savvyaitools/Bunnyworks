@@ -3,7 +3,7 @@ import {
   Search, MoreVertical, Trash2, Star, 
   Clock, Users, CheckCircle
 } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

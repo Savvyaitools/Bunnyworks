@@ -13,7 +13,7 @@ import {
   ClipboardCheck,
   Wallet,
 } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +56,8 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useEmployeePayroll } from "@/hooks/useEmployeePayroll";
 import { useEmployeeKPIs } from "@/hooks/useEmployeeKPIs";
 import { useEmployeeBonuses } from "@/hooks/useEmployeeBonuses";
-import { BonusStructureDialog, BonusLeaderboard } from "@/components/employee-performance";
+import { BonusStructureDialog } from "@/components/employee-performance/BonusStructureDialog";
+import { BonusLeaderboard } from "@/components/employee-performance/BonusLeaderboard";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 

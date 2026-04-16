@@ -1,5 +1,5 @@
 import { TrendingUp, CalendarDays, MessageSquare, FileText } from "lucide-react";
-import { PortalLayout } from "@/components/portal";
+import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Badge } from "@/components/ui/badge";
 
 import { cn } from "@/lib/utils";
@@ -7,7 +7,7 @@ import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/formatters";
-import { StatCard } from "@/components/shared";
+import { StatCard } from "@/components/shared/StatCard";
 
 export default function PortalDashboard() {
   const { 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare, CheckCircle2 } from "lucide-react";
-import { PortalLayout } from "@/components/portal";
+import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +21,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 import { ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
-import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban";
+import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban/KanbanBoard";
 import { LinkifyText } from "@/components/shared/LinkifyText";
 import { toast } from "sonner";
 

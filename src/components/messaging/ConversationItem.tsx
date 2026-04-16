@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { cn } from "@/lib/utils";
 
 interface ConversationItemProps {

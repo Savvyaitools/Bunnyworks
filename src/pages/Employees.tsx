@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +15,8 @@ import { useEmployees, Employee } from "@/hooks/useEmployees";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { EmployeeCard } from "@/components/employees";
-import { EmployeeForm } from "@/components/forms";
+import EmployeeCard from "@/components/employees/EmployeeCard";
+import { EmployeeForm } from "@/components/forms/EmployeeForm";
 import type { EmployeeFormValues } from "@/lib/validations";
 import { useAgency } from "@/hooks/useAgency";
 import { AccountCreationDialog } from "@/components/shared/AccountCreationDialog";

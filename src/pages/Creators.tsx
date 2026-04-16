@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import { useCreators, Creator } from "@/hooks/useCreators";
 import { useAgency } from "@/hooks/useAgency";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreatorCard } from "@/components/creators/CreatorCard";
-import { CreatorForm } from "@/components/forms";
+import { CreatorForm } from "@/components/forms/CreatorForm";
 import { formatCurrency } from "@/lib/formatters";
 import { AccountCreationDialog } from "@/components/shared/AccountCreationDialog";
 import { supabase } from "@/integrations/supabase/client";

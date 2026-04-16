@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Search, Plus, FileText, Download, Trash2, FolderOpen, Upload, X } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

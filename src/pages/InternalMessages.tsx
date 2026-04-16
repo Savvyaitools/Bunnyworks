@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, MoreVertical, Users, ArrowLeft } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,13 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { useInternalMessages } from "@/hooks/useInternalMessages";
 import { useTeamMembers, TeamMember } from "@/hooks/useTeamMembers";
 import { useAuth } from "@/hooks/useAuth";
-import { UserAvatar } from "@/components/shared";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { 
-  MessageBubble, 
-  ChatInput, 
-  MessagingEmptyState 
-} from "@/components/messaging";
+import { MessageBubble } from "@/components/messaging/MessageBubble";
+import { ChatInput } from "@/components/messaging/ChatInput";
+import { MessagingEmptyState } from "@/components/messaging/EmptyState";
 
 export default function InternalMessages() {
   const [searchQuery, setSearchQuery] = useState("");

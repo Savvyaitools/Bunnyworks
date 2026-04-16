@@ -1,5 +1,5 @@
 import { Monitor, Bell, MapPin, Globe } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSessionLauncher } from "@/components/browser/AdminSessionLauncher";
 import { BrowserSessionsDashboard } from "@/components/browser/BrowserSessionsDashboard";
