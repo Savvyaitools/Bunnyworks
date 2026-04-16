@@ -233,9 +233,11 @@ interface SessionListProps {
   onRejoinSession: (activeSession: any, link: any) => void;
   scrapeFans: any;
   scrapeEarnings: any;
+  marylinBatchReply: any;
+  stagehandAnalytics: any;
 }
 
-function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans, scrapeEarnings }: SessionListProps) {
+function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans, scrapeEarnings, marylinBatchReply, stagehandAnalytics }: SessionListProps) {
   return (
     <div className="space-y-3">
       {sessionLinks.map((link) => {
