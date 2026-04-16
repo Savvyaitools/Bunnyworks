@@ -285,19 +285,19 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
         <div className="lg:col-span-2 space-y-4">
           {/* Current Month Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatTooltip content="Total net earnings this month after OnlyFans platform fee (20%)">
+            <StatTooltip content="Total net earnings over the last 30 days after OnlyFans platform fee (20%)">
               <div className="p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors cursor-help">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                     <DollarSign className="h-4 w-4 text-emerald-400" />
                   </div>
-                  <span className="text-xs text-muted-foreground">This Month</span>
+                  <span className="text-xs text-muted-foreground">Last 30 Days</span>
                 </div>
                 <p className="text-xl font-bold text-foreground">{formatCurrency(currentMonthNet)}</p>
                 {lastMonthNet > 0 && (
                   <div className={`flex items-center gap-1 text-xs mt-1 ${isPositiveChange ? 'text-success' : 'text-destructive'}`}>
                     {isPositiveChange ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                    {Math.abs(monthChange).toFixed(1)}% vs last month
+                    {Math.abs(monthChange).toFixed(1)}% vs prior 30 days
                   </div>
                 )}
               </div>
