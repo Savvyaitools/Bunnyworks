@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn } from "lucide-react";
+import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn, MessageSquare, BarChart3, Loader2 } from "lucide-react";
 
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { invokeBrowserAction } from "@/lib/browserbase";
 import { toast } from "sonner";
+import { useAgency } from "@/hooks/useAgency";
 
 export interface BrowserPermissions {
   can_view_chats: boolean;
