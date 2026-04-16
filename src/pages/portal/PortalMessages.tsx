@@ -16,7 +16,7 @@ export default function PortalMessages() {
   // Conversation ID matches how agency creates conversations: "creator-{creator_id}"
   const conversationId = creatorId ? `creator-${creatorId}` : "";
 
-  const { messages, loading, sendMessage, markAsRead } = useMessages(conversationId, "creator");
+  const { messages, loading, sendMessage, deleteMessage, markAsRead } = useMessages(conversationId, "creator");
 
   const handleSend = async () => {
     if (!messageInput.trim() || !creatorProfile) return;
