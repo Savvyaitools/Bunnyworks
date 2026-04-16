@@ -154,8 +154,14 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
     );
   }
 
-  const currentMonthEarning = earnings?.[0];
-  const lastMonthEarning = earnings?.[1];
+  // Match by actual calendar month (period_start), not just newest row.
+  // Scraped rows may be rolling 30-day windows — those should NOT be labeled "This Month".
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevYM = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonthEarning = earnings?.find((e) => (e.period_start || "").slice(0, 7) === currentYM);
+  const lastMonthEarning = earnings?.find((e) => (e.period_start || "").slice(0, 7) === prevYM);
   const parsedBreakdown = parseNotesForBreakdown(currentMonthEarning?.notes || null);
   const lastMonthBreakdown = parseNotesForBreakdown(lastMonthEarning?.notes || null);
   const currentMonthNet = currentMonthEarning?.amount || 0;
