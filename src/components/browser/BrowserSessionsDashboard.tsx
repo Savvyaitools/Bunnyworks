@@ -79,6 +79,45 @@ export function BrowserSessionsDashboard() {
     },
   });
 
+  const marylinBatchReply = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId, limit }: { browserbaseSessionId: string; creatorId: string; limit?: number }) => {
+      return await invokeBrowserAction("batch_reply", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+        limit: limit || 5,
+      });
+    },
+    onSuccess: (data) => {
+      toast.success(`Marylin replied to ${data.repliesSent || 0}/${data.totalProcessed || 0} conversations`);
+    },
+    onError: (err: Error) => {
+      toast.error(`Marylin batch reply failed: ${err.message}`);
+    },
+  });
+
+  const stagehandAnalytics = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId }: { browserbaseSessionId: string; creatorId: string }) => {
+      return await invokeBrowserAction("stagehand_scrape_analytics", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.earnings) {
+        const msg = `Analytics scraped: $${data.earnings.total?.toLocaleString()}` +
+          (data.subscribers ? ` | ${data.subscribers.totalSubscribers} subs` : "");
+        toast.success(msg);
+      } else {
+        toast.info("No analytics data found");
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(`Analytics scrape failed: ${err.message}`);
+    },
+  });
+
   const handleRejoinSession = (activeSessionRow: any, link: any) => {
     setActiveSession({
       embedUrl: activeSessionRow.embed_url,
