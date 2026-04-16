@@ -82,9 +82,15 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
       });
 
       if (error) throw error;
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message");
+      // Optimistically refetch so the sender sees their message immediately
+      await refetch();
+    } catch (error: any) {
+      console.error("Error sending message:", error, {
+        conversationId,
+        senderType,
+        effectiveAgencyId,
+      });
+      toast.error(error?.message || "Failed to send message");
     }
   }, [conversationId, senderType, effectiveAgencyId]);
 
