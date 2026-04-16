@@ -7,6 +7,7 @@ import { DashboardTasks } from "@/components/dashboard/DashboardTasks";
 import { DashboardAIInsights } from "@/components/dashboard/DashboardAIInsights";
 import { RevenueSourceBreakdown } from "@/components/dashboard/RevenueSourceBreakdown";
 import { CreatorEarningsBreakdown } from "@/components/dashboard/CreatorEarningsBreakdown";
+import { MonthlyComparison } from "@/components/dashboard/MonthlyComparison";
 import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedChecklist";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -310,6 +311,9 @@ const Index = () => {
             </>
           )}
         </motion.div>
+
+        {/* Monthly comparison (calendar months) */}
+        <MonthlyComparison />
 
         {/* Creator Earnings + Revenue Breakdown */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
