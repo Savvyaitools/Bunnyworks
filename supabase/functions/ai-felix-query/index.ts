@@ -418,7 +418,8 @@ serve(async (req) => {
 
     // Gather ALL agency data in parallel — only what's relevant
     const isFlick = agentContext === 'flick_manager';
-    const agentType = isFlick ? 'flick' : 'coach_pbf';
+    const isTatum = agentContext === 'tatum_social';
+    const agentType = isFlick ? 'flick' : isTatum ? 'tatum' : 'coach_pbf';
 
     const dataQueries: Promise<any>[] = [
       supabase.from('agencies').select('*').eq('id', agencyId).single(),
