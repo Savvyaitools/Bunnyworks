@@ -179,6 +179,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     loading,
     unreadCount,
     sendMessage,
+    deleteMessage,
     markAsRead,
     refetch,
   };
