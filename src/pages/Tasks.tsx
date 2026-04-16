@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Search, Plus, Clock, User, Calendar, Trash2, Tag, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

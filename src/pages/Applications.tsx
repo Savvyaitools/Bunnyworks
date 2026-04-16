@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { usePendingApplications, PendingApplication } from "@/hooks/usePendingApplications";
 import { useAgency } from "@/hooks/useAgency";
 import { Card, CardContent } from "@/components/ui/card";

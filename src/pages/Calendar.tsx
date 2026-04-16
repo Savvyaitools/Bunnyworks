@@ -1,6 +1,6 @@
 import { useState, DragEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus, CalendarIcon, MoreHorizontal, Pencil, XCircle, UserX, Trash2, GripVertical, Clock } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";

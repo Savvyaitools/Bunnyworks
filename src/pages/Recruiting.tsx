@@ -3,7 +3,7 @@ import {
   Search, Plus, MoreVertical, Trash2, UserCheck, 
   Phone, Mail, Globe, MessageSquare, MapPin
 } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

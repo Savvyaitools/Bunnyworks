@@ -4,7 +4,7 @@ import {
   AlertTriangle, Shield, GripVertical,
   Clock, User, Zap, MoreHorizontal, Edit, Trash2, LayoutGrid, Table as TableIcon
 } from "lucide-react";
-import { DashboardLayout } from "@/components/layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
