@@ -159,8 +159,8 @@ export default function Employees() {
     setIsAccountDialogOpen(true);
   };
 
-  const handleAccountCreated = async (entityId: string, authUserId: string) => {
-    await updateEmployee(entityId, { auth_user_id: authUserId });
+  const handleAccountCreated = async (entityId: string, authUserId: string, password: string) => {
+    await updateEmployee(entityId, { auth_user_id: authUserId, login_password: password } as any);
     
     // Also link to chatters table if they're a chatter
     const emp = employees.find(e => e.id === entityId);
