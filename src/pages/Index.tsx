@@ -267,7 +267,7 @@ const Index = () => {
               <QuickStat
                 title="Total Revenue"
                 value={formatCurrency(grossRevenue)}
-                subtext={`Net: ${formatCurrency(netRevenue)}`}
+                subtext={`Creator take-home: ${formatCurrency(creatorTakeHome)}`}
                 icon={DollarSign}
                 color="success"
               />
