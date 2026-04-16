@@ -75,7 +75,7 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
       recentActivity: data?.coach.lastActivity
         ? formatDistanceToNow(new Date(data.coach.lastActivity), { addSuffix: true })
         : null,
-      href: "/coach-pbf",
+      href: "/of-ai/coach-pbf",
       badge: data?.coach.lastTitle || undefined,
     },
     {
@@ -86,7 +86,7 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
       recentActivity: data?.tatum.lastActivity
         ? formatDistanceToNow(new Date(data.tatum.lastActivity), { addSuffix: true })
         : null,
-      href: "/coach-pbf",
+      href: "/of-ai/social-media",
       badge: data?.tatum.lastTitle || undefined,
     },
     {
@@ -97,7 +97,7 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
       recentActivity: data?.marylin.lastActivity
         ? formatDistanceToNow(new Date(data.marylin.lastActivity), { addSuffix: true })
         : null,
-      href: "/coach-pbf",
+      href: "/of-ai/chatter",
       badge: data?.marylin.recentSales
         ? `${data.marylin.recentSales} recent sales`
         : undefined,
@@ -116,7 +116,7 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
           <p className="section-subtitle">Your AI assistant suite</p>
         </div>
         <Link
-          to="/coach-pbf"
+          to="/of-ai"
           className="text-[11px] text-muted-foreground/60 hover:text-foreground flex items-center gap-1 transition-colors"
         >
           Open Hub <ArrowUpRight className="h-3 w-3" />
