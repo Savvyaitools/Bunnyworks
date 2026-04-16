@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn, MessageSquare, BarChart3, Loader2 } from "lucide-react";
+import { X, Users, AlertTriangle, RotateCcw, Globe, Lock, ChevronLeft, ChevronRight, RotateCw, LogIn, MessageSquare, BarChart3, Loader2, History } from "lucide-react";
 
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -149,6 +149,7 @@ export function EmbeddedBrowserViewer({
   const { agencyId } = useAgency();
   const [marylinLoading, setMarylinLoading] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const handleMarylinReply = useCallback(async () => {
     if (!bbSessionId || !creatorId) {
@@ -183,6 +184,31 @@ export function EmbeddedBrowserViewer({
       toast.error("Analytics failed: " + (err.message || "Unknown error"));
     } finally {
       setAnalyticsLoading(false);
+    }
+  }, [bbSessionId, creatorId, agencyId]);
+
+  const handleHistoryScrape = useCallback(async () => {
+    if (!bbSessionId || !creatorId) {
+      toast.error("Session info missing for history scrape");
+      return;
+    }
+    setHistoryLoading(true);
+    try {
+      const r = await invokeBrowserAction("scrape_earnings_history", {
+        browserbaseSessionId: bbSessionId,
+        creatorId,
+        agencyId,
+        monthsBack: 3,
+      });
+      if (r.success) {
+        toast.success(`Captured ${r.monthsCaptured}/${r.monthsScanned} months of earnings`);
+      } else {
+        toast.info(r.error || "No earnings history captured");
+      }
+    } catch (err: any) {
+      toast.error("History scrape failed: " + (err.message || "Unknown error"));
+    } finally {
+      setHistoryLoading(false);
     }
   }, [bbSessionId, creatorId, agencyId]);
 
@@ -271,8 +297,11 @@ export function EmbeddedBrowserViewer({
                   <Button size="sm" variant="outline" onClick={handleMarylinReply} disabled={marylinLoading} className="text-xs h-7 px-2 gap-1" title="Marylin Auto-Reply">
                     {marylinLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Marylin
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleAnalyticsScrape} disabled={analyticsLoading} className="text-xs h-7 px-2 gap-1" title="AI Analytics Scrape">
+                  <Button size="sm" variant="outline" onClick={handleAnalyticsScrape} disabled={analyticsLoading} className="text-xs h-7 px-2 gap-1" title="Scrape current month (CDP + AI fallback)">
                     {analyticsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <BarChart3 className="h-3 w-3" />} Analytics
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleHistoryScrape} disabled={historyLoading} className="text-xs h-7 px-2 gap-1" title="Scrape last 3 months of earnings (CDP-first)">
+                    {historyLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <History className="h-3 w-3" />} 3-Month
                   </Button>
                 </>
               )}
