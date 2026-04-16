@@ -92,7 +92,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
       });
       toast.error(error?.message || "Failed to send message");
     }
-  }, [conversationId, senderType, effectiveAgencyId]);
+  }, [conversationId, senderType, effectiveAgencyId, refetch]);
 
   const markAsRead = useCallback(async () => {
     if (!conversationId) return;
