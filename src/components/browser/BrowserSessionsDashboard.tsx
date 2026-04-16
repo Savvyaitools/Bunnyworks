@@ -199,6 +199,8 @@ export function BrowserSessionsDashboard() {
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
             scrapeEarnings={scrapeEarnings}
+            marylinBatchReply={marylinBatchReply}
+            stagehandAnalytics={stagehandAnalytics}
           />
         ) : (
           <DesktopSessionTable
@@ -211,6 +213,8 @@ export function BrowserSessionsDashboard() {
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
             scrapeEarnings={scrapeEarnings}
+            marylinBatchReply={marylinBatchReply}
+            stagehandAnalytics={stagehandAnalytics}
           />
         )}
       </CardContent>
