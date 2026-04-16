@@ -456,7 +456,7 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
                   <span className="text-sm font-medium text-muted-foreground">Agency Cut</span>
                 </div>
                 <p className="text-2xl font-bold text-foreground">{formatCurrency(agencyEarnings)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{(agencyRate * 100).toFixed(0)}% of this month</p>
+                <p className="text-xs text-muted-foreground mt-1">{(agencyRate * 100).toFixed(0)}% of last 30 days</p>
               </div>
             </StatTooltip>
           </div>
