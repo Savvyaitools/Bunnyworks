@@ -272,7 +272,7 @@ function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, t
             <TableRow key={link.id}>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <UserAvatar name={link.creator?.name || "?"} className="h-8 w-8" />
+                  <UserAvatar name={link.creator?.name || "?"} avatarUrl={link.creator?.avatar_url} className="h-8 w-8" />
                   <div>
                     <span className="font-medium text-sm">{link.creator?.name || "Unknown"}</span>
                     {link.creator?.alias && (
