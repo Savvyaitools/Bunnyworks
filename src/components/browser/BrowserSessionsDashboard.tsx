@@ -297,12 +297,18 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
                 </>
               )}
               {linkActiveSessions.map((s: any) => (
-                <div key={s.id} className="flex items-center gap-1">
+                <div key={s.id} className="flex items-center gap-1 flex-wrap">
                   <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-8 text-xs gap-1">
                     <ExternalLink className="h-3.5 w-3.5" /> Open
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => marylinBatchReply.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={marylinBatchReply.isPending} title="Marylin Auto-Reply">
+                    {marylinBatchReply.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />} Marylin
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => stagehandAnalytics.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={stagehandAnalytics.isPending} title="AI Analytics Scrape">
+                    {stagehandAnalytics.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5" />} Analytics
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={scrapeFans.isPending}>
-                    {scrapeFans.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />} Scrape Fans
+                    {scrapeFans.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />} Fans
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-8 text-xs gap-1">
                     <Trash2 className="h-3.5 w-3.5" /> Kill
@@ -317,7 +323,7 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
   );
 }
 
-function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
+function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans, scrapeEarnings, marylinBatchReply, stagehandAnalytics }: SessionListProps) {
   return (
     <Table>
       <TableHeader>
