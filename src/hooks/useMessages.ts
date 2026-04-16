@@ -111,6 +111,20 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     }
   }, [conversationId, senderType, effectiveAgencyId, refetch]);
 
+  const deleteMessage = useCallback(async (messageId: string) => {
+    try {
+      const { error } = await supabase.from("messages").delete().eq("id", messageId);
+      if (error) throw error;
+      await refetch();
+      toast.success("Message deleted");
+      return true;
+    } catch (error: any) {
+      console.error("Error deleting message:", error);
+      toast.error(error?.message || "Failed to delete message");
+      return false;
+    }
+  }, [refetch]);
+
   const markAsRead = useCallback(async () => {
     if (!conversationId) return;
 
@@ -165,6 +179,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     loading,
     unreadCount,
     sendMessage,
+    deleteMessage,
     markAsRead,
     refetch,
   };

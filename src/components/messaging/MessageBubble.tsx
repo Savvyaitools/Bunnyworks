@@ -1,6 +1,17 @@
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMessageTimestamp } from "@/lib/formatters";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface MessageBubbleProps {
   content: string;
@@ -11,6 +22,7 @@ interface MessageBubbleProps {
   read?: boolean;
   showReadReceipt?: boolean;
   variant?: "primary" | "accent";
+  onDelete?: () => void;
 }
 
 export function MessageBubble({
@@ -22,6 +34,7 @@ export function MessageBubble({
   read = false,
   showReadReceipt = true,
   variant = "primary",
+  onDelete,
 }: MessageBubbleProps) {
   const bubbleClasses = cn(
     "message-bubble max-w-[70%]",
@@ -49,7 +62,37 @@ export function MessageBubble({
   );
 
   return (
-    <div className={cn("flex", isOwn ? "justify-end" : "justify-start")}>
+    <div className={cn("group flex items-center gap-2", isOwn ? "justify-end" : "justify-start")}>
+      {isOwn && onDelete && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              type="button"
+              aria-label="Delete message"
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this message?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This message will be permanently removed for everyone in the conversation. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
       <div className={bubbleClasses}>
         {showSenderName && senderName && !isOwn && (
           <p className="text-xs font-medium mb-1 opacity-70">{senderName}</p>

@@ -43,7 +43,7 @@ export default function Messages() {
   const currentConvo = selectedConvo || conversations[0];
   const conversationId = currentConvo?.id || "";
 
-  const { messages, loading, sendMessage, markAsRead } = useMessages(conversationId, "agency");
+  const { messages, loading, sendMessage, deleteMessage, markAsRead } = useMessages(conversationId, "agency");
   const { unreadCounts } = useUnreadMessages("agency");
 
   const filteredConversations = conversations.filter((c) =>
@@ -181,6 +181,7 @@ export default function Messages() {
                         timestamp={message.created_at}
                         isOwn={message.sender_type === "agency"}
                         read={message.read}
+                        onDelete={() => deleteMessage(message.id)}
                       />
                     ))
                   )}
