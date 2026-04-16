@@ -30,6 +30,7 @@ import {
   initStagehandSession,
   isStagehandAvailable,
   readChatContextViaStagehand,
+  stagehandExtract,
 } from "../_shared/stagehand-helpers.ts";
 
 const BB_API = "https://api.browserbase.com/v1";
@@ -2846,6 +2847,153 @@ Deno.serve(async (req) => {
         totalUnread: chatList.length,
         stagehandAvailable: stagehandHealthy,
         results,
+      });
+    }
+
+    // ========== STAGEHAND: SCRAPE ANALYTICS ==========
+    if (action === "stagehand_scrape_analytics") {
+      const { browserbaseSessionId: bbSid, creatorId: analyticsCreatorId, agencyId: analyticsAgencyId } = p;
+      if (!bbSid || !analyticsCreatorId || !analyticsAgencyId)
+        return json({ error: "browserbaseSessionId, creatorId, agencyId required" }, 400);
+
+      const { data: analyticsProfile } = await svc.from("profiles").select("agency_id").eq("id", uid).single();
+      if (!analyticsProfile || analyticsProfile.agency_id !== analyticsAgencyId)
+        return json({ error: "Unauthorized" }, 403);
+
+      const alive = await isSessionAlive(BK, bbSid);
+      if (!alive) return json({ error: "Session is not active" }, 400);
+
+      console.log(`📊 Stagehand analytics scrape for creator ${analyticsCreatorId}...`);
+
+      const stagehandHealthy = await isStagehandAvailable();
+      if (!stagehandHealthy) return json({ error: "Stagehand is not available" }, 503);
+
+      const initRes = await initStagehandSession(bbSid);
+      if (!initRes.success) return json({ error: `Stagehand init failed: ${initRes.error}` }, 500);
+
+      // Navigate to earnings page
+      try {
+        await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/statistics/statements/earnings", { timeout: 20000 });
+        await new Promise((r) => setTimeout(r, 5000));
+      } catch (navErr) {
+        console.warn("Navigation via CDP failed, trying Stagehand...");
+      }
+
+      // Extract earnings data using Stagehand AI
+      interface EarningsData {
+        total: number;
+        subscriptions: number;
+        tips: number;
+        messages: number;
+        referrals: number;
+        posts: number;
+        period: string;
+        currency: string;
+      }
+
+      const earningsResult = await stagehandExtract<EarningsData>(
+        bbSid,
+        "Extract earnings statistics from this OnlyFans analytics/statements page. Look for total earnings, subscription revenue, tips, messages revenue, referral earnings, and post earnings. Get the current period displayed (e.g. 'April 2026'). All amounts should be numbers without currency symbols.",
+        {
+          type: "object",
+          properties: {
+            total: { type: "number", description: "Total earnings amount" },
+            subscriptions: { type: "number", description: "Subscription revenue" },
+            tips: { type: "number", description: "Tips revenue" },
+            messages: { type: "number", description: "Messages/chat revenue" },
+            referrals: { type: "number", description: "Referral earnings" },
+            posts: { type: "number", description: "Posts revenue" },
+            period: { type: "string", description: "The period shown, e.g. 'April 2026'" },
+            currency: { type: "string", description: "Currency symbol or code shown" },
+          },
+          required: ["total"],
+        }
+      );
+
+      if (!earningsResult.success || !earningsResult.data?.data) {
+        // Fallback: try extracting from page text
+        console.warn("Stagehand extract failed, trying page text extraction...");
+        const pageText = await executeCDPScript(BK, bbSid, `document.body ? document.body.innerText.substring(0, 8000) : ''`, 10000);
+        const rawText = typeof pageText === "string" ? pageText : pageText?.value || "";
+
+        if (rawText.length > 100) {
+          const aiEarnings = await aiExtractEarnings(rawText);
+          if (aiEarnings && aiEarnings.total > 0) {
+            const now = new Date();
+            const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+            const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+            const { data: existing } = await svc.from("creator_earnings").select("id").eq("creator_id", analyticsCreatorId).eq("period_start", periodStart).eq("period_end", periodEnd).maybeSingle();
+            const payload = {
+              creator_id: analyticsCreatorId, amount: aiEarnings.total,
+              tips: aiEarnings.tips || 0, subscriptions: aiEarnings.subscriptions || 0,
+              messages_revenue: aiEarnings.messages || 0, referrals: aiEarnings.referrals || 0,
+              period_start: periodStart, period_end: periodEnd, platform: "onlyfans",
+              notes: `Stagehand AI fallback scrape on ${now.toISOString().split("T")[0]}`,
+            };
+            if (existing) await svc.from("creator_earnings").update(payload).eq("id", existing.id);
+            else await svc.from("creator_earnings").insert(payload);
+            await svc.from("creators").update({ revenue: aiEarnings.total }).eq("id", analyticsCreatorId);
+            return json({ success: true, source: "ai-fallback", earnings: aiEarnings });
+          }
+        }
+        return json({ success: false, error: "Could not extract earnings data", detail: earningsResult.error });
+      }
+
+      const ed = earningsResult.data.data;
+      const bestTotal = ed.total || 0;
+
+      if (bestTotal > 0) {
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+        const { data: existing } = await svc.from("creator_earnings").select("id").eq("creator_id", analyticsCreatorId).eq("period_start", periodStart).eq("period_end", periodEnd).maybeSingle();
+        const payload = {
+          creator_id: analyticsCreatorId, amount: bestTotal,
+          tips: ed.tips || 0, subscriptions: ed.subscriptions || 0,
+          messages_revenue: ed.messages || 0, referrals: ed.referrals || 0,
+          period_start: periodStart, period_end: periodEnd, platform: "onlyfans",
+          notes: `Stagehand AI scrape on ${now.toISOString().split("T")[0]}` + (ed.period ? ` (${ed.period})` : ""),
+        };
+        if (existing) await svc.from("creator_earnings").update(payload).eq("id", existing.id);
+        else await svc.from("creator_earnings").insert(payload);
+        await svc.from("creators").update({ revenue: bestTotal }).eq("id", analyticsCreatorId);
+      }
+
+      // Now try to scrape subscriber stats
+      interface SubStats { totalSubscribers: number; activeSubscribers: number; expiredSubscribers: number; newToday: number; }
+      let subStats: SubStats | null = null;
+      try {
+        await navigateViaCDP(BK, bbSid, "https://onlyfans.com/my/statistics/fans", { timeout: 15000 });
+        await new Promise((r) => setTimeout(r, 4000));
+        const subResult = await stagehandExtract<SubStats>(
+          bbSid,
+          "Extract subscriber/fan statistics from this page. Get total subscribers, active subscribers, expired/cancelled subscribers, and new subscribers today.",
+          {
+            type: "object",
+            properties: {
+              totalSubscribers: { type: "number", description: "Total number of subscribers/fans" },
+              activeSubscribers: { type: "number", description: "Currently active subscribers" },
+              expiredSubscribers: { type: "number", description: "Expired/cancelled subscribers" },
+              newToday: { type: "number", description: "New subscribers today" },
+            },
+            required: ["totalSubscribers"],
+          }
+        );
+        if (subResult.success && subResult.data?.data) {
+          subStats = subResult.data.data;
+          // Update creator followers count
+          if (subStats.totalSubscribers > 0) {
+            await svc.from("creators").update({ followers: String(subStats.totalSubscribers) }).eq("id", analyticsCreatorId);
+          }
+        }
+      } catch (subErr) {
+        console.warn("Subscriber stats scrape failed (non-fatal):", subErr);
+      }
+
+      return json({
+        success: true, source: "stagehand",
+        earnings: { total: bestTotal, tips: ed.tips, subscriptions: ed.subscriptions, messages: ed.messages, referrals: ed.referrals, posts: ed.posts, period: ed.period },
+        subscribers: subStats,
       });
     }
 

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink, Users, Loader2, DollarSign } from "lucide-react";
+import { Monitor, Trash2, RefreshCw, Film, Terminal, ShieldAlert, Download, ExternalLink, Users, Loader2, DollarSign, MessageSquare, BarChart3 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useActiveBrowserSession } from "@/contexts/ActiveBrowserSessionContext";
@@ -76,6 +76,45 @@ export function BrowserSessionsDashboard() {
     },
     onError: (err: Error) => {
       toast.error(`Earnings scrape failed: ${err.message}`);
+    },
+  });
+
+  const marylinBatchReply = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId, limit }: { browserbaseSessionId: string; creatorId: string; limit?: number }) => {
+      return await invokeBrowserAction("batch_reply", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+        limit: limit || 5,
+      });
+    },
+    onSuccess: (data) => {
+      toast.success(`Marylin replied to ${data.repliesSent || 0}/${data.totalProcessed || 0} conversations`);
+    },
+    onError: (err: Error) => {
+      toast.error(`Marylin batch reply failed: ${err.message}`);
+    },
+  });
+
+  const stagehandAnalytics = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId }: { browserbaseSessionId: string; creatorId: string }) => {
+      return await invokeBrowserAction("stagehand_scrape_analytics", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.earnings) {
+        const msg = `Analytics scraped: $${data.earnings.total?.toLocaleString()}` +
+          (data.subscribers ? ` | ${data.subscribers.totalSubscribers} subs` : "");
+        toast.success(msg);
+      } else {
+        toast.info("No analytics data found");
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(`Analytics scrape failed: ${err.message}`);
     },
   });
 
@@ -160,6 +199,8 @@ export function BrowserSessionsDashboard() {
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
             scrapeEarnings={scrapeEarnings}
+            marylinBatchReply={marylinBatchReply}
+            stagehandAnalytics={stagehandAnalytics}
           />
         ) : (
           <DesktopSessionTable
@@ -172,6 +213,8 @@ export function BrowserSessionsDashboard() {
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
             scrapeEarnings={scrapeEarnings}
+            marylinBatchReply={marylinBatchReply}
+            stagehandAnalytics={stagehandAnalytics}
           />
         )}
       </CardContent>
@@ -190,9 +233,11 @@ interface SessionListProps {
   onRejoinSession: (activeSession: any, link: any) => void;
   scrapeFans: any;
   scrapeEarnings: any;
+  marylinBatchReply: any;
+  stagehandAnalytics: any;
 }
 
-function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans, scrapeEarnings }: SessionListProps) {
+function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans, scrapeEarnings, marylinBatchReply, stagehandAnalytics }: SessionListProps) {
   return (
     <div className="space-y-3">
       {sessionLinks.map((link) => {
@@ -252,12 +297,18 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
                 </>
               )}
               {linkActiveSessions.map((s: any) => (
-                <div key={s.id} className="flex items-center gap-1">
+                <div key={s.id} className="flex items-center gap-1 flex-wrap">
                   <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-8 text-xs gap-1">
                     <ExternalLink className="h-3.5 w-3.5" /> Open
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => marylinBatchReply.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={marylinBatchReply.isPending} title="Marylin Auto-Reply">
+                    {marylinBatchReply.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />} Marylin
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => stagehandAnalytics.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={stagehandAnalytics.isPending} title="AI Analytics Scrape">
+                    {stagehandAnalytics.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5" />} Analytics
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-8 text-xs gap-1" disabled={scrapeFans.isPending}>
-                    {scrapeFans.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />} Scrape Fans
+                    {scrapeFans.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />} Fans
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => terminateSession(s.browserbase_session_id)} className="text-destructive h-8 text-xs gap-1">
                     <Trash2 className="h-3.5 w-3.5" /> Kill
@@ -272,7 +323,7 @@ function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, ter
   );
 }
 
-function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
+function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans, scrapeEarnings, marylinBatchReply, stagehandAnalytics }: SessionListProps) {
   return (
     <Table>
       <TableHeader>
@@ -337,9 +388,15 @@ function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, t
                     </>
                   )}
                   {linkActiveSessions.map((s: any) => (
-                    <div key={s.id} className="flex items-center gap-1">
+                    <div key={s.id} className="flex items-center gap-1 flex-wrap">
                       <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-7 text-xs gap-1">
                         <ExternalLink className="h-3 w-3" /> Open
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => marylinBatchReply.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="Marylin Auto-Reply" disabled={marylinBatchReply.isPending}>
+                        {marylinBatchReply.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Marylin
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => stagehandAnalytics.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="AI Analytics Scrape" disabled={stagehandAnalytics.isPending}>
+                        {stagehandAnalytics.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <BarChart3 className="h-3 w-3" />} Analytics
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="Scrape Fan Analytics" disabled={scrapeFans.isPending}>
                         {scrapeFans.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} Fans
