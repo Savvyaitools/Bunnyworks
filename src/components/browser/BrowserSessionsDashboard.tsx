@@ -59,6 +59,26 @@ export function BrowserSessionsDashboard() {
     },
   });
 
+  const scrapeEarnings = useMutation({
+    mutationFn: async ({ browserbaseSessionId, creatorId }: { browserbaseSessionId: string; creatorId: string }) => {
+      return await invokeBrowserAction("scrape_earnings", {
+        browserbaseSessionId,
+        creatorId,
+        agencyId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.earnings) {
+        toast.success(`Earnings scraped: $${data.earnings.total?.toLocaleString()} (${data.source})`);
+      } else {
+        toast.info(data.message || "No earnings data found");
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(`Earnings scrape failed: ${err.message}`);
+    },
+  });
+
   const handleRejoinSession = (activeSessionRow: any, link: any) => {
     setActiveSession({
       embedUrl: activeSessionRow.embed_url,
