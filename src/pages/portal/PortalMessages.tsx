@@ -100,6 +100,7 @@ export default function PortalMessages() {
                   showSenderName={message.sender_type === "agency"}
                   read={message.read}
                   variant="accent"
+                  onDelete={message.sender_type === "creator" ? () => deleteMessage(message.id) : undefined}
                 />
               ))
             )}
