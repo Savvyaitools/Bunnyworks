@@ -172,6 +172,40 @@ const agentTools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "send_message_to_creator",
+      description: "Send a message to a creator via the internal messaging system. Use for check-ins, motivation, accountability reminders, content requests, or coaching. The creator will see this in their portal.",
+      parameters: {
+        type: "object",
+        properties: {
+          creator_id: { type: "string", description: "UUID of the creator to message" },
+          message: { type: "string", description: "The message content to send to the creator" },
+          sender_name: { type: "string", description: "Name to display as the sender (e.g. 'Flick - AI Manager' or the agency name)" },
+        },
+        required: ["creator_id", "message"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_niche_trends",
+      description: "Search for trending content and niche ideas on social platforms using Apify. Returns viral content references. Use when the user asks to find trends, research a niche, or discover viral content.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query / niche topic (e.g. 'fitness model reels', 'luxury lifestyle')" },
+          platform: { type: "string", enum: ["tiktok", "instagram", "twitter", "reddit", "all"], description: "Platform to search" },
+          limit: { type: "number", description: "Max results (default 10)" },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // ── Tool execution handlers ──
