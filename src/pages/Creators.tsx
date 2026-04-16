@@ -87,7 +87,7 @@ export default function Creators() {
         if (result?.error) throw new Error(result.error);
         if (result?.user?.id) {
           await updateCreator(creatorResult.id, { auth_user_id: result.user.id });
-          toast.success("Creator added with login account!");
+          toast.success(result.existing ? "Creator added & linked to existing account!" : "Creator added with login account!");
         }
       } catch (error: any) {
         toast.error(`Creator added, but login account failed: ${error.message}`);
