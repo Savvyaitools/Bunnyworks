@@ -159,6 +159,7 @@ export function BrowserSessionsDashboard() {
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
+            scrapeEarnings={scrapeEarnings}
           />
         ) : (
           <DesktopSessionTable
@@ -170,6 +171,7 @@ export function BrowserSessionsDashboard() {
             setViewerPanel={setViewerPanel}
             onRejoinSession={handleRejoinSession}
             scrapeFans={scrapeFans}
+            scrapeEarnings={scrapeEarnings}
           />
         )}
       </CardContent>
