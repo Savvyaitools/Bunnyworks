@@ -99,7 +99,7 @@ export const publicRoutes: RouteConfig[] = [
 /** Agency-only routes */
 export const agencyRoutes: RouteConfig[] = [
   { path: "/dashboard", element: <Index />, auth: ["agency"] },
-  { path: "/of-ai", element: <CoachPBF />, auth: ["agency"] },
+  { path: "/of-ai", element: <CoachPBFHub />, auth: ["agency"] },
   { path: "/creators", element: <Creators />, auth: ["agency"] },
   { path: "/creators/:id", element: <CreatorDetail />, auth: ["agency"] },
   { path: "/team", element: <Employees />, auth: ["agency"] },
@@ -154,7 +154,7 @@ export const redirectRoutes: { from: string; to: string }[] = [
   { from: "/agent-hub", to: "/of-ai" },
   { from: "/coach-pbf", to: "/of-ai" },
   { from: "/felix", to: "/of-ai" },
-  { from: "/of-ai/coach", to: "/of-ai" },
+  { from: "/of-ai/coach", to: "/of-ai/coach-pbf" },
   { from: "/coach/social-media", to: "/of-ai/social-media" },
   { from: "/coach/ai-chatter", to: "/of-ai/chatter" },
   { from: "/employees", to: "/team" },
