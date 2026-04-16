@@ -19,26 +19,41 @@ export interface Message {
 export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency") {
   const queryClient = useQueryClient();
   const { agencyId } = useAgency();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // For creators, we need to fetch their agency_id from the creators table
   const { data: creatorAgencyId } = useQuery({
-    queryKey: ["creator-agency-id", user?.email],
+    queryKey: ["creator-agency-id", user?.id, user?.email],
     queryFn: async () => {
-      if (!user?.email) return null;
-      const { data, error } = await supabase
+      if (!user?.id) return null;
+
+      const { data: creatorByAuthId, error: authIdError } = await supabase
+        .from("creators")
+        .select("agency_id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (authIdError) throw authIdError;
+      if (creatorByAuthId?.agency_id) return creatorByAuthId.agency_id;
+
+      if (!user.email) return null;
+
+      const { data: creatorByEmail, error: emailError } = await supabase
         .from("creators")
         .select("agency_id")
         .ilike("email", user.email)
         .maybeSingle();
-      if (error) throw error;
-      return data?.agency_id;
+
+      if (emailError) throw emailError;
+      return creatorByEmail?.agency_id ?? null;
     },
-    enabled: senderType === "creator" && !!user?.email,
+    enabled: senderType === "creator" && !!user?.id,
   });
 
   // Use the appropriate agency_id based on sender type
-  const effectiveAgencyId = senderType === "agency" ? agencyId : creatorAgencyId;
+  const effectiveAgencyId = senderType === "agency"
+    ? agencyId
+    : creatorAgencyId ?? profile?.agency_id ?? null;
 
   const { data: messages = [], isLoading: loading, refetch } = useQuery({
     queryKey: ["messages", conversationId, effectiveAgencyId],
@@ -63,12 +78,12 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
   );
 
   const sendMessage = useCallback(async (content: string, senderName: string) => {
-    if (!content.trim() || !conversationId) return;
+    if (!content.trim() || !conversationId) return false;
 
     // Require agency_id for all messages to ensure proper RLS filtering
     if (!effectiveAgencyId) {
       toast.error("Unable to send message - agency not found");
-      return;
+      return false;
     }
 
     try {
@@ -84,6 +99,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
       if (error) throw error;
       // Optimistically refetch so the sender sees their message immediately
       await refetch();
+      return true;
     } catch (error: any) {
       console.error("Error sending message:", error, {
         conversationId,
@@ -91,6 +107,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
         effectiveAgencyId,
       });
       toast.error(error?.message || "Failed to send message");
+      return false;
     }
   }, [conversationId, senderType, effectiveAgencyId, refetch]);
 

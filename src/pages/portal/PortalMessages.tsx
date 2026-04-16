@@ -20,8 +20,10 @@ export default function PortalMessages() {
 
   const handleSend = async () => {
     if (!messageInput.trim() || !creatorProfile) return;
-    await sendMessage(messageInput, creatorProfile.name);
-    setMessageInput("");
+    const sent = await sendMessage(messageInput, creatorProfile.name);
+    if (sent) {
+      setMessageInput("");
+    }
   };
 
   // Scroll to bottom on new messages
