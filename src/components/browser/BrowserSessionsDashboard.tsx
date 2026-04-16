@@ -187,6 +187,7 @@ interface SessionListProps {
   setViewerPanel: (panel: ViewerPanel | null) => void;
   onRejoinSession: (activeSession: any, link: any) => void;
   scrapeFans: any;
+  scrapeEarnings: any;
 }
 
 function MobileSessionList({ sessionLinks, activeSessions, activeSessionMap, terminateSession, captchaCheck, setViewerPanel, onRejoinSession, scrapeFans }: SessionListProps) {
