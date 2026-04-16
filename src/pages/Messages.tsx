@@ -17,6 +17,7 @@ interface Conversation {
   id: string;
   name: string;
   avatar: string;
+  avatarUrl: string | null;
   online: boolean;
 }
 
@@ -35,6 +36,7 @@ export default function Messages() {
     id: `creator-${c.id}`,
     name: c.alias || c.name,
     avatar: c.avatar_seed || c.name.toLowerCase().split(" ")[0],
+    avatarUrl: c.avatar_url || null,
     online: c.online_status || false,
   }));
 
@@ -116,6 +118,7 @@ export default function Messages() {
                   id={convo.id}
                   name={convo.name}
                   avatarSeed={convo.avatar}
+                  avatarUrl={convo.avatarUrl}
                   subtitle="Click to start chatting"
                   badge="Creator"
                   badgeVariant="creator"
@@ -147,6 +150,7 @@ export default function Messages() {
                   <UserAvatar
                     name={currentConvo.name}
                     avatarSeed={currentConvo.avatar}
+                    avatarUrl={currentConvo.avatarUrl}
                     showOnlineStatus
                     isOnline={currentConvo.online}
                   />

@@ -248,7 +248,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
                   onClick={() => !isLaunching && handleLaunch(creator.id, link.id, creator.name)}
                 >
                   <CardContent className="p-5 flex flex-col items-center text-center gap-3">
-                    <UserAvatar name={creator.name} className="h-14 w-14" />
+                    <UserAvatar name={creator.name} avatarUrl={creator.avatar_url} className="h-14 w-14" />
                     <div>
                       <span className="font-semibold text-sm block">{creator.name}</span>
                       <Badge variant="outline" className="text-xs capitalize mt-1">
@@ -302,7 +302,7 @@ export function ChatterSessionLauncher({ chatterId }: ChatterSessionLauncherProp
             {notReadyCreators.map(({ creator, reason }) => (
               <Card key={creator.id} className="opacity-60">
                 <CardContent className="p-5 flex flex-col items-center text-center gap-3">
-                  <UserAvatar name={creator.name} className="h-14 w-14" />
+                  <UserAvatar name={creator.name} avatarUrl={creator.avatar_url} className="h-14 w-14" />
                   <div>
                     <span className="font-semibold text-sm block">{creator.name}</span>
                     <span className="text-xs text-muted-foreground mt-1 block">{reason}</span>
