@@ -50,8 +50,10 @@ export default function Messages() {
 
   const handleSend = async () => {
     if (!messageInput.trim() || !currentConvo) return;
-    await sendMessage(messageInput, "Agency Team");
-    setMessageInput("");
+    const sent = await sendMessage(messageInput, "Agency Team");
+    if (sent) {
+      setMessageInput("");
+    }
   };
 
   // Scroll to bottom on new messages
