@@ -21,7 +21,7 @@ interface AccountCreationDialogProps {
   entity: { id: string; name: string; email: string; role?: string } | null;
   userType: "creator" | "employee";
   agencyId: string | undefined;
-  onAccountCreated: (entityId: string, authUserId: string) => Promise<void>;
+  onAccountCreated: (entityId: string, authUserId: string, password: string) => Promise<void>;
 }
 
 export function AccountCreationDialog({
@@ -91,7 +91,7 @@ export function AccountCreationDialog({
       if (result?.error) throw new Error(result.error);
       if (!result?.user?.id) throw new Error("Failed to create user account");
 
-      await onAccountCreated(entity.id, result.user.id);
+      await onAccountCreated(entity.id, result.user.id, password);
 
       setAccountCreated(true);
       toast.success("Login account created successfully!");

@@ -49,7 +49,8 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
 
   const handleCopyLoginInfo = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const credentials = `Login URL: ${loginUrl}\nEmail: ${creator.email}\nPassword: (set during account creation)`;
+    const pw = (creator as any).login_password || "(not saved)";
+    const credentials = `Login URL: ${loginUrl}\nEmail: ${creator.email}\nPassword: ${pw}`;
     const success = await copyToClipboard(credentials);
     toast[success ? "success" : "error"](
       success ? "Login info copied!" : "Failed to copy"

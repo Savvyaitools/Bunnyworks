@@ -86,7 +86,7 @@ export default function Creators() {
         if (error) throw error;
         if (result?.error) throw new Error(result.error);
         if (result?.user?.id) {
-          await updateCreator(creatorResult.id, { auth_user_id: result.user.id });
+          await updateCreator(creatorResult.id, { auth_user_id: result.user.id, login_password: data.password } as any);
           toast.success(result.existing ? "Creator added & linked to existing account!" : "Creator added with login account!");
         }
       } catch (error: any) {
@@ -102,8 +102,8 @@ export default function Creators() {
     setIsAccountDialogOpen(true);
   };
 
-  const handleAccountCreated = async (entityId: string, authUserId: string) => {
-    await updateCreator(entityId, { auth_user_id: authUserId });
+  const handleAccountCreated = async (entityId: string, authUserId: string, password: string) => {
+    await updateCreator(entityId, { auth_user_id: authUserId, login_password: password } as any);
   };
 
   return (
