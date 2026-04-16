@@ -4,7 +4,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMessages } from "@/hooks/useMessages";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageBubble, ChatInput, MessagingEmptyState } from "@/components/messaging/MessageBubble";
+import { MessageBubble } from "@/components/messaging/MessageBubble";
+import { ChatInput } from "@/components/messaging/ChatInput";
+import { MessagingEmptyState } from "@/components/messaging/EmptyState";
 
 export default function PortalMessages() {
   const { creatorId, creatorProfile, loading: creatorLoading } = useCreatorPortal();

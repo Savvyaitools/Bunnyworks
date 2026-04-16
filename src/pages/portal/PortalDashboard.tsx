@@ -7,7 +7,7 @@ import { useCreatorPortal } from "@/hooks/useCreatorPortal";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/formatters";
-import { StatCard } from "@/components/shared";
+import { StatCard } from "@/components/shared/StatCard";
 
 export default function PortalDashboard() {
   const { 

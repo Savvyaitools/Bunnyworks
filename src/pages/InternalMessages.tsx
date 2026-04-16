@@ -11,11 +11,9 @@ import { useTeamMembers, TeamMember } from "@/hooks/useTeamMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { 
-  MessageBubble, 
-  ChatInput, 
-  MessagingEmptyState 
-} from "@/components/messaging/MessageBubble";
+import { MessageBubble } from "@/components/messaging/MessageBubble";
+import { ChatInput } from "@/components/messaging/ChatInput";
+import { MessagingEmptyState } from "@/components/messaging/EmptyState";
 
 export default function InternalMessages() {
   const [searchQuery, setSearchQuery] = useState("");
