@@ -32,7 +32,8 @@ const InternalMessages = lazy(() => import("@/pages/InternalMessages"));
 const Applications = lazy(() => import("@/pages/Applications"));
 const BrowserSync = lazy(() => import("@/pages/BrowserSync"));
 const UserGuide = lazy(() => import("@/pages/UserGuide"));
-const CoachPBF = lazy(() => import("@/pages/Felix"));
+const CoachPBFHub = lazy(() => import("@/pages/Felix"));
+const CoachPBFChat = lazy(() => import("@/pages/coach/CoachPBF"));
 const EmployeePerformance = lazy(() => import("@/pages/EmployeePerformance"));
 const FanAnalytics = lazy(() => import("@/pages/FanAnalytics"));
 
@@ -98,7 +99,7 @@ export const publicRoutes: RouteConfig[] = [
 /** Agency-only routes */
 export const agencyRoutes: RouteConfig[] = [
   { path: "/dashboard", element: <Index />, auth: ["agency"] },
-  { path: "/of-ai", element: <CoachPBF />, auth: ["agency"] },
+  { path: "/of-ai", element: <CoachPBFHub />, auth: ["agency"] },
   { path: "/creators", element: <Creators />, auth: ["agency"] },
   { path: "/creators/:id", element: <CreatorDetail />, auth: ["agency"] },
   { path: "/team", element: <Employees />, auth: ["agency"] },
@@ -120,6 +121,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/guide", element: <UserGuide />, auth: ["agency"] },
   { path: "/of-ai/social-media", element: <SocialMediaManager />, auth: ["agency"] },
   { path: "/of-ai/chatter", element: <AIChatterPage />, auth: ["agency"] },
+  { path: "/of-ai/coach-pbf", element: <CoachPBFChat />, auth: ["agency"] },
   { path: "/of-ai/image-generator", element: <AIImageGenerator />, auth: ["agency"] },
   { path: "/of-ai/voice-generator", element: <AIVoiceGenerator />, auth: ["agency"] },
   { path: "/of-ai/comfyui", element: <ComfyUI />, auth: ["agency"] },
@@ -153,7 +155,7 @@ export const redirectRoutes: { from: string; to: string }[] = [
   { from: "/agent-hub", to: "/of-ai" },
   { from: "/coach-pbf", to: "/of-ai" },
   { from: "/felix", to: "/of-ai" },
-  { from: "/of-ai/coach", to: "/of-ai" },
+  { from: "/of-ai/coach", to: "/of-ai/coach-pbf" },
   { from: "/coach/social-media", to: "/of-ai/social-media" },
   { from: "/coach/ai-chatter", to: "/of-ai/chatter" },
   { from: "/employees", to: "/team" },
