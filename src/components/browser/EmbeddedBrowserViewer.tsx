@@ -266,6 +266,16 @@ export function EmbeddedBrowserViewer({
                   {autoLoginLoading ? "Logging in..." : "Auto Login"}
                 </Button>
               )}
+              {creatorId && bbSessionId && (
+                <>
+                  <Button size="sm" variant="outline" onClick={handleMarylinReply} disabled={marylinLoading} className="text-xs h-7 px-2 gap-1" title="Marylin Auto-Reply">
+                    {marylinLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Marylin
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleAnalyticsScrape} disabled={analyticsLoading} className="text-xs h-7 px-2 gap-1" title="AI Analytics Scrape">
+                    {analyticsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <BarChart3 className="h-3 w-3" />} Analytics
+                  </Button>
+                </>
+              )}
               {viewerCount > 1 && (
                 <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 h-5 shrink-0">
                   <Users className="h-3 w-3 mr-1" />
