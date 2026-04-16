@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   Share2, BarChart3, Sparkles, TrendingUp, Send, Loader2, Plus,
-  ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Play, CheckSquare, Search, Flame
+  ExternalLink, ArrowUpRight, Link, Crosshair, ArrowLeft, Play, CheckSquare, Search, Flame, MessageCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { firecrawlApi } from "@/lib/api/firecrawl";
 import { searchPlatformTrends } from "@/lib/api/apify";
+import { AgentChatPanel } from "@/components/ai/AgentChatPanel";
 
 interface StrategyInsight {
   title: string;
@@ -47,6 +48,12 @@ interface NicheContentPlan {
   hashtags: string[];
   estimated_engagement: string;
 }
+
+const tatumQuickActions = [
+  { label: "Search Trends", icon: Search, query: "Search for the latest viral trends on TikTok in the fitness and lifestyle niche. Find content with high engagement I can recreate." },
+  { label: "Content Calendar", icon: Sparkles, query: "Create a 7-day social media content plan for my top creator. Include TikTok, Instagram Reels, and Twitter posts with hashtags and posting times." },
+  { label: "Niche Research", icon: Crosshair, query: "Research the 'luxury lifestyle teaser' niche on Instagram. Find top-performing posts and build a content plan with reference links." },
+];
 
 export default function SocialMediaManager() {
   const navigate = useNavigate();
@@ -188,7 +195,7 @@ export default function SocialMediaManager() {
             <h1 className="text-xl font-bold flex items-center gap-2">
               <Share2 className="h-5 w-5 text-accent" /> Tatum
             </h1>
-            <p className="text-xs text-muted-foreground">Content strategist — viral discovery & content plans</p>
+            <p className="text-xs text-muted-foreground">Content strategist — viral discovery, content plans & AI chat</p>
           </div>
         </div>
 
@@ -212,12 +219,28 @@ export default function SocialMediaManager() {
           </Select>
         </div>
 
-        <Tabs defaultValue="niche" className="space-y-4">
+        <Tabs defaultValue="chat" className="space-y-4">
           <TabsList className="h-9">
+            <TabsTrigger value="chat" className="text-xs gap-1.5"><MessageCircle className="h-3.5 w-3.5" /> Chat</TabsTrigger>
             <TabsTrigger value="niche" className="text-xs gap-1.5"><Crosshair className="h-3.5 w-3.5" /> Niche Research</TabsTrigger>
             <TabsTrigger value="trends" className="text-xs gap-1.5"><Flame className="h-3.5 w-3.5" /> Trends</TabsTrigger>
             <TabsTrigger value="strategy" className="text-xs gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Strategy</TabsTrigger>
           </TabsList>
+
+          {/* AI Chat */}
+          <TabsContent value="chat">
+            <AgentChatPanel
+              agentContext="tatum_social"
+              agentName="Tatum"
+              agentIcon={Share2}
+              agentDescription="Your AI Social Media Strategist. I can search for viral trends, research niches, and create content plans — all from this chat. Tell me what you need."
+              agentBadge="Strategist"
+              colorClass="bg-gradient-to-br from-violet-500 to-violet-600"
+              quickActions={tatumQuickActions}
+              placeholder="Ask Tatum to search trends, create content plans, research niches..."
+              loadingText="Researching social media..."
+            />
+          </TabsContent>
 
           {/* Niche Research */}
           <TabsContent value="niche" className="space-y-4">

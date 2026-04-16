@@ -172,6 +172,40 @@ const agentTools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "send_message_to_creator",
+      description: "Send a message to a creator via the internal messaging system. Use for check-ins, motivation, accountability reminders, content requests, or coaching. The creator will see this in their portal.",
+      parameters: {
+        type: "object",
+        properties: {
+          creator_id: { type: "string", description: "UUID of the creator to message" },
+          message: { type: "string", description: "The message content to send to the creator" },
+          sender_name: { type: "string", description: "Name to display as the sender (e.g. 'Flick - AI Manager' or the agency name)" },
+        },
+        required: ["creator_id", "message"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_niche_trends",
+      description: "Search for trending content and niche ideas on social platforms using Apify. Returns viral content references. Use when the user asks to find trends, research a niche, or discover viral content.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query / niche topic (e.g. 'fitness model reels', 'luxury lifestyle')" },
+          platform: { type: "string", enum: ["tiktok", "instagram", "twitter", "reddit", "all"], description: "Platform to search" },
+          limit: { type: "number", description: "Max results (default 10)" },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // ── Tool execution handlers ──
@@ -271,6 +305,76 @@ async function executeTool(
       return { success: true, message: `✅ ${plans.length} content plans created successfully.`, data };
     }
 
+    case "send_message_to_creator": {
+      if (!validateCreator(args.creator_id)) return { success: false, message: "Creator not found in your agency." };
+      const conversationId = `creator-${args.creator_id}`;
+      const { data: creatorData } = await supabase.from('creators').select('name').eq('id', args.creator_id).single();
+      const senderName = args.sender_name || 'Agency AI Assistant';
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_type: 'agency',
+        sender_name: senderName,
+        content: args.message,
+        read: false,
+        agency_id: agencyId,
+      });
+      if (error) return { success: false, message: `Failed to send message: ${error.message}` };
+      return { success: true, message: `✅ Message sent to ${creatorData?.name || 'creator'} via portal messaging.` };
+    }
+
+    case "search_niche_trends": {
+      const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
+      if (!APIFY_API_TOKEN) return { success: false, message: "Search service not configured." };
+      const searchPlatform = args.platform || 'tiktok';
+      const searchLimit = Math.min(args.limit || 10, 15);
+      const cleanQuery = (args.query || '').replace(/[#@!$%^&*()+=\[\]{};:'"<>?/\\|`~]/g, '').trim();
+      
+      try {
+        let actorId = 'clockworks/free-tiktok-scraper';
+        let input: any = { searchQueries: [cleanQuery], maxProfilesPerQuery: 0, resultsPerPage: searchLimit };
+        
+        if (searchPlatform === 'instagram') {
+          actorId = 'apify/instagram-scraper';
+          input = { search: cleanQuery, resultsType: 'posts', resultsLimit: searchLimit };
+        } else if (searchPlatform === 'twitter') {
+          actorId = 'quacker/twitter-scraper';
+          input = { searchTerms: [cleanQuery], maxTweets: searchLimit, sort: 'Top' };
+        } else if (searchPlatform === 'reddit') {
+          actorId = 'trudax/reddit-scraper-lite';
+          input = { searches: [{ term: cleanQuery, sort: 'relevance', time: 'week' }], maxItems: searchLimit };
+        }
+
+        const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_API_TOKEN}&waitForFinish=60`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        });
+
+        if (!runResponse.ok) return { success: false, message: `Search failed (${runResponse.status})` };
+        const runData = await runResponse.json();
+        const datasetId = runData?.data?.defaultDatasetId;
+        if (!datasetId) return { success: false, message: "No results found." };
+
+        const itemsResp = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_API_TOKEN}&limit=${searchLimit}`);
+        const items = await itemsResp.json();
+        
+        const results = (items || []).slice(0, searchLimit).map((item: any) => ({
+          title: item.text || item.caption || item.title || item.full_text || 'Untitled',
+          url: item.webVideoUrl || item.url || item.shortUrl || item.postUrl || '',
+          engagement: item.diggCount || item.likesCount || item.likes || 0,
+          platform: searchPlatform,
+        }));
+
+        return { 
+          success: true, 
+          message: `🔍 Found ${results.length} trending results for "${args.query}" on ${searchPlatform}.`,
+          data: results,
+        };
+      } catch (e) {
+        return { success: false, message: `Search error: ${e instanceof Error ? e.message : 'Unknown'}` };
+      }
+    }
+
     default:
       return { success: false, message: `Unknown tool: ${toolName}` };
   }
@@ -314,7 +418,8 @@ serve(async (req) => {
 
     // Gather ALL agency data in parallel — only what's relevant
     const isFlick = agentContext === 'flick_manager';
-    const agentType = isFlick ? 'flick' : 'coach_pbf';
+    const isTatum = agentContext === 'tatum_social';
+    const agentType = isFlick ? 'flick' : isTatum ? 'tatum' : 'coach_pbf';
 
     const dataQueries: Promise<any>[] = [
       supabase.from('agencies').select('*').eq('id', agencyId).single(),
@@ -412,10 +517,31 @@ ALERTS:
 ${alerts?.map((a: any) => `- ⚠️ [${a.severity}] ${a.title}: ${a.message}`).join('\n') || 'None'}`;
 
     // Select persona
-    const personaName = isFlick ? 'Flick' : 'Coach PBF';
+    const personaName = isFlick ? 'Flick' : isTatum ? 'Tatum' : 'Coach PBF';
     const personaDesc = isFlick
-      ? 'the AI Creator Manager. You specialize in content pipeline management, creator onboarding, performance scoring, daily check-ins, and operational execution. You follow a structured framework for weekly content quotas and creator coaching.'
+      ? 'the AI Creator Manager. You specialize in content pipeline management, creator onboarding, performance scoring, daily check-ins, and operational execution. You follow a structured framework for weekly content quotas and creator coaching. You can MESSAGE CREATORS directly via send_message_to_creator for check-ins, motivation, accountability, and coaching. You can also create platform content plans (OnlyFans, Fansly) for creators.'
+      : isTatum
+      ? 'the AI Social Media Strategist. You specialize in viral content discovery, niche research, trend analysis, and social media content planning (TikTok, Instagram, Twitter, Reddit). You can SEARCH for trending content using search_niche_trends and then create content plans from the results. When the user asks to research a niche or find trends, search first, then offer to add the best results as content plans.'
       : 'the personal AI chief-of-staff for this OnlyFans management agency. You know the owner by name, understand their business deeply, and provide hyper-personalized strategic guidance with analytics, forecasting, and barrier identification.';
+
+    const flickMessagingInstructions = isFlick ? `
+CREATOR MESSAGING:
+You can send messages to creators via send_message_to_creator. Use this for:
+- Daily/weekly check-ins ("How's content going this week?")
+- Motivation & encouragement after milestones
+- Accountability reminders for missed uploads or quotas
+- Content requests or feedback
+- Coaching tips based on performance data
+Always use a warm, professional tone. Sign messages as "Flick - AI Manager".
+When the owner asks you to message a creator, DO IT immediately.` : '';
+
+    const tatumSearchInstructions = isTatum ? `
+SEARCH & PLAN WORKFLOW:
+1. When asked to find trends/niches, call search_niche_trends first
+2. Present the results with engagement metrics
+3. Offer to create content plans from the best results
+4. When approved, use create_content_plan or bulk_create_content_plans
+Always include reference URLs and recreation tips in content plan descriptions.` : '';
 
     const systemPrompt = `You are ${personaName}, ${personaDesc}
 
@@ -428,8 +554,12 @@ You have tools to TAKE ACTION. When the user asks you to do something, USE YOUR 
 - "assign chatter" → call assign_chatter_to_creator
 - "create a task" → call create_task
 - "schedule event" → call create_calendar_event
+- "message creator" → call send_message_to_creator
+- "search trends" / "research niche" → call search_niche_trends
 - Critical issue found → call create_performance_alert
 After executing, confirm specifics.
+${flickMessagingInstructions}
+${tatumSearchInstructions}
 
 ${entityLookup}
 ${memoryBlock}
