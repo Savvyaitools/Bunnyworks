@@ -5,14 +5,12 @@ import { useCreators } from "@/hooks/useCreators";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  FanStatsBar,
-  TopFansTable,
-  FanSpendDistribution,
-  SubscriberGrowthChart,
-  ChatEngagementPanel,
-  MarketingLinkPerformance,
-} from "@/components/fan-analytics";
+import { FanStatsBar } from "@/components/fan-analytics/FanStatsBar";
+import { TopFansTable } from "@/components/fan-analytics/TopFansTable";
+import { FanSpendDistribution } from "@/components/fan-analytics/FanSpendDistribution";
+import { SubscriberGrowthChart } from "@/components/fan-analytics/SubscriberGrowthChart";
+import { ChatEngagementPanel } from "@/components/fan-analytics/ChatEngagementPanel";
+import { MarketingLinkPerformance } from "@/components/fan-analytics/MarketingLinkPerformance";
 import { useState } from "react";
 import { startOfMonth } from "date-fns";
 

@@ -56,7 +56,8 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useEmployeePayroll } from "@/hooks/useEmployeePayroll";
 import { useEmployeeKPIs } from "@/hooks/useEmployeeKPIs";
 import { useEmployeeBonuses } from "@/hooks/useEmployeeBonuses";
-import { BonusStructureDialog, BonusLeaderboard } from "@/components/employee-performance";
+import { BonusStructureDialog } from "@/components/employee-performance/BonusStructureDialog";
+import { BonusLeaderboard } from "@/components/employee-performance/BonusLeaderboard";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 

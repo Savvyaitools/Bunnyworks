@@ -25,7 +25,7 @@ import { useTasks, Task, CreateTaskInput } from "@/hooks/useTasks";
 import { useCreators } from "@/hooks/useCreators";
 import { useEmployees } from "@/hooks/useEmployees";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TaskForm } from "@/components/forms";
+import { TaskForm } from "@/components/forms/TaskForm";
 import type { TaskFormValues } from "@/lib/validations";
 import { PageHeader } from "@/components/shared/PageHeader";
 

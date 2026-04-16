@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { EmployeeCard } from "@/components/employees/EmployeeCard";
-import { EmployeeForm } from "@/components/forms";
+import { EmployeeForm } from "@/components/forms/EmployeeForm";
 import type { EmployeeFormValues } from "@/lib/validations";
 import { useAgency } from "@/hooks/useAgency";
 import { AccountCreationDialog } from "@/components/shared/AccountCreationDialog";

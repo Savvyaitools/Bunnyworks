@@ -5,16 +5,14 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreators, Creator } from "@/hooks/useCreators";
-import {
-  CreatorOverview,
-  CreatorPlatformAccounts,
-  CreatorContentPlans,
-  CreatorContentVault,
-  CreatorMarketing,
-  CreatorCustomRequests,
-  CreatorEarnings,
-  CreatorEmployeePermissions,
-} from "@/components/creators";
+import { CreatorOverview } from "@/components/creators/CreatorOverview";
+import { CreatorPlatformAccounts } from "@/components/creators/CreatorPlatformAccounts";
+import { CreatorContentPlans } from "@/components/creators/CreatorContentPlans";
+import { CreatorContentVault } from "@/components/creators/CreatorContentVault";
+import { CreatorMarketing } from "@/components/creators/CreatorMarketing";
+import { CreatorCustomRequests } from "@/components/creators/CreatorCustomRequests";
+import { CreatorEarnings } from "@/components/creators/CreatorEarnings";
+import { CreatorEmployeePermissions } from "@/components/creators/CreatorEmployeePermissions";
 import { motion } from "framer-motion";
 
 export default function CreatorDetail() {
