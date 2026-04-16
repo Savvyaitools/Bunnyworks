@@ -123,7 +123,7 @@ export function AdminSessionLauncher({ preselectedCreatorId }: AdminSessionLaunc
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <UserAvatar name={creator.name} className="h-10 w-10" />
+                    <UserAvatar name={creator.name} avatarUrl={creator.avatar_url} className="h-10 w-10" />
                     <div className="min-w-0">
                       <span className="font-semibold text-sm truncate block">
                         {creator.name}

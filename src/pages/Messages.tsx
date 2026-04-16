@@ -35,6 +35,7 @@ export default function Messages() {
     id: `creator-${c.id}`,
     name: c.alias || c.name,
     avatar: c.avatar_seed || c.name.toLowerCase().split(" ")[0],
+    avatarUrl: c.avatar_url || null,
     online: c.online_status || false,
   }));
 

@@ -40,7 +40,8 @@ export function ConversationItem({
     >
       <UserAvatar
         name={name}
-        avatarSeed={avatarSeed || avatarUrl}
+        avatarSeed={avatarSeed}
+        avatarUrl={avatarUrl}
         className="h-12 w-12"
         showOnlineStatus={isOnline !== undefined}
         isOnline={isOnline}
