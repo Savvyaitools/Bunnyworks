@@ -129,7 +129,11 @@ const Index = () => {
   // Use consolidated dashboard stats for counts
   const { data: dashStats } = useDashboardStats();
 
-  // Fetch total revenue with per-creator breakdown
+  // Fetch total revenue with per-creator breakdown.
+  // NOTE: creator_earnings.amount is the creator's NET after OnlyFans' 20% platform fee
+  // (i.e. the payout the creator actually receives). The agency cut is taken FROM this
+  // amount based on each creator's commission_rate. We do NOT gross-up by dividing,
+  // because that produced inflated, incorrect "Total Revenue" figures.
   const { data: revenueData, isLoading: revenueLoading } = useQuery({
     queryKey: ["total-revenue", agencyId],
     enabled: Boolean(agencyId),
@@ -147,9 +151,9 @@ const Index = () => {
       let messagesTotal = 0;
       let referralsTotal = 0;
 
-      const perCreator: Record<string, { net: number; gross: number }> = {};
+      const perCreator: Record<string, { net: number }> = {};
       creatorList.forEach(c => {
-        perCreator[c.id] = { net: 0, gross: 0 };
+        perCreator[c.id] = { net: 0 };
       });
 
       if (creatorIds.length > 0) {
@@ -171,57 +175,36 @@ const Index = () => {
         });
       }
 
-      // Scope extracted_data to this agency's creators only (supplementary – fail gracefully)
-      let grossData: { value: number; raw_text: string | null }[] = [];
-      if (creatorIds.length > 0) {
-        try {
-          const extractedQuery = supabase
-            .from("extracted_data" as any)
-            .select("value, raw_text, import_id")
-            .eq("data_type", "earnings");
-          const { data: extractedData } = await extractedQuery;
-          grossData = (extractedData || []) as any[];
-        } catch (e) {
-          console.warn("extracted_data query failed, using net-only fallback:", e);
-        }
-      }
-
-      const grossTotal =
-        grossData.reduce((sum, item) => {
-          if (item.raw_text?.toLowerCase().includes("gross")) {
-            return sum + Number(item.value);
-          }
-          return sum;
-        }, 0);
-
       let agencyEarningsTotal = 0;
-
       const creatorSummaries: CreatorEarningsSummary[] = creatorList.map(c => {
         const data = perCreator[c.id];
         const creatorCommission = Number((c as any).commission_rate) || commissionRate;
-        const creatorGross = data.net > 0 ? data.net / (1 - creatorCommission) : 0;
-        const creatorAgency = creatorGross - data.net;
+        // Agency takes its commission OUT OF the creator's net payout.
+        const creatorAgency = data.net * creatorCommission;
         agencyEarningsTotal += creatorAgency;
         return {
           creatorId: c.id,
           name: c.name,
-          grossRevenue: creatorGross,
-          netRevenue: data.net,
+          grossRevenue: data.net,                  // Creator gross (post-OF fee, pre-agency cut)
+          netRevenue: data.net - creatorAgency,    // What the creator keeps
           agencyEarnings: creatorAgency,
           commissionRate: creatorCommission,
         };
       });
 
-      const agencyEarnings = grossTotal > 0 ? grossTotal - netTotal : agencyEarningsTotal;
-      const totalGross = grossTotal > 0 ? grossTotal : creatorSummaries.reduce((s, c) => s + c.grossRevenue, 0);
-
-      return { netTotal, grossTotal: totalGross, agencyEarnings, tipsTotal, subsTotal, messagesTotal, referralsTotal, creatorSummaries };
+      return {
+        netTotal,                        // Sum of all creator payouts (post-OF fee)
+        grossTotal: netTotal,            // Same — we don't fabricate a pre-OF-fee gross
+        agencyEarnings: agencyEarningsTotal,
+        tipsTotal, subsTotal, messagesTotal, referralsTotal,
+        creatorSummaries,
+      };
     },
   });
 
 
-  const grossRevenue = revenueData?.grossTotal || revenueData?.netTotal || 0;
-  const netRevenue = revenueData?.netTotal || 0;
+  const grossRevenue = revenueData?.grossTotal || 0;
+  const creatorTakeHome = (revenueData?.netTotal || 0) - (revenueData?.agencyEarnings || 0);
   const agencyEarnings = revenueData?.agencyEarnings || 0;
 
   return (
@@ -284,7 +267,7 @@ const Index = () => {
               <QuickStat
                 title="Total Revenue"
                 value={formatCurrency(grossRevenue)}
-                subtext={`Net: ${formatCurrency(netRevenue)}`}
+                subtext={`Creator take-home: ${formatCurrency(creatorTakeHome)}`}
                 icon={DollarSign}
                 color="success"
               />
