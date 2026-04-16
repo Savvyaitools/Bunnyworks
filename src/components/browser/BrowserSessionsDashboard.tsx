@@ -388,9 +388,15 @@ function DesktopSessionTable({ sessionLinks, activeSessions, activeSessionMap, t
                     </>
                   )}
                   {linkActiveSessions.map((s: any) => (
-                    <div key={s.id} className="flex items-center gap-1">
+                    <div key={s.id} className="flex items-center gap-1 flex-wrap">
                       <Button size="sm" onClick={() => onRejoinSession(s, link)} className="h-7 text-xs gap-1">
                         <ExternalLink className="h-3 w-3" /> Open
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => marylinBatchReply.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="Marylin Auto-Reply" disabled={marylinBatchReply.isPending}>
+                        {marylinBatchReply.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Marylin
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => stagehandAnalytics.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="AI Analytics Scrape" disabled={stagehandAnalytics.isPending}>
+                        {stagehandAnalytics.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <BarChart3 className="h-3 w-3" />} Analytics
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => scrapeFans.mutate({ browserbaseSessionId: s.browserbase_session_id, creatorId: link.creator_id })} className="h-7 text-xs gap-1" title="Scrape Fan Analytics" disabled={scrapeFans.isPending}>
                         {scrapeFans.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} Fans
