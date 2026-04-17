@@ -243,14 +243,6 @@ function AgentScorecards({ tasks, contentPlans }: { tasks: any[]; contentPlans: 
       status: thisWeekTasks.filter(t => t.status !== "Completed").length > 0 ? "Active" : "Idle",
     },
     {
-      name: "Flick", icon: UserCog, color: "warning" as const,
-      metrics: [
-        { label: "Tasks tracked", value: thisWeekTasks.length },
-        { label: "Completed this week", value: thisWeekTasks.filter(t => t.status === "Completed").length },
-      ],
-      status: thisWeekTasks.filter(t => t.status !== "Completed").length > 0 ? "Active" : "Idle",
-    },
-    {
       name: "Tatum", icon: Share2, color: "accent" as const,
       metrics: [
         { label: "Plans this week", value: thisWeekPlans.length },
@@ -339,7 +331,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
       .slice(0, 8);
   }, [tasks, contentPlans]);
 
-  const agentIcons: Record<string, typeof Bot> = { Flick: UserCog, Tatum: Share2, "Marylin Monroe": MessagesSquare, "Coach PBF": Brain };
+  const agentIcons: Record<string, typeof Bot> = { Flick: UserCog, Tatum: Share2, "Marylin Monroe": MessagesSquare };
 
   return (
     <motion.div variants={itemVariants}>
