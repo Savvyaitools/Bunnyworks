@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Trash2 } from "lucide-react";
+import { Check, CheckCheck, Trash2, FileText, Download, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMessageTimestamp } from "@/lib/formatters";
 import {
@@ -23,6 +23,9 @@ interface MessageBubbleProps {
   showReadReceipt?: boolean;
   variant?: "primary" | "accent";
   onDelete?: () => void;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
 }
 
 export function MessageBubble({
