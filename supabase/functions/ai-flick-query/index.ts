@@ -678,12 +678,7 @@ MEMORY: If the owner reveals preferences/goals/decisions, append:
       responseText = responseText.replace(/<!--MEMORIES:[\s\S]*?-->/g, '').trim();
     }
 
-    // Log query (fire-and-forget)
-    supabase.from('felix_queries').insert({
-      agency_id: agencyId, user_id: authenticatedUserId, query: trimmedQuery,
-      query_type: queryType, response: responseText,
-      data_accessed: ['agencies', 'creators', 'employees', 'chatters', 'creator_earnings', 'tasks', 'content_plans', 'chatter_shifts', 'ai_performance_alerts', 'agent_memories'],
-    }).then(() => {});
+    // Note: query logging removed — chat history is persisted in coach_pbf_messages by the client.
 
     return new Response(JSON.stringify({
       response: responseText,
