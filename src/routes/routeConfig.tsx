@@ -32,7 +32,7 @@ const InternalMessages = lazy(() => import("@/pages/InternalMessages"));
 const Applications = lazy(() => import("@/pages/Applications"));
 const BrowserSync = lazy(() => import("@/pages/BrowserSync"));
 const UserGuide = lazy(() => import("@/pages/UserGuide"));
-const OFAIHub = lazy(() => import("@/pages/Felix"));
+const OFAIHub = lazy(() => import("@/pages/OFAIHub"));
 const EmployeePerformance = lazy(() => import("@/pages/EmployeePerformance"));
 const FanAnalytics = lazy(() => import("@/pages/FanAnalytics"));
 
