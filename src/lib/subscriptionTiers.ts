@@ -83,7 +83,7 @@ export const SUBSCRIPTION_TIERS: Record<string, TierConfig> = {
       "Automated daily summaries",
       "Creator consistency scoring",
       "Staff reliability metrics",
-      "AI Smart Replies (Marylin Monroe)",
+      "AI Smart Replies (Izzy)",
       "600 GB Content Vault",
       "Early access to features",
     ],

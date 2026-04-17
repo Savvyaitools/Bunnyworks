@@ -80,7 +80,7 @@ export function AgentChatPanel({
     try {
       const history = messages.slice(-20).map(m => ({ role: m.role, content: m.content }));
 
-      const { data, error } = await supabase.functions.invoke("ai-flick-query", {
+      const { data, error } = await supabase.functions.invoke("ai-felix-query", {
         body: {
           query,
           queryType: "general",

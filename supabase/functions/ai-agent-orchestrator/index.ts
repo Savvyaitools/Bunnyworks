@@ -265,17 +265,14 @@ async function executeActions(supabase: any, agencyId: string, runId: string, ac
 
 async function executeBriefing(supabase: any, agencyId: string, runId: string, briefing: any): Promise<number> {
   try {
-    // Briefings are recorded as agent actions; the previous felix_briefings table is deprecated.
+    await supabase.from('felix_briefings').insert({
+      agency_id: agencyId, briefing_date: new Date().toISOString().split('T')[0],
+      summary: briefing.summary || 'Daily briefing.', key_metrics: briefing.key_metrics || {},
+      alerts: briefing.alerts || [], recommendations: briefing.recommendations || [],
+    });
     await supabase.from('agent_actions').insert({
       run_id: runId, agency_id: agencyId, action_type: 'generate_briefing',
-      parameters: {
-        briefing_date: new Date().toISOString().split('T')[0],
-        summary: briefing.summary || 'Daily briefing.',
-        key_metrics: briefing.key_metrics || {},
-        alerts: briefing.alerts || [],
-        recommendations: briefing.recommendations || [],
-      },
-      outcome: 'success',
+      parameters: { briefing_date: new Date().toISOString().split('T')[0] }, outcome: 'success',
     });
     return 1;
   } catch (err) { console.error('Briefing error:', err); return 0; }

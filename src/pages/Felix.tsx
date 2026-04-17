@@ -85,9 +85,15 @@ function AgentCard({ name, role, description, icon: Icon, features, color, badge
 // ─── Agent config ──────────────────────────────────────────────────
 const agents: AgentCardProps[] = [
   {
-    name: "Flick", role: "AI Creator Manager",
-    description: "Your personal AI manager with full access to agency data. Creates content plans, messages creators, runs daily check-ins, and tracks performance.",
-    icon: UserCog, features: ["Revenue & performance insights", "Content plan creation & scheduling", "Direct creator messaging", "Daily check-ins & accountability"],
+    name: "Coach PBF", role: "Personal Coach",
+    description: "Your personal AI coach with full access to agency data. Get real-time advice on revenue, performance, and strategy.",
+    icon: Brain, features: ["Revenue & performance insights", "Strategic recommendations", "Agency health monitoring", "Data-driven decision support"],
+    color: "primary", href: "/of-ai/coach-pbf", badge: "Coach",
+  },
+  {
+    name: "Flick", role: "Agency Manager",
+    description: "Your AI agency manager who keeps operations running. Ensures content plans are followed, tasks completed, and creator comms stay on track.",
+    icon: UserCog, features: ["Creator communication management", "Content plan enforcement", "Task completion tracking", "Operational oversight"],
     color: "warning", href: "/of-ai/manager", badge: "Manager",
   },
   {
@@ -235,6 +241,14 @@ function AgentScorecards({ tasks, contentPlans }: { tasks: any[]; contentPlans: 
 
   const scorecards = [
     {
+      name: "Coach PBF", icon: Brain, color: "primary" as const,
+      metrics: [
+        { label: "Queries this week", value: "—" },
+        { label: "Insights generated", value: "—" },
+      ],
+      status: "Ready",
+    },
+    {
       name: "Flick", icon: UserCog, color: "warning" as const,
       metrics: [
         { label: "Tasks tracked", value: thisWeekTasks.length },
@@ -303,7 +317,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
   const recentActivities = useMemo(() => {
     const activities: { id: string; agent: string; action: string; target: string; time: Date; color: string }[] = [];
 
-    // Recent task completions → Flick
+    // Recent task completions → Felix
     tasks
       .filter(t => t.status === "Completed")
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -331,7 +345,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
       .slice(0, 8);
   }, [tasks, contentPlans]);
 
-  const agentIcons: Record<string, typeof Bot> = { Flick: UserCog, Tatum: Share2, "Marylin Monroe": MessagesSquare };
+  const agentIcons: Record<string, typeof Bot> = { Flick: UserCog, Tatum: Share2, "Marylin Monroe": MessagesSquare, "Coach PBF": Brain };
 
   return (
     <motion.div variants={itemVariants}>
@@ -373,7 +387,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────
-export default function OFAIHub() {
+export default function Felix() {
   const navigate = useNavigate();
   const { tasks } = useTasks();
   const { creators } = useCreators();
