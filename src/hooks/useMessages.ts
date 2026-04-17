@@ -205,7 +205,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
             const newMessage = payload.new as Message;
             if (newMessage.sender_type !== senderType) {
               toast.info(`New message from ${newMessage.sender_name}`, {
-                description: newMessage.content.slice(0, 50) + (newMessage.content.length > 50 ? "..." : ""),
+                description: ((newMessage.content || newMessage.attachment_name || "")).slice(0, 50),
               });
             }
           }
@@ -225,6 +225,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     sendMessage,
     deleteMessage,
     markAsRead,
+    uploadAttachment,
     refetch,
   };
 }
