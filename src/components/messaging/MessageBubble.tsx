@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Trash2, FileText, Download, ImageIcon } from "lucide-react";
+import { Check, CheckCheck, Trash2, FileText, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMessageTimestamp } from "@/lib/formatters";
 import {
