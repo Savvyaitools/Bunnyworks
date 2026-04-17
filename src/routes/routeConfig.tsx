@@ -120,7 +120,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/guide", element: <UserGuide />, auth: ["agency"] },
   { path: "/of-ai/social-media", element: <SocialMediaManager />, auth: ["agency"] },
   { path: "/of-ai/chatter", element: <AIChatterPage />, auth: ["agency"] },
-  { path: "/of-ai/coach-pbf", element: <FlickManager />, auth: ["agency"] },
+  
   { path: "/of-ai/image-generator", element: <AIImageGenerator />, auth: ["agency"] },
   { path: "/of-ai/voice-generator", element: <AIVoiceGenerator />, auth: ["agency"] },
   { path: "/of-ai/comfyui", element: <ComfyUI />, auth: ["agency"] },
@@ -152,9 +152,10 @@ export const employeeRoutes: RouteConfig[] = [
 /** Redirect rules for legacy paths */
 export const redirectRoutes: { from: string; to: string }[] = [
   { from: "/agent-hub", to: "/of-ai" },
-  { from: "/coach-pbf", to: "/of-ai" },
-  { from: "/felix", to: "/of-ai" },
-  { from: "/of-ai/coach", to: "/of-ai/coach-pbf" },
+  { from: "/coach-pbf", to: "/of-ai/manager" },
+  { from: "/felix", to: "/of-ai/manager" },
+  { from: "/of-ai/coach", to: "/of-ai/manager" },
+  { from: "/of-ai/coach-pbf", to: "/of-ai/manager" },
   { from: "/coach/social-media", to: "/of-ai/social-media" },
   { from: "/coach/ai-chatter", to: "/of-ai/chatter" },
   { from: "/employees", to: "/team" },
