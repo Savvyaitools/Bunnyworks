@@ -25,12 +25,7 @@ function useAIInsightsData(agencyId: string | undefined) {
     enabled: Boolean(agencyId),
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
-      const [coachRes, tatumRes, marylinRes, runsRes] = await Promise.all([
-        // Coach PBF
-        Promise.all([
-          supabase.from("coach_pbf_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
-          supabase.from("coach_pbf_conversations").select("updated_at, title").eq("agency_id", agencyId!).order("updated_at", { ascending: false }).limit(1),
-        ]),
+      const [tatumRes, marylinRes, runsRes] = await Promise.all([
         // Tatum
         Promise.all([
           supabase.from("tatum_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
@@ -51,8 +46,14 @@ function useAIInsightsData(agencyId: string | undefined) {
       const marylinSuggestions = marylinRes[1].data || [];
       const sales = marylinSuggestions.filter((r: any) => r.resulted_in_sale);
 
+      // Flick uses the same coach_pbf_conversations table for chat history
+      const [flickConvRes, flickRecentRes] = await Promise.all([
+        supabase.from("coach_pbf_conversations").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!),
+        supabase.from("coach_pbf_conversations").select("updated_at, title").eq("agency_id", agencyId!).order("updated_at", { ascending: false }).limit(1),
+      ]);
+
       return {
-        coach: { count: coachRes[0].count || 0, lastActivity: coachRes[1].data?.[0]?.updated_at || null, lastTitle: coachRes[1].data?.[0]?.title || null },
+        flick: { count: flickConvRes.count || 0, lastActivity: flickRecentRes.data?.[0]?.updated_at || null, lastTitle: flickRecentRes.data?.[0]?.title || null },
         tatum: { count: tatumRes[0].count || 0, lastActivity: tatumRes[1].data?.[0]?.updated_at || null, lastTitle: tatumRes[1].data?.[0]?.title || null },
         marylin: { count: marylinRes[0].count || 0, lastActivity: marylinSuggestions[0]?.created_at || null, recentSales: sales.length },
         runs: { completedRuns: runsRes[0].count || 0, lastRun: runsRes[1].data?.[0] || null },
@@ -68,15 +69,15 @@ export const DashboardAIInsights = memo(function DashboardAIInsights() {
 
   const agents: AgentInsight[] = [
     {
-      name: "Coach PBF",
+      name: "Flick · Manager",
       icon: Brain,
       color: "text-primary",
-      conversations: data?.coach.count || 0,
-      recentActivity: data?.coach.lastActivity
-        ? formatDistanceToNow(new Date(data.coach.lastActivity), { addSuffix: true })
+      conversations: data?.flick.count || 0,
+      recentActivity: data?.flick.lastActivity
+        ? formatDistanceToNow(new Date(data.flick.lastActivity), { addSuffix: true })
         : null,
-      href: "/of-ai/coach-pbf",
-      badge: data?.coach.lastTitle || undefined,
+      href: "/of-ai/manager",
+      badge: data?.flick.lastTitle || undefined,
     },
     {
       name: "Tatum · Social",

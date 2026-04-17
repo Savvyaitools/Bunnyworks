@@ -37,10 +37,7 @@ verify_jwt = false
 [functions.create-user-account]
 verify_jwt = false
 
-[functions.ai-izzy-suggest]
-verify_jwt = false
-
-[functions.ai-felix-query]
+[functions.ai-flick-query]
 verify_jwt = false
 
 [functions.ai-agent-orchestrator]
