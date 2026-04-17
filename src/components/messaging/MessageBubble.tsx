@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Trash2 } from "lucide-react";
+import { Check, CheckCheck, Trash2, FileText, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMessageTimestamp } from "@/lib/formatters";
 import {
@@ -23,6 +23,9 @@ interface MessageBubbleProps {
   showReadReceipt?: boolean;
   variant?: "primary" | "accent";
   onDelete?: () => void;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
 }
 
 export function MessageBubble({
@@ -35,7 +38,11 @@ export function MessageBubble({
   showReadReceipt = true,
   variant = "primary",
   onDelete,
+  attachmentUrl,
+  attachmentName,
+  attachmentType,
 }: MessageBubbleProps) {
+  const isImage = !!attachmentType?.startsWith("image/");
   const bubbleClasses = cn(
     "message-bubble max-w-[70%]",
     isOwn
@@ -97,7 +104,34 @@ export function MessageBubble({
         {showSenderName && senderName && !isOwn && (
           <p className="text-xs font-medium mb-1 opacity-70">{senderName}</p>
         )}
-        <p className="text-sm whitespace-pre-wrap">{content}</p>
+        {content && <p className="text-sm whitespace-pre-wrap">{content}</p>}
+        {attachmentUrl && (
+          isImage ? (
+            <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-1">
+              <img
+                src={attachmentUrl}
+                alt={attachmentName || "attachment"}
+                className="rounded-md max-h-64 object-cover border border-border/50"
+              />
+            </a>
+          ) : (
+            <a
+              href={attachmentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "mt-2 flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors",
+                isOwn
+                  ? "border-primary-foreground/30 bg-primary-foreground/10 hover:bg-primary-foreground/20"
+                  : "border-border bg-background/50 hover:bg-background"
+              )}
+            >
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="truncate flex-1">{attachmentName || "Attachment"}</span>
+              <Download className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            </a>
+          )
+        )}
         <div className={cn(
           "flex items-center gap-1 mt-1",
           isOwn ? "justify-end" : "justify-start"

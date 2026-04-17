@@ -16,11 +16,11 @@ export default function PortalMessages() {
   // Conversation ID matches how agency creates conversations: "creator-{creator_id}"
   const conversationId = creatorId ? `creator-${creatorId}` : "";
 
-  const { messages, loading, sendMessage, deleteMessage, markAsRead } = useMessages(conversationId, "creator");
+  const { messages, loading, sendMessage, deleteMessage, markAsRead, uploadAttachment } = useMessages(conversationId, "creator");
 
-  const handleSend = async () => {
-    if (!messageInput.trim() || !creatorProfile) return;
-    const sent = await sendMessage(messageInput, creatorProfile.name);
+  const handleSend = async (attachment?: any) => {
+    if ((!messageInput.trim() && !attachment) || !creatorProfile) return;
+    const sent = await sendMessage(messageInput, creatorProfile.name, attachment);
     if (sent) {
       setMessageInput("");
     }
@@ -101,6 +101,9 @@ export default function PortalMessages() {
                   read={message.read}
                   variant="accent"
                   onDelete={message.sender_type === "creator" ? () => deleteMessage(message.id) : undefined}
+                  attachmentUrl={message.attachment_url}
+                  attachmentName={message.attachment_name}
+                  attachmentType={message.attachment_type}
                 />
               ))
             )}
@@ -112,6 +115,8 @@ export default function PortalMessages() {
           value={messageInput}
           onChange={setMessageInput}
           onSend={handleSend}
+          onUploadFile={uploadAttachment}
+          showAttachment
           variant="accent"
         />
       </div>

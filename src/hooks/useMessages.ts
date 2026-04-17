@@ -14,6 +14,17 @@ export interface Message {
   read: boolean;
   created_at: string;
   agency_id?: string;
+  attachment_url?: string | null;
+  attachment_name?: string | null;
+  attachment_type?: string | null;
+  attachment_size?: number | null;
+}
+
+export interface MessageAttachment {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
 }
 
 export function useMessages(conversationId: string, senderType: "agency" | "creator" = "agency") {
@@ -77,8 +88,37 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     [messages, senderType]
   );
 
-  const sendMessage = useCallback(async (content: string, senderName: string) => {
-    if (!content.trim() || !conversationId) return false;
+  const uploadAttachment = useCallback(async (file: File): Promise<MessageAttachment | null> => {
+    if (!effectiveAgencyId) {
+      toast.error("Unable to upload - agency not found");
+      return null;
+    }
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${effectiveAgencyId}/${conversationId}/${Date.now()}-${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from("message-attachments")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("message-attachments")
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (signErr) throw signErr;
+      return { url: signed.signedUrl, name: file.name, type: file.type, size: file.size };
+    } catch (err: any) {
+      console.error("Upload failed:", err);
+      toast.error(err?.message || "Failed to upload file");
+      return null;
+    }
+  }, [conversationId, effectiveAgencyId]);
+
+  const sendMessage = useCallback(async (
+    content: string,
+    senderName: string,
+    attachment?: MessageAttachment | null,
+  ) => {
+    if (!conversationId) return false;
+    if (!content.trim() && !attachment) return false;
 
     // Require agency_id for all messages to ensure proper RLS filtering
     if (!effectiveAgencyId) {
@@ -91,9 +131,13 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
         conversation_id: conversationId,
         sender_type: senderType,
         sender_name: senderName,
-        content: content.trim(),
+        content: content.trim() || "",
         read: false,
         agency_id: effectiveAgencyId,
+        attachment_url: attachment?.url ?? null,
+        attachment_name: attachment?.name ?? null,
+        attachment_type: attachment?.type ?? null,
+        attachment_size: attachment?.size ?? null,
       });
 
       if (error) throw error;
@@ -161,7 +205,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
             const newMessage = payload.new as Message;
             if (newMessage.sender_type !== senderType) {
               toast.info(`New message from ${newMessage.sender_name}`, {
-                description: newMessage.content.slice(0, 50) + (newMessage.content.length > 50 ? "..." : ""),
+                description: ((newMessage.content || newMessage.attachment_name || "")).slice(0, 50),
               });
             }
           }
@@ -181,6 +225,7 @@ export function useMessages(conversationId: string, senderType: "agency" | "crea
     sendMessage,
     deleteMessage,
     markAsRead,
+    uploadAttachment,
     refetch,
   };
 }

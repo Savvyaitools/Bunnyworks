@@ -43,16 +43,16 @@ export default function Messages() {
   const currentConvo = selectedConvo || conversations[0];
   const conversationId = currentConvo?.id || "";
 
-  const { messages, loading, sendMessage, deleteMessage, markAsRead } = useMessages(conversationId, "agency");
+  const { messages, loading, sendMessage, deleteMessage, markAsRead, uploadAttachment } = useMessages(conversationId, "agency");
   const { unreadCounts } = useUnreadMessages("agency");
 
   const filteredConversations = conversations.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSend = async () => {
-    if (!messageInput.trim() || !currentConvo) return;
-    const sent = await sendMessage(messageInput, "Agency Team");
+  const handleSend = async (attachment?: any) => {
+    if ((!messageInput.trim() && !attachment) || !currentConvo) return;
+    const sent = await sendMessage(messageInput, "Agency Team", attachment);
     if (sent) {
       setMessageInput("");
     }
@@ -182,6 +182,9 @@ export default function Messages() {
                         isOwn={message.sender_type === "agency"}
                         read={message.read}
                         onDelete={() => deleteMessage(message.id)}
+                        attachmentUrl={message.attachment_url}
+                        attachmentName={message.attachment_name}
+                        attachmentType={message.attachment_type}
                       />
                     ))
                   )}
@@ -193,6 +196,7 @@ export default function Messages() {
                 value={messageInput}
                 onChange={setMessageInput}
                 onSend={handleSend}
+                onUploadFile={uploadAttachment}
                 showAttachment
                 showEmoji
               />
