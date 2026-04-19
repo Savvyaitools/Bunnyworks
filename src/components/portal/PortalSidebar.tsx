@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   User,
   CalendarDays,
+  Sparkles,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -33,6 +34,7 @@ import { toast } from "sonner";
 const portalNavItems = [
   { title: "Overview", url: "/portal", icon: LayoutDashboard },
   { title: "Content Plans", url: "/portal/plans", icon: CalendarDays },
+  { title: "Custom Requests", url: "/portal/requests", icon: Sparkles },
   { title: "Messages", url: "/portal/messages", icon: MessageSquare },
   { title: "Invoices", url: "/portal/invoices", icon: FileText },
   { title: "Content Vault", url: "/portal/content", icon: FolderOpen },

@@ -43,6 +43,7 @@ const PortalMessages = lazy(() => import("@/pages/portal/PortalMessages"));
 const PortalInvoices = lazy(() => import("@/pages/portal/PortalInvoices"));
 const PortalContent = lazy(() => import("@/pages/portal/PortalContent"));
 const PortalContentPlans = lazy(() => import("@/pages/portal/PortalContentPlans"));
+const PortalCustomRequests = lazy(() => import("@/pages/portal/PortalCustomRequests"));
 
 // Employee pages
 const EmployeeDashboard = lazy(() => import("@/pages/employee/EmployeeDashboard"));
@@ -137,6 +138,7 @@ export const portalRoutes: RouteConfig[] = [
   { path: "/portal/invoices", element: <PortalInvoices />, auth: ["creator"], errorBoundary: true },
   { path: "/portal/content", element: <PortalContent />, auth: ["creator"], errorBoundary: true },
   { path: "/portal/plans", element: <PortalContentPlans />, auth: ["creator"], errorBoundary: true },
+  { path: "/portal/requests", element: <PortalCustomRequests />, auth: ["creator"], errorBoundary: true },
 ];
 
 /** Employee portal routes (with scoped error boundaries) */
