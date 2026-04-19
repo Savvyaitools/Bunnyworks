@@ -317,7 +317,7 @@ function AIActivityFeed({ tasks, contentPlans }: { tasks: any[]; contentPlans: a
   const recentActivities = useMemo(() => {
     const activities: { id: string; agent: string; action: string; target: string; time: Date; color: string }[] = [];
 
-    // Recent task completions → Felix
+    // Recent task completions → Flick
     tasks
       .filter(t => t.status === "Completed")
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
