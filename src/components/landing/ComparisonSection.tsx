@@ -22,7 +22,7 @@ const competitorComparison = {
     { name: "Platform Access" },
     { name: "AI Agency Intelligence (Coach PBF)" },
     { name: "AI Content Automation (Tatum)" },
-    { name: "AI Smart Replies with Learning (Izzy)" },
+    { name: "AI Smart Replies with Learning (Marylin Monroe)" },
     { name: "Mobile Access — No App Download" },
     { name: "Row-Level Data Security" },
     { name: "Multi-Platform Support" },
