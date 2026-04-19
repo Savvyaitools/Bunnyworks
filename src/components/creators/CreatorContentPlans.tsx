@@ -106,7 +106,12 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const createPlan = async () => {
     if (!formData.title.trim() || !agencyId) return;
 
-    const contentCategory = formData.platform ? getContentCategory(formData.platform) : "platform";
+    // If a platform is chosen, derive the category from it.
+    // Otherwise default to whichever tab the user is currently viewing,
+    // so cards added from the Social tab don't end up in Platform Content.
+    const contentCategory = formData.platform
+      ? getContentCategory(formData.platform)
+      : activeTab;
     const columnItems = plans.filter(p => p.board_column === addToColumn);
 
     const { error } = await supabase

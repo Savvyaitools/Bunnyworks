@@ -3,16 +3,17 @@ import {
   LayoutDashboard,
   CalendarDays,
   MessageSquare,
-  CheckSquare,
+  Sparkles,
   FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const portalMobileItems = [
   { icon: LayoutDashboard, label: "Home", path: "/portal" },
-  { icon: FolderOpen, label: "Content", path: "/portal/content" },
   { icon: CalendarDays, label: "Plans", path: "/portal/plans" },
-  { icon: MessageSquare, label: "Messages", path: "/portal/messages" },
+  { icon: Sparkles, label: "Requests", path: "/portal/requests" },
+  { icon: FolderOpen, label: "Content", path: "/portal/content" },
+  { icon: MessageSquare, label: "Chat", path: "/portal/messages" },
 ];
 
 export function PortalMobileNav() {
