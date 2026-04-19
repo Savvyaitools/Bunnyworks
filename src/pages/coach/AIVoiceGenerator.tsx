@@ -10,7 +10,7 @@ export default function AIVoiceGenerator() {
           src="https://savvyaiagency-higgs-audio-v2.hf.space"
           frameBorder="0"
           className="w-full absolute inset-0"
-          style={{ height: "calc(100% + 36px)", minHeight: "500px" }}
+          style={{ height: "calc(100% + 80px)", minHeight: "540px" }}
           allow="clipboard-write"
           title="Only Voice"
         />
