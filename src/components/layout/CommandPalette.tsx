@@ -50,6 +50,7 @@ const commandItems = [
   { label: "Tatum (Social Media)", icon: Share2, path: "/coach/social-media", group: "Coach PBF" },
   { label: "Marylin Monroe (AI Chatter)", icon: MessagesSquare, path: "/coach/ai-chatter", group: "Coach PBF" },
   { label: "Naked Savvy", icon: BrainCircuit, path: "/of-ai/image-generator", group: "Coach PBF" },
+  { label: "Workflow", icon: BrainCircuit, path: "/of-ai/workflow", group: "Coach PBF" },
   { label: "SOP Library", icon: BookOpen, path: "/sop", group: "Resources" },
   
   { label: "User Guide", icon: HelpCircle, path: "/guide", group: "Resources" },
