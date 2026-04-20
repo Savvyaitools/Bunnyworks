@@ -15,11 +15,32 @@ export interface ContentReferenceMedia {
 export function useContentPlanMedia() {
   const [uploading, setUploading] = useState(false);
 
-  const uploadMedia = useCallback(async (file: File, creatorId: string, planId: string) => {
+  const uploadMedia = useCallback(async (file: File, creatorId: string, planId: string, agencyId?: string) => {
     setUploading(true);
 
+    // Resolve agency_id (storage RLS requires the first folder to be the agency_id)
+    let resolvedAgencyId = agencyId;
+    if (!resolvedAgencyId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("agency_id")
+          .eq("id", user.id)
+          .maybeSingle();
+        resolvedAgencyId = profile?.agency_id ?? undefined;
+      }
+    }
+
+    if (!resolvedAgencyId) {
+      console.error("No agency_id available for upload");
+      toast.error("Failed to upload file: missing agency context");
+      setUploading(false);
+      return null;
+    }
+
     const fileExt = file.name.split(".").pop();
-    const fileName = `${creatorId}/${planId}/${Date.now()}.${fileExt}`;
+    const fileName = `${resolvedAgencyId}/${creatorId}/${planId}/${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("content-references")
@@ -27,7 +48,7 @@ export function useContentPlanMedia() {
 
     if (uploadError) {
       console.error("Error uploading file:", uploadError);
-      toast.error("Failed to upload file");
+      toast.error(`Failed to upload file: ${uploadError.message}`);
       setUploading(false);
       return null;
     }
