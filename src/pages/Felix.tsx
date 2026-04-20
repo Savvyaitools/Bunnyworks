@@ -126,6 +126,12 @@ const agents: AgentCardProps[] = [
     icon: Workflow, features: ["Node-based workflow editor", "Custom AI pipelines", "Image & video generation", "Advanced model chaining"],
     color: "accent", href: "/of-ai/comfyui", badge: "Advanced",
   },
+  {
+    name: "Workflow", role: "File & Automation Hub",
+    description: "Manage files, automate workflows, and streamline document processing. A powerful all-in-one file management workspace.",
+    icon: Workflow, features: ["File management & organization", "Workflow automation", "Document processing", "Integrated workspace"],
+    color: "success", href: "/of-ai/workflow", badge: "Productivity",
+  },
 ];
 
 // ─── Quick Stats Bar ───────────────────────────────────────────────
