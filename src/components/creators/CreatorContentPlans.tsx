@@ -48,8 +48,19 @@ interface CreatorContentPlansProps {
 const PLATFORM_PLATFORMS = ["OnlyFans", "Fansly"];
 const SOCIAL_PLATFORMS = ["Instagram", "TikTok", "Twitter", "YouTube", "Reddit"];
 
-const getContentCategory = (platform: string): "platform" | "social" => {
-  return PLATFORM_PLATFORMS.includes(platform) ? "platform" : "social";
+const normalizePlatform = (platform?: string | null) => platform?.trim() ?? "";
+
+const getContentCategoryFromPlatform = (platform?: string | null): "platform" | "social" | null => {
+  const normalizedPlatform = normalizePlatform(platform);
+
+  if (PLATFORM_PLATFORMS.includes(normalizedPlatform)) return "platform";
+  if (SOCIAL_PLATFORMS.includes(normalizedPlatform)) return "social";
+
+  return null;
+};
+
+const resolvePlanCategory = (plan: Pick<ContentPlan, "platform" | "content_category">): "platform" | "social" | null => {
+  return getContentCategoryFromPlatform(plan.platform) ?? plan.content_category;
 };
 
 export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
@@ -106,12 +117,8 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const createPlan = async () => {
     if (!formData.title.trim() || !agencyId) return;
 
-    // If a platform is chosen, derive the category from it.
-    // Otherwise default to whichever tab the user is currently viewing,
-    // so cards added from the Social tab don't end up in Platform Content.
-    const contentCategory = formData.platform
-      ? getContentCategory(formData.platform)
-      : activeTab;
+    const selectedPlatform = normalizePlatform(formData.platform);
+    const contentCategory = getContentCategoryFromPlatform(selectedPlatform) ?? activeTab;
     const columnItems = plans.filter(p => p.board_column === addToColumn);
 
     const { error } = await supabase
@@ -120,7 +127,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         title: formData.title,
         description: formData.description || null,
         scheduled_date: formData.scheduled_date || null,
-        platform: formData.platform || null,
+        platform: selectedPlatform || null,
         creator_id: creatorId,
         agency_id: agencyId,
         status: "planned",
@@ -144,7 +151,8 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const updatePlan = async () => {
     if (!editingPlan || !editFormData.title.trim()) return;
 
-    const contentCategory = editFormData.platform ? getContentCategory(editFormData.platform) : undefined;
+    const selectedPlatform = normalizePlatform(editFormData.platform);
+    const contentCategory = getContentCategoryFromPlatform(selectedPlatform) ?? editingPlan.content_category;
 
     const { error } = await supabase
       .from("content_plans")
@@ -152,8 +160,8 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         title: editFormData.title,
         description: editFormData.description || null,
         scheduled_date: editFormData.scheduled_date || null,
-        platform: editFormData.platform || null,
-        ...(contentCategory ? { content_category: contentCategory } : {}),
+        platform: selectedPlatform || null,
+        content_category: contentCategory,
       })
       .eq("id", editingPlan.id);
 
@@ -274,14 +282,8 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const platformPlans = plans.filter(p =>
-    p.content_category === "platform" ||
-    (!p.content_category && PLATFORM_PLATFORMS.includes(p.platform || ''))
-  );
-  const socialPlans = plans.filter(p =>
-    p.content_category === "social" ||
-    (!p.content_category && SOCIAL_PLATFORMS.includes(p.platform || ''))
-  );
+  const platformPlans = plans.filter((plan) => resolvePlanCategory(plan) === "platform");
+  const socialPlans = plans.filter((plan) => resolvePlanCategory(plan) === "social");
 
   const handleAddCard = (column: string) => {
     setAddToColumn(column);
