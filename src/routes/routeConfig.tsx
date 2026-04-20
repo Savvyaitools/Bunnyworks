@@ -64,6 +64,7 @@ const AIImageGenerator = lazy(() => import("@/pages/coach/AIImageGenerator"));
 const AIVoiceGenerator = lazy(() => import("@/pages/coach/AIVoiceGenerator"));
 const ComfyUI = lazy(() => import("@/pages/coach/ComfyUI"));
 const FlickManager = lazy(() => import("@/pages/coach/FlickManager"));
+const FilePalPlus = lazy(() => import("@/pages/coach/FilePalPlus"));
 
 // Application pages
 const CreatorApplication = lazy(() => import("@/pages/apply/CreatorApplication"));
@@ -127,6 +128,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/of-ai/voice-generator", element: <AIVoiceGenerator />, auth: ["agency"] },
   { path: "/of-ai/comfyui", element: <ComfyUI />, auth: ["agency"] },
   { path: "/of-ai/manager", element: <FlickManager />, auth: ["agency"] },
+  { path: "/of-ai/workflow", element: <FilePalPlus />, auth: ["agency"] },
   
   { path: "/fan-analytics", element: <FanAnalytics />, auth: ["agency"] },
 ];
