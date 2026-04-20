@@ -43,6 +43,21 @@ interface ContentPlan {
 const PLATFORM_PLATFORMS = ["OnlyFans", "Fansly"];
 const SOCIAL_PLATFORMS = ["Instagram", "TikTok", "Twitter", "YouTube", "Reddit"];
 
+const normalizePlatform = (platform?: string | null) => platform?.trim() ?? "";
+
+const getContentCategoryFromPlatform = (platform?: string | null): "platform" | "social" | null => {
+  const normalizedPlatform = normalizePlatform(platform);
+
+  if (PLATFORM_PLATFORMS.includes(normalizedPlatform)) return "platform";
+  if (SOCIAL_PLATFORMS.includes(normalizedPlatform)) return "social";
+
+  return null;
+};
+
+const resolvePlanCategory = (plan: Pick<ContentPlan, "platform" | "content_category">): "platform" | "social" | null => {
+  return getContentCategoryFromPlatform(plan.platform) ?? plan.content_category;
+};
+
 export default function PortalContentPlans() {
   const { creatorId, loading: creatorLoading } = useCreatorPortal();
   const [plans, setPlans] = useState<ContentPlan[]>([]);
@@ -163,14 +178,8 @@ export default function PortalContentPlans() {
     }
   };
 
-  const platformPlans = plans.filter(p =>
-    p.content_category === "platform" ||
-    (!p.content_category && PLATFORM_PLATFORMS.includes(p.platform || ''))
-  );
-  const socialPlans = plans.filter(p =>
-    p.content_category === "social" ||
-    (!p.content_category && SOCIAL_PLATFORMS.includes(p.platform || ''))
-  );
+  const platformPlans = plans.filter((plan) => resolvePlanCategory(plan) === "platform");
+  const socialPlans = plans.filter((plan) => resolvePlanCategory(plan) === "social");
 
   const upcomingPlans = plans.filter(p => p.status === "planned" || p.status === "in_progress");
   const completedPlans = plans.filter(p => p.status === "completed");
