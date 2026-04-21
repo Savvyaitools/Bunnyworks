@@ -127,7 +127,7 @@ const agents: AgentCardProps[] = [
     color: "accent", href: "/of-ai/comfyui", badge: "Advanced",
   },
   {
-    name: "Workflow", role: "File & Automation Hub",
+    name: "Agency Framework", role: "File & Automation Hub",
     description: "Manage files, automate workflows, and streamline document processing. A powerful all-in-one file management workspace.",
     icon: Workflow, features: ["File management & organization", "Workflow automation", "Document processing", "Integrated workspace"],
     color: "success", href: "/of-ai/workflow", badge: "Productivity",
