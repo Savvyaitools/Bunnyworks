@@ -95,10 +95,6 @@ export default function CreatorDetail() {
             <CreatorOverview creator={creator} onUpdate={handleUpdate} />
           </TabsContent>
 
-          <TabsContent value="platforms" className="glass-card p-6">
-            <CreatorPlatformAccounts creatorId={creator.id} />
-          </TabsContent>
-
           <TabsContent value="plans" className="glass-card p-6">
             <CreatorContentPlans creatorId={creator.id} />
           </TabsContent>
