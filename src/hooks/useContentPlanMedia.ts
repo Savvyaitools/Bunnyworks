@@ -110,6 +110,7 @@ export function useContentPlanMedia() {
       type: m.type,
       size: m.size,
       uploaded_at: m.uploaded_at,
+      path: m.path,
     })) as unknown as Json;
 
     const { error } = await supabase
@@ -131,5 +132,6 @@ export function useContentPlanMedia() {
     uploadMedia,
     deleteMedia,
     updatePlanMedia,
+    refreshMediaUrls,
   };
 }
