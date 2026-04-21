@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, FileText, User, Plus, Link2, MessageCircle, Hash, RefreshCw, Loader2, TrendingUp } from "lucide-react";
+import { Mail, Phone, Edit, Save, X, Camera, Upload, Percent, Users, Globe, Instagram, Twitter, ExternalLink, FileText, User, Plus, Link2, MessageCircle, Hash, RefreshCw, Loader2, TrendingUp, Twitch } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ interface SocialAccount {
   creator_id: string;
 }
 
-const ALL_SOCIAL_PLATFORMS = ["Instagram", "Twitter", "TikTok", "Reddit", "Facebook", "Snapchat", "YouTube", "Threads", "LinkedIn", "Pinterest"];
+const ALL_SOCIAL_PLATFORMS = ["Instagram", "Twitter", "TikTok", "Reddit", "Facebook", "Snapchat", "YouTube", "Threads", "Twitch", "Other"];
 const MAX_SOCIAL_ACCOUNTS = 10;
 
 const socialPlatformConfig: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
@@ -48,8 +48,8 @@ const socialPlatformConfig: Record<string, { icon: React.ReactNode; color: strin
   Snapchat: { icon: <Globe className="h-4 w-4" />, color: "text-yellow-400", bgColor: "bg-yellow-500/20" },
   YouTube: { icon: <Globe className="h-4 w-4" />, color: "text-red-400", bgColor: "bg-red-500/20" },
   Threads: { icon: <Globe className="h-4 w-4" />, color: "text-foreground", bgColor: "bg-muted" },
-  LinkedIn: { icon: <Globe className="h-4 w-4" />, color: "text-blue-400", bgColor: "bg-blue-500/20" },
-  Pinterest: { icon: <Globe className="h-4 w-4" />, color: "text-red-500", bgColor: "bg-red-500/20" },
+  Twitch: { icon: <Twitch className="h-4 w-4" />, color: "text-purple-400", bgColor: "bg-purple-500/20" },
+  Other: { icon: <Globe className="h-4 w-4" />, color: "text-muted-foreground", bgColor: "bg-muted" },
 };
 
 function formatFollowerCount(count: number): string {
