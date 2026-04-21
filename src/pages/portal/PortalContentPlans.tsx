@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreatorPortal } from "@/hooks/useCreatorPortal";
-import { ContentReferenceMedia } from "@/hooks/useContentPlanMedia";
+import { ContentReferenceMedia, useContentPlanMedia } from "@/hooks/useContentPlanMedia";
 import { KanbanBoard, BOARD_COLUMNS, type KanbanItem } from "@/components/kanban/KanbanBoard";
 import { LinkifyText } from "@/components/shared/LinkifyText";
 import { toast } from "sonner";
