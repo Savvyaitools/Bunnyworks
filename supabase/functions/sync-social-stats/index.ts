@@ -74,6 +74,13 @@ const PLATFORM_SCRAPERS: Record<string, { actorId: string; buildInput: (username
       maxPosts: 1,
     }),
   },
+  Twitch: {
+    actorId: "shu8hvm/twitch-channel-scraper",
+    buildInput: (username) => ({
+      channelNames: [username.replace(/^@/, "")],
+      maxItems: 1,
+    }),
+  },
 };
 
 function extractStats(platform: string, items: any[]): ProfileStats {
@@ -124,6 +131,13 @@ function extractStats(platform: string, items: any[]): ProfileStats {
       return {
         follower_count: item.followersCount || item.followerCount || undefined,
         bio: item.biography || item.bio || undefined,
+      };
+
+    case "Twitch":
+      return {
+        follower_count: item.followers || item.followersCount || item.followerCount || undefined,
+        bio: item.description || item.bio || item.channelDescription || undefined,
+        posts_count: item.videoCount || item.videosCount || undefined,
       };
 
     default:
