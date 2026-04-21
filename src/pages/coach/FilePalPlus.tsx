@@ -24,15 +24,10 @@ export default function FilePalPlus() {
           ref={iframeRef}
           src={url}
           onLoad={() => setLoading(false)}
-          className="w-full border-0"
-          style={{ height: "calc(100% + 280px)", marginTop: "-140px" }}
+          className="w-full h-full border-0"
           allow="clipboard-write; clipboard-read"
           title="Agency Framework"
         />
-        {/* Mask top header (Agency Framework title) */}
-        <div className="absolute top-0 left-0 right-0 h-[140px] bg-card pointer-events-none z-[5]" />
-        {/* Mask bottom command history bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-[140px] bg-card pointer-events-none z-[5]" />
       </div>
     </DashboardLayout>
   );
