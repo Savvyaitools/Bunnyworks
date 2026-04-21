@@ -444,9 +444,12 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                               <span className="text-sm text-muted-foreground">@{account.username}</span>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              {account.follower_count != null && account.follower_count > 0 && (
-                                <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
-                              )}
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {account.follower_count != null && account.follower_count > 0
+                                  ? `${formatFollowerCount(account.follower_count)} followers`
+                                  : "— followers (sync to fetch)"}
+                              </span>
                               {account.engagement_rate != null && (
                                 <span className="text-xs text-success flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />{account.engagement_rate.toFixed(1)}% eng.</span>
                               )}
