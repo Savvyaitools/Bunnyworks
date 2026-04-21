@@ -78,9 +78,8 @@ export default function CreatorDetail() {
 
         <Tabs defaultValue="earnings" className="space-y-5">
           <TabsList className="bg-card/60 border border-border h-auto gap-0.5 p-1 overflow-x-auto flex-nowrap w-full justify-start scrollbar-hide">
-            <TabsTrigger value="earnings" className="whitespace-nowrap text-sm px-3 py-1.5">Earnings</TabsTrigger>
+          <TabsTrigger value="earnings" className="whitespace-nowrap text-sm px-3 py-1.5">Earnings</TabsTrigger>
             <TabsTrigger value="overview" className="whitespace-nowrap text-sm px-3 py-1.5">Overview</TabsTrigger>
-            <TabsTrigger value="platforms" className="whitespace-nowrap text-sm px-3 py-1.5">Accounts</TabsTrigger>
             <TabsTrigger value="plans" className="whitespace-nowrap text-sm px-3 py-1.5">Plans</TabsTrigger>
             <TabsTrigger value="vault" className="whitespace-nowrap text-sm px-3 py-1.5">Vault</TabsTrigger>
             <TabsTrigger value="marketing" className="whitespace-nowrap text-sm px-3 py-1.5">Marketing</TabsTrigger>
