@@ -401,6 +401,9 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
             </CardContent>
           </Card>
 
+          {/* Platform Accounts Card */}
+          <CreatorPlatformAccounts creatorId={creator.id} />
+
           {/* Social Accounts Card */}
           <Card className="glass-card">
             <CardHeader className="pb-3">
