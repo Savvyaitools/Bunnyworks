@@ -76,7 +76,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const [activeTab, setActiveTab] = useState<"platform" | "social">("platform");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const createFileInputRef = useRef<HTMLInputElement>(null);
-  const { uploading, uploadMedia, deleteMedia, updatePlanMedia } = useContentPlanMedia();
+  const { uploading, uploadMedia, deleteMedia, updatePlanMedia, refreshMediaUrls } = useContentPlanMedia();
   const [pendingMedia, setPendingMedia] = useState<ContentReferenceMedia[]>([]);
   const [formData, setFormData] = useState({
     title: "",
@@ -99,16 +99,17 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
       .order("board_position", { ascending: true });
 
     if (data) {
-      const parsed = data.map(plan => {
+      const parsed = await Promise.all(data.map(async (plan) => {
         let media: ContentReferenceMedia[] = [];
         if (Array.isArray(plan.reference_media)) {
           media = plan.reference_media as unknown as ContentReferenceMedia[];
         }
-        return { ...plan, reference_media: media };
-      });
+        const refreshed = await refreshMediaUrls(media);
+        return { ...plan, reference_media: refreshed };
+      }));
       setPlans(parsed as ContentPlan[]);
     }
-  }, [creatorId]);
+  }, [creatorId, refreshMediaUrls]);
 
   useEffect(() => {
     fetchPlans();
