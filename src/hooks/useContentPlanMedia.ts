@@ -10,6 +10,7 @@ export interface ContentReferenceMedia {
   type: "image" | "video";
   size: number;
   uploaded_at: string;
+  path?: string;
 }
 
 export function useContentPlanMedia() {
@@ -53,10 +54,10 @@ export function useContentPlanMedia() {
       return null;
     }
 
-    // Use signed URL since bucket is now private
+    // Use long-lived signed URL (7 days) — will be refreshed on read
     const { data: signedData, error: signedError } = await supabase.storage
       .from("content-references")
-      .createSignedUrl(fileName, 3600); // 1 hour expiry
+      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
 
     if (signedError || !signedData?.signedUrl) {
       console.error("Error creating signed URL:", signedError);
@@ -74,6 +75,7 @@ export function useContentPlanMedia() {
       type: file.type.startsWith("video/") ? "video" : "image",
       size: file.size,
       uploaded_at: new Date().toISOString(),
+      path: fileName,
     };
 
     setUploading(false);
