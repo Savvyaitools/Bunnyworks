@@ -300,7 +300,7 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
       </div>
 
       {/* Quick Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
@@ -308,17 +308,6 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
               <div>
                 <p className="text-xs text-muted-foreground">Platform</p>
                 <p className="font-semibold text-foreground">{creator.platform || "Not set"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/20"><Users className="h-4 w-4 text-blue-400" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Followers</p>
-                <p className="font-semibold text-foreground">{totalFollowers > 0 ? formatFollowerCount(totalFollowers) : "N/A"}</p>
               </div>
             </div>
           </CardContent>
@@ -455,9 +444,12 @@ export function CreatorOverview({ creator, onUpdate }: CreatorOverviewProps) {
                               <span className="text-sm text-muted-foreground">@{account.username}</span>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              {account.follower_count != null && account.follower_count > 0 && (
-                                <span className="text-xs text-muted-foreground">{formatFollowerCount(account.follower_count)} followers</span>
-                              )}
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {account.follower_count != null && account.follower_count > 0
+                                  ? `${formatFollowerCount(account.follower_count)} followers`
+                                  : "— followers (sync to fetch)"}
+                              </span>
                               {account.engagement_rate != null && (
                                 <span className="text-xs text-success flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />{account.engagement_rate.toFixed(1)}% eng.</span>
                               )}
