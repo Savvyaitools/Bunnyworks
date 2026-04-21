@@ -83,11 +83,12 @@ export function useContentPlanMedia() {
   }, []);
 
   const deleteMedia = useCallback(async (url: string) => {
-    // Extract file path from URL
-    const urlParts = url.split("/content-references/");
+    // Extract file path from URL (strip query string for signed URLs)
+    const cleanUrl = url.split("?")[0];
+    const urlParts = cleanUrl.split("/content-references/");
     if (urlParts.length < 2) return false;
 
-    const filePath = urlParts[1];
+    const filePath = decodeURIComponent(urlParts[1]);
     const { error } = await supabase.storage
       .from("content-references")
       .remove([filePath]);
@@ -99,6 +100,28 @@ export function useContentPlanMedia() {
     }
 
     return true;
+  }, []);
+
+  // Refresh signed URLs for stored media items. Falls back to extracting the
+  // path from the existing URL when the stored item lacks a `path` field
+  // (older records uploaded before path was persisted).
+  const refreshMediaUrls = useCallback(async (media: ContentReferenceMedia[]): Promise<ContentReferenceMedia[]> => {
+    if (!media || media.length === 0) return media;
+    const result = await Promise.all(media.map(async (m) => {
+      let path = m.path;
+      if (!path && m.url) {
+        const cleanUrl = m.url.split("?")[0];
+        const parts = cleanUrl.split("/content-references/");
+        if (parts.length === 2) path = decodeURIComponent(parts[1]);
+      }
+      if (!path) return m;
+      const { data, error } = await supabase.storage
+        .from("content-references")
+        .createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (error || !data?.signedUrl) return m;
+      return { ...m, url: data.signedUrl, path };
+    }));
+    return result;
   }, []);
 
   const updatePlanMedia = useCallback(async (planId: string, media: ContentReferenceMedia[]) => {
