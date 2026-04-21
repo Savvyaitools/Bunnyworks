@@ -60,6 +60,7 @@ const resolvePlanCategory = (plan: Pick<ContentPlan, "platform" | "content_categ
 
 export default function PortalContentPlans() {
   const { creatorId, loading: creatorLoading } = useCreatorPortal();
+  const { refreshMediaUrls } = useContentPlanMedia();
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<ContentPlan | null>(null);
@@ -78,17 +79,18 @@ export default function PortalContentPlans() {
       .order("board_position", { ascending: true });
 
     if (data) {
-      const parsed = data.map(plan => {
+      const parsed = await Promise.all(data.map(async (plan) => {
         let media: ContentReferenceMedia[] = [];
         if (Array.isArray(plan.reference_media)) {
           media = plan.reference_media as unknown as ContentReferenceMedia[];
         }
-        return { ...plan, reference_media: media };
-      });
+        const refreshed = await refreshMediaUrls(media);
+        return { ...plan, reference_media: refreshed };
+      }));
       setPlans(parsed as ContentPlan[]);
     }
     setLoading(false);
-  }, [creatorId]);
+  }, [creatorId, refreshMediaUrls]);
 
   useEffect(() => {
     if (creatorId) fetchPlans();
