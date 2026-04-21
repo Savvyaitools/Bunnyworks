@@ -321,12 +321,20 @@ export async function checkLoginViaCDP(
               {
                 expression: `(function() {
                 var url = window.location.href;
-                var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="login"], .b-loginreg, input[name="email"][type="text"]');
-                var onLoginPage = url.includes('/login') || url.includes('/signup') || url === 'https://onlyfans.com/' || url === 'https://onlyfans.com';
-                var hasNav = !!document.querySelector('.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post');
+                // Strict login-form detection (avoid false positives from generic input[name=email])
+                var hasLoginForm = !!document.querySelector('form.b-loginreg, form[action*="/login"], form[action*="/signin"], .b-loginreg');
+                // Explicit /login or /signup URL (do NOT treat bare onlyfans.com as login — it redirects logged-in users to feed)
+                var onLoginUrl = /\\/(login|signin|signup)(\\/|$|\\?)/i.test(url);
+                // Logged-in indicators: SPA nav, profile menu, post composer, sidebar, chat, feed
+                var hasNav = !!document.querySelector(
+                  '.b-tabs, .l-header__menu, [data-name="ProfileMenu"], .b-sidebar, .b-make-post, ' +
+                  '.l-sidebar, .b-chats, .b-make-post__btn-submit, [href="/my/chats"], [href="/my/statements"], ' +
+                  '.l-header__user, .b-rightmenu, .l-header-bar__menu-link'
+                );
                 var cssResult;
-                if (hasNav && !hasLoginForm && !onLoginPage) cssResult = 'logged_in';
-                else if (hasLoginForm || onLoginPage) cssResult = 'not_logged_in';
+                // PRIORITY: if logged-in nav is visible, user IS logged in regardless of URL
+                if (hasNav && !hasLoginForm) cssResult = 'logged_in';
+                else if (hasLoginForm || onLoginUrl) cssResult = 'not_logged_in';
                 else cssResult = 'ambiguous';
                 var domText = document.body ? document.body.innerText.substring(0, 6000) : '';
                 return JSON.stringify({ cssResult: cssResult, domText: domText, pageUrl: url });

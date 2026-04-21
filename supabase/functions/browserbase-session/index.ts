@@ -1836,7 +1836,8 @@ Deno.serve(async (req) => {
       try {
         console.log("Auto-login: Navigating to platform for cookie check...");
         await navigateViaCDP(BK, bbSid, platformUrl, { timeout: 20000 });
-        await new Promise((r) => setTimeout(r, 4000));
+        // Wait longer — SPAs need time to mount nav after cookie-driven redirect
+        await new Promise((r) => setTimeout(r, 8000));
         const retryLogin = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login retry after nav" });
         if (retryLogin.isLoggedIn) {
           await svc
@@ -1848,6 +1849,31 @@ Deno.serve(async (req) => {
             })
             .eq("id", sessionLinkId);
           return json({ success: true, step: "already_logged_in_context", loginVerified: true });
+        }
+
+        // Second chance: navigate to a guaranteed-authenticated route. If cookies are valid,
+        // OF will load /my/chats. If not, it'll redirect to /login and we'll detect that.
+        try {
+          const authedRoute = link.platform?.toLowerCase() === "onlyfans"
+            ? "https://onlyfans.com/my/chats"
+            : platformUrl;
+          console.log("Auto-login: Trying authenticated route to confirm cookies...");
+          await navigateViaCDP(BK, bbSid, authedRoute, { timeout: 20000 });
+          await new Promise((r) => setTimeout(r, 6000));
+          const deepCheck = await checkLoginViaCDP(BK, bbSid, { label: "Auto-login deep check" });
+          if (deepCheck.isLoggedIn) {
+            await svc
+              .from("creator_session_links")
+              .update({
+                session_status: "authenticated",
+                last_saved_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", sessionLinkId);
+            return json({ success: true, step: "already_logged_in_context", loginVerified: true });
+          }
+        } catch (e) {
+          console.warn("Auto-login deep check failed (continuing to credentials):", e);
         }
       } catch (e) {
         console.warn("Auto-login retry nav failed (continuing to credentials):", e);
