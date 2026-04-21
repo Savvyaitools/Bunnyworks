@@ -251,7 +251,7 @@ export default function PortalContent() {
 
     try {
       const fileExt = file.name.split(".").pop();
-      const filePath = `${creatorId}/${fileId}.${fileExt}`;
+      const filePath = `${agencyId}/${creatorId}/${fileId}.${fileExt}`;
 
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) =>
