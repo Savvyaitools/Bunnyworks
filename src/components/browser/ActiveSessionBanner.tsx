@@ -23,6 +23,10 @@ export function ActiveSessionBanner() {
 
     const checkStatus = async () => {
       try {
+        // Skip if user is not authenticated — avoids 401 spam from stale sessions
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
         const { data } = await supabase.functions.invoke("browserbase-session", {
           body: { action: "get_session_status", browserbaseSessionId: activeSession.sessionId },
         });
