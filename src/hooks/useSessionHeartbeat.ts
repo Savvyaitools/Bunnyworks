@@ -14,6 +14,12 @@ export function useSessionHeartbeat(
 
     const sendHeartbeat = async () => {
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) return;
+
         await supabase.functions.invoke("browserbase-session", {
           body: {
             action: "session_heartbeat",
