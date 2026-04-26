@@ -18,7 +18,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
  */
 const FONT_HREF =
   "https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap";
-const BUNDLE_SRC = "/ops-room/bundle.js";
+const BUNDLE_VERSION = "bunny-room-v2";
+const BUNDLE_SRC = `/ops-room/bundle.js?v=${BUNDLE_VERSION}`;
 const BUNDLE_SCRIPT_SELECTOR = 'script[data-opsroom="1"]';
 
 function injectOpsRoomBundle(force = false) {
@@ -28,7 +29,7 @@ function injectOpsRoomBundle(force = false) {
 
   const script = document.createElement("script");
   script.type = "module";
-  script.src = force ? `${BUNDLE_SRC}?remount=${Date.now()}` : BUNDLE_SRC;
+  script.src = force ? `${BUNDLE_SRC}&remount=${Date.now()}` : BUNDLE_SRC;
   script.dataset.opsroom = "1";
   script.onload = () => {
     script.dataset.loaded = "1";
@@ -165,7 +166,7 @@ export default function Index() {
           maxWidth: "100%",
           overflow: "hidden",
           backgroundColor: "#08040c",
-          backgroundImage: "url('/ops-room/background.jpg')",
+          backgroundImage: `url('/ops-room/background.jpg?v=${BUNDLE_VERSION}')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
