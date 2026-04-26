@@ -4,6 +4,7 @@ import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAgency } from "@/hooks/useAgency";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
  * BunnyWorks Ops Room — 3D dashboard rendered inside the DashboardLayout's main
@@ -140,7 +141,76 @@ export default function Index() {
           position: "relative",
           overflow: "hidden",
         }}
-      />
+      >
+        {/* Carousel navigation overlay — simulates a horizontal drag on the
+            scene canvas so users can rotate panels into the center without
+            using a mouse drag. */}
+        <CarouselNav />
+      </div>
     </DashboardLayout>
+  );
+}
+
+function dispatchDrag(direction: "left" | "right") {
+  const root = document.getElementById("opsroom-root");
+  const canvas = root?.querySelector("canvas") as HTMLCanvasElement | null;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const cy = rect.top + rect.height / 2;
+  const cx = rect.left + rect.width / 2;
+  const delta = Math.min(420, rect.width * 0.28);
+  // For "right" (next/clockwise) we drag left-to-right, and vice versa.
+  const startX = direction === "right" ? cx - delta / 2 : cx + delta / 2;
+  const endX = direction === "right" ? cx + delta / 2 : cx - delta / 2;
+
+  const make = (type: string, x: number) =>
+    new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerType: "mouse",
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      buttons: type === "pointerup" ? 0 : 1,
+      clientX: x,
+      clientY: cy,
+    });
+
+  canvas.dispatchEvent(make("pointerdown", startX));
+  // Step the move so the scene's drag detection registers it
+  const steps = 12;
+  for (let i = 1; i <= steps; i++) {
+    const x = startX + ((endX - startX) * i) / steps;
+    canvas.dispatchEvent(make("pointermove", x));
+  }
+  canvas.dispatchEvent(make("pointerup", endX));
+}
+
+function CarouselNav() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex items-center justify-center gap-3"
+      style={{ left: 0, right: 0 }}
+    >
+      <button
+        type="button"
+        aria-label="Previous panel"
+        onClick={() => dispatchDrag("left")}
+        className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70 hover:scale-105"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <div className="pointer-events-none rounded-full border border-white/15 bg-black/40 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-white/70 backdrop-blur-md">
+        Rotate panel
+      </div>
+      <button
+        type="button"
+        aria-label="Next panel"
+        onClick={() => dispatchDrag("right")}
+        className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70 hover:scale-105"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </div>
   );
 }
