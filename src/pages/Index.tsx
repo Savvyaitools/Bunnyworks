@@ -139,16 +139,28 @@ export default function Index() {
   return (
     <DashboardLayout>
       <div
-        id="opsroom-root"
         className="-m-5 lg:-m-8 xl:-mx-10"
         style={{
+          position: "relative",
           height: "calc(100dvh - 1rem)",
           maxWidth: "100%",
-          background: "#08040c url('/ops-room/background.jpg') center/cover no-repeat",
-          position: "relative",
           overflow: "hidden",
+          backgroundColor: "#08040c",
+          backgroundImage: "url('/ops-room/background.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
         }}
-      />
+      >
+        <div
+          id="opsroom-root"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "transparent",
+          }}
+        />
+      </div>
       <CarouselNav />
     </DashboardLayout>
   );
