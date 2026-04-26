@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 /**
- * BunnyWorks Ops Room — fullscreen 3D dashboard.
- * Loads the prebuilt bundle from /public/ops-room/bundle.js which mounts
- * a self-contained React tree onto #opsroom-root.
+ * BunnyWorks Ops Room — fullscreen 3D dashboard with sidebar/topbar overlay.
+ * The 3D scene from /public/ops-room/bundle.js mounts on #opsroom-root and
+ * is positioned fixed behind the DashboardLayout chrome (sidebar + topbar).
  */
 export default function Index() {
   const mountedRef = useRef(false);
@@ -12,7 +13,6 @@ export default function Index() {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
-    // Load Orbitron + JetBrains Mono fonts used by the Ops Room
     const fontLink = document.createElement("link");
     fontLink.rel = "stylesheet";
     fontLink.href =
@@ -20,19 +20,13 @@ export default function Index() {
     fontLink.dataset.opsroom = "1";
     document.head.appendChild(fontLink);
 
-    // Inject the prebuilt bundle (ESM-style IIFE that mounts on #opsroom-root)
     const script = document.createElement("script");
     script.type = "module";
     script.src = "/ops-room/bundle.js";
     script.dataset.opsroom = "1";
     document.body.appendChild(script);
 
-    // Lock page scroll while Ops Room is mounted
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     return () => {
-      document.body.style.overflow = prevOverflow;
       document.querySelectorAll('[data-opsroom="1"]').forEach((n) => n.remove());
       const root = document.getElementById("opsroom-root");
       if (root) root.innerHTML = "";
@@ -40,17 +34,23 @@ export default function Index() {
   }, []);
 
   return (
-    <div
-      id="opsroom-root"
-      style={{
-        position: "fixed",
-        inset: 0,
-        width: "100vw",
-        height: "100vh",
-        background: "#08040c",
-        zIndex: 1,
-        overflow: "hidden",
-      }}
-    />
+    <DashboardLayout>
+      {/* Fullscreen mount point sits BEHIND the sidebar/topbar chrome.
+          position:fixed escapes the layout's padded main and fills the viewport.
+          pointer-events stays on so users can still click the 3D screens. */}
+      <div
+        id="opsroom-root"
+        style={{
+          position: "fixed",
+          inset: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "#08040c",
+          zIndex: 0,
+        }}
+      />
+      {/* Spacer so the layout's padded main area still has measurable height */}
+      <div style={{ minHeight: "calc(100vh - 4rem)" }} aria-hidden />
+    </DashboardLayout>
   );
 }
