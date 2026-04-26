@@ -141,12 +141,11 @@ export default function Index() {
           position: "relative",
           overflow: "hidden",
         }}
-      >
-        {/* Carousel navigation overlay — simulates a horizontal drag on the
-            scene canvas so users can rotate panels into the center without
-            using a mouse drag. */}
-        <CarouselNav />
-      </div>
+      />
+      {/* Render the swap toolbar OUTSIDE #opsroom-root because the bundle
+          replaces that element's children on mount and would wipe React
+          children. Fixed positioning keeps it pinned to the viewport. */}
+      <CarouselNav />
     </DashboardLayout>
   );
 }
@@ -257,8 +256,8 @@ function cycleSlot(direction: "prev" | "next") {
 function CarouselNav() {
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-6 z-[60] flex items-center justify-center gap-2"
-      style={{ left: 0, right: 0 }}
+      className="pointer-events-none fixed bottom-6 z-[60] flex items-center justify-center gap-2"
+      style={{ left: "var(--sidebar-width, 16rem)", right: 0 }}
     >
       <button
         type="button"
