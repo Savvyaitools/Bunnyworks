@@ -43,8 +43,7 @@ export default function Index() {
         id="opsroom-root"
         className="-m-5 lg:-m-8 xl:-mx-10"
         style={{
-          height: "calc(100vh - 0px)",
-          minHeight: "100vh",
+          height: "calc(100dvh - 1rem)",
           background: "#08040c",
           position: "relative",
           overflow: "hidden",
