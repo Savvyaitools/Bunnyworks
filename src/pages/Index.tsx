@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 /**
- * BunnyWorks Ops Room — fullscreen 3D dashboard with sidebar/topbar overlay.
- * The 3D scene from /public/ops-room/bundle.js mounts on #opsroom-root and
- * is positioned fixed behind the DashboardLayout chrome (sidebar + topbar).
+ * BunnyWorks Ops Room — 3D dashboard rendered inside the DashboardLayout's main
+ * content area (right of the sidebar). The scene from /public/ops-room/bundle.js
+ * mounts on #opsroom-root, which fills the available content area without
+ * overlapping the sidebar.
  */
 export default function Index() {
   const mountedRef = useRef(false);
@@ -35,22 +36,19 @@ export default function Index() {
 
   return (
     <DashboardLayout>
-      {/* Fullscreen mount point sits BEHIND the sidebar/topbar chrome.
-          position:fixed escapes the layout's padded main and fills the viewport.
-          pointer-events stays on so users can still click the 3D screens. */}
+      {/* Mount inside the layout's padded main; negative margin cancels the
+          DashboardLayout container padding so the 3D scene fills the panel
+          edge-to-edge, while leaving the sidebar fully visible and clickable. */}
       <div
         id="opsroom-root"
+        className="-m-5 lg:-m-8 xl:-mx-10"
         style={{
-          position: "fixed",
-          inset: 0,
-          width: "100vw",
-          height: "100vh",
+          height: "calc(100dvh - 1rem)",
           background: "#08040c",
-          zIndex: 0,
+          position: "relative",
+          overflow: "hidden",
         }}
       />
-      {/* Spacer so the layout's padded main area still has measurable height */}
-      <div style={{ minHeight: "calc(100vh - 4rem)" }} aria-hidden />
     </DashboardLayout>
   );
 }
