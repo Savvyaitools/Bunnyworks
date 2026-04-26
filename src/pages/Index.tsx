@@ -19,6 +19,22 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const FONT_HREF =
   "https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap";
 const BUNDLE_SRC = "/ops-room/bundle.js";
+const BUNDLE_SCRIPT_SELECTOR = 'script[data-opsroom="1"]';
+
+function injectOpsRoomBundle(force = false) {
+  const existing = document.querySelector<HTMLScriptElement>(BUNDLE_SCRIPT_SELECTOR);
+  if (existing && !force) return;
+  existing?.remove();
+
+  const script = document.createElement("script");
+  script.type = "module";
+  script.src = force ? `${BUNDLE_SRC}?remount=${Date.now()}` : BUNDLE_SRC;
+  script.dataset.opsroom = "1";
+  script.onload = () => {
+    script.dataset.loaded = "1";
+  };
+  document.body.appendChild(script);
+}
 
 function ensureOpsRoomAssets() {
   if (!document.querySelector(`link[data-opsroom="1"]`)) {
@@ -28,13 +44,7 @@ function ensureOpsRoomAssets() {
     link.dataset.opsroom = "1";
     document.head.appendChild(link);
   }
-  if (!document.querySelector(`script[data-opsroom="1"]`)) {
-    const script = document.createElement("script");
-    script.type = "module";
-    script.src = BUNDLE_SRC;
-    script.dataset.opsroom = "1";
-    document.body.appendChild(script);
-  }
+  injectOpsRoomBundle();
 }
 
 export default function Index() {
@@ -74,6 +84,15 @@ export default function Index() {
   // itself owns its own React root and tearing it down mid-flight throws #299.
   useEffect(() => {
     ensureOpsRoomAssets();
+
+    const verifyMount = window.setTimeout(() => {
+      const root = document.getElementById("opsroom-root");
+      if (root && root.childElementCount === 0) {
+        injectOpsRoomBundle(true);
+      }
+    }, 600);
+
+    return () => window.clearTimeout(verifyMount);
   }, []);
 
   // Patch dummy values inside the rendered Ops Room with real data.
@@ -157,6 +176,7 @@ export default function Index() {
           style={{
             position: "absolute",
             inset: 0,
+            zIndex: 1,
             background: "transparent",
           }}
         />
