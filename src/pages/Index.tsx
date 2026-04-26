@@ -144,7 +144,7 @@ export default function Index() {
         style={{
           height: "calc(100dvh - 1rem)",
           maxWidth: "100%",
-          background: "#08040c",
+          background: "#08040c url('/ops-room/background.jpg') center/cover no-repeat",
           position: "relative",
           overflow: "hidden",
         }}
