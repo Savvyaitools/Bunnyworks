@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare, CheckCircle2, Eye } from "lucide-react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
