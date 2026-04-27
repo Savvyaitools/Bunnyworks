@@ -558,6 +558,23 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!previewMedia} onOpenChange={(open) => !open && setPreviewMedia(null)}>
+        <DialogContent className="max-w-4xl bg-card/95 border-border">
+          <DialogHeader>
+            <DialogTitle className="truncate pr-8">{previewMedia?.name}</DialogTitle>
+          </DialogHeader>
+          {previewMedia && (
+            <div className="flex items-center justify-center bg-black/40 rounded-lg overflow-hidden max-h-[75vh]">
+              {previewMedia.type === "image" ? (
+                <img src={previewMedia.url} alt={previewMedia.name} className="max-h-[75vh] w-auto object-contain" />
+              ) : (
+                <video src={previewMedia.url} controls className="max-h-[75vh] w-auto" />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "platform" | "social")}>
         <TabsList className="mb-4">
           <TabsTrigger value="platform" className="gap-2">
