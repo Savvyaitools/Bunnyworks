@@ -69,6 +69,7 @@ export default function PortalContentPlans() {
   const [editNotes, setEditNotes] = useState("");
   const [editColumn, setEditColumn] = useState("");
   const [saving, setSaving] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState<ContentReferenceMedia | null>(null);
 
   const fetchPlans = useCallback(async () => {
     if (!creatorId) return;
@@ -270,24 +271,22 @@ export default function PortalContentPlans() {
                           ) : (
                             <div className="w-full h-32 flex items-center justify-center bg-muted"><Video className="h-8 w-8 text-muted-foreground" /></div>
                           )}
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button onClick={() => downloadFile(media.url, media.name)} className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors">
-                              <Download className="h-5 w-5 text-accent-foreground" />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewMedia(media)}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                            aria-label={`Preview ${media.name}`}
+                          >
+                            <span className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors">
+                              <Eye className="h-5 w-5 text-accent-foreground" />
+                            </span>
+                          </button>
                           <div className="p-2">
                             <p className="text-xs text-foreground truncate">{media.name}</p>
                             <p className="text-xs text-muted-foreground">{formatFileSize(media.size)}</p>
                           </div>
                         </div>
                       ))}
-                    </div>
-                    <div className="flex justify-end pt-3">
-                      <Button variant="outline" size="sm" onClick={() => {
-                        selectedPlan.reference_media?.forEach(media => downloadFile(media.url, media.name));
-                      }}>
-                        <Download className="h-4 w-4 mr-2" />Download All
-                      </Button>
                     </div>
                   </div>
                 )}
