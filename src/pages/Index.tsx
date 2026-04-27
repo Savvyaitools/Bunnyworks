@@ -183,6 +183,21 @@ export default function Index() {
         />
       </div>
       <CarouselNav />
+      {/* Override the bundle's hard-coded 100vw/100vh on its root container
+          so the 3D scene fills the available area inside the sidebar layout
+          instead of overflowing to the right and leaving a black gap. */}
+      <style>{`
+        #opsroom-root > div {
+          width: 100% !important;
+          height: 100% !important;
+          background: transparent !important;
+        }
+        #opsroom-root canvas {
+          width: 100% !important;
+          height: 100% !important;
+          display: block;
+        }
+      `}</style>
     </DashboardLayout>
   );
 }
