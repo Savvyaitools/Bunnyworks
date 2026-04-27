@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Calendar, X, Upload, Image, Video, Download, Trash2, FileUp, Heart, Sparkles, MessageCircle, MessageSquare, Instagram, Music, Twitter, Youtube } from "lucide-react";
+import { Calendar, X, Upload, Image, Video, Download, Trash2, FileUp, Heart, Sparkles, MessageCircle, MessageSquare, Instagram, Music, Twitter, Youtube, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -78,6 +78,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   const createFileInputRef = useRef<HTMLInputElement>(null);
   const { uploading, uploadMedia, deleteMedia, updatePlanMedia, refreshMediaUrls } = useContentPlanMedia();
   const [pendingMedia, setPendingMedia] = useState<ContentReferenceMedia[]>([]);
+  const [previewMedia, setPreviewMedia] = useState<ContentReferenceMedia | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -520,11 +521,16 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
                             <Video className="h-6 w-6 text-muted-foreground" />
                           </div>
                         )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <a href={media.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/20 hover:bg-white/30">
-                            <Download className="h-4 w-4 text-white" />
-                          </a>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewMedia(media)}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          aria-label={`Preview ${media.name}`}
+                        >
+                          <span className="p-2 rounded-full bg-white/20 hover:bg-white/30">
+                            <Eye className="h-4 w-4 text-white" />
+                          </span>
+                        </button>
                         <p className="text-[10px] text-muted-foreground truncate px-1.5 py-1">{media.name}</p>
                       </div>
                     ))}
@@ -546,6 +552,23 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
 
               {!selectedPlan.description && !selectedPlan.creator_notes && (selectedPlan.reference_media?.length || 0) === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No additional details for this card.</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!previewMedia} onOpenChange={(open) => !open && setPreviewMedia(null)}>
+        <DialogContent className="max-w-4xl bg-card/95 border-border">
+          <DialogHeader>
+            <DialogTitle className="truncate pr-8">{previewMedia?.name}</DialogTitle>
+          </DialogHeader>
+          {previewMedia && (
+            <div className="flex items-center justify-center bg-black/40 rounded-lg overflow-hidden max-h-[75vh]">
+              {previewMedia.type === "image" ? (
+                <img src={previewMedia.url} alt={previewMedia.name} className="max-h-[75vh] w-auto object-contain" />
+              ) : (
+                <video src={previewMedia.url} controls className="max-h-[75vh] w-auto" />
               )}
             </div>
           )}

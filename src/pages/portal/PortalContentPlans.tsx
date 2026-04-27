@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Calendar, Download, Image, Video, FileText, Heart, Instagram, Save, MessageSquare, CheckCircle2, Eye } from "lucide-react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,7 @@ export default function PortalContentPlans() {
   const [editNotes, setEditNotes] = useState("");
   const [editColumn, setEditColumn] = useState("");
   const [saving, setSaving] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState<ContentReferenceMedia | null>(null);
 
   const fetchPlans = useCallback(async () => {
     if (!creatorId) return;
@@ -270,24 +271,22 @@ export default function PortalContentPlans() {
                           ) : (
                             <div className="w-full h-32 flex items-center justify-center bg-muted"><Video className="h-8 w-8 text-muted-foreground" /></div>
                           )}
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button onClick={() => downloadFile(media.url, media.name)} className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors">
-                              <Download className="h-5 w-5 text-accent-foreground" />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewMedia(media)}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                            aria-label={`Preview ${media.name}`}
+                          >
+                            <span className="p-3 rounded-full bg-accent hover:bg-accent/80 transition-colors">
+                              <Eye className="h-5 w-5 text-accent-foreground" />
+                            </span>
+                          </button>
                           <div className="p-2">
                             <p className="text-xs text-foreground truncate">{media.name}</p>
                             <p className="text-xs text-muted-foreground">{formatFileSize(media.size)}</p>
                           </div>
                         </div>
                       ))}
-                    </div>
-                    <div className="flex justify-end pt-3">
-                      <Button variant="outline" size="sm" onClick={() => {
-                        selectedPlan.reference_media?.forEach(media => downloadFile(media.url, media.name));
-                      }}>
-                        <Download className="h-4 w-4 mr-2" />Download All
-                      </Button>
                     </div>
                   </div>
                 )}
@@ -390,6 +389,22 @@ export default function PortalContentPlans() {
           )}
         </div>
       </div>
+      <Dialog open={!!previewMedia} onOpenChange={(open) => !open && setPreviewMedia(null)}>
+        <DialogContent className="max-w-4xl bg-card/95 border-border">
+          <DialogHeader>
+            <DialogTitle className="truncate pr-8">{previewMedia?.name}</DialogTitle>
+          </DialogHeader>
+          {previewMedia && (
+            <div className="flex items-center justify-center bg-black/40 rounded-lg overflow-hidden max-h-[75vh]">
+              {previewMedia.type === "image" ? (
+                <img src={previewMedia.url} alt={previewMedia.name} className="max-h-[75vh] w-auto object-contain" />
+              ) : (
+                <video src={previewMedia.url} controls className="max-h-[75vh] w-auto" />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PortalLayout>
   );
 }
