@@ -350,10 +350,16 @@
   /* Stat card hover effect */
   .stat-card {
     @apply glass-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-lg;
+    background-image:
+      linear-gradient(180deg, hsl(var(--primary) / 0.04) 0%, transparent 35%),
+      linear-gradient(160deg, hsl(0 0% 100% / 0.03) 0%, transparent 45%);
+    border-top: 1px solid hsl(var(--primary) / 0.22);
   }
 
   .stat-card:hover {
-    box-shadow: 0 8px 32px hsl(var(--primary) / 0.1);
+    box-shadow:
+      0 8px 32px hsl(var(--primary) / 0.18),
+      inset 0 1px 0 hsl(var(--primary) / 0.3);
   }
 
   /* Sidebar item active state */
@@ -443,10 +449,12 @@
   .nav-item {
     @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200;
     @apply text-muted-foreground hover:text-foreground hover:bg-muted/50;
+    position: relative;
   }
 
   .nav-item.active {
     @apply text-primary bg-primary/10;
+    box-shadow: inset 2px 0 0 hsl(var(--primary)), 0 0 16px hsl(var(--primary) / 0.15);
   }
 
   /* Metric card icon container */
