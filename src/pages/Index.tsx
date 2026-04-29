@@ -199,9 +199,6 @@ export default function Index() {
           height: 100% !important;
           display: block;
         }
-        #opsroom-root, #opsroom-root * {
-          max-width: 100% !important;
-        }
       `}</style>
     </DashboardLayout>
   );
