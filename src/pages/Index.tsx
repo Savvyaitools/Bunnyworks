@@ -157,6 +157,31 @@ export default function Index() {
     };
   }, [applyReal, stats, revenue]);
 
+  useEffect(() => {
+    const root = document.getElementById("opsroom-root");
+    if (!root) return;
+
+    let raf = 0;
+    const syncCarousel = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => applySlotStyles(activeSlot));
+    };
+
+    syncCarousel();
+    const observer = new MutationObserver(syncCarousel);
+    observer.observe(root, { childList: true, subtree: true });
+
+    const retry = window.setInterval(syncCarousel, 250);
+    const stop = window.setTimeout(() => window.clearInterval(retry), 5_000);
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(raf);
+      window.clearInterval(retry);
+      window.clearTimeout(stop);
+    };
+  }, []);
+
   return (
     <DashboardLayout>
       <div
@@ -200,46 +225,84 @@ export default function Index() {
           height: 100% !important;
           display: block;
         }
+        #opsroom-root [data-ops-visual-slot="center"] {
+          left: 50% !important;
+          right: auto !important;
+          top: 50% !important;
+          bottom: auto !important;
+          width: clamp(520px, 40vw, 780px) !important;
+          transform: translate(-50%, -50%) !important;
+          z-index: 24 !important;
+        }
+        #opsroom-root [data-ops-visual-slot="left"] {
+          left: 1.5% !important;
+          right: auto !important;
+          top: 53% !important;
+          bottom: auto !important;
+          width: clamp(360px, 32vw, 680px) !important;
+          transform: translateY(-50%) !important;
+          z-index: 12 !important;
+        }
+        #opsroom-root [data-ops-visual-slot="right"] {
+          left: auto !important;
+          right: 1.5% !important;
+          top: 53% !important;
+          bottom: auto !important;
+          width: clamp(360px, 32vw, 680px) !important;
+          transform: translateY(-50%) !important;
+          z-index: 12 !important;
+        }
+        #opsroom-root [data-ops-visual-slot="center"] > div {
+          transform: rotateY(0deg) !important;
+        }
+        #opsroom-root [data-ops-visual-slot="left"] > div {
+          transform: rotateY(22deg) !important;
+        }
+        #opsroom-root [data-ops-visual-slot="right"] > div {
+          transform: rotateY(-22deg) !important;
+        }
       `}</style>
     </DashboardLayout>
   );
 }
 
 /**
- * The Ops Room renders three independently positioned panels (left tilted,
- * center flat, right tilted). The bundle does not expose a way to rotate
- * which one sits in the middle, so we override the panel containers' inline
- * `transform` and `aspectRatio` styles to visually swap any side panel into
- * the center slot. We identify panels by their stable inline-style markers
- * (left:1.5%, right:1.5%, and the centered translateX(-50%)).
+ * The Ops Room renders three independently positioned panels (AI Agents,
+ * Dashboard, Leaderboard). The bundle does not expose a carousel API, so the
+ * external nav finds the panel shells by their text content and moves them
+ * into left/center/right visual slots. This is more reliable than depending on
+ * the bundle's hard-coded inline `left` / `right` values.
  */
 type SlotKey = "left" | "center" | "right";
 
 function findPanels(): Record<SlotKey, HTMLElement | null> {
   const root = document.getElementById("opsroom-root");
   if (!root) return { left: null, center: null, right: null };
-  const all = Array.from(root.querySelectorAll<HTMLElement>("div"));
-  let left: HTMLElement | null = null;
-  let right: HTMLElement | null = null;
-  let center: HTMLElement | null = null;
-  for (const el of all) {
-    const s = el.getAttribute("style") || "";
-    if (!s.includes("position: absolute")) continue;
-    // The bundle renders three panels: left at `left: 8%`, right at `right: 8%`,
-    // and a centered one at `left: 50%` with `translateX(-50%)`.
-    if (!left && /left:\s*8%/.test(s) && !/right:/.test(s)) {
-      left = el;
-    } else if (!right && /right:\s*8%/.test(s) && !/left:/.test(s)) {
-      right = el;
-    } else if (
-      !center &&
-      /left:\s*50%/.test(s) &&
-      /translateX\(-50%\)/.test(s)
-    ) {
-      center = el;
-    }
-  }
-  return { left, center, right };
+  const panelShells = Array.from(root.querySelectorAll<HTMLElement>("div"))
+    .filter((el) => {
+      const style = el.getAttribute("style") || "";
+      const box = el.getBoundingClientRect();
+      return (
+        /position:\s*absolute/.test(style) &&
+        (/aspect-ratio:\s*1\.(45|55)/.test(style) || /width:\s*clamp\((360|440)px/.test(style)) &&
+        box.width > 280 &&
+        box.height > 160
+      );
+    })
+    .sort((a, b) => {
+      const aBox = a.getBoundingClientRect();
+      const bBox = b.getBoundingClientRect();
+      return bBox.width * bBox.height - aBox.width * aBox.height;
+    });
+
+  const byText = (pattern: RegExp) =>
+    panelShells.find((el) => pattern.test(el.textContent ?? "")) ?? null;
+
+  return {
+    left: byText(/AI\s*Agents/i) ?? panelShells.find((el) => /left:\s*1\.5%/.test(el.getAttribute("style") || "")) ?? null,
+    center: byText(/\bDashboard\b/i) ?? panelShells.find((el) => /bottom:\s*32%/.test(el.getAttribute("style") || "")) ?? null,
+    right: byText(/Creator\s*Leaderboard|Agency\s*cut|Addison\s*Weems/i) ?? panelShells.find((el) => /right:\s*1\.5%/.test(el.getAttribute("style") || "")) ?? null,
+  };
 }
 
 let activeSlot: SlotKey = "center";
@@ -247,71 +310,56 @@ const slotListeners = new Set<(s: SlotKey) => void>();
 let reapplyTimer: number | null = null;
 
 function applySlotStyles(target: SlotKey) {
-  const { left, center, right } = findPanels();
-  if (!left || !center || !right) return;
-  // Reset all to their natural slot styles
-  const apply = (el: HTMLElement, role: SlotKey, isActive: boolean) => {
-    if (isActive) {
-      // Bring to center: flat, larger, in front
-      el.style.zIndex = "20";
-      el.style.setProperty("transform", "translate(-50%, -50%)", "important");
+  const panels = findPanels();
+  if (!panels.left || !panels.center || !panels.right) return;
+
+  const order: SlotKey[] = ["left", "center", "right"];
+  const visualSlotFor = (panel: SlotKey): SlotKey => {
+    const relative = (order.indexOf(panel) - order.indexOf(target) + order.length) % order.length;
+    return relative === 0 ? "center" : relative === 1 ? "right" : "left";
+  };
+
+  const place = (el: HTMLElement, slot: SlotKey) => {
+    el.dataset.opsVisualSlot = slot;
+    el.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1), left 420ms, right 420ms, top 420ms, width 420ms";
+    el.style.bottom = "auto";
+    el.style.pointerEvents = "auto";
+
+    if (slot === "center") {
+      el.style.zIndex = "24";
       el.style.left = "50%";
       el.style.right = "auto";
       el.style.top = "50%";
-      el.style.bottom = "auto";
-      el.style.setProperty("width", "clamp(520px, 46vw, 900px)", "important");
-      el.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1), left 420ms, top 420ms, width 420ms";
-      // Flatten any inner rotateY tilt on the immediate child
-      const inner = el.firstElementChild as HTMLElement | null;
-      if (inner) {
-        inner.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
-        inner.style.setProperty("transform", "rotateY(0deg)", "important");
-      }
+      el.style.setProperty("width", "clamp(520px, 40vw, 780px)", "important");
+      el.style.setProperty("transform", "translate(-50%, -50%)", "important");
     } else {
-      // Send to its native side slot
       el.style.zIndex = "12";
-      el.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1), left 420ms, top 420ms, width 420ms";
-      if (role === "left") {
-        el.style.left = "8%";
-        el.style.right = "auto";
-        el.style.top = "53%";
-        el.style.bottom = "auto";
-        el.style.setProperty("width", "clamp(320px, 26vw, 520px)", "important");
-        el.style.setProperty("transform", "translateY(-50%)", "important");
-      } else if (role === "right") {
-        el.style.left = "auto";
-        el.style.right = "8%";
-        el.style.top = "53%";
-        el.style.bottom = "auto";
-        el.style.setProperty("width", "clamp(320px, 26vw, 520px)", "important");
-        el.style.setProperty("transform", "translateY(-50%)", "important");
-      } else {
-        // The original center panel demoted to a side; put it on the side opposite the active one
-        const sendRight = target === "left";
-        el.style.left = sendRight ? "auto" : "8%";
-        el.style.right = sendRight ? "8%" : "auto";
-        el.style.top = "53%";
-        el.style.bottom = "auto";
-        el.style.setProperty("width", "clamp(320px, 26vw, 520px)", "important");
-        el.style.setProperty("transform", "translateY(-50%)", "important");
-      }
-      const inner = el.firstElementChild as HTMLElement | null;
-      if (inner) {
-        inner.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
-        const tilt = role === "left" ? 22 : role === "right" ? -22 : target === "left" ? -22 : 22;
-        inner.style.setProperty("transform", `rotateY(${tilt}deg)`, "important");
-      }
+      el.style.left = slot === "left" ? "1.5%" : "auto";
+      el.style.right = slot === "right" ? "1.5%" : "auto";
+      el.style.top = "53%";
+      el.style.setProperty("width", "clamp(360px, 32vw, 680px)", "important");
+      el.style.setProperty("transform", "translateY(-50%)", "important");
+    }
+
+    const inner = el.firstElementChild as HTMLElement | null;
+    if (inner) {
+      inner.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
+      const tilt = slot === "left" ? 22 : slot === "right" ? -22 : 0;
+      inner.style.setProperty("transform", `rotateY(${tilt}deg)`, "important");
     }
   };
-  apply(left, "left", target === "left");
-  apply(center, "center", target === "center");
-  apply(right, "right", target === "right");
+
+  order.forEach((panel) => {
+    place(panels[panel]!, visualSlotFor(panel));
+  });
 }
 
 function focusSlot(target: SlotKey) {
   activeSlot = target;
   slotListeners.forEach((fn) => fn(target));
   applySlotStyles(target);
+  window.setTimeout(() => applySlotStyles(activeSlot), 0);
+  window.setTimeout(() => applySlotStyles(activeSlot), 450);
   // Re-apply for ~2s in case the bundle re-renders panels and clobbers our inline styles.
   if (reapplyTimer) window.clearInterval(reapplyTimer);
   let ticks = 0;
