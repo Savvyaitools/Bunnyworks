@@ -297,6 +297,8 @@ function focusSlot(target: SlotKey) {
   activeSlot = target;
   slotListeners.forEach((fn) => fn(target));
   applySlotStyles(target);
+  window.setTimeout(() => applySlotStyles(activeSlot), 0);
+  window.setTimeout(() => applySlotStyles(activeSlot), 450);
   // Re-apply for ~2s in case the bundle re-renders panels and clobbers our inline styles.
   if (reapplyTimer) window.clearInterval(reapplyTimer);
   let ticks = 0;
