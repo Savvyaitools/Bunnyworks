@@ -197,6 +197,65 @@
     @apply text-[11px] text-muted-foreground mt-0.5;
   }
 
+  /* ───────────────────────── Ops Room visual language ─────────────────────────
+     Reusable utilities so every page (Creators, Tasks, Messages, Portal, etc.)
+     reads as part of the same cyber-dark dashboard system.
+  */
+
+  /* Display heading — Orbitron, slight tracking, neon shadow */
+  .ops-heading {
+    font-family: 'Orbitron', 'Inter', system-ui, sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-shadow: 0 0 24px hsl(var(--primary) / 0.25);
+  }
+
+  /* Numeric / stat readout — JetBrains Mono with tabular figures */
+  .ops-numeric {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* A flat panel with the Ops Room chrome — sharp top edge, magenta hairline,
+     subtle inner glow. Use on dashboards, tables, list views. */
+  .ops-panel {
+    @apply relative rounded-xl border border-white/[0.06] bg-card/70 backdrop-blur-xl;
+    background-image:
+      linear-gradient(180deg, hsl(var(--primary) / 0.04) 0%, transparent 30%),
+      linear-gradient(160deg, hsl(0 0% 100% / 0.03) 0%, transparent 45%);
+    box-shadow:
+      0 1px 0 hsl(var(--primary) / 0.18) inset,
+      0 -1px 0 hsl(0 0% 100% / 0.02) inset,
+      0 8px 32px hsl(0 0% 0% / 0.4);
+  }
+
+  /* Magenta accent divider line */
+  .ops-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--primary) / 0.5) 50%,
+      transparent 100%
+    );
+  }
+
+  /* Small uppercase label (use on KPI titles, table headers) */
+  .ops-label {
+    @apply text-[10px] uppercase tracking-[0.18em] text-muted-foreground;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Status pill with neon ring */
+  .ops-pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider;
+    border: 1px solid hsl(var(--primary) / 0.3);
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary-glow));
+    box-shadow: 0 0 12px hsl(var(--primary) / 0.2), inset 0 0 8px hsl(var(--primary) / 0.08);
+  }
+
   /* Glossy surface — top highlight sheen */
   .gloss {
     position: relative;
