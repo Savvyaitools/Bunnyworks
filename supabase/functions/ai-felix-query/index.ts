@@ -330,45 +330,75 @@ async function executeTool(
       const cleanQuery = (args.query || '').replace(/[#@!$%^&*()+=\[\]{};:'"<>?/\\|`~]/g, '').trim();
       
       try {
-        let actorId = 'clockworks/free-tiktok-scraper';
-        let input: any = { searchQueries: [cleanQuery], maxProfilesPerQuery: 0, resultsPerPage: searchLimit };
-        
+        // Maintained Apify actor IDs (deprecated ones return 404).
+        let actorId = 'clockworks/tiktok-scraper';
+        let input: any = {
+          searchQueries: [cleanQuery],
+          maxProfilesPerQuery: 0,
+          resultsPerPage: searchLimit,
+          shouldDownloadVideos: false,
+          shouldDownloadCovers: false,
+          shouldDownloadSubtitles: false,
+        };
+
         if (searchPlatform === 'instagram') {
           actorId = 'apify/instagram-scraper';
-          input = { search: cleanQuery, resultsType: 'posts', resultsLimit: searchLimit };
+          input = { search: cleanQuery, searchType: 'hashtag', resultsType: 'posts', resultsLimit: searchLimit };
         } else if (searchPlatform === 'twitter') {
-          actorId = 'quacker/twitter-scraper';
-          input = { searchTerms: [cleanQuery], maxTweets: searchLimit, sort: 'Top' };
+          actorId = 'apidojo/tweet-scraper';
+          input = { searchTerms: [cleanQuery], maxItems: searchLimit, sort: 'Top', tweetLanguage: 'en' };
         } else if (searchPlatform === 'reddit') {
           actorId = 'trudax/reddit-scraper-lite';
-          input = { searches: [{ term: cleanQuery, sort: 'relevance', time: 'week' }], maxItems: searchLimit };
+          input = { searches: [cleanQuery], sort: 'top', time: 'week', maxItems: searchLimit };
+        } else if (searchPlatform === 'threads') {
+          actorId = 'apify/threads-scraper';
+          input = { searchQueries: [cleanQuery], resultsLimit: searchLimit };
         }
 
-        const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_API_TOKEN}&waitForFinish=60`, {
+        const actorPath = actorId.replace('/', '~');
+        const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?token=${APIFY_API_TOKEN}&waitForFinish=120`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(input),
         });
 
-        if (!runResponse.ok) return { success: false, message: `Search failed (${runResponse.status})` };
+        if (!runResponse.ok) {
+          const errText = await runResponse.text().catch(() => '');
+          console.error(`Apify run failed for ${actorId}:`, runResponse.status, errText);
+          return { success: false, message: `Search failed for ${searchPlatform} (${runResponse.status}). Try a different platform.` };
+        }
         const runData = await runResponse.json();
         const datasetId = runData?.data?.defaultDatasetId;
         if (!datasetId) return { success: false, message: "No results found." };
 
         const itemsResp = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_API_TOKEN}&limit=${searchLimit}`);
         const items = await itemsResp.json();
-        
-        const results = (items || []).slice(0, searchLimit).map((item: any) => ({
-          title: item.text || item.caption || item.title || item.full_text || 'Untitled',
-          url: item.webVideoUrl || item.url || item.shortUrl || item.postUrl || '',
-          engagement: item.diggCount || item.likesCount || item.likes || 0,
-          platform: searchPlatform,
-        }));
+
+        const mapped = (Array.isArray(items) ? items : []).map((item: any) => {
+          const likes = item.diggCount || item.likesCount || item.likeCount || item.favoriteCount || item.upVotes || item.ups || item.score || 0;
+          const views = item.playCount || item.videoViewCount || item.videoPlayCount || item.viewCount || item.views || 0;
+          const comments = item.commentCount || item.commentsCount || item.replyCount || item.numberOfComments || item.num_comments || 0;
+          const shares = item.shareCount || item.retweetCount || item.repostCount || 0;
+          return {
+            title: (item.text || item.caption || item.title || item.fullText || item.full_text || 'Untitled').toString().slice(0, 280),
+            url: item.webVideoUrl || item.url || item.shortUrl || item.postUrl || item.threadUrl || (item.permalink ? `https://reddit.com${item.permalink}` : '') || '',
+            author: item.authorMeta?.name || item.ownerUsername || item.user?.username || item.author?.userName || item.username || item.author || '',
+            likes,
+            views,
+            comments,
+            shares,
+            engagement: views || likes,
+            platform: searchPlatform,
+          };
+        })
+        .filter((r: any) => r.url && (r.engagement > 0 || r.likes > 0))
+        .sort((a: any, b: any) => (b.engagement || 0) - (a.engagement || 0))
+        .slice(0, searchLimit);
 
         return { 
           success: true, 
-          message: `🔍 Found ${results.length} trending results for "${args.query}" on ${searchPlatform}.`,
-          data: results,
+          message: `🔍 Found ${mapped.length} trending results for "${args.query}" on ${searchPlatform}, sorted by engagement.`,
+          data: mapped,
         };
       } catch (e) {
         return { success: false, message: `Search error: ${e instanceof Error ? e.message : 'Unknown'}` };
