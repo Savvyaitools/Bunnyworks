@@ -150,8 +150,8 @@ export function AppSidebar() {
             <img src={bunnyWorksLogo} alt="BunnyWorksOS" className="w-9 h-9 object-contain animate-neon-glow" />
             {!isCollapsed && (
               <div className="animate-fade-in">
-                <h1 className="font-semibold text-foreground">BunnyWorksOS</h1>
-                <p className="text-xs text-muted-foreground">Agency CRM</p>
+                <h1 className="ops-heading text-sm font-bold text-foreground">BunnyWorksOS</h1>
+                <p className="ops-label mt-0.5">Agency CRM</p>
               </div>
             )}
           </div>
