@@ -225,10 +225,19 @@ function findPanels(): Record<SlotKey, HTMLElement | null> {
   for (const el of all) {
     const s = el.getAttribute("style") || "";
     if (!s.includes("position: absolute")) continue;
-    if (s.includes("left: 1.5%") && !left) left = el;
-    else if (s.includes("right: 1.5%") && !right) right = el;
-    else if (s.includes("translateX(-50%)") && s.includes("bottom: 32%") && !center)
+    // The bundle renders three panels: left at `left: 8%`, right at `right: 8%`,
+    // and a centered one at `left: 50%` with `translateX(-50%)`.
+    if (!left && /left:\s*8%/.test(s) && !/right:/.test(s)) {
+      left = el;
+    } else if (!right && /right:\s*8%/.test(s) && !/left:/.test(s)) {
+      right = el;
+    } else if (
+      !center &&
+      /left:\s*50%/.test(s) &&
+      /translateX\(-50%\)/.test(s)
+    ) {
       center = el;
+    }
   }
   return { left, center, right };
 }
@@ -245,52 +254,52 @@ function applySlotStyles(target: SlotKey) {
     if (isActive) {
       // Bring to center: flat, larger, in front
       el.style.zIndex = "20";
-      el.style.transform = "translate(-50%, -50%)";
+      el.style.setProperty("transform", "translate(-50%, -50%)", "important");
       el.style.left = "50%";
       el.style.right = "auto";
       el.style.top = "50%";
       el.style.bottom = "auto";
-      el.style.width = "clamp(520px, 46vw, 900px)";
+      el.style.setProperty("width", "clamp(520px, 46vw, 900px)", "important");
       el.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1), left 420ms, top 420ms, width 420ms";
       // Flatten any inner rotateY tilt on the immediate child
       const inner = el.firstElementChild as HTMLElement | null;
       if (inner) {
         inner.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
-        inner.style.transform = "rotateY(0deg)";
+        inner.style.setProperty("transform", "rotateY(0deg)", "important");
       }
     } else {
       // Send to its native side slot
       el.style.zIndex = "12";
       el.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1), left 420ms, top 420ms, width 420ms";
       if (role === "left") {
-        el.style.left = "1.5%";
+        el.style.left = "8%";
         el.style.right = "auto";
         el.style.top = "53%";
         el.style.bottom = "auto";
-        el.style.width = "clamp(360px, 28vw, 560px)";
-        el.style.transform = "translateY(-50%)";
+        el.style.setProperty("width", "clamp(320px, 26vw, 520px)", "important");
+        el.style.setProperty("transform", "translateY(-50%)", "important");
       } else if (role === "right") {
         el.style.left = "auto";
-        el.style.right = "1.5%";
+        el.style.right = "8%";
         el.style.top = "53%";
         el.style.bottom = "auto";
-        el.style.width = "clamp(360px, 28vw, 560px)";
-        el.style.transform = "translateY(-50%)";
+        el.style.setProperty("width", "clamp(320px, 26vw, 520px)", "important");
+        el.style.setProperty("transform", "translateY(-50%)", "important");
       } else {
         // The original center panel demoted to a side; put it on the side opposite the active one
         const sendRight = target === "left";
-        el.style.left = sendRight ? "auto" : "1.5%";
-        el.style.right = sendRight ? "1.5%" : "auto";
+        el.style.left = sendRight ? "auto" : "8%";
+        el.style.right = sendRight ? "8%" : "auto";
         el.style.top = "53%";
         el.style.bottom = "auto";
-        el.style.width = "clamp(360px, 28vw, 560px)";
-        el.style.transform = "translateY(-50%)";
+        el.style.setProperty("width", "clamp(320px, 26vw, 520px)", "important");
+        el.style.setProperty("transform", "translateY(-50%)", "important");
       }
       const inner = el.firstElementChild as HTMLElement | null;
       if (inner) {
         inner.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
         const tilt = role === "left" ? 22 : role === "right" ? -22 : target === "left" ? -22 : 22;
-        inner.style.transform = `rotateY(${tilt}deg)`;
+        inner.style.setProperty("transform", `rotateY(${tilt}deg)`, "important");
       }
     }
   };
