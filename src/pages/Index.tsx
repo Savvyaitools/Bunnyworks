@@ -321,6 +321,7 @@ function applySlotStyles(target: SlotKey) {
   };
 
   const place = (el: HTMLElement, slot: SlotKey) => {
+    el.dataset.opsVisualSlot = slot;
     el.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1), left 420ms, right 420ms, top 420ms, width 420ms";
     el.style.bottom = "auto";
     el.style.pointerEvents = "auto";
