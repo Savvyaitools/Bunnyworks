@@ -18,9 +18,10 @@ export function PageHeader({ title, subtitle, children, className }: PageHeaderP
       className={cn("flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4", className)}
     >
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{title}</h1>
+        <h1 className="ops-heading text-2xl sm:text-[28px] font-bold text-foreground">{title}</h1>
+        <div className="ops-divider w-16 mt-2 opacity-70" />
         {subtitle && (
-          <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+          <p className="text-sm text-muted-foreground mt-2">{subtitle}</p>
         )}
       </div>
       {children && <div className="flex items-center gap-3">{children}</div>}
