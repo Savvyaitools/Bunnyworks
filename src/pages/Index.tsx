@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useQuery } from "@tanstack/react-query";
@@ -233,11 +233,12 @@ function findPanels(): Record<SlotKey, HTMLElement | null> {
 }
 
 let activeSlot: SlotKey = "center";
+const slotListeners = new Set<(s: SlotKey) => void>();
+let reapplyTimer: number | null = null;
 
-function focusSlot(target: SlotKey) {
+function applySlotStyles(target: SlotKey) {
   const { left, center, right } = findPanels();
   if (!left || !center || !right) return;
-  activeSlot = target;
   // Reset all to their natural slot styles
   const apply = (el: HTMLElement, role: SlotKey, isActive: boolean) => {
     if (isActive) {
@@ -297,6 +298,22 @@ function focusSlot(target: SlotKey) {
   apply(right, "right", target === "right");
 }
 
+function focusSlot(target: SlotKey) {
+  activeSlot = target;
+  slotListeners.forEach((fn) => fn(target));
+  applySlotStyles(target);
+  // Re-apply for ~2s in case the bundle re-renders panels and clobbers our inline styles.
+  if (reapplyTimer) window.clearInterval(reapplyTimer);
+  let ticks = 0;
+  reapplyTimer = window.setInterval(() => {
+    applySlotStyles(activeSlot);
+    if (++ticks > 20) {
+      window.clearInterval(reapplyTimer!);
+      reapplyTimer = null;
+    }
+  }, 100);
+}
+
 function cycleSlot(direction: "prev" | "next") {
   const order: SlotKey[] = ["left", "center", "right"];
   const i = order.indexOf(activeSlot);
@@ -308,6 +325,14 @@ function cycleSlot(direction: "prev" | "next") {
 }
 
 function CarouselNav() {
+  const [current, setCurrent] = useState<SlotKey>(activeSlot);
+  useEffect(() => {
+    const fn = (s: SlotKey) => setCurrent(s);
+    slotListeners.add(fn);
+    return () => {
+      slotListeners.delete(fn);
+    };
+  }, []);
   return (
     <div
       className="pointer-events-none fixed bottom-6 z-[60] flex items-center justify-center gap-2"
@@ -327,7 +352,12 @@ function CarouselNav() {
             key={slot}
             type="button"
             onClick={() => focusSlot(slot)}
-            className="px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-white/70 rounded-full transition hover:text-white hover:bg-white/10"
+            className={cn(
+              "px-3 py-1 text-[10px] font-mono uppercase tracking-widest rounded-full transition",
+              current === slot
+                ? "bg-white/15 text-white"
+                : "text-white/70 hover:text-white hover:bg-white/10",
+            )}
           >
             {slot === "left" ? "AI Agents" : slot === "center" ? "Dashboard" : "Leaderboard"}
           </button>
