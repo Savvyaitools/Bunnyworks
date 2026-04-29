@@ -26,20 +26,22 @@ export async function runApifyActor<T = any>(
 
 /** Scrape trending TikTok videos by hashtag or keyword */
 export async function scrapeTikTokTrends(query: string, maxItems = 20) {
-  return runApifyActor("clockworks/free-tiktok-scraper", {
-    hashtags: [query],
+  // clockworks/tiktok-scraper is the maintained actor; supports keyword search
+  return runApifyActor("clockworks/tiktok-scraper", {
+    searchQueries: [query],
     resultsPerPage: maxItems,
     shouldDownloadVideos: false,
     shouldDownloadCovers: false,
-  }, { maxItems, timeoutSecs: 120 });
+    shouldDownloadSubtitles: false,
+  }, { maxItems, timeoutSecs: 180 });
 }
 
 /** Scrape Instagram posts/reels by hashtag */
 export async function scrapeInstagramTrends(hashtag: string, maxItems = 20) {
   return runApifyActor("apify/instagram-hashtag-scraper", {
-    hashtags: [hashtag.replace(/^#/, "")],
+    hashtags: [hashtag.replace(/^#/, "").replace(/\s+/g, "")],
     resultsLimit: maxItems,
-  }, { maxItems, timeoutSecs: 120 });
+  }, { maxItems, timeoutSecs: 180 });
 }
 
 /** Scrape Reddit posts from search */
@@ -53,19 +55,23 @@ export async function scrapeRedditTrends(query: string, maxItems = 20) {
 
 /** Scrape Twitter/X posts by search query */
 export async function scrapeTwitterTrends(query: string, maxItems = 20) {
-  return runApifyActor("quacker/twitter-scraper", {
+  // quacker/twitter-scraper was deprecated and now returns 404.
+  // apidojo/tweet-scraper is the current maintained actor.
+  return runApifyActor("apidojo/tweet-scraper", {
     searchTerms: [query],
-    maxTweets: maxItems,
+    maxItems,
     sort: "Top",
-  }, { maxItems, timeoutSecs: 120 });
+    tweetLanguage: "en",
+  }, { maxItems, timeoutSecs: 180 });
 }
 
 /** Scrape Threads posts by search query */
 export async function scrapeThreadsTrends(query: string, maxItems = 20) {
-  return runApifyActor("automation-lab/threads-scraper", {
+  // apify/threads-scraper is the maintained actor.
+  return runApifyActor("apify/threads-scraper", {
     searchQueries: [query],
-    maxPosts: maxItems,
-  }, { maxItems, timeoutSecs: 120 });
+    resultsLimit: maxItems,
+  }, { maxItems, timeoutSecs: 180 });
 }
 
 /** Scrape Snapchat Spotlight trending videos */
