@@ -284,8 +284,7 @@ function findPanels(): Record<SlotKey, HTMLElement | null> {
       const box = el.getBoundingClientRect();
       return (
         /position:\s*absolute/.test(style) &&
-        /pointer-events:\s*auto/.test(style) &&
-        /aspect-ratio|width:\s*clamp/.test(style) &&
+        (/aspect-ratio:\s*1\.(45|55)/.test(style) || /width:\s*clamp\((360|440)px/.test(style)) &&
         box.width > 280 &&
         box.height > 160
       );
@@ -300,9 +299,9 @@ function findPanels(): Record<SlotKey, HTMLElement | null> {
     panelShells.find((el) => pattern.test(el.textContent ?? "")) ?? null;
 
   return {
-    left: byText(/AI\s*Agents/i),
-    center: byText(/\bDashboard\b/i),
-    right: byText(/Creator\s*Leaderboard|Agency\s*cut|Addison\s*Weems/i),
+    left: byText(/AI\s*Agents/i) ?? panelShells.find((el) => /left:\s*1\.5%/.test(el.getAttribute("style") || "")) ?? null,
+    center: byText(/\bDashboard\b/i) ?? panelShells.find((el) => /bottom:\s*32%/.test(el.getAttribute("style") || "")) ?? null,
+    right: byText(/Creator\s*Leaderboard|Agency\s*cut|Addison\s*Weems/i) ?? panelShells.find((el) => /right:\s*1\.5%/.test(el.getAttribute("style") || "")) ?? null,
   };
 }
 
