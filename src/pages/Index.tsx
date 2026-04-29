@@ -157,6 +157,31 @@ export default function Index() {
     };
   }, [applyReal, stats, revenue]);
 
+  useEffect(() => {
+    const root = document.getElementById("opsroom-root");
+    if (!root) return;
+
+    let raf = 0;
+    const syncCarousel = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => applySlotStyles(activeSlot));
+    };
+
+    syncCarousel();
+    const observer = new MutationObserver(syncCarousel);
+    observer.observe(root, { childList: true, subtree: true });
+
+    const retry = window.setInterval(syncCarousel, 250);
+    const stop = window.setTimeout(() => window.clearInterval(retry), 5_000);
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(raf);
+      window.clearInterval(retry);
+      window.clearTimeout(stop);
+    };
+  }, []);
+
   return (
     <DashboardLayout>
       <div
@@ -199,6 +224,42 @@ export default function Index() {
           width: 100% !important;
           height: 100% !important;
           display: block;
+        }
+        #opsroom-root [data-ops-visual-slot="center"] {
+          left: 50% !important;
+          right: auto !important;
+          top: 50% !important;
+          bottom: auto !important;
+          width: clamp(520px, 40vw, 780px) !important;
+          transform: translate(-50%, -50%) !important;
+          z-index: 24 !important;
+        }
+        #opsroom-root [data-ops-visual-slot="left"] {
+          left: 1.5% !important;
+          right: auto !important;
+          top: 53% !important;
+          bottom: auto !important;
+          width: clamp(360px, 32vw, 680px) !important;
+          transform: translateY(-50%) !important;
+          z-index: 12 !important;
+        }
+        #opsroom-root [data-ops-visual-slot="right"] {
+          left: auto !important;
+          right: 1.5% !important;
+          top: 53% !important;
+          bottom: auto !important;
+          width: clamp(360px, 32vw, 680px) !important;
+          transform: translateY(-50%) !important;
+          z-index: 12 !important;
+        }
+        #opsroom-root [data-ops-visual-slot="center"] > div {
+          transform: rotateY(0deg) !important;
+        }
+        #opsroom-root [data-ops-visual-slot="left"] > div {
+          transform: rotateY(22deg) !important;
+        }
+        #opsroom-root [data-ops-visual-slot="right"] > div {
+          transform: rotateY(-22deg) !important;
         }
       `}</style>
     </DashboardLayout>
