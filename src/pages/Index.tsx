@@ -162,8 +162,8 @@ export default function Index() {
         className="-m-5 lg:-m-8 xl:-mx-10"
         style={{
           position: "relative",
-          height: "calc(100dvh - 1rem)",
-          maxWidth: "100%",
+          height: "calc(100dvh - 2rem)",
+          width: "auto",
           overflow: "hidden",
           backgroundColor: "#08040c",
           backgroundImage: `url('/ops-room/background.jpg?v=${BUNDLE_VERSION}')`,
@@ -191,11 +191,16 @@ export default function Index() {
           width: 100% !important;
           height: 100% !important;
           background: transparent !important;
+          max-width: 100% !important;
+          overflow: hidden !important;
         }
         #opsroom-root canvas {
           width: 100% !important;
           height: 100% !important;
           display: block;
+        }
+        #opsroom-root, #opsroom-root * {
+          max-width: 100% !important;
         }
       `}</style>
     </DashboardLayout>
