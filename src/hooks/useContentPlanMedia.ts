@@ -19,67 +19,81 @@ export function useContentPlanMedia() {
   const uploadMedia = useCallback(async (file: File, creatorId: string, planId: string, agencyId?: string) => {
     setUploading(true);
 
-    // Resolve agency_id (storage RLS requires the first folder to be the agency_id)
-    let resolvedAgencyId = agencyId;
-    if (!resolvedAgencyId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("agency_id")
-          .eq("id", user.id)
-          .maybeSingle();
-        resolvedAgencyId = profile?.agency_id ?? undefined;
+    try {
+      // Resolve agency_id (storage RLS requires the first folder to be the agency_id)
+      let resolvedAgencyId = agencyId;
+      if (!resolvedAgencyId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("agency_id")
+            .eq("id", user.id)
+            .maybeSingle();
+          resolvedAgencyId = profile?.agency_id ?? undefined;
+        }
       }
-    }
 
-    if (!resolvedAgencyId) {
-      console.error("No agency_id available for upload");
-      toast.error("Failed to upload file: missing agency context");
-      setUploading(false);
+      if (!resolvedAgencyId) {
+        console.error("[uploadMedia] No agency_id available for upload");
+        toast.error("Failed to upload file: missing agency context");
+        return null;
+      }
+
+      // Validate file size (50MB cap)
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error(`File "${file.name}" exceeds 50MB limit`);
+        return null;
+      }
+
+      const fileExt = (file.name.split(".").pop() || "bin").toLowerCase();
+      const fileName = `${resolvedAgencyId}/${creatorId}/${planId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+
+      console.log("[uploadMedia] uploading", { fileName, size: file.size, type: file.type });
+
+      const { error: uploadError } = await supabase.storage
+        .from("content-references")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || undefined,
+        });
+
+      if (uploadError) {
+        console.error("[uploadMedia] Storage upload error:", uploadError);
+        toast.error(`Upload failed: ${uploadError.message}`);
+        return null;
+      }
+
+      // Use long-lived signed URL (7 days) — refreshed on read
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from("content-references")
+        .createSignedUrl(fileName, 60 * 60 * 24 * 7);
+
+      if (signedError || !signedData?.signedUrl) {
+        console.error("[uploadMedia] Signed URL error:", signedError);
+        toast.error("Uploaded, but failed to get file URL");
+        return null;
+      }
+
+      const mediaItem: ContentReferenceMedia = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        url: signedData.signedUrl,
+        type: file.type.startsWith("video/") ? "video" : "image",
+        size: file.size,
+        uploaded_at: new Date().toISOString(),
+        path: fileName,
+      };
+
+      return mediaItem;
+    } catch (err) {
+      console.error("[uploadMedia] Unexpected error:", err);
+      toast.error(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
       return null;
-    }
-
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${resolvedAgencyId}/${creatorId}/${planId}/${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("content-references")
-      .upload(fileName, file);
-
-    if (uploadError) {
-      console.error("Error uploading file:", uploadError);
-      toast.error(`Failed to upload file: ${uploadError.message}`);
+    } finally {
       setUploading(false);
-      return null;
     }
-
-    // Use long-lived signed URL (7 days) — will be refreshed on read
-    const { data: signedData, error: signedError } = await supabase.storage
-      .from("content-references")
-      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
-
-    if (signedError || !signedData?.signedUrl) {
-      console.error("Error creating signed URL:", signedError);
-      toast.error("Failed to get file URL");
-      setUploading(false);
-      return null;
-    }
-
-    const publicUrl = signedData.signedUrl;
-
-    const mediaItem: ContentReferenceMedia = {
-      id: crypto.randomUUID(),
-      name: file.name,
-      url: publicUrl,
-      type: file.type.startsWith("video/") ? "video" : "image",
-      size: file.size,
-      uploaded_at: new Date().toISOString(),
-      path: fileName,
-    };
-
-    setUploading(false);
-    return mediaItem;
   }, []);
 
   const deleteMedia = useCallback(async (url: string) => {
