@@ -82,7 +82,9 @@ export default function CreatorDetail() {
             <TabsTrigger value="overview" className="whitespace-nowrap text-sm px-3 py-1.5">Overview</TabsTrigger>
             <TabsTrigger value="plans" className="whitespace-nowrap text-sm px-3 py-1.5">Plans</TabsTrigger>
             <TabsTrigger value="vault" className="whitespace-nowrap text-sm px-3 py-1.5">Vault</TabsTrigger>
-            <TabsTrigger value="marketing" className="whitespace-nowrap text-sm px-3 py-1.5">Marketing</TabsTrigger>
+            <TabsTrigger value="marketing" className="whitespace-nowrap text-sm px-3 py-1.5">
+              Marketing <span className="ml-1.5 text-[10px] text-muted-foreground">(Soon)</span>
+            </TabsTrigger>
             <TabsTrigger value="requests" className="whitespace-nowrap text-sm px-3 py-1.5">Requests</TabsTrigger>
             <TabsTrigger value="team-access" className="whitespace-nowrap text-sm px-3 py-1.5">Team</TabsTrigger>
           </TabsList>
@@ -103,8 +105,16 @@ export default function CreatorDetail() {
             <CreatorContentVault creatorId={creator.id} />
           </TabsContent>
 
-          <TabsContent value="marketing" className="glass-card p-6">
-            <CreatorMarketing creatorId={creator.id} creatorName={creator.name} />
+          <TabsContent value="marketing" className="glass-card p-12">
+            <div className="flex flex-col items-center justify-center text-center space-y-3 py-12">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-2xl">🚧</span>
+              </div>
+              <h3 className="text-xl font-semibold text-foreground">Marketing — Coming Soon</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                We're rebuilding this section to give you proper marketing tools. Stay tuned!
+              </p>
+            </div>
           </TabsContent>
 
           <TabsContent value="requests" className="glass-card p-6">
