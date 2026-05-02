@@ -207,7 +207,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
   };
 
   const removePendingMedia = async (mediaItem: ContentReferenceMedia) => {
-    await deleteMedia(mediaItem.url);
+    await deleteMedia(mediaItem.url, mediaItem.path);
     setPendingMedia(prev => prev.filter(m => m.id !== mediaItem.id));
   };
 
@@ -280,7 +280,7 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
 
   const handleRemoveMedia = async (mediaItem: ContentReferenceMedia) => {
     if (!selectedPlan) return;
-    const success = await deleteMedia(mediaItem.url);
+    const success = await deleteMedia(mediaItem.url, mediaItem.path);
     if (success) {
       const updatedMedia = (selectedPlan.reference_media || []).filter(m => m.id !== mediaItem.id);
       await updatePlanMedia(selectedPlan.id, updatedMedia);
