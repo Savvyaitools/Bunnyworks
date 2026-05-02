@@ -96,13 +96,14 @@ export function useContentPlanMedia() {
     }
   }, []);
 
-  const deleteMedia = useCallback(async (url: string) => {
-    // Extract file path from URL (strip query string for signed URLs)
-    const cleanUrl = url.split("?")[0];
-    const urlParts = cleanUrl.split("/content-references/");
-    if (urlParts.length < 2) return false;
-
-    const filePath = decodeURIComponent(urlParts[1]);
+  const deleteMedia = useCallback(async (urlOrPath: string, knownPath?: string) => {
+    let filePath = knownPath;
+    if (!filePath) {
+      const cleanUrl = urlOrPath.split("?")[0];
+      const urlParts = cleanUrl.split("/content-references/");
+      if (urlParts.length < 2) return false;
+      filePath = decodeURIComponent(urlParts[1]);
+    }
     const { error } = await supabase.storage
       .from("content-references")
       .remove([filePath]);

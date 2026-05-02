@@ -192,17 +192,22 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
 
   const handleCreateFormFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
+    if (!agencyId) {
+      toast.error("Agency context not loaded yet. Please try again.");
+      e.target.value = "";
+      return;
+    }
     const files = Array.from(e.target.files);
     const tempPlanId = `temp-${Date.now()}`;
     for (const file of files) {
-      const mediaItem = await uploadMedia(file, creatorId, tempPlanId);
+      const mediaItem = await uploadMedia(file, creatorId, tempPlanId, agencyId);
       if (mediaItem) setPendingMedia(prev => [...prev, mediaItem]);
     }
     if (createFileInputRef.current) createFileInputRef.current.value = "";
   };
 
   const removePendingMedia = async (mediaItem: ContentReferenceMedia) => {
-    await deleteMedia(mediaItem.url);
+    await deleteMedia(mediaItem.url, mediaItem.path);
     setPendingMedia(prev => prev.filter(m => m.id !== mediaItem.id));
   };
 
@@ -246,21 +251,36 @@ export function CreatorContentPlans({ creatorId }: CreatorContentPlansProps) {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !selectedPlan) return;
+    if (!agencyId) {
+      toast.error("Agency context not loaded yet. Please try again.");
+      e.target.value = "";
+      return;
+    }
     const files = Array.from(e.target.files);
     const existingMedia = selectedPlan.reference_media || [];
     const newMedia: ContentReferenceMedia[] = [...existingMedia];
+    let added = 0;
     for (const file of files) {
-      const mediaItem = await uploadMedia(file, creatorId, selectedPlan.id);
-      if (mediaItem) newMedia.push(mediaItem);
+      const mediaItem = await uploadMedia(file, creatorId, selectedPlan.id, agencyId);
+      if (mediaItem) {
+        newMedia.push(mediaItem);
+        added++;
+      }
     }
-    await updatePlanMedia(selectedPlan.id, newMedia);
-    fetchPlans();
+    if (added > 0) {
+      const ok = await updatePlanMedia(selectedPlan.id, newMedia);
+      if (ok) {
+        toast.success(`${added} file${added > 1 ? "s" : ""} uploaded`);
+        setSelectedPlan({ ...selectedPlan, reference_media: newMedia });
+        fetchPlans();
+      }
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleRemoveMedia = async (mediaItem: ContentReferenceMedia) => {
     if (!selectedPlan) return;
-    const success = await deleteMedia(mediaItem.url);
+    const success = await deleteMedia(mediaItem.url, mediaItem.path);
     if (success) {
       const updatedMedia = (selectedPlan.reference_media || []).filter(m => m.id !== mediaItem.id);
       await updatePlanMedia(selectedPlan.id, updatedMedia);
