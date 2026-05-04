@@ -24,7 +24,7 @@ export function LandingFooter() {
           <div>
             <h4 className="text-xs sm:text-sm font-semibold text-foreground mb-3 sm:mb-4">Product</h4>
             <ul className="space-y-2 sm:space-y-2.5 text-xs sm:text-sm text-muted-foreground">
-              {["Features", "AI Tools", "Pricing", "Compare"].map((label) => (
+              {["Features", "AI Tools", "Pricing"].map((label) => (
                 <li key={label}>
                   <motion.a
                     href={`#${label.toLowerCase().replace(" ", "-")}`}
