@@ -5,7 +5,7 @@ All Realistic mentions live in `public/workshop.html` (5 occurrences). Replace a
 | Line | Current | New |
 |---|---|---|
 | 552 | `Realistic Photo Generation` | `Realistic Photo Generation` |
-| 553 | `Full adult content pipeline built for creator monetization` | `Full high-quality content pipeline built for creator monetization` |
+| 553 | `Full high-quality content pipeline built for creator monetization` | `Full high-quality content pipeline built for creator monetization` |
 | 554 | `Complete Realistic photo set` | `Complete realistic photo set` |
 | 560 | `Realistic Video + Workflow Handoff` | `Realistic Video + Workflow Handoff` |
 | 581 | `Realistic + High-Quality Pipelines` (h3) and `Two full content stacks` copy | `Realistic + High-Quality Pipelines` |
