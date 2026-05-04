@@ -1,12 +1,10 @@
 import { useEffect } from "react";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { ScreenshotShowcase } from "@/components/landing/ScreenshotShowcase";
 import { AIToolsSection } from "@/components/landing/AIToolsSection";
 import { PainPointsSection } from "@/components/landing/PainPointsSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
-import { ComparisonSection } from "@/components/landing/ComparisonSection";
 import { HowItWorksSection, TestimonialsSection, PricingSection, FinalCTASection } from "@/components/landing/LandingSections";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { GradientDivider, ScrollGlowOrb } from "@/components/landing/AnimationPrimitives";
@@ -36,8 +34,6 @@ const Landing = () => {
       <LandingNav />
       <HeroSection />
       <GradientDivider />
-      <PlatformLogos />
-      <GradientDivider />
       <ScreenshotShowcase />
       <GradientDivider />
       <PainPointsSection />
@@ -45,8 +41,6 @@ const Landing = () => {
       <FeaturesSection />
       <GradientDivider />
       <AIToolsSection />
-      <GradientDivider />
-      <ComparisonSection />
       <GradientDivider />
       <HowItWorksSection />
       <GradientDivider />

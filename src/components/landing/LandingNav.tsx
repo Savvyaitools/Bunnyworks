@@ -7,7 +7,6 @@ import bunnyWorksLogo from "@/assets/bunnyworks-logo.png";
 
 const mainNavLinks = [
   { label: "Features", href: "#features", isExternal: true },
-  { label: "Compare", href: "#comparison", isExternal: true },
   { label: "AI Tools", href: "#tools", isExternal: true },
   { label: "Pricing", href: "#pricing", isExternal: true },
   { label: "AI Workshop", href: "/workshop", isExternal: false },
