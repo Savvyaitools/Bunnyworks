@@ -12,7 +12,7 @@ export default function TermsOfService() {
 
         <section className="space-y-4 mb-8">
           <h2 className="text-xl font-semibold">2. Description of Service</h2>
-          <p className="text-muted-foreground">BunnyWorksOS is a SaaS platform for managing OnlyFans agencies, including creator management, revenue tracking, shift scheduling, and related tools.</p>
+          <p className="text-muted-foreground">BunnyWorksOS is a SaaS platform for managing creator agencies, including creator management, revenue tracking, shift scheduling, and related tools.</p>
         </section>
 
         <section className="space-y-4 mb-8">
