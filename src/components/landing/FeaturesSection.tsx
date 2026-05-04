@@ -4,16 +4,16 @@ import { motion } from "framer-motion";
 
 const features = [
   { icon: Users, title: "Unified Team Management", description: "Creators, chatters, and employees in one system with role-based access and per-creator permissions.", stat: "40+" , statLabel: "features" },
-  { icon: DollarSign, title: "Revenue Intelligence", description: "Track gross earnings, net revenue, and commissions. Auto-sync platform data with breakdowns by subs, tips, PPV.", stat: "Real-time", statLabel: "syncing" },
+  { icon: DollarSign, title: "Revenue Intelligence", description: "Track gross earnings, net revenue, and commissions with clear breakdowns by product, offer, and team activity.", stat: "Real-time", statLabel: "syncing" },
   { icon: TrendingUp, title: "Chatter Analytics", description: "Messages sent, PPV conversions, and revenue per shift. Data-driven leaderboards and team optimization.", stat: "28%", statLabel: "avg lift" },
-  { icon: Monitor, title: "Platform Access", description: "Launch live creator platform sessions in-browser. No downloads, pre-authenticated, persistent login states.", stat: "Zero", statLabel: "downloads" },
+  { icon: Monitor, title: "Secure Access", description: "Launch managed work sessions in-browser. No downloads, persistent login states, and permission-based controls.", stat: "Zero", statLabel: "downloads" },
   { icon: Shield, title: "Creator Portal", description: "Branded white-label portal for creators to view earnings, download content plans, and communicate with your team.", stat: "White", statLabel: "label" },
   { icon: Lock, title: "Enterprise Security", description: "Row-level data isolation, per-employee permissions, encrypted sessions, and full audit trails.", stat: "256-bit", statLabel: "encrypted" },
 ];
 
 const moreFeatures = [
   { icon: Zap, title: "Smart Scheduling", description: "Auto-coverage detection and gap alerts." },
-  { icon: Calendar, title: "Content Planning", description: "Visual calendar with multi-platform coordination." },
+  { icon: Calendar, title: "Content Planning", description: "Visual calendar with cross-channel coordination." },
   { icon: MessageSquare, title: "Team Messaging", description: "Built-in chat with read receipts." },
   { icon: FileText, title: "Invoice & Payroll", description: "Automated commissions and bonuses." },
   { icon: Smartphone, title: "Mobile First", description: "Full access from any device, no app needed." },
