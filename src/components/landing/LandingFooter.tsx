@@ -6,7 +6,7 @@ export function LandingFooter() {
     <footer className="py-10 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8 border-t border-border">
       <div className="max-w-7xl mx-auto">
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8 sm:mb-12"
+          className="grid grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-12 mb-8 sm:mb-12"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -28,22 +28,6 @@ export function LandingFooter() {
                 <li key={label}>
                   <motion.a
                     href={`#${label.toLowerCase().replace(" ", "-")}`}
-                    className="hover:text-foreground transition-colors"
-                    whileHover={{ x: 2 }}
-                  >
-                    {label}
-                  </motion.a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-xs sm:text-sm font-semibold text-foreground mb-3 sm:mb-4">Use Cases</h4>
-            <ul className="space-y-2 sm:space-y-2.5 text-xs sm:text-sm text-muted-foreground">
-              {["Creator Agencies", "Roster Management", "Multi-Platform", "Privacy Policy"].map((label) => (
-                <li key={label}>
-                  <motion.a
-                    href="#"
                     className="hover:text-foreground transition-colors"
                     whileHover={{ x: 2 }}
                   >
