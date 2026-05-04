@@ -4,9 +4,9 @@ import { motion } from "framer-motion";
 
 const features = [
   { icon: Users, title: "Unified Team Management", description: "Creators, chatters, and employees in one system with role-based access and per-creator permissions.", stat: "40+" , statLabel: "features" },
-  { icon: DollarSign, title: "Revenue Intelligence", description: "Track gross earnings, net revenue, and commissions. Auto-sync OnlyFans data with breakdowns by subs, tips, PPV.", stat: "Real-time", statLabel: "syncing" },
+  { icon: DollarSign, title: "Revenue Intelligence", description: "Track gross earnings, net revenue, and commissions. Auto-sync platform data with breakdowns by subs, tips, PPV.", stat: "Real-time", statLabel: "syncing" },
   { icon: TrendingUp, title: "Chatter Analytics", description: "Messages sent, PPV conversions, and revenue per shift. Data-driven leaderboards and team optimization.", stat: "28%", statLabel: "avg lift" },
-  { icon: Monitor, title: "Platform Access", description: "Launch live OnlyFans, Fansly & Fanvue sessions in-browser. No downloads, pre-authenticated, persistent login states.", stat: "Zero", statLabel: "downloads" },
+  { icon: Monitor, title: "Platform Access", description: "Launch live creator platform sessions in-browser. No downloads, pre-authenticated, persistent login states.", stat: "Zero", statLabel: "downloads" },
   { icon: Shield, title: "Creator Portal", description: "Branded white-label portal for creators to view earnings, download content plans, and communicate with your team.", stat: "White", statLabel: "label" },
   { icon: Lock, title: "Enterprise Security", description: "Row-level data isolation, per-employee permissions, encrypted sessions, and full audit trails.", stat: "256-bit", statLabel: "encrypted" },
 ];
@@ -62,7 +62,7 @@ export function FeaturesSection() {
             to <span className="gradient-text">scale.</span>
           </h2>
           <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-xl">
-            40+ features built specifically for OnlyFans, Fansly & Fanvue agencies.
+            40+ features built specifically for creator agencies.
           </p>
         </ScrollReveal>
 

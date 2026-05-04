@@ -108,7 +108,7 @@ export function HeroSection() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.6 }}
               >
-                Manage creators across OnlyFans, Fansly & Fanvue. Built-in AI agents, platform access, and enterprise security — no downloads required.
+                Manage creators across every major platform. Built-in AI agents, platform access, and enterprise security — no downloads required.
               </motion.p>
               <motion.div
                 className="flex items-center gap-3"

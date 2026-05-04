@@ -5,9 +5,9 @@ import fanslyIcon from "@/assets/platform-icons/fansly.png";
 import fanvueIcon from "@/assets/platform-icons/fanvue.png";
 
 const platforms = [
-  { name: "OnlyFans", color: "#00AFF0", icon: onlyfansIcon },
-  { name: "Fansly", color: "#1DA1F2", icon: fanslyIcon },
-  { name: "Fanvue", color: "#8B5CF6", icon: fanvueIcon },
+  { name: "Platform 1", color: "#00AFF0", icon: onlyfansIcon },
+  { name: "Platform 2", color: "#1DA1F2", icon: fanslyIcon },
+  { name: "Platform 3", color: "#8B5CF6", icon: fanvueIcon },
 ];
 
 const trustItems = [

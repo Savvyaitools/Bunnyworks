@@ -18,7 +18,7 @@ export function LandingFooter() {
               <span className="text-sm sm:text-base font-bold text-foreground">BunnyWorksOS</span>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-sm leading-relaxed">
-              The #1 management platform for OnlyFans and Fansly agencies. Manage creators, track revenue, and scale with AI. Powered by BunnyWorksOS.
+              The #1 management platform for creator agencies. Manage creators, track revenue, and scale with AI. Powered by BunnyWorksOS.
             </p>
           </div>
           <div>
@@ -40,7 +40,7 @@ export function LandingFooter() {
           <div>
             <h4 className="text-xs sm:text-sm font-semibold text-foreground mb-3 sm:mb-4">Use Cases</h4>
             <ul className="space-y-2 sm:space-y-2.5 text-xs sm:text-sm text-muted-foreground">
-              {["OnlyFans Agencies", "Fansly Management", "Multi-Platform", "Privacy Policy"].map((label) => (
+              {["Creator Agencies", "Roster Management", "Multi-Platform", "Privacy Policy"].map((label) => (
                 <li key={label}>
                   <motion.a
                     href="#"

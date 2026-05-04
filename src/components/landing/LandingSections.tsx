@@ -8,7 +8,7 @@ import { FloatingParticles, MagneticHover } from "./AnimationPrimitives";
 const testimonials = [
   { name: "Marcus T.", role: "Agency Owner, 35+ Creators", content: "Before BunnyWorksOS, I was spending 15 hours a week on spreadsheets. Now it's all automated. I've scaled from 15 to 35 creators without adding a single admin hire.", rating: 5, highlight: "15 hrs/week saved" },
   { name: "Elena R.", role: "Operations Manager", content: "The unified team management is a game-changer. Our PPV conversion rate increased 28% once we could actually see who was performing.", rating: 5, highlight: "28% PPV increase" },
-  { name: "David K.", role: "Agency Founder, Top 0.1%", content: "We tried 4 different tools before BunnyWorksOS. The shift scheduling with performance tracking is exactly what OFM agencies need.", rating: 5, highlight: "4x faster onboarding" },
+  { name: "David K.", role: "Agency Founder, Top 0.1%", content: "We tried 4 different tools before BunnyWorksOS. The shift scheduling with performance tracking is exactly what creator agencies need.", rating: 5, highlight: "4x faster onboarding" },
 ];
 
 const ease = [0.25, 0.4, 0.25, 1] as const;
@@ -108,7 +108,7 @@ const stepVariants = {
 
 export function HowItWorksSection() {
   const steps = [
-    { step: "01", title: "Import Your Roster", description: "Add creators and team members in minutes. Connect OnlyFans accounts for automatic revenue syncing.", duration: "~5 min" },
+    { step: "01", title: "Import Your Roster", description: "Add creators and team members in minutes. Connect creator accounts for automatic revenue syncing.", duration: "~5 min" },
     { step: "02", title: "Assign & Schedule", description: "Assign chatters to creators, set targets, and schedule shifts with visual roster builder.", duration: "~10 min" },
     { step: "03", title: "Track & Optimize", description: "Monitor real-time dashboards. Get actionable insights on performers and areas for improvement.", duration: "Ongoing" },
   ];
