@@ -70,7 +70,7 @@ export function useContentFiles() {
 
     try {
       const fileExt = file.name.split(".").pop();
-      const filePath = `${fileId}.${fileExt}`;
+      const filePath = `${agencyId}/${fileId}.${fileExt}`;
 
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) =>

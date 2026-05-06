@@ -422,7 +422,7 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
 
     for (const file of fileList) {
       try {
-        const filePath = `${creatorId}/${Date.now()}_${file.name}`;
+        const filePath = `${agencyId}/${creatorId}/${Date.now()}_${file.name}`;
         const progressInterval = setInterval(() => {
           setUploadProgress(prev => prev.map(p => 
             p.fileName === file.name && p.progress < 90 
