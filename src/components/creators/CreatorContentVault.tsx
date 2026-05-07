@@ -417,6 +417,11 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
   };
 
   const uploadFiles = async (fileList: File[]) => {
+    if (!agencyId) {
+      toast.error("Agency workspace is still loading. Please try again.");
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(fileList.map(f => ({ fileName: f.name, progress: 0, status: "uploading" })));
 
@@ -438,10 +443,11 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
         clearInterval(progressInterval);
 
         if (uploadError) {
+          console.error("Error uploading file:", uploadError);
           setUploadProgress(prev => prev.map(p => 
             p.fileName === file.name ? { ...p, status: "error" } : p
           ));
-          toast.error(`Failed to upload ${file.name}`);
+          toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
           continue;
         }
 
@@ -459,10 +465,11 @@ export function CreatorContentVault({ creatorId }: CreatorContentVaultProps) {
           });
 
         if (dbError) {
+          console.error("Error saving file record:", dbError);
           setUploadProgress(prev => prev.map(p => 
             p.fileName === file.name ? { ...p, status: "error" } : p
           ));
-          toast.error(`Failed to save ${file.name}`);
+          toast.error(`Failed to save ${file.name}: ${dbError.message}`);
         } else {
           setUploadProgress(prev => prev.map(p => 
             p.fileName === file.name ? { ...p, progress: 100, status: "complete" } : p
