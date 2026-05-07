@@ -238,8 +238,8 @@ export default function PortalContent() {
   };
 
   const uploadFile = async (file: File): Promise<boolean> => {
-    if (!creatorId) {
-      toast.error("Creator ID not found");
+    if (!creatorId || !agencyId) {
+      toast.error("Creator workspace is still loading. Please try again.");
       return false;
     }
 
@@ -302,7 +302,7 @@ export default function PortalContent() {
           p.fileName === file.name ? { ...p, status: "error" } : p
         )
       );
-      toast.error(`Failed to upload ${file.name}`);
+      toast.error(`Failed to upload ${file.name}${error instanceof Error ? `: ${error.message}` : ""}`);
       return false;
     }
   };
