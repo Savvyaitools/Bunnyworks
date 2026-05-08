@@ -229,6 +229,54 @@ export type Database = {
           },
         ]
       }
+      agency_approvals: {
+        Row: {
+          agency_name: string
+          approved_at: string | null
+          approved_by: string | null
+          created_agency_id: string | null
+          created_at: string
+          created_user_id: string | null
+          email: string
+          full_name: string
+          id: string
+          notes: string | null
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agency_name: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_agency_id?: string | null
+          created_at?: string
+          created_user_id?: string | null
+          email: string
+          full_name: string
+          id?: string
+          notes?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_name?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_agency_id?: string | null
+          created_at?: string
+          created_user_id?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          notes?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_actions: {
         Row: {
           action_type: string
