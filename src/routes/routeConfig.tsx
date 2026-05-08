@@ -73,6 +73,7 @@ const EmployeeApplication = lazy(() => import("@/pages/apply/EmployeeApplication
 // Public pages
 const CreatorLinkPage = lazy(() => import("@/pages/CreatorLinkPage"));
 const Workshop = lazy(() => import("@/pages/Workshop"));
+const AdminConsole = lazy(() => import("@/pages/AdminConsole"));
 
 export type UserType = "agency" | "creator" | "employee";
 
@@ -89,6 +90,7 @@ export interface RouteConfig {
 export const publicRoutes: RouteConfig[] = [
   { path: "/", element: <Landing /> },
   { path: "/auth", element: <Auth /> },
+  { path: "/admin", element: <AdminConsole /> },
   { path: "/employee-login", element: <EmployeeAuth /> },
   { path: "/terms", element: <TermsOfService /> },
   { path: "/privacy", element: <PrivacyPolicy /> },
