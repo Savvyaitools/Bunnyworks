@@ -3854,13 +3854,17 @@ export type Database = {
           fan_username: string | null
           id: string
           is_pinned: boolean | null
+          is_subscribed: boolean
           last_message_at: string | null
           last_message_is_from_me: boolean | null
           last_message_text: string | null
+          lifetime_spend: number
           of_account_id: string
           of_chat_id: string
           of_fan_id: string | null
+          subscribed_until: string | null
           synced_at: string | null
+          tags: string[]
           unread_count: number | null
         }
         Insert: {
@@ -3872,13 +3876,17 @@ export type Database = {
           fan_username?: string | null
           id?: string
           is_pinned?: boolean | null
+          is_subscribed?: boolean
           last_message_at?: string | null
           last_message_is_from_me?: boolean | null
           last_message_text?: string | null
+          lifetime_spend?: number
           of_account_id: string
           of_chat_id: string
           of_fan_id?: string | null
+          subscribed_until?: string | null
           synced_at?: string | null
+          tags?: string[]
           unread_count?: number | null
         }
         Update: {
@@ -3890,13 +3898,17 @@ export type Database = {
           fan_username?: string | null
           id?: string
           is_pinned?: boolean | null
+          is_subscribed?: boolean
           last_message_at?: string | null
           last_message_is_from_me?: boolean | null
           last_message_text?: string | null
+          lifetime_spend?: number
           of_account_id?: string
           of_chat_id?: string
           of_fan_id?: string | null
+          subscribed_until?: string | null
           synced_at?: string | null
+          tags?: string[]
           unread_count?: number | null
         }
         Relationships: [
@@ -4002,6 +4014,155 @@ export type Database = {
           },
         ]
       }
+      of_jobs: {
+        Row: {
+          agency_id: string
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          job_type: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          of_account_id: string
+          payload: Json
+          result: Json | null
+          scheduled_for: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          agency_id: string
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          of_account_id: string
+          payload?: Json
+          result?: Json | null
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          agency_id?: string
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          of_account_id?: string
+          payload?: Json
+          result?: Json | null
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      of_messages: {
+        Row: {
+          agency_id: string
+          body: string | null
+          chat_id: string
+          created_at: string
+          direction: string
+          id: string
+          is_ppv: boolean
+          is_unlocked: boolean
+          media: Json
+          of_message_id: string | null
+          price: number
+          read_at: string | null
+          sent_by_user_id: string | null
+          status: string
+        }
+        Insert: {
+          agency_id: string
+          body?: string | null
+          chat_id: string
+          created_at?: string
+          direction: string
+          id?: string
+          is_ppv?: boolean
+          is_unlocked?: boolean
+          media?: Json
+          of_message_id?: string | null
+          price?: number
+          read_at?: string | null
+          sent_by_user_id?: string | null
+          status?: string
+        }
+        Update: {
+          agency_id?: string
+          body?: string | null
+          chat_id?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          is_ppv?: boolean
+          is_unlocked?: boolean
+          media?: Json
+          of_message_id?: string | null
+          price?: number
+          read_at?: string | null
+          sent_by_user_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "of_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "of_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      of_quick_replies: {
+        Row: {
+          agency_id: string
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          shortcut: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          shortcut: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          shortcut?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       of_sync_logs: {
         Row: {
           agency_id: string | null
@@ -4062,6 +4223,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      of_webhook_events: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          of_account_id: string | null
+          payload: Json
+          processed_at: string | null
+          signature_valid: boolean
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          of_account_id?: string | null
+          payload: Json
+          processed_at?: string | null
+          signature_valid?: boolean
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          of_account_id?: string | null
+          payload?: Json
+          processed_at?: string | null
+          signature_valid?: boolean
+        }
+        Relationships: []
       }
       onlyfans_events: {
         Row: {
