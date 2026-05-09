@@ -1,1 +1,0 @@
-# of-webhook must be public (no JWT) — config block lives in supabase/config.toml.
