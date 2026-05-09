@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Link2, X, ExternalLink, Heart, Sparkles, Star } from "lucide-react";
+import { Plus, Link2, X, ExternalLink, Heart, Sparkles, Star, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { OFConnectDialog } from "./OFConnectDialog";
 
 interface PlatformAccount {
   id: string;
@@ -38,6 +39,7 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ platform: "", username: "", profile_url: "" });
+  const [ofConnectOpen, setOfConnectOpen] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -155,6 +157,17 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
                       </a>
                     </div>
                   )}
+                  {account.platform === "OnlyFans" && !account.of_account_id && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full mt-4 border-primary/40 text-primary hover:bg-primary/10"
+                      onClick={() => setOfConnectOpen(true)}
+                    >
+                      <Zap className="h-3.5 w-3.5 mr-2" />
+                      Connect via OnlyFansAPI
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -191,6 +204,13 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
           </div>
         </DialogContent>
       </Dialog>
+
+      <OFConnectDialog
+        creatorId={creatorId}
+        open={ofConnectOpen}
+        onOpenChange={setOfConnectOpen}
+        onConnected={() => fetchAccounts()}
+      />
     </div>
   );
 }
