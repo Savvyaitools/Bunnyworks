@@ -54,6 +54,7 @@ const mainNavItems = [
   { title: "OF AI", url: "/of-ai", icon: Bot },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Messages", url: "/messages", icon: MessageSquare },
+  { title: "Messages Pro", url: "/messages-pro", icon: MessagesSquare },
   { title: "Team", url: "/team", icon: UserCog },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: Calendar },

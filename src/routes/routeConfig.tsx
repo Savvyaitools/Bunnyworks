@@ -21,6 +21,7 @@ const Employees = lazy(() => import("@/pages/Employees"));
 const Tasks = lazy(() => import("@/pages/Tasks"));
 const Calendar = lazy(() => import("@/pages/Calendar"));
 const Messages = lazy(() => import("@/pages/Messages"));
+const MessagesPro = lazy(() => import("@/pages/MessagesPro"));
 const SOPLibrary = lazy(() => import("@/pages/SOPLibrary"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
@@ -112,6 +113,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/tasks", element: <Tasks />, auth: ["agency"] },
   { path: "/calendar", element: <Calendar />, auth: ["agency"] },
   { path: "/messages", element: <Messages />, auth: ["agency"] },
+  { path: "/messages-pro", element: <MessagesPro />, auth: ["agency"] },
   { path: "/sop", element: <SOPLibrary />, auth: ["agency"] },
   { path: "/invoices", element: <Invoices />, auth: ["agency"] },
   { path: "/notifications", element: <Notifications />, auth: ["agency"] },
