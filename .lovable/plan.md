@@ -1,150 +1,122 @@
 
-# Switch to OnlyFansAPI.com + ship an Infloww-style chat console
+# Messages Pro — Infloww + OnlyMonster-style chat console
 
-## Goal
+Goal: build the OnlyFans messaging surface as an "advanced OnlyFans page" that feels like Infloww's Message Dashboard / OnlyMonster's chatter workspace, powered by OnlyFansAPI.com. This plan covers ONLY the UI + the hooks/realtime needed to make it feel real. Backend edge functions already exist (`of-list-chats`, `of-list-messages`, `of-send-message`, `of-webhook`).
 
-Two parallel tracks, one product:
+## Reference (what we're matching)
 
-1. **Infrastructure swap** — every OnlyFans operation moves from Browserbase/Stagehand to OnlyFansAPI.com REST + webhooks. Browserbase is repurposed to Instagram/TikTok/X/Threads automation only.
-2. **Chatting console** — a new "Messages Pro"-style 3-pane interface (creators ▸ chats ▸ conversation) modeled after Infloww, powered entirely by the API. Becomes the primary daily surface for chatters.
+**Infloww Messages Pro / Message Dashboard**
+- Dark theme, rounded cards, orange accent, dense rows.
+- Each chat row shows: avatar, name, "Sent X · Purchased Y · Earnings $Z", last-message preview, time.
+- Manager-style overview: filter by employee/chatter, sensitive-word flags, sales attribution per message.
 
-## Track 1 — OnlyFansAPI.com migration
+**OnlyMonster chatter workspace**
+- Detachable Fan Notes widget (right side) — fan score 0–5, custom notes/tags, purchase history.
+- Speed Chatting Mode: slash-templates, hotkeys, "press Enter to send", queue next chat after send.
+- Media Hub: tagged/priced vault items, drag into composer.
+- Chargeback % badge on risky fans, AI fan-score chip (whale tiers).
 
-### Surface map (what moves)
+## Layout
 
-```text
-Account connect            -> POST /api/authenticate (email_password | raw_data | mobile_app deeplink/QR)
-Chat list / messages       -> /chats, /chat-messages
-Send message + PPV + media -> /chat-messages/send (rate-limit aware)
-Mass DM                    -> /mass-messaging
-Earnings + transactions    -> /payouts/* (replaces cron-scrape-earnings)
-Fans (active/expired/spend)-> /fans/* (replaces FanAnalytics scraper)
-Vault + media upload       -> /media-vault, /media
-Posts / queue / stories    -> dedicated endpoints
-Realtime                   -> webhooks: messages.received/sent, ppv.unlocked, subs.new/renewed/expired, tips, posts, payouts
-Public creator search      -> replaces of-creator-search
-```
-
-Stays on Browserbase: Instagram, TikTok, X, Threads, Apify-driven scraping, social stats sync, account warming.
-
-### Data model
-
-New tables (all RLS-scoped to `agency_id`):
-
-- `of_api_accounts` — `creator_id`, `of_account_id`, `of_username`, `auth_type`, `status` (`pending|active|2fa_required|disconnected`), `last_synced_at`, `metadata jsonb`.
-- `of_chats` — `of_account_id`, `fan_id` (string from API), `fan_username`, `fan_name`, `fan_avatar_url`, `last_message_at`, `last_message_preview`, `unread_count`, `lifetime_spend numeric`, `is_subscribed bool`, `subscribed_until`, `tags text[]`, `pinned bool`.
-- `of_messages` — `chat_id`, `of_message_id` (unique), `direction` (`in|out`), `body`, `price numeric`, `is_ppv bool`, `is_unlocked bool`, `media jsonb`, `sent_by_user_id`, `created_at`, `read_at`.
-- `of_fans` — durable fan profile per `of_account_id` + `fan_id`, includes spend, subscription state, source.
-- `of_webhook_events` — raw event log, 30-day retention via existing maintenance cron.
-- `of_quick_replies` — agency-scoped saved scripts/snippets with variables.
-- `of_jobs` — outbound queue (mass DM, batch sync) using the same `FOR UPDATE SKIP LOCKED` pattern as `scrape_jobs`.
-
-### Edge functions (new)
+Looks like an OF page itself, not a generic CRM. Pure-black canvas, glass panels, electric accent.
 
 ```text
-of-connect-account     POST /api/authenticate; persists of_api_accounts; returns 2FA / mobile deeplink state
-of-list-chats          paginated proxy + DB upsert into of_chats
-of-list-messages       paginated proxy + DB upsert into of_messages
-of-send-message        validates ownership, posts to API, optimistic insert into of_messages
-of-mass-message        enqueues into of_jobs, processed by of-jobs-worker
-of-jobs-worker         claim_jobs() pattern, respects per-account rate limits
-of-sync-earnings       /payouts/* -> earnings tables (replaces cron-scrape-earnings)
-of-sync-fans           /fans/* -> of_fans
-of-vault-upload        wraps media upload + post create
-of-search-creators     replaces of-creator-search
-of-webhook             PUBLIC verify_jwt=false, HMAC-verified, fans events to DB + Realtime + push
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│  TopBar: [Creator switcher ▾] [Online dot] [Unread totals] [Filters] [⚙ Speed mode] [AI] │
+├────────┬────────────────────────┬─────────────────────────────────┬──────────────────────┤
+│ Rail   │ ChatList               │ Conversation                    │ FanSidebar           │
+│ 64px   │ 320–360px              │ flex-1                          │ 320px (collapsible)  │
+│        │                        │                                 │                      │
+│ avatar │ Tabs: All · Unread ·   │ Sticky header:                  │ Avatar + @username   │
+│ stack  │ Subscribed · VIP ·     │   avatar · name · spend · subs  │ Whale score 🐳 0–5   │
+│ per OF │ Expired · Tipped ·     │   "Open in OF" · ⋯              │ Lifetime $           │
+│ acct   │ Flagged                │                                 │ Subs: active/expires │
+│ +unread│                        │ Timeline (virtualized):         │ Last seen            │
+│ badge  │ Search + filter chips: │   day separators                │                      │
+│ status │  price range, age,     │   in/out bubbles                │ Tags (chips, +)      │
+│ pill   │  has-PPV-unread,       │   PPV cards (locked / paid)     │ Internal notes (rich)│
+│        │  online, whale tier    │   tip badges, media thumbs      │                      │
+│        │                        │   read receipts, pending dot    │ Purchase history     │
+│        │ Bulk-select toolbar    │                                 │ Recent media bought  │
+│        │  → Mass DM             │ Composer:                       │                      │
+│        │                        │   textarea (autoresize)         │ Quick actions:       │
+│        │ ChatListItem rows:     │   row1: 📎 vault · 😀 emoji ·   │  Block · Restrict ·  │
+│        │  avatar (online dot)   │          GIF · 🎤 voice         │  Refund · ⭐ VIP ·   │
+│        │  Name · @user          │   row2: 💎 PPV $__ · ⏱ schedule│  Add to list         │
+│        │  Spent $ · Sent N      │          · ⏳ expire · /scripts │                      │
+│        │  Last msg preview      │   send button + rate-limit dot  │ Chargeback %         │
+│        │  • unread badge        │                                 │ AI Suggest panel     │
+│        │  📌 pinned · 🚩 flag   │ AI suggestion bar (slides up    │  (3 reply variants,  │
+│        │  time                  │  above composer when toggled)   │   tone selector)     │
+│        │                        │                                 │                      │
+└────────┴────────────────────────┴─────────────────────────────────┴──────────────────────┘
 ```
 
-Shared lib `_shared/of-api-client.ts` mirrors `stagehand-helpers.ts` convention: one typed `ofFetch(agencyId, ofAccountId, path, init)` wrapper using `withRetry` + `AppError`.
+Mobile (<md): Rail collapses to top creator dropdown; only one pane visible at a time (ChatList → Conversation → FanSidebar drawer).
 
-Deprecate (mark, don't delete in v1): OF code paths in `browserbase-session/*`, `cron-scrape-earnings`, OF send paths in `ai-chatter`, `upload-browserbase-extension` (if OF-only).
-
-### Secrets
-
-- `ONLYFANSAPI_KEY` — platform API key (single key v1).
-- `ONLYFANSAPI_WEBHOOK_SECRET` — HMAC verification.
-
-Per-agency keys later via an `agency_integrations` table if billing pass-through is needed.
-
-### Cutover phases
-
-1. Foundations: secrets, tables, shared client, `of-connect-account`, new connect UI.
-2. Reads: earnings/fans/chats sync behind `use_of_api` per-agency feature flag, with backfill.
-3. Writes + realtime: send/mass-DM/vault/webhook + chat console wired up; OF cron disabled.
-4. Decommission: strip OF from Browserbase functions and frontend session components, drop unused tables/cron, refresh memory + docs. Browserbase nav becomes "Social Automation".
-
-## Track 2 — Infloww-style "Messages Pro" console
-
-### Layout
+## Components (new, under `src/components/messages-pro/`)
 
 ```text
-+--------+--------------------+--------------------------------+--------------+
-| Creator | Chats list          | Conversation                   | Fan profile  |
-| switcher| (search, filters,   | (sticky header w/ fan info,    | (lifetime    |
-| (avatars| tabs, pinned)       | scrollable timeline,           | spend, subs, |
-| + status|                     | composer w/ PPV+media+price)   | tags, notes, |
-| pills)  |                     |                                | quick acts)  |
-+--------+--------------------+--------------------------------+--------------+
+MessagesProShell.tsx        // grid layout, panel sizing, mobile pane swap
+TopBar.tsx                  // creator switcher (combobox), totals, speed-mode toggle
+CreatorRail.tsx             // 64px vertical avatar list, unread badge, status dot
+ChatList.tsx                // tabs + search + chips + virtualized list (react-window)
+ChatListItem.tsx            // dense row, $ spend, last msg, unread, pin/flag
+ChatFilters.tsx             // chips: price range, age, PPV-unread, online, whale tier
+ConversationHeader.tsx      // sticky, fan summary, "Open on OF" link
+MessageTimeline.tsx         // virtualized, infinite-scroll-back, day separators
+MessageBubble.tsx           // text / media / tip / PPV (locked vs unlocked)
+PPVCard.tsx                 // price, blurred preview, paid badge, unlock time
+Composer.tsx                // textarea + toolbar + PPV/schedule/expire + slash menu
+QuickReplyMenu.tsx          // "/" autocomplete from of_quick_replies
+VaultPickerDialog.tsx       // grid of media, multi-select, tag filter, price tag
+AISuggestPanel.tsx          // calls ai-chatter, shows 3 variants, "Insert" button
+FanSidebar.tsx              // right pane: profile, score, tags, notes, history, actions
+FanScoreBadge.tsx           // whale 0–5 chip with color ramp
+TagsEditor.tsx              // inline chip editor (add/remove)
+InternalNotes.tsx           // textarea per-fan, agency-scoped, autosave
+PurchaseHistoryList.tsx     // recent transactions for this fan
+SpeedModeSettings.tsx       // popover: enter-to-send, auto-next chat, hotkeys
+MassDMDrawer.tsx            // audience preview from current filters + composer reuse
+RateLimitIndicator.tsx      // small pulsing dot with per-account remaining quota
 ```
 
-Routes under `/messages-pro` (keep `/messages` until cutover).
+## Hooks (new, under `src/hooks/`)
 
-### Components (new under `src/components/messages-pro/`)
+```text
+useOfAccounts(creatorId?)   // list connected of_api accounts for rail
+useOfChats(ofAccountId, filters)  // exists; extend with filters + search
+useOfMessages(chatId)       // backward infinite scroll + realtime
+useSendOfMessage()          // optimistic insert, reconciles via webhook
+useVaultMedia(ofAccountId)  // paginated vault list (calls of-list-vault later)
+useFanProfile(chatId)       // fan + tags + internal notes + purchase history
+useQuickReplies(agencyId)   // CRUD of_quick_replies for slash menu
+useSpeedModeSettings()      // localStorage + zustand-light toggle
+useAISuggestReply(chatId)   // wraps ai-chatter, returns variants
+```
 
-- `CreatorRail` — vertical avatar list, online/2FA badges, unread totals.
-- `ChatList` — virtualized list (react-window). Search, tabs (All / Unread / Subscribed / Expired / VIP / Tipped), sort (recent / spend / unread), filter chips (price-range, last-message age, has-PPV-unread, online), bulk-select for mass DM.
-- `ChatListItem` — avatar, name + @username, last message preview, lifetime spend, unread badge, time, pinned indicator.
-- `ConversationHeader` — fan avatar + name, online dot, lifetime spend, subscription state, "open in OF" link, "AI suggest" toggle.
-- `MessageTimeline` — virtualized, day separators, infinite scroll backwards, image/video thumbnails, locked PPV state, tip badges, read receipts, optimistic pending state.
-- `Composer` — multiline textarea with autoresize, emoji picker, attach (vault picker + upload), PPV toggle (price input), schedule (date/time), expire-after (free-trial PPV), quick-reply slash menu (`/`), AI suggest button (calls `ai-chatter` and inserts), character counter, send button with rate-limit hint.
-- `VaultPickerDialog` — grid from `of-list-vault-media`, multi-select, search, type filter.
-- `FanSidebar` — lifetime spend, subscription dates, recent purchases, tags editor, internal notes (agency-scoped), quick actions (block, restrict, refund request, mark VIP, add to list).
-- `QuickRepliesManager` — CRUD over `of_quick_replies`, variables `{fan_name}`, `{creator_name}`.
-- `MassDMComposer` — drawer reusing Composer + audience selector (filters from ChatList) + dry-run count + confirm; submits to `of-mass-message`.
+All built on `useAgencyScopedCRUD` per project convention. Realtime via existing `of_chats`/`of_messages` Postgres-changes subscription.
 
-### Real-time
+## Routing
 
-- Subscribe to Postgres changes on `of_messages` and `of_chats` filtered by current `of_account_id` (Realtime publication add).
-- `of-webhook` writes to those tables; client receives instant updates, no polling.
-- Composer optimistic insert; reconciled via webhook id.
+- New page `src/pages/MessagesPro.tsx` mounted at `/messages-pro` in `src/routes/routeConfig.tsx` (wrapped in DashboardLayout, code-split with `lazy()`).
+- Sidebar entry "Messages Pro" with NEW badge; existing `/messages` (internal team chat) stays untouched.
 
-### Hooks
+## Visual language
 
-- `useOfAccounts(creatorId?)` — list connected accounts, switcher state.
-- `useOfChats(ofAccountId, filters)` — server-side pagination + Realtime patching.
-- `useOfMessages(chatId)` — backward infinite scroll + Realtime.
-- `useSendOfMessage()` — mutation with optimistic update + retry.
-- `useVaultMedia(ofAccountId)` — paginated.
-- `useFanProfile(chatId)` — fan + tags + internal notes.
+- Pure black canvas (`hsl(0 0% 4%)`), glass panels at 70% opacity with subtle border + glow (project's existing AIaaS aesthetic).
+- Accent: existing primary; PPV uses gold, tips use green, flagged uses red — all via semantic tokens added to `index.css` (`--ppv`, `--tip`, `--flag`, `--whale-1..5`).
+- Dense typography (text-sm rows, text-xs metadata), avatars 36–40px in list, 48px in header.
+- Smooth optimistic states (pending bubble pulses, replaced when webhook arrives).
+- Keyboard-first: `J/K` to move chats, `Enter` to send, `/` for quick reply, `⌘K` command palette scoped to current chat.
 
-All built on `useAgencyScopedCRUD` / `useSupabaseCRUD` per project convention.
+## What this plan does NOT cover
 
-### AI integration
+- New edge functions (vault upload, mass-DM worker, sync earnings/fans) — separate plan.
+- Historical message backfill.
+- AI fan-score model itself (UI only consumes a `fan_score` field; we'll seed from spend tier until the model lands).
+- Migration off `/messages` (kept side-by-side for one cycle).
 
-- "Suggest reply" button → existing `ai-chatter` function, but receives full message history from `of_messages` (no scraping). Output goes into composer for review (never auto-send).
-- Auto-tag / sentiment scoring on incoming messages via webhook → store on `of_messages`.
+## Open question for you
 
-### Permissions
-
-- Reuse existing chatter assignment table: a chatter only sees creators they're assigned to. Owners see all.
-- Audit log row on every send/mass-DM (who, when, fan, body hash).
-
-### Performance
-
-- react-window for both chat list and message timeline.
-- React Query with `staleTime: 30s`, Realtime invalidation per chat.
-- Image lazy load, blurhash placeholder where API provides it.
-- Code-split `/messages-pro` route.
-
-## Risks / open questions
-
-- OnlyFansAPI rate limits per account → `of-jobs` worker required for mass DM; warn in UI before send.
-- Existing chatter habits → keep `/messages` live in parallel for one release cycle, default new users to `/messages-pro`.
-- Migration of historical scraped messages → optional one-time backfill per creator.
-- Mobile chatter UX → second iteration after desktop console ships.
-
-## Out of scope (this plan)
-
-- Per-agency API key billing UI.
-- AI prompt rewrites.
-- Native mobile app.
+Right side: do you want the **FanSidebar always visible** (Infloww style, fixed 320px) or **detachable/floating widget** (OnlyMonster style, movable + hideable)? I'll default to fixed-collapsible if you don't pick.
