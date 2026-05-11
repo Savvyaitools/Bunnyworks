@@ -94,7 +94,7 @@ export default function Index() {
 
   return (
     <DashboardLayout>
-      <section className="relative -m-5 min-h-[calc(100dvh-2rem)] overflow-hidden bg-background lg:-m-8 xl:-mx-10">
+      <section className="relative -m-5 min-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden bg-background lg:-m-8 xl:-mx-10">
         <div className="absolute inset-0 bg-[url('/ops-room/background.jpg')] bg-cover bg-center opacity-60" aria-hidden="true" />
         <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/20 to-background" aria-hidden="true" />
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" aria-hidden="true" />
@@ -179,7 +179,7 @@ function OpsPanel({ panel, visualSlot, metrics, activeCreators, activeEmployees,
       onClick={onFocus}
       aria-label={`Show ${meta.label}`}
       className={cn(
-        "absolute left-1/2 top-1/2 block w-[min(92%,680px)] -translate-x-1/2 -translate-y-1/2 text-left transition-all duration-500 ease-out preserve-3d focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
+        "absolute left-1/2 top-1/2 block w-[min(78%,680px)] -translate-x-1/2 -translate-y-1/2 text-left transition-all duration-500 ease-out preserve-3d focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
         visualSlot === "center" && "z-30 scale-100 opacity-100",
         visualSlot === "left" && "z-20 -translate-x-[92%] scale-[0.78] opacity-70 blur-[0.3px]",
         visualSlot === "right" && "z-20 -translate-x-[8%] scale-[0.78] opacity-70 blur-[0.3px]",
