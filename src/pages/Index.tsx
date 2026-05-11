@@ -1,59 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { Bot, ChevronLeft, ChevronRight, Crown, DollarSign, LayoutDashboard, MessageSquare, Sparkles, TrendingUp, Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAgency } from "@/hooks/useAgency";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-/**
- * BunnyWorks Ops Room — 3D dashboard.
- *
- * The scene comes from /public/ops-room/bundle.js, which mounts a React tree
- * of its own onto `#opsroom-root` via `createRoot`. We treat the bundle as a
- * one-shot side-effect: load the script + font once per page lifetime, never
- * re-execute it (re-executing causes React error #299 because `createRoot`
- * gets called twice on the same node), and just leave the DOM intact across
- * route transitions on this page.
- */
-const FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap";
-const BUNDLE_VERSION = "bunny-room-v2";
-const BUNDLE_SRC = `/ops-room/bundle.js?v=${BUNDLE_VERSION}`;
-const BUNDLE_SCRIPT_SELECTOR = 'script[data-opsroom="1"]';
+type PanelKey = "agents" | "dashboard" | "leaderboard";
+type VisualSlot = "left" | "center" | "right";
 
-function injectOpsRoomBundle(force = false) {
-  const existing = document.querySelector<HTMLScriptElement>(BUNDLE_SCRIPT_SELECTOR);
-  if (existing && !force) return;
-  existing?.remove();
+const panelOrder: PanelKey[] = ["agents", "dashboard", "leaderboard"];
 
-  const script = document.createElement("script");
-  script.type = "module";
-  script.src = force ? `${BUNDLE_SRC}&remount=${Date.now()}` : BUNDLE_SRC;
-  script.dataset.opsroom = "1";
-  script.onload = () => {
-    script.dataset.loaded = "1";
-  };
-  document.body.appendChild(script);
-}
+const panelLabels: Record<PanelKey, string> = {
+  agents: "AI Agents",
+  dashboard: "Dashboard",
+  leaderboard: "Leaderboard",
+};
 
-function ensureOpsRoomAssets() {
-  if (!document.querySelector(`link[data-opsroom="1"]`)) {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = FONT_HREF;
-    link.dataset.opsroom = "1";
-    document.head.appendChild(link);
-  }
-  injectOpsRoomBundle();
+function currency(value: number) {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
 }
 
 export default function Index() {
+  const [activePanel, setActivePanel] = useState<PanelKey>("dashboard");
   const { data: stats } = useDashboardStats();
   const { agency } = useAgency();
 
-  // Real revenue (sum of creator earnings, current month).
   const { data: revenue } = useQuery({
     queryKey: ["ops-room-revenue", agency?.id],
     enabled: Boolean(agency?.id),
@@ -62,371 +35,235 @@ export default function Index() {
       const start = new Date();
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
+
       const { data: creators } = await supabase
         .from("creators")
         .select("id")
         .eq("agency_id", agency!.id);
-      const ids = (creators ?? []).map((c: { id: string }) => c.id);
-      if (ids.length === 0) return { net: 0, agency: 0 };
+
+      const ids = (creators ?? []).map((creator: { id: string }) => creator.id);
+      if (!ids.length) return { net: 0, agency: 0 };
+
       const { data: earnings } = await supabase
         .from("creator_earnings")
         .select("amount")
         .in("creator_id", ids)
         .gte("period_start", start.toISOString().slice(0, 10));
+
       const net = (earnings ?? []).reduce(
-        (s: number, r: { amount: number | string | null }) =>
-          s + Number(r.amount ?? 0),
+        (sum: number, row: { amount: number | string | null }) => sum + Number(row.amount ?? 0),
         0,
       );
+
       return { net, agency: net * 0.5 };
     },
   });
 
-  // Inject the bundle once per page-lifetime — no cleanup, since the bundle
-  // itself owns its own React root and tearing it down mid-flight throws #299.
-  useEffect(() => {
-    ensureOpsRoomAssets();
+  const visualSlots = useMemo(() => {
+    const activeIndex = panelOrder.indexOf(activePanel);
+    return panelOrder.reduce<Record<PanelKey, VisualSlot>>((acc, panel, index) => {
+      const relative = (index - activeIndex + panelOrder.length) % panelOrder.length;
+      acc[panel] = relative === 0 ? "center" : relative === 1 ? "right" : "left";
+      return acc;
+    }, {} as Record<PanelKey, VisualSlot>);
+  }, [activePanel]);
 
-    const verifyMount = window.setTimeout(() => {
-      const root = document.getElementById("opsroom-root");
-      if (root && root.childElementCount === 0) {
-        injectOpsRoomBundle(true);
-      }
-    }, 600);
-
-    return () => window.clearTimeout(verifyMount);
-  }, []);
-
-  // Patch dummy values inside the rendered Ops Room with real data.
-  // Uses MutationObserver instead of setInterval so we react exactly when
-  // the bundle finishes painting, not on a fixed timer.
-  const revenueRef = useRef(revenue);
-  const statsRef = useRef(stats);
-  revenueRef.current = revenue;
-  statsRef.current = stats;
-
-  const applyReal = useCallback(() => {
-    const root = document.getElementById("opsroom-root");
-    if (!root) return;
-    const rev = revenueRef.current;
-    const st = statsRef.current;
-    if (!rev && !st) return;
-
-    const fmt = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
-      const text = node as Text;
-      const v = text.nodeValue;
-      if (!v) continue;
-      if (rev) {
-        if (v === "$28,961") text.nodeValue = fmt(rev.net);
-        else if (v === "$14,481") text.nodeValue = fmt(rev.agency);
-      }
-      if (st && (v === "5" || v === "4")) {
-        const labelText = text.parentElement?.parentElement?.textContent ?? "";
-        if (v === "5" && /ACTIVE CREATORS/i.test(labelText)) {
-          text.nodeValue = String(st.activeCreators);
-        } else if (v === "4" && /TEAM MEMBERS/i.test(labelText)) {
-          text.nodeValue = String(st.activeEmployees);
-        }
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const root = document.getElementById("opsroom-root");
-    if (!root) return;
-
-    let raf = 0;
-    const schedule = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(applyReal);
-    };
-
-    schedule();
-    const observer = new MutationObserver(schedule);
-    observer.observe(root, { childList: true, subtree: true, characterData: true });
-
-    // Stop observing after 10s — the bundle is fully settled by then.
-    const stop = window.setTimeout(() => observer.disconnect(), 10_000);
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(raf);
-      window.clearTimeout(stop);
-    };
-  }, [applyReal, stats, revenue]);
-
-  useEffect(() => {
-    const root = document.getElementById("opsroom-root");
-    if (!root) return;
-
-    let raf = 0;
-    const syncCarousel = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => applySlotStyles(activeSlot));
-    };
-
-    syncCarousel();
-    const observer = new MutationObserver(syncCarousel);
-    observer.observe(root, { childList: true, subtree: true });
-
-    const retry = window.setInterval(syncCarousel, 250);
-    const stop = window.setTimeout(() => window.clearInterval(retry), 5_000);
-
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(raf);
-      window.clearInterval(retry);
-      window.clearTimeout(stop);
-    };
-  }, []);
+  const cycle = (direction: "prev" | "next") => {
+    const index = panelOrder.indexOf(activePanel);
+    const nextIndex = direction === "next" ? index + 1 : index - 1;
+    setActivePanel(panelOrder[(nextIndex + panelOrder.length) % panelOrder.length]);
+  };
 
   return (
     <DashboardLayout>
-      <div
-        className="-m-5 lg:-m-8 xl:-mx-10"
+      <section
+        className="relative -m-5 min-h-[calc(100dvh-2rem)] overflow-hidden bg-background lg:-m-8 xl:-mx-10"
         style={{
-          position: "relative",
-          height: "calc(100dvh - 2rem)",
-          width: "auto",
-          overflow: "hidden",
-          backgroundColor: "#08040c",
-          backgroundImage: `url('/ops-room/background.jpg?v=${BUNDLE_VERSION}')`,
+          backgroundImage: `linear-gradient(180deg, hsl(var(--background) / 0.1), hsl(var(--background) / 0.38)), url('/ops-room/background.jpg')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
         }}
       >
-        <div
-          id="opsroom-root"
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 1,
-            background: "transparent",
-          }}
-        />
-      </div>
-      <CarouselNav />
-      {/* Override the bundle's hard-coded 100vw/100vh on its root container
-          so the 3D scene fills the available area inside the sidebar layout
-          instead of overflowing to the right and leaving a black gap. */}
-      <style>{`
-        #opsroom-root > div {
-          width: 100% !important;
-          height: 100% !important;
-          background: transparent !important;
-          max-width: 100% !important;
-          overflow: hidden !important;
-        }
-        #opsroom-root canvas {
-          width: 100% !important;
-          height: 100% !important;
-          display: block;
-        }
-        #opsroom-root [data-ops-visual-slot="center"] {
-          left: 50% !important;
-          right: auto !important;
-          top: 50% !important;
-          bottom: auto !important;
-          width: clamp(520px, 40vw, 780px) !important;
-          transform: translate(-50%, -50%) !important;
-          z-index: 24 !important;
-        }
-        #opsroom-root [data-ops-visual-slot="left"] {
-          left: 1.5% !important;
-          right: auto !important;
-          top: 53% !important;
-          bottom: auto !important;
-          width: clamp(360px, 32vw, 680px) !important;
-          transform: translateY(-50%) !important;
-          z-index: 12 !important;
-        }
-        #opsroom-root [data-ops-visual-slot="right"] {
-          left: auto !important;
-          right: 1.5% !important;
-          top: 53% !important;
-          bottom: auto !important;
-          width: clamp(360px, 32vw, 680px) !important;
-          transform: translateY(-50%) !important;
-          z-index: 12 !important;
-        }
-        #opsroom-root [data-ops-visual-slot="center"] > div {
-          transform: rotateY(0deg) !important;
-        }
-        #opsroom-root [data-ops-visual-slot="left"] > div {
-          transform: rotateY(22deg) !important;
-        }
-        #opsroom-root [data-ops-visual-slot="right"] > div {
-          transform: rotateY(-22deg) !important;
-        }
-      `}</style>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.18),transparent_44%)]" />
+        <div className="pointer-events-none absolute right-7 top-6 z-30 flex items-center gap-2 font-display text-xs uppercase tracking-[0.24em] text-success">
+          <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_12px_hsl(var(--success))]" />
+          Live
+        </div>
+
+        <div className="relative h-[calc(100dvh-2rem)] min-h-[720px] [perspective:1800px]">
+          <OpsPanel panel="agents" slot={visualSlots.agents} active={activePanel === "agents"} onFocus={setActivePanel}>
+            <AgentsPanel />
+          </OpsPanel>
+          <OpsPanel panel="dashboard" slot={visualSlots.dashboard} active={activePanel === "dashboard"} onFocus={setActivePanel}>
+            <DashboardPanel revenue={revenue} activeCreators={stats?.activeCreators ?? 0} activeEmployees={stats?.activeEmployees ?? 0} />
+          </OpsPanel>
+          <OpsPanel panel="leaderboard" slot={visualSlots.leaderboard} active={activePanel === "leaderboard"} onFocus={setActivePanel}>
+            <LeaderboardPanel />
+          </OpsPanel>
+        </div>
+
+        <CarouselNav activePanel={activePanel} onSelect={setActivePanel} onCycle={cycle} />
+      </section>
     </DashboardLayout>
   );
 }
 
-/**
- * The Ops Room renders three independently positioned panels (AI Agents,
- * Dashboard, Leaderboard). The bundle does not expose a carousel API, so the
- * external nav finds the panel shells by their text content and moves them
- * into left/center/right visual slots. This is more reliable than depending on
- * the bundle's hard-coded inline `left` / `right` values.
- */
-type SlotKey = "left" | "center" | "right";
+function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey; slot: VisualSlot; active: boolean; onFocus: (panel: PanelKey) => void; children: ReactNode }) {
+  const slotClass = {
+    center: "left-1/2 top-1/2 z-30 w-[min(48vw,820px)] opacity-100",
+    left: "left-[1.5%] top-[53%] z-20 w-[min(37vw,690px)] opacity-90",
+    right: "right-[1.5%] top-[53%] z-20 w-[min(37vw,690px)] opacity-90",
+  }[slot];
 
-function findPanels(): Record<SlotKey, HTMLElement | null> {
-  const root = document.getElementById("opsroom-root");
-  if (!root) return { left: null, center: null, right: null };
-  const panelShells = Array.from(root.querySelectorAll<HTMLElement>("div"))
-    .filter((el) => {
-      const style = el.getAttribute("style") || "";
-      const box = el.getBoundingClientRect();
-      return (
-        /position:\s*absolute/.test(style) &&
-        (/aspect-ratio:\s*1\.(45|55)/.test(style) || /width:\s*clamp\((360|440)px/.test(style)) &&
-        box.width > 280 &&
-        box.height > 160
-      );
-    })
-    .sort((a, b) => {
-      const aBox = a.getBoundingClientRect();
-      const bBox = b.getBoundingClientRect();
-      return bBox.width * bBox.height - aBox.width * aBox.height;
-    });
-
-  const byText = (pattern: RegExp) =>
-    panelShells.find((el) => pattern.test(el.textContent ?? "")) ?? null;
-
-  return {
-    left: byText(/AI\s*Agents/i) ?? panelShells.find((el) => /left:\s*1\.5%/.test(el.getAttribute("style") || "")) ?? null,
-    center: byText(/\bDashboard\b/i) ?? panelShells.find((el) => /bottom:\s*32%/.test(el.getAttribute("style") || "")) ?? null,
-    right: byText(/Creator\s*Leaderboard|Agency\s*cut|Addison\s*Weems/i) ?? panelShells.find((el) => /right:\s*1\.5%/.test(el.getAttribute("style") || "")) ?? null,
-  };
-}
-
-let activeSlot: SlotKey = "center";
-const slotListeners = new Set<(s: SlotKey) => void>();
-let reapplyTimer: number | null = null;
-
-function applySlotStyles(target: SlotKey) {
-  const panels = findPanels();
-  if (!panels.left || !panels.center || !panels.right) return;
-
-  const order: SlotKey[] = ["left", "center", "right"];
-  const visualSlotFor = (panel: SlotKey): SlotKey => {
-    const relative = (order.indexOf(panel) - order.indexOf(target) + order.length) % order.length;
-    return relative === 0 ? "center" : relative === 1 ? "right" : "left";
+  const transformBySlot: Record<VisualSlot, CSSProperties["transform"]> = {
+    center: "translate3d(-50%, -50%, 0) rotateY(0deg) scale(1)",
+    left: "translate3d(0, -50%, 0) rotateY(23deg) scale(0.95)",
+    right: "translate3d(0, -50%, 0) rotateY(-23deg) scale(0.95)",
   };
 
-  const place = (el: HTMLElement, slot: SlotKey) => {
-    el.dataset.opsVisualSlot = slot;
-    el.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1), left 420ms, right 420ms, top 420ms, width 420ms";
-    el.style.bottom = "auto";
-    el.style.pointerEvents = "auto";
-
-    if (slot === "center") {
-      el.style.zIndex = "24";
-      el.style.left = "50%";
-      el.style.right = "auto";
-      el.style.top = "50%";
-      el.style.setProperty("width", "clamp(520px, 40vw, 780px)", "important");
-      el.style.setProperty("transform", "translate(-50%, -50%)", "important");
-    } else {
-      el.style.zIndex = "12";
-      el.style.left = slot === "left" ? "1.5%" : "auto";
-      el.style.right = slot === "right" ? "1.5%" : "auto";
-      el.style.top = "53%";
-      el.style.setProperty("width", "clamp(360px, 32vw, 680px)", "important");
-      el.style.setProperty("transform", "translateY(-50%)", "important");
-    }
-
-    const inner = el.firstElementChild as HTMLElement | null;
-    if (inner) {
-      inner.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
-      const tilt = slot === "left" ? 22 : slot === "right" ? -22 : 0;
-      inner.style.setProperty("transform", `rotateY(${tilt}deg)`, "important");
-    }
-  };
-
-  order.forEach((panel) => {
-    place(panels[panel]!, visualSlotFor(panel));
-  });
-}
-
-function focusSlot(target: SlotKey) {
-  activeSlot = target;
-  slotListeners.forEach((fn) => fn(target));
-  applySlotStyles(target);
-  window.setTimeout(() => applySlotStyles(activeSlot), 0);
-  window.setTimeout(() => applySlotStyles(activeSlot), 450);
-  // Re-apply for ~2s in case the bundle re-renders panels and clobbers our inline styles.
-  if (reapplyTimer) window.clearInterval(reapplyTimer);
-  let ticks = 0;
-  reapplyTimer = window.setInterval(() => {
-    applySlotStyles(activeSlot);
-    if (++ticks > 20) {
-      window.clearInterval(reapplyTimer!);
-      reapplyTimer = null;
-    }
-  }, 100);
-}
-
-function cycleSlot(direction: "prev" | "next") {
-  const order: SlotKey[] = ["left", "center", "right"];
-  const i = order.indexOf(activeSlot);
-  const next =
-    direction === "next"
-      ? order[(i + 1) % order.length]
-      : order[(i - 1 + order.length) % order.length];
-  focusSlot(next);
-}
-
-function CarouselNav() {
-  const [current, setCurrent] = useState<SlotKey>(activeSlot);
-  useEffect(() => {
-    const fn = (s: SlotKey) => setCurrent(s);
-    slotListeners.add(fn);
-    return () => {
-      slotListeners.delete(fn);
-    };
-  }, []);
   return (
-    <div
-      className="pointer-events-none fixed bottom-6 z-[60] flex items-center justify-center gap-2"
-      style={{ left: "var(--sidebar-width, 16rem)", right: 0 }}
+    <button
+      type="button"
+      onClick={() => onFocus(panel)}
+      aria-label={`Focus ${panelLabels[panel]}`}
+      className={cn(
+        "absolute aspect-[1.55/1] origin-center text-left transition-all duration-500 [transform-style:preserve-3d] hover:drop-shadow-[0_0_28px_hsl(var(--primary)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        slotClass,
+        active && "drop-shadow-[0_0_30px_hsl(var(--primary)/0.32)]",
+      )}
+      style={{ transform: transformBySlot[slot] }}
     >
-      <button
-        type="button"
-        aria-label="Previous panel"
-        onClick={() => cycleSlot("prev")}
-        className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur-md transition hover:bg-black/80 hover:scale-105"
-      >
+      <div className="h-full overflow-hidden rounded-md border border-primary/55 bg-card/90 shadow-2xl backdrop-blur-xl">
+        <div className="flex h-11 items-center justify-between border-b border-primary/35 bg-primary/10 px-4">
+          <span className="font-display text-sm font-bold uppercase tracking-[0.22em] text-foreground">{panelLabels[panel]}</span>
+          <ChevronRight className="h-4 w-4 text-primary" />
+        </div>
+        {children}
+      </div>
+    </button>
+  );
+}
+
+function DashboardPanel({ revenue, activeCreators, activeEmployees }: { revenue?: { net: number; agency: number }; activeCreators: number; activeEmployees: number }) {
+  const kpis = [
+    { label: "Net Revenue", value: currency(revenue?.net ?? 0), icon: DollarSign, tint: "text-success" },
+    { label: "Agency Earnings", value: currency(revenue?.agency ?? 0), icon: TrendingUp, tint: "text-primary" },
+    { label: "Active Creators", value: String(activeCreators), icon: Sparkles, tint: "text-accent" },
+    { label: "Team Members", value: String(activeEmployees), icon: Users, tint: "text-warning" },
+  ];
+
+  return (
+    <div className="flex h-[calc(100%-2.75rem)] flex-col gap-3 p-3">
+      <div className="grid grid-cols-4 gap-2">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className="rounded-md border border-border bg-background/55 p-3">
+            <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <span className="truncate">{kpi.label}</span>
+              <kpi.icon className={cn("h-3.5 w-3.5", kpi.tint)} />
+            </div>
+            <div className="mt-2 font-mono text-xl font-bold text-foreground">{kpi.value}</div>
+          </div>
+        ))}
+      </div>
+      <div className="flex-1 rounded-md border border-border bg-background/50 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold uppercase tracking-[0.16em] text-foreground">Monthly Performance</h2>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Net earnings</span>
+        </div>
+        <div className="grid h-[72%] grid-cols-4 items-end gap-7 border-b border-border/80 px-8 pb-7">
+          {[64, 72, 58, 67].map((height, index) => (
+            <div key={index} className="flex items-end gap-2">
+              <div className="h-2 w-full rounded-sm bg-primary shadow-[0_0_16px_hsl(var(--primary)/0.6)]" style={{ height: `${height}%` }} />
+              <div className="h-2 w-full rounded-sm bg-success shadow-[0_0_16px_hsl(var(--success)/0.45)]" style={{ height: `${Math.max(22, height - 24)}%` }} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-4 px-8 text-center font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          {['Jan', 'Feb', 'Mar', 'Apr'].map((month) => <span key={month}>{month}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentsPanel() {
+  const agents = [
+    { name: "Flick", role: "Agency Manager", sessions: 229, icon: Bot },
+    { name: "Coach PBF", role: "Performance coach", sessions: 43, icon: Crown },
+    { name: "Tatum Social", role: "Trend scout", sessions: 18, icon: Sparkles },
+    { name: "Marulin Chatter", role: "Messaging assistant", sessions: 31, icon: MessageSquare },
+  ];
+
+  return (
+    <div className="space-y-3 p-4">
+      <div>
+        <h2 className="font-display text-2xl font-bold text-foreground">AI Agents</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Your AI assistant suite</p>
+      </div>
+      {agents.map((agent) => (
+        <div key={agent.name} className="flex items-center gap-3 rounded-md border border-border bg-background/50 p-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/35 bg-primary/10 text-primary">
+            <agent.icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate font-display text-base font-bold text-foreground">{agent.name}</span>
+              <span className="rounded-full border border-primary/25 px-2 py-0.5 text-[9px] uppercase tracking-[0.14em] text-primary">{agent.role}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{agent.sessions} sessions completed</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LeaderboardPanel() {
+  const creators = [
+    { name: "Addison Weems", cut: 5873, pct: 96 },
+    { name: "Mia Scarlett", cut: 3768, pct: 72 },
+    { name: "Lina Brett", cut: 2736, pct: 58 },
+    { name: "Nora Reed", cut: 1304, pct: 34 },
+  ];
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-muted-foreground">
+        <span>Creator</span>
+        <span>Agency cut</span>
+      </div>
+      {creators.map((creator, index) => (
+        <div key={creator.name} className="space-y-2 rounded-md border border-border bg-background/45 p-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="truncate font-display text-base font-bold text-foreground">{index + 1}. {creator.name}</p>
+              <p className="text-xs text-muted-foreground">Top {index === 0 ? "0.5" : index + 2}% · 50% rate</p>
+            </div>
+            <p className="font-mono text-xl font-bold text-success">{currency(creator.cut)}</p>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-success shadow-[0_0_12px_hsl(var(--success)/0.55)]" style={{ width: `${creator.pct}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CarouselNav({ activePanel, onSelect, onCycle }: { activePanel: PanelKey; onSelect: (panel: PanelKey) => void; onCycle: (direction: "prev" | "next") => void }) {
+  return (
+    <div className="absolute bottom-6 left-0 right-0 z-40 flex items-center justify-center gap-2">
+      <button type="button" aria-label="Previous panel" onClick={() => onCycle("prev")} className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card/85 text-foreground backdrop-blur transition hover:bg-primary/20">
         <ChevronLeft className="h-5 w-5" />
       </button>
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/15 bg-black/50 px-2 py-1 backdrop-blur-md">
-        {(["left", "center", "right"] as const).map((slot) => (
-          <button
-            key={slot}
-            type="button"
-            onClick={() => focusSlot(slot)}
-            className={cn(
-              "px-3 py-1 text-[10px] font-mono uppercase tracking-widest rounded-full transition",
-              current === slot
-                ? "bg-white/15 text-white"
-                : "text-white/70 hover:text-white hover:bg-white/10",
-            )}
-          >
-            {slot === "left" ? "AI Agents" : slot === "center" ? "Dashboard" : "Leaderboard"}
+      <div className="flex items-center gap-1 rounded-full border border-primary/25 bg-card/80 p-1 backdrop-blur">
+        {panelOrder.map((panel) => (
+          <button key={panel} type="button" onClick={() => onSelect(panel)} className={cn("rounded-full px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] transition", activePanel === panel ? "bg-primary/25 text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+            {panelLabels[panel]}
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        aria-label="Next panel"
-        onClick={() => cycleSlot("next")}
-        className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur-md transition hover:bg-black/80 hover:scale-105"
-      >
+      <button type="button" aria-label="Next panel" onClick={() => onCycle("next")} className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card/85 text-foreground backdrop-blur transition hover:bg-primary/20">
         <ChevronRight className="h-5 w-5" />
       </button>
     </div>
