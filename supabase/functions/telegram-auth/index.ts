@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     let userId: string;
+    let isNewUser = false;
 
     if (existingProfile) {
       userId = existingProfile.id;
@@ -129,6 +130,7 @@ Deno.serve(async (req) => {
           .eq("id", userId);
       } else {
         // Create new user
+        isNewUser = true;
         const randomPass = crypto.randomUUID() + crypto.randomUUID();
         const { data: newUser, error: createError } =
           await supabase.auth.admin.createUser({
@@ -185,6 +187,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         access_token: session.session.access_token,
         refresh_token: session.session.refresh_token,
+        is_new_user: isNewUser,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
