@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useAgency } from "@/hooks/useAgency";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 type PanelKey = "agents" | "dashboard" | "leaderboard";
@@ -26,6 +27,7 @@ export default function Index() {
   const [activePanel, setActivePanel] = useState<PanelKey>("dashboard");
   const { data: stats } = useDashboardStats();
   const { agency } = useAgency();
+  const isMobile = useIsMobile();
 
   const { data: revenue } = useQuery({
     queryKey: ["ops-room-revenue", agency?.id],
@@ -73,6 +75,79 @@ export default function Index() {
     const nextIndex = direction === "next" ? index + 1 : index - 1;
     setActivePanel(panelOrder[(nextIndex + panelOrder.length) % panelOrder.length]);
   };
+
+  if (isMobile) {
+    return (
+      <DashboardLayout>
+        <section
+          className="relative -m-4 min-h-[calc(100dvh-4rem)] overflow-hidden bg-background"
+          style={{
+            backgroundImage: `linear-gradient(180deg, hsl(var(--background) / 0.2), hsl(var(--background) / 0.55)), url('/ops-room/background.jpg')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.18),transparent_55%)]" />
+          <div className="relative flex items-center justify-between px-4 pt-4">
+            <div className="flex items-center gap-2 font-display text-[10px] uppercase tracking-[0.24em] text-success">
+              <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_10px_hsl(var(--success))]" />
+              Live Ops
+            </div>
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              {panelOrder.indexOf(activePanel) + 1}/{panelOrder.length}
+            </span>
+          </div>
+
+          <div className="relative mt-3 px-3 pb-28">
+            <div className="overflow-hidden rounded-xl border border-primary/45 bg-card/90 shadow-2xl backdrop-blur-xl">
+              <div className="flex h-10 items-center justify-between border-b border-primary/35 bg-primary/10 px-3">
+                <span className="font-display text-xs font-bold uppercase tracking-[0.22em] text-foreground">{panelLabels[activePanel]}</span>
+                <ChevronRight className="h-4 w-4 text-primary" />
+              </div>
+              {activePanel === "dashboard" && (
+                <DashboardPanel revenue={revenue} activeCreators={stats?.activeCreators ?? 0} activeEmployees={stats?.activeEmployees ?? 0} compact />
+              )}
+              {activePanel === "agents" && <AgentsPanel />}
+              {activePanel === "leaderboard" && <LeaderboardPanel />}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                aria-label="Previous panel"
+                onClick={() => cycle("prev")}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card/85 text-foreground backdrop-blur active:scale-95 transition"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div className="flex flex-1 items-center justify-center gap-1.5">
+                {panelOrder.map((panel) => (
+                  <button
+                    key={panel}
+                    type="button"
+                    onClick={() => setActivePanel(panel)}
+                    aria-label={panelLabels[panel]}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      activePanel === panel ? "w-8 bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.6)]" : "w-1.5 bg-muted",
+                    )}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                aria-label="Next panel"
+                onClick={() => cycle("next")}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card/85 text-foreground backdrop-blur active:scale-95 transition"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </section>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -144,7 +219,7 @@ function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey;
   );
 }
 
-function DashboardPanel({ revenue, activeCreators, activeEmployees }: { revenue?: { net: number; agency: number }; activeCreators: number; activeEmployees: number }) {
+function DashboardPanel({ revenue, activeCreators, activeEmployees, compact = false }: { revenue?: { net: number; agency: number }; activeCreators: number; activeEmployees: number; compact?: boolean }) {
   const kpis = [
     { label: "Net Revenue", value: currency(revenue?.net ?? 0), icon: DollarSign, tint: "text-success" },
     { label: "Agency Earnings", value: currency(revenue?.agency ?? 0), icon: TrendingUp, tint: "text-primary" },
@@ -153,24 +228,24 @@ function DashboardPanel({ revenue, activeCreators, activeEmployees }: { revenue?
   ];
 
   return (
-    <div className="flex h-[calc(100%-2.75rem)] flex-col gap-3 p-3">
-      <div className="grid grid-cols-4 gap-2">
+    <div className={cn("flex flex-col gap-3 p-3", compact ? "" : "h-[calc(100%-2.75rem)]")}>
+      <div className={cn("grid gap-2", compact ? "grid-cols-2" : "grid-cols-4")}>
         {kpis.map((kpi) => (
           <div key={kpi.label} className="rounded-md border border-border bg-background/55 p-3">
             <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
               <span className="truncate">{kpi.label}</span>
               <kpi.icon className={cn("h-3.5 w-3.5", kpi.tint)} />
             </div>
-            <div className="mt-2 font-mono text-xl font-bold text-foreground">{kpi.value}</div>
+            <div className={cn("mt-2 font-mono font-bold text-foreground", compact ? "text-lg" : "text-xl")}>{kpi.value}</div>
           </div>
         ))}
       </div>
-      <div className="flex-1 rounded-md border border-border bg-background/50 p-4">
+      <div className={cn("rounded-md border border-border bg-background/50 p-4", compact ? "h-56" : "flex-1")}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-sm font-bold uppercase tracking-[0.16em] text-foreground">Monthly Performance</h2>
           <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Net earnings</span>
         </div>
-        <div className="grid h-[72%] grid-cols-4 items-end gap-7 border-b border-border/80 px-8 pb-7">
+        <div className={cn("grid grid-cols-4 items-end border-b border-border/80 pb-4", compact ? "h-[60%] gap-3 px-2" : "h-[72%] gap-7 px-8 pb-7")}>
           {[64, 72, 58, 67].map((height, index) => (
             <div key={index} className="flex items-end gap-2">
               <div className="h-2 w-full rounded-sm bg-primary shadow-[0_0_16px_hsl(var(--primary)/0.6)]" style={{ height: `${height}%` }} />
@@ -178,7 +253,7 @@ function DashboardPanel({ revenue, activeCreators, activeEmployees }: { revenue?
             </div>
           ))}
         </div>
-        <div className="mt-3 grid grid-cols-4 px-8 text-center font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <div className={cn("mt-3 grid grid-cols-4 text-center font-mono uppercase tracking-[0.18em] text-muted-foreground", compact ? "px-2 text-[10px]" : "px-8 text-xs")}>
           {['Jan', 'Feb', 'Mar', 'Apr'].map((month) => <span key={month}>{month}</span>)}
         </div>
       </div>
