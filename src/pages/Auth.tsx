@@ -218,13 +218,13 @@ export default function Auth() {
             </p>
             <div className="flex flex-col gap-2 pt-1">
               <a
-                href="https://t.me/bunnyworks"
+                href="https://t.me/BunnyWorksOFM"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 text-sm font-medium bg-muted/50 border border-border rounded-lg px-4 py-2.5 hover:border-primary/50 hover:bg-muted transition-all"
               >
                 <Send className="h-4 w-4 text-primary" />
-                Join Bunnyworks Telegram Group
+                Join BunnyWorks Telegram Group
               </a>
               <a
                 href="https://instagram.com/pbf_ofm"
