@@ -187,6 +187,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         access_token: session.session.access_token,
         refresh_token: session.session.refresh_token,
+        is_new_user: isNewUser,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
