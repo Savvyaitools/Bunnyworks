@@ -252,7 +252,7 @@ function LeaderboardPanel() {
 
 function CarouselNav({ activePanel, onSelect, onCycle }: { activePanel: PanelKey; onSelect: (panel: PanelKey) => void; onCycle: (direction: "prev" | "next") => void }) {
   return (
-    <div className="absolute bottom-6 left-0 right-0 z-40 flex items-center justify-center gap-2 pl-[var(--sidebar-width,0px)]">
+    <div className="absolute bottom-6 left-0 right-0 z-40 flex items-center justify-center gap-2">
       <button type="button" aria-label="Previous panel" onClick={() => onCycle("prev")} className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card/85 text-foreground backdrop-blur transition hover:bg-primary/20">
         <ChevronLeft className="h-5 w-5" />
       </button>
