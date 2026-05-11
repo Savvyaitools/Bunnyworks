@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -15,9 +15,132 @@ import {
   Zap,
   Target,
   TrendingUp,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import bunnyWorksLogo from "@/assets/bunnyworks-logo.png";
+
+const FRAMEWORK_VIDEO_URL =
+  "https://bmore2112.github.io/Coaching-Landing-Page/assets/framework-video.mp4";
+const TESTI_VIDEO_URL =
+  "https://bmore2112.github.io/Coaching-Landing-Page/assets/testi-agency-result.mp4";
+
+function formatTime(s: number) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+function VSLPlayer({ src, className = "" }: { src: string; className?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(true);
+  const [muted, setMuted] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [time, setTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const onTime = () => {
+      setTime(v.currentTime);
+      setProgress(v.duration ? (v.currentTime / v.duration) * 100 : 0);
+    };
+    const onLoaded = () => setDuration(v.duration || 0);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    v.addEventListener("timeupdate", onTime);
+    v.addEventListener("loadedmetadata", onLoaded);
+    v.addEventListener("play", onPlay);
+    v.addEventListener("pause", onPause);
+    return () => {
+      v.removeEventListener("timeupdate", onTime);
+      v.removeEventListener("loadedmetadata", onLoaded);
+      v.removeEventListener("play", onPlay);
+      v.removeEventListener("pause", onPause);
+    };
+  }, []);
+
+  const togglePlay = () => {
+    const v = ref.current;
+    if (!v) return;
+    if (v.paused) v.play();
+    else v.pause();
+  };
+
+  const toggleMute = () => {
+    const v = ref.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setMuted(v.muted);
+  };
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const v = ref.current;
+    if (!v || !v.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    v.currentTime = ratio * v.duration;
+  };
+
+  return (
+    <div className={`relative w-full h-full bg-black ${className}`}>
+      <video
+        ref={ref}
+        src={src}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        onClick={togglePlay}
+        className="absolute inset-0 w-full h-full object-cover cursor-pointer"
+      />
+      {/* Controls */}
+      <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+        <div
+          onClick={seek}
+          className="relative h-1.5 rounded-full bg-white/15 cursor-pointer group/bar mb-2.5"
+        >
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-primary"
+            style={{ width: `${progress}%` }}
+          />
+          <div
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-primary shadow-glow opacity-0 group-hover/bar:opacity-100 transition-opacity"
+            style={{ left: `${progress}%` }}
+          />
+        </div>
+        <div className="flex items-center gap-3 text-white">
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={playing ? "Pause" : "Play"}
+            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
+          </button>
+          <span className="text-[11px] font-mono tabular-nums text-white/80">
+            {formatTime(time)} / {formatTime(duration)}
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={toggleMute}
+            aria-label={muted ? "Unmute" : "Mute"}
+            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+          >
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const stats = [
   { value: "24+", label: "Verified reviews" },
@@ -230,24 +353,8 @@ export default function CoachingLanding() {
             className="mt-10 sm:mt-14 relative mx-auto max-w-3xl"
           >
             <div className="absolute -inset-4 sm:-inset-6 rounded-3xl bg-gradient-to-br from-primary/30 via-primary/10 to-transparent blur-2xl" />
-            <div className="relative aspect-video rounded-2xl border border-primary/30 bg-card overflow-hidden shadow-glow group cursor-pointer">
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "radial-gradient(circle at 50% 50%, hsl(330 100% 64% / 0.15), transparent 70%), linear-gradient(135deg, hsl(0 0% 8%), hsl(0 0% 4%))",
-                }}
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="h-20 w-20 rounded-full bg-primary/20 backdrop-blur flex items-center justify-center group-hover:scale-110 transition-transform shadow-glow">
-                    <PlayCircle className="h-10 w-10 text-primary-foreground fill-primary" />
-                  </div>
-                  <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Framework breakdown · 2:40
-                  </span>
-                </div>
-              </div>
+            <div className="relative aspect-video rounded-2xl border border-primary/30 bg-card overflow-hidden shadow-glow">
+              <VSLPlayer src={FRAMEWORK_VIDEO_URL} />
               {/* corner brackets */}
               {[
                 "top-3 left-3 border-t-2 border-l-2",
@@ -255,7 +362,7 @@ export default function CoachingLanding() {
                 "bottom-3 left-3 border-b-2 border-l-2",
                 "bottom-3 right-3 border-b-2 border-r-2",
               ].map((c) => (
-                <div key={c} className={`absolute h-5 w-5 border-primary/60 ${c}`} />
+                <div key={c} className={`absolute h-5 w-5 border-primary/60 pointer-events-none z-10 ${c}`} />
               ))}
             </div>
           </motion.div>
@@ -353,9 +460,9 @@ export default function CoachingLanding() {
 
           <div className="grid md:grid-cols-3 gap-5">
             {[
-              { tag: "Agency owner result", title: "0 → consistent 6-fig months", body: "From zero to predictable monthly revenue using the framework." },
-              { tag: "Client experience", title: "What it actually felt like", body: "Inside the coaching process — calls, plans, and direct support." },
-              { tag: "Operator feedback", title: "Solo → full team agency", body: "Scaling from a one-person setup to a team-operated machine." },
+              { tag: "Agency owner result", title: "0 → consistent 6-fig months", body: "From zero to predictable monthly revenue using the framework.", video: TESTI_VIDEO_URL },
+              { tag: "Client experience", title: "What it actually felt like", body: "Inside the coaching process — calls, plans, and direct support.", video: null as string | null },
+              { tag: "Operator feedback", title: "Solo → full team agency", body: "Scaling from a one-person setup to a team-operated machine.", video: null as string | null },
             ].map((c, i) => (
               <motion.div
                 key={c.title}
@@ -366,19 +473,25 @@ export default function CoachingLanding() {
                 className="relative rounded-2xl border border-border bg-card/60 backdrop-blur overflow-hidden group"
               >
                 <div className="aspect-[4/3] relative overflow-hidden">
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, hsl(0 0% 8%), hsl(0 0% 3%)), radial-gradient(circle at 50% 50%, hsl(330 100% 64% / 0.2), transparent 60%)",
-                    }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="h-16 w-16 rounded-full bg-primary/15 backdrop-blur border border-primary/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <PlayCircle className="h-8 w-8 text-primary" />
-                    </div>
-                  </div>
-                  <span className="absolute top-4 left-4 text-[10px] font-mono text-primary/80">
+                  {c.video ? (
+                    <VSLPlayer src={c.video} />
+                  ) : (
+                    <>
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, hsl(0 0% 8%), hsl(0 0% 3%)), radial-gradient(circle at 50% 50%, hsl(330 100% 64% / 0.2), transparent 60%)",
+                        }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-16 w-16 rounded-full bg-primary/15 backdrop-blur border border-primary/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <PlayCircle className="h-8 w-8 text-primary" />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  <span className="absolute top-4 left-4 text-[10px] font-mono text-primary/80 z-10">
                     {String(i + 1).padStart(2, "0")}
                   </span>
                 </div>
