@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Bot, ChevronLeft, ChevronRight, Crown, DollarSign, LayoutDashboard, MessageSquare, Sparkles, TrendingUp, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -108,12 +108,18 @@ export default function Index() {
   );
 }
 
-function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey; slot: VisualSlot; active: boolean; onFocus: (panel: PanelKey) => void; children: React.ReactNode }) {
+function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey; slot: VisualSlot; active: boolean; onFocus: (panel: PanelKey) => void; children: ReactNode }) {
   const slotClass = {
-    center: "left-1/2 top-1/2 z-30 w-[min(48vw,820px)] -translate-x-1/2 -translate-y-1/2 scale-100 rotate-y-0 opacity-100",
-    left: "left-[1.5%] top-[53%] z-20 w-[min(37vw,690px)] -translate-y-1/2 -rotate-y-[23deg] scale-95 opacity-90",
-    right: "right-[1.5%] top-[53%] z-20 w-[min(37vw,690px)] -translate-y-1/2 rotate-y-[23deg] scale-95 opacity-90",
+    center: "left-1/2 top-1/2 z-30 w-[min(48vw,820px)] opacity-100",
+    left: "left-[1.5%] top-[53%] z-20 w-[min(37vw,690px)] opacity-90",
+    right: "right-[1.5%] top-[53%] z-20 w-[min(37vw,690px)] opacity-90",
   }[slot];
+
+  const transformBySlot: Record<VisualSlot, CSSProperties["transform"]> = {
+    center: "translate3d(-50%, -50%, 0) rotateY(0deg) scale(1)",
+    left: "translate3d(0, -50%, 0) rotateY(23deg) scale(0.95)",
+    right: "translate3d(0, -50%, 0) rotateY(-23deg) scale(0.95)",
+  };
 
   return (
     <button
@@ -125,6 +131,7 @@ function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey;
         slotClass,
         active && "drop-shadow-[0_0_30px_hsl(var(--primary)/0.32)]",
       )}
+      style={{ transform: transformBySlot[slot] }}
     >
       <div className="h-full overflow-hidden rounded-md border border-primary/55 bg-card/90 shadow-2xl backdrop-blur-xl">
         <div className="flex h-11 items-center justify-between border-b border-primary/35 bg-primary/10 px-4">
