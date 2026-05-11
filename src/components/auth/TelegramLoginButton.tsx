@@ -53,7 +53,16 @@ export function TelegramLoginButton({ botName }: TelegramLoginButtonProps) {
         });
 
         if (error) throw error;
-        toast.success("Welcome!");
+
+        if (data.is_new_user) {
+          toast.success("Welcome! Join our community on Telegram.");
+          // Open Telegram group in a new tab for new users
+          setTimeout(() => {
+            window.open("https://t.me/BunnyWorksOFM", "_blank");
+          }, 800);
+        } else {
+          toast.success("Welcome back!");
+        }
       } catch (err) {
         console.error("Telegram auth error:", err);
         toast.error(
