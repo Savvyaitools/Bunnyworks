@@ -58,7 +58,7 @@ export function TelegramLoginButton({ botName }: TelegramLoginButtonProps) {
           toast.success("Welcome! Join our community on Telegram.");
           // Open Telegram group in a new tab for new users
           setTimeout(() => {
-            window.open("https://t.me/BunnyWorksOFM", "_blank");
+            window.open("https://web.telegram.org/k/#@BunnyWorksOFM", "_blank");
           }, 800);
         } else {
           toast.success("Welcome back!");
