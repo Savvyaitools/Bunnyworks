@@ -12,15 +12,17 @@ import { Button } from "@/components/ui/button";
 import { User, Link2, Heart, Sparkles, Camera, Eye, EyeOff, RefreshCw, Copy } from "lucide-react";
 import { generatePassword, copyToClipboard } from "@/lib/passwordUtils";
 import { toast } from "sonner";
+import { AvatarUpload } from "@/components/shared/AvatarUpload";
 
 interface CreatorFormProps {
-  onSubmit: (data: CreatorFormValues) => Promise<void>;
+  onSubmit: (data: CreatorFormValues, avatarUrl?: string | null) => Promise<void>;
   isSubmitting?: boolean;
   mode?: "quick" | "full";
 }
 
 export function CreatorForm({ onSubmit, isSubmitting, mode = "quick" }: CreatorFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -77,14 +79,21 @@ export function CreatorForm({ onSubmit, isSubmitting, mode = "quick" }: CreatorF
   });
 
   const handleFormSubmit = async (data: CreatorFormValues) => {
-    await onSubmit(data);
+    await onSubmit(data, avatarUrl);
     reset();
+    setAvatarUrl(null);
   };
 
   // Quick mode - simplified form for dialogs
   if (mode === "quick") {
     return (
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <AvatarUpload
+          name={getValues("name") || ""}
+          currentUrl={avatarUrl}
+          onChange={setAvatarUrl}
+        />
+
         <FormRow>
           <FormField
             type="text"

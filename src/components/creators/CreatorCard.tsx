@@ -17,6 +17,16 @@ import { formatCurrency } from "@/lib/formatters";
 import { supabase } from "@/integrations/supabase/client";
 import { copyToClipboard } from "@/lib/passwordUtils";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CreatorCardProps {
   creator: Creator;
@@ -29,6 +39,7 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
   const navigate = useNavigate();
   const hasAccount = Boolean(creator.auth_user_id);
   const [ofAccounts, setOfAccounts] = useState<{ id: string; username: string }[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     supabase
@@ -119,7 +130,7 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
               )}
               <DropdownMenuItem 
                 className="text-destructive"
-                onClick={(e) => { e.stopPropagation(); onDelete(creator.id); }}
+                onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove Creator
@@ -194,6 +205,26 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
           )}
         </div>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {creator.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the creator and any associated logs, plans, and assignments. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.stopPropagation(); onDelete(creator.id); }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

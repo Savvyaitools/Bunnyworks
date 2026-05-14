@@ -3020,6 +3020,7 @@ export type Database = {
           assigned_creators: number
           auth_user_id: string | null
           avatar_seed: string | null
+          avatar_url: string | null
           bio: string | null
           certifications: string[] | null
           commission_rate: number | null
@@ -3052,6 +3053,7 @@ export type Database = {
           assigned_creators?: number
           auth_user_id?: string | null
           avatar_seed?: string | null
+          avatar_url?: string | null
           bio?: string | null
           certifications?: string[] | null
           commission_rate?: number | null
@@ -3084,6 +3086,7 @@ export type Database = {
           assigned_creators?: number
           auth_user_id?: string | null
           avatar_seed?: string | null
+          avatar_url?: string | null
           bio?: string | null
           certifications?: string[] | null
           commission_rate?: number | null

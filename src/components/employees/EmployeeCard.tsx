@@ -30,6 +30,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Employee } from "@/hooks/useEmployees";
 import { formatCurrency } from "@/lib/formatters";
@@ -56,11 +66,15 @@ export default function EmployeeCard({
   statusColors,
 }: EmployeeCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const initials = employee.name
     .split(" ")
     .map((n) => n[0])
     .join("");
+
+  const avatarSrc = employee.avatar_url
+    || `https://api.dicebear.com/7.x/avataaars/svg?seed=${employee.avatar_seed || employee.name}`;
 
   return (
     <>
@@ -69,9 +83,7 @@ export default function EmployeeCard({
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-14 w-14 ring-2 ring-border group-hover:ring-primary/50 transition-all">
-              <AvatarImage
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${employee.avatar_seed || employee.name}`}
-              />
+              <AvatarImage src={avatarSrc} className="object-cover" />
               <AvatarFallback className="bg-muted text-muted-foreground text-lg">
                 {initials}
               </AvatarFallback>
@@ -115,7 +127,7 @@ export default function EmployeeCard({
                 Set Inactive
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" onClick={() => onDelete(employee.id)}>
+              <DropdownMenuItem className="text-destructive" onClick={() => setIsDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove Employee
               </DropdownMenuItem>
@@ -218,9 +230,7 @@ export default function EmployeeCard({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <Avatar className="h-12 w-12 ring-2 ring-border">
-                <AvatarImage
-                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${employee.avatar_seed || employee.name}`}
-                />
+                <AvatarImage src={avatarSrc} className="object-cover" />
                 <AvatarFallback className="bg-muted">{initials}</AvatarFallback>
               </Avatar>
               <div>
@@ -327,6 +337,26 @@ export default function EmployeeCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {employee.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the employee and any associated activity logs. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => onDelete(employee.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -33,6 +33,7 @@ export interface Employee {
   daily_target_ppv: number;
   timezone: string | null;
   id_document_url: string | null;
+  avatar_url: string | null;
 }
 
 export type CreateEmployeeInput = Omit<Employee, "id" | "created_at" | "updated_at" | "agency_id">;
