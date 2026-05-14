@@ -48,19 +48,19 @@ export function useOfMessages(chatId: string | null) {
     return () => { supabase.removeChannel(channel); };
   }, [chatId, load]);
 
-  const sync = useCallback(async (ofAccountId: string, ofChatId: string) => {
+  const sync = useCallback(async () => {
+    if (!chatId) return;
     await supabase.functions.invoke("of-list-messages", {
-      body: { of_account_id: ofAccountId, of_chat_id: ofChatId },
+      body: { chat_id: chatId },
     });
     await load();
-  }, [load]);
+  }, [chatId, load]);
 
   return { messages, loading, reload: load, sync };
 }
 
 export interface SendOfMessageArgs {
-  ofAccountId: string;
-  ofChatId: string;
+  chatId: string;
   body: string;
   price?: number;
   mediaIds?: string[];
@@ -69,9 +69,8 @@ export interface SendOfMessageArgs {
 export async function sendOfMessage(args: SendOfMessageArgs) {
   const { error } = await supabase.functions.invoke("of-send-message", {
     body: {
-      of_account_id: args.ofAccountId,
-      of_chat_id: args.ofChatId,
-      body: args.body,
+      chat_id: args.chatId,
+      text: args.body,
       price: args.price ?? 0,
       media_ids: args.mediaIds ?? [],
     },
