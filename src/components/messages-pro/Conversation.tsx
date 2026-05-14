@@ -72,7 +72,7 @@ export function Conversation({ chat, ofAccountId }: Props) {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-background/40 min-w-0">
+    <div className="flex-1 flex flex-col bg-background/30 min-w-0">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between bg-card/30 backdrop-blur-xl">
         <div className="flex items-center gap-3 min-w-0">
@@ -143,7 +143,7 @@ export function Conversation({ chat, ofAccountId }: Props) {
                   className={cn(
                     "max-w-[70%] rounded-2xl px-3 py-2 text-sm shadow-sm",
                     isOut
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      ? "bg-[hsl(var(--mp-accent))] text-white rounded-br-sm"
                       : "bg-card border border-border/40 text-foreground rounded-bl-sm",
                     m.status === "pending" && "opacity-70",
                     m.status === "failed" && "ring-1 ring-destructive",
@@ -153,7 +153,7 @@ export function Conversation({ chat, ofAccountId }: Props) {
                     <div
                       className={cn(
                         "flex items-center gap-1.5 mb-1.5 pb-1.5 border-b text-[11px] font-medium",
-                        isOut ? "border-primary-foreground/20" : "border-border/40 text-amber-400",
+                        isOut ? "border-white/30" : "border-border/40 text-amber-400",
                       )}
                     >
                       <Lock className="h-3 w-3" />
@@ -171,7 +171,7 @@ export function Conversation({ chat, ofAccountId }: Props) {
                   <div
                     className={cn(
                       "text-[10px] mt-1 flex items-center gap-1",
-                      isOut ? "text-primary-foreground/70 justify-end" : "text-muted-foreground",
+                      isOut ? "text-white/75 justify-end" : "text-muted-foreground",
                     )}
                   >
                     {format(new Date(m.created_at), "HH:mm")}
@@ -233,14 +233,14 @@ export function Conversation({ chat, ofAccountId }: Props) {
               <Clock className="h-3.5 w-3.5" />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" title="AI suggest">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--mp-accent))]" />
             </Button>
           </div>
           <Button
             size="sm"
             onClick={handleSend}
             disabled={sending || (!body.trim() && !ppvOpen)}
-            className="h-7 gap-1.5"
+            className="h-7 gap-1.5 bg-[hsl(var(--mp-accent))] hover:bg-[hsl(var(--mp-accent-glow))] text-white"
           >
             <Send className="h-3.5 w-3.5" />
             Send
