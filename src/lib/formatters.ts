@@ -78,11 +78,14 @@ export function formatCurrency(value: number, compact = false): string {
 }
 
 /**
- * Generate a DiceBear avatar URL
+ * Generate a clean, branded default avatar (initials on a gradient swatch)
  */
 export function getAvatarUrl(seed: string | null, name: string): string {
-  const avatarSeed = seed || name.toLowerCase().replace(/\s+/g, "-");
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`;
+  const avatarSeed = encodeURIComponent(
+    seed || name?.toLowerCase().replace(/\s+/g, "-") || "user"
+  );
+  // Brand-aligned pink/purple palette, white initials, semibold
+  return `https://api.dicebear.com/9.x/initials/svg?seed=${avatarSeed}&backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&fontSize=42&textColor=ffffff`;
 }
 
 /**
