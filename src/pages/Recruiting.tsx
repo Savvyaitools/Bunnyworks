@@ -292,7 +292,7 @@ export default function Recruiting() {
                   <div className="p-4 rounded-lg bg-muted/50 border border-border">
                     <div className="flex items-center gap-3 mb-3">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${getCreatorForOnboard()?.name}`} />
+                        <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${getCreatorForOnboard()?.name}`} />
                         <AvatarFallback>{getCreatorForOnboard()?.name?.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
@@ -405,7 +405,7 @@ export default function Recruiting() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12 ring-2 ring-primary/20">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.name}`} />
+                      <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${creator.name}`} />
                       <AvatarFallback className="bg-primary/20 text-primary">
                         {creator.name.split(" ").map(n => n[0]).join("")}
                       </AvatarFallback>

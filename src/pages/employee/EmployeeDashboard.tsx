@@ -80,7 +80,7 @@ export default function EmployeeDashboard() {
         <div className="glass-card p-6 animate-fade-in">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 ring-2 ring-primary/20">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${employeeData.avatar_seed || employeeData.name}`} />
+              <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${employeeData.avatar_seed || employeeData.name}`} />
               <AvatarFallback className="bg-primary/20 text-primary text-xl">
                 {employeeData.name.split(" ").map(n => n[0]).join("")}
               </AvatarFallback>

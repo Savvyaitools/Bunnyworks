@@ -74,7 +74,7 @@ export default function EmployeeCard({
     .join("");
 
   const avatarSrc = employee.avatar_url
-    || `https://api.dicebear.com/7.x/avataaars/svg?seed=${employee.avatar_seed || employee.name}`;
+    || `https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${employee.avatar_seed || employee.name}`;
 
   return (
     <>

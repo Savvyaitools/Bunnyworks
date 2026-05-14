@@ -126,7 +126,7 @@ function ShiftCard({ chatter, creators, isOnline, shiftBlock, onDragStart }: Shi
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <Avatar className="h-6 w-6">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatter.avatar_seed || chatter.name}`} />
+              <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${chatter.avatar_seed || chatter.name}`} />
               <AvatarFallback className="text-xs">{chatter.name?.charAt(0)}</AvatarFallback>
             </Avatar>
             <span className={cn("font-medium text-sm truncate", grade.text)}>
@@ -587,7 +587,7 @@ export default function ShiftRoster() {
                                 <div className="flex items-center gap-3">
                                   <Avatar className="h-9 w-9">
                                     <AvatarImage
-                                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatter?.avatar_seed || chatter?.name}`}
+                                      src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${chatter?.avatar_seed || chatter?.name}`}
                                     />
                                     <AvatarFallback className="text-xs">
                                       {chatter?.name?.charAt(0)}
@@ -638,7 +638,7 @@ export default function ShiftRoster() {
                                       <AvatarImage
                                         src={
                                           creator.avatar_url ||
-                                          `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator.avatar_seed || creator.name}`
+                                          `https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${creator.avatar_seed || creator.name}`
                                         }
                                       />
                                       <AvatarFallback className="text-xs">
@@ -823,7 +823,7 @@ export default function ShiftRoster() {
                             )}
                           >
                             <Avatar className="h-6 w-6">
-                              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatter.avatar_seed || chatter.name}`} />
+                              <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${chatter.avatar_seed || chatter.name}`} />
                               <AvatarFallback className="text-xs">{chatter.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <span className={cn("text-sm font-medium", grade.text)}>{chatter.name}</span>

@@ -161,7 +161,7 @@ export default function Chatters() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-12 w-12 ring-2 ring-primary/20">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatter.avatar_seed || chatter.name}`} />
+                        <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${chatter.avatar_seed || chatter.name}`} />
                         <AvatarFallback className="bg-primary/20 text-primary">
                           {chatter.name.split(" ").map(n => n[0]).join("")}
                         </AvatarFallback>
