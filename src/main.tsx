@@ -6,23 +6,17 @@ import "./index.css";
 // Initialize global error catching before render
 setupGlobalErrorHandlers();
 
-// Force service worker update & clear stale caches on every load
+// No service worker is shipped with the app. Proactively unregister any
+// stale SW left over from previous deploys and purge its caches — otherwise
+// users keep seeing old asset bundles and the page reload-loops whenever the
+// SW state changes.
 if ("serviceWorker" in navigator) {
-  let reloading = false;
   navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((reg) => {
-      reg.update();
-      if (reg.waiting) {
-        reg.waiting.postMessage({ type: "SKIP_WAITING" });
-      }
-    });
+    registrations.forEach((reg) => reg.unregister());
   });
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!reloading) {
-      reloading = true;
-      window.location.reload();
-    }
-  });
+  if ("caches" in window) {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
