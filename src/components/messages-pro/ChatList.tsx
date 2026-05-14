@@ -119,7 +119,7 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground tracking-tight">Inbox</h2>
             {totalUnread > 0 && (
-              <Badge className="h-4 px-1.5 text-[10px] bg-primary/20 text-primary border border-primary/40">
+              <Badge className="h-4 px-1.5 text-[10px] bg-[hsl(var(--mp-accent))]/20 text-[hsl(var(--mp-accent))] border border-[hsl(var(--mp-accent))]/40">
                 {totalUnread} new
               </Badge>
             )}
@@ -131,13 +131,13 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-7 w-7 relative", showFilters && "bg-primary/15 text-primary")}
+              className={cn("h-7 w-7 relative", showFilters && "bg-[hsl(var(--mp-accent))]/15 text-[hsl(var(--mp-accent))]")}
               onClick={() => setShowFilters((v) => !v)}
               title="Filters"
             >
               <Filter className="h-3.5 w-3.5" />
               {activeFilterCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-semibold">
+                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[hsl(var(--mp-accent))] text-white text-[9px] flex items-center justify-center font-semibold">
                   {activeFilterCount}
                 </span>
               )}
@@ -190,7 +190,7 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearFilters}
-                  className="text-[10px] text-primary hover:underline"
+                  className="text-[10px] text-[hsl(var(--mp-accent))] hover:underline"
                 >
                   Clear all
                 </button>
