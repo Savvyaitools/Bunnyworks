@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { LogoUpload } from "@/components/shared/LogoUpload";
+import { AvatarUpload } from "@/components/shared/AvatarUpload";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscriptionTiers";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -48,6 +49,12 @@ export default function Settings() {
     full_name: profile?.full_name || "",
     email: profile?.email || "",
   });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+
+  useEffect(() => {
+    setAvatarUrl(profile?.avatar_url || null);
+    setProfileData((p) => ({ ...p, full_name: profile?.full_name || p.full_name, email: profile?.email || p.email }));
+  }, [profile?.avatar_url, profile?.full_name, profile?.email]);
 
   // Agency form state
   const [agencyData, setAgencyData] = useState({
@@ -81,7 +88,7 @@ export default function Settings() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: profileData.full_name })
+        .update({ full_name: profileData.full_name, avatar_url: avatarUrl })
         .eq("id", user.id);
 
       if (error) throw error;
