@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, FileImage } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AvatarUpload } from "@/components/shared/AvatarUpload";
 
 interface EmployeeFormProps {
-  onSubmit: (data: EmployeeFormValues, idDocumentUrl?: string) => Promise<void>;
+  onSubmit: (data: EmployeeFormValues, idDocumentUrl?: string, avatarUrl?: string | null) => Promise<void>;
   isSubmitting?: boolean;
   defaultValues?: Partial<EmployeeFormValues>;
   submitLabel?: string;
   existingIdDocumentUrl?: string;
+  existingAvatarUrl?: string | null;
 }
 
 export function EmployeeForm({ 
@@ -24,10 +26,12 @@ export function EmployeeForm({
   defaultValues,
   submitLabel = "Add Employee",
   existingIdDocumentUrl,
+  existingAvatarUrl,
 }: EmployeeFormProps) {
   const [idFile, setIdFile] = useState<File | null>(null);
   const [idPreview, setIdPreview] = useState<string | null>(existingIdDocumentUrl || null);
   const [uploadingId, setUploadingId] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(existingAvatarUrl ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     register,
@@ -102,10 +106,11 @@ export function EmployeeForm({
 
   const handleFormSubmit = async (data: EmployeeFormValues) => {
     const idUrl = await uploadIdDocument();
-    await onSubmit(data, idUrl);
+    await onSubmit(data, idUrl, avatarUrl);
     if (!defaultValues) {
       reset();
       removeIdFile();
+      setAvatarUrl(null);
     }
   };
 
@@ -144,6 +149,12 @@ export function EmployeeForm({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+      <AvatarUpload
+        name={(defaultValues?.name as string) || ""}
+        currentUrl={avatarUrl}
+        onChange={setAvatarUrl}
+      />
+
       <FormRow>
         <FormField
           type="text"
