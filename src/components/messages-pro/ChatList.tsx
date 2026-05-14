@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Pin, RefreshCw, Filter, X, DollarSign, Crown, Flame, Circle } from "lucide-react";
+import { Search, Pin, RefreshCw, Filter, X, DollarSign, Crown, Flame, Circle, Send, ShoppingBag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -113,13 +113,13 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
   const totalUnread = chats.reduce((acc, c) => acc + (c.unread_count ?? 0), 0);
 
   return (
-    <div className="w-[340px] shrink-0 flex flex-col border-r border-border/40 bg-card/30 backdrop-blur-xl">
+    <div className="w-[360px] shrink-0 flex flex-col border-r border-border/40 bg-card/20 backdrop-blur-xl">
       <div className="p-3 border-b border-border/40 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground tracking-tight">Inbox</h2>
             {totalUnread > 0 && (
-              <Badge className="h-4 px-1.5 text-[10px] bg-primary/20 text-primary border border-primary/40">
+              <Badge className="h-4 px-1.5 text-[10px] bg-[hsl(var(--mp-accent))]/20 text-[hsl(var(--mp-accent))] border border-[hsl(var(--mp-accent))]/40">
                 {totalUnread} new
               </Badge>
             )}
@@ -131,13 +131,13 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-7 w-7 relative", showFilters && "bg-primary/15 text-primary")}
+              className={cn("h-7 w-7 relative", showFilters && "bg-[hsl(var(--mp-accent))]/15 text-[hsl(var(--mp-accent))]")}
               onClick={() => setShowFilters((v) => !v)}
               title="Filters"
             >
               <Filter className="h-3.5 w-3.5" />
               {activeFilterCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-semibold">
+                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[hsl(var(--mp-accent))] text-white text-[9px] flex items-center justify-center font-semibold">
                   {activeFilterCount}
                 </span>
               )}
@@ -167,10 +167,10 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors flex items-center gap-1",
+                "px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 border",
                 tab === t.id
-                  ? "bg-primary/20 text-primary border border-primary/40"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                  ? "bg-[hsl(var(--mp-accent))]/20 text-[hsl(var(--mp-accent))] border-[hsl(var(--mp-accent))]/40"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border-transparent",
               )}
             >
               {t.label}
@@ -190,7 +190,7 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearFilters}
-                  className="text-[10px] text-primary hover:underline"
+                  className="text-[10px] text-[hsl(var(--mp-accent))] hover:underline"
                 >
                   Clear all
                 </button>
@@ -253,12 +253,12 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
               key={c.id}
               onClick={() => onSelect(c)}
               className={cn(
-                "w-full text-left px-3 py-2.5 flex gap-3 border-b border-border/20 transition-colors group relative",
-                isActive ? "bg-primary/10" : "hover:bg-muted/30",
-                unread > 0 && !isActive && "bg-primary/5",
+                "w-full text-left px-3 py-3 flex gap-3 border-b border-border/20 transition-colors group relative",
+                isActive ? "bg-[hsl(var(--mp-accent))]/10" : "hover:bg-muted/30",
+                unread > 0 && !isActive && "bg-[hsl(var(--mp-accent))]/5",
               )}
             >
-              {isActive && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r bg-primary" />}
+              {isActive && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r bg-[hsl(var(--mp-accent))]" />}
               <div className="relative shrink-0">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={c.fan_avatar ?? undefined} />
@@ -273,7 +273,7 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1 min-w-0">
-                    {c.is_pinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
+                    {c.is_pinned && <Pin className="h-3 w-3 text-[hsl(var(--mp-accent))] shrink-0" />}
                     <span className={cn("text-sm truncate", unread > 0 ? "font-semibold text-foreground" : "font-medium text-foreground")}>
                       {c.fan_name || c.fan_username || "Anon"}
                     </span>
@@ -285,38 +285,51 @@ export function ChatList({ chats, loading, activeChatId, onSelect, onSync }: Pro
                       : ""}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-2 mt-0.5">
-                  <span className={cn("text-xs truncate", unread > 0 ? "text-foreground/80" : "text-muted-foreground")}>
+                {c.fan_username && (
+                  <div className="text-[10px] text-muted-foreground/70 truncate -mt-0.5">@{c.fan_username}</div>
+                )}
+                {/* Infloww-style metric strip */}
+                <div className="flex items-center gap-2.5 mt-1.5 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-0.5">
+                    <Send className="h-2.5 w-2.5" />
+                    <span className="font-medium text-foreground/80">{(c as any).messages_sent ?? 0}</span>
+                  </span>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className="flex items-center gap-0.5">
+                    <ShoppingBag className="h-2.5 w-2.5" />
+                    <span className="font-medium text-foreground/80">{(c as any).purchases ?? 0}</span>
+                  </span>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className={cn(
+                    "font-semibold",
+                    spend >= 500 ? "text-amber-400" : spend > 0 ? "text-success" : "text-muted-foreground/60",
+                  )}>
+                    {fmtMoney(spend)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-1.5">
+                  <span className={cn("text-xs truncate", unread > 0 ? "text-foreground/90 font-medium" : "text-muted-foreground")}>
                     {c.last_message_is_from_me ? "You: " : ""}
                     {c.last_message_text ?? "—"}
                   </span>
                   {unread > 0 && (
-                    <Badge className="h-4 min-w-4 px-1 text-[10px] bg-primary text-primary-foreground shrink-0">
+                    <Badge className="h-4 min-w-4 px-1 text-[10px] bg-[hsl(var(--mp-accent))] text-white shrink-0">
                       {unread}
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={cn(
-                    "text-[10px] font-semibold",
-                    spend >= 500 ? "text-warning" : spend > 0 ? "text-success" : "text-muted-foreground/60",
-                  )}>
-                    {fmtMoney(spend)}
-                  </span>
-                  {c.fan_username && (
-                    <span className="text-[10px] text-muted-foreground/70 truncate">
-                      @{c.fan_username}
-                    </span>
-                  )}
-                  {(c.tags ?? []).slice(0, 2).map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border/40"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                {(c.tags ?? []).length > 0 && (
+                  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                    {(c.tags ?? []).slice(0, 3).map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border/40"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </button>
           );
@@ -341,7 +354,7 @@ function FilterChip({
       className={cn(
         "px-2 py-0.5 rounded-full text-[10px] font-medium border transition-colors flex items-center gap-1",
         active
-          ? "bg-primary/20 text-primary border-primary/40"
+          ? "bg-[hsl(var(--mp-accent))]/20 text-[hsl(var(--mp-accent))] border-[hsl(var(--mp-accent))]/40"
           : "bg-muted/30 text-muted-foreground border-border/40 hover:bg-muted/60 hover:text-foreground",
       )}
     >
