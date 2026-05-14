@@ -451,7 +451,7 @@ export default function EmployeePerformance() {
                       <div key={summary.employee_id} className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
                           <AvatarImage
-                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${summary.employee_name}`}
+                            src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${summary.employee_name}`}
                           />
                           <AvatarFallback>{summary.employee_name.charAt(0)}</AvatarFallback>
                         </Avatar>
@@ -513,7 +513,7 @@ export default function EmployeePerformance() {
                           </div>
                           <Avatar className="h-10 w-10">
                             <AvatarImage
-                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${performer.employee_name}`}
+                              src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${performer.employee_name}`}
                             />
                             <AvatarFallback>{performer.employee_name.charAt(0)}</AvatarFallback>
                           </Avatar>
@@ -647,7 +647,7 @@ export default function EmployeePerformance() {
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
                               <AvatarImage
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${payroll.employee?.name}`}
+                                src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${payroll.employee?.name}`}
                               />
                               <AvatarFallback>{payroll.employee?.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
@@ -744,7 +744,7 @@ export default function EmployeePerformance() {
                       <div className="flex items-center gap-4 mb-4">
                         <Avatar className="h-16 w-16 ring-2 ring-border">
                           <AvatarImage
-                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${summary.employee_name}`}
+                            src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${summary.employee_name}`}
                           />
                           <AvatarFallback className="text-lg">
                             {summary.employee_name.charAt(0)}

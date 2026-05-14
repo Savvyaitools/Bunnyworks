@@ -248,7 +248,7 @@ export function AppSidebar() {
         {/* User Profile */}
         <div className={cn("flex items-center gap-3 p-3 mt-2 rounded-lg bg-muted/30", isCollapsed && "justify-center p-2")}>
           <Avatar className="h-9 w-9 ring-2 ring-primary/20">
-            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.full_name || "user"}`} />
+            <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${profile?.full_name || "user"}`} />
             <AvatarFallback className="bg-primary/20 text-primary">
               {profile?.full_name?.split(" ").map((n) => n[0]).join("") || "U"}
             </AvatarFallback>

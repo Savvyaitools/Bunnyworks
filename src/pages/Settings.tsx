@@ -14,8 +14,8 @@ import { useAgencyLogo } from "@/hooks/useAgencyLogo";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { UserAvatar } from "@/components/shared/UserAvatar";
 import { LogoUpload } from "@/components/shared/LogoUpload";
+import { AvatarUpload } from "@/components/shared/AvatarUpload";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscriptionTiers";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -48,6 +48,12 @@ export default function Settings() {
     full_name: profile?.full_name || "",
     email: profile?.email || "",
   });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+
+  useEffect(() => {
+    setAvatarUrl(profile?.avatar_url || null);
+    setProfileData((p) => ({ ...p, full_name: profile?.full_name || p.full_name, email: profile?.email || p.email }));
+  }, [profile?.avatar_url, profile?.full_name, profile?.email]);
 
   // Agency form state
   const [agencyData, setAgencyData] = useState({
@@ -81,7 +87,7 @@ export default function Settings() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: profileData.full_name })
+        .update({ full_name: profileData.full_name, avatar_url: avatarUrl })
         .eq("id", user.id);
 
       if (error) throw error;
@@ -206,18 +212,12 @@ export default function Settings() {
                   </>
                 )}
 
-                <div className="flex items-center gap-6">
-                  <UserAvatar 
-                    name={profile?.full_name || "User"} 
-                    avatarSeed={profile?.avatar_url}
-                    className="h-20 w-20 ring-4 ring-primary/20"
-                  />
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Avatar is automatically generated based on your name
-                    </p>
-                  </div>
-                </div>
+                <AvatarUpload
+                  name={profileData.full_name || profile?.full_name || "User"}
+                  currentUrl={avatarUrl}
+                  onChange={(url) => setAvatarUrl(url)}
+                  label="Profile Picture"
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">

@@ -121,7 +121,7 @@ export function BonusLeaderboard({ department, structure }: BonusLeaderboardProp
               {/* Avatar & Name */}
               <Avatar className="h-10 w-10">
                 <AvatarImage
-                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${performer.employee_name}`}
+                  src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${performer.employee_name}`}
                 />
                 <AvatarFallback>{performer.employee_name.charAt(0)}</AvatarFallback>
               </Avatar>

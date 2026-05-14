@@ -148,7 +148,7 @@ export function PortalSidebar() {
           isCollapsed && "justify-center p-2"
         )}>
           <Avatar className="h-9 w-9 ring-2 ring-accent/20">
-            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.full_name || 'creator'}`} />
+            <AvatarImage src={`https://api.dicebear.com/9.x/initials/svg?backgroundColor=ec4899,db2777,be185d,a21caf,9333ea,7c3aed,6d28d9&fontWeight=600&textColor=ffffff&seed=${profile?.full_name || 'creator'}`} />
             <AvatarFallback className="bg-accent/20 text-accent">
               {profile?.full_name?.split(" ").map(n => n[0]).join("") || "C"}
             </AvatarFallback>
