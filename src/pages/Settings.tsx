@@ -213,18 +213,12 @@ export default function Settings() {
                   </>
                 )}
 
-                <div className="flex items-center gap-6">
-                  <UserAvatar 
-                    name={profile?.full_name || "User"} 
-                    avatarSeed={profile?.avatar_url}
-                    className="h-20 w-20 ring-4 ring-primary/20"
-                  />
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Avatar is automatically generated based on your name
-                    </p>
-                  </div>
-                </div>
+                <AvatarUpload
+                  name={profileData.full_name || profile?.full_name || "User"}
+                  currentUrl={avatarUrl}
+                  onChange={(url) => setAvatarUrl(url)}
+                  label="Profile Picture"
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
