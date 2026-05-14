@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       .from("creator_social_accounts")
       .select("creator_id, of_account_id, creators!inner(agency_id)")
       .eq("of_account_id", of_account_id)
-      .eq("platform", "onlyfans")
+      .ilike("platform", "onlyfans")
       .maybeSingle();
 
     if (accErr || !account) return json({ error: "OnlyFans account not found" }, 404);
