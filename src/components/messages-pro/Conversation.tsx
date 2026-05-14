@@ -45,12 +45,11 @@ export function Conversation({ chat, ofAccountId }: Props) {
   }
 
   const handleSend = async () => {
-    if (!ofAccountId || (!body.trim() && !ppvOpen)) return;
+    if (!chat || (!body.trim() && !ppvOpen)) return;
     setSending(true);
     try {
       await sendOfMessage({
-        ofAccountId,
-        ofChatId: chat.of_chat_id,
+        chatId: chat.id,
         body: body.trim(),
         price: ppvOpen ? Number(price) || 0 : 0,
       });
@@ -101,7 +100,7 @@ export function Conversation({ chat, ofAccountId }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => ofAccountId && sync(ofAccountId, chat.of_chat_id)} title="Sync">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => sync()} title="Sync">
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" asChild title="Open on OnlyFans">
