@@ -55,7 +55,7 @@ export default function Employees() {
     employee.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSubmit = async (data: EmployeeFormValues, idDocumentUrl?: string) => {
+  const handleSubmit = async (data: EmployeeFormValues, idDocumentUrl?: string, avatarUrl?: string | null) => {
     const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
     const certs = data.certifications?.split(",").map(s => s.trim()).filter(Boolean) || [];
     const isChatter = data.role === "Chatter";
@@ -65,6 +65,7 @@ export default function Employees() {
       email: data.email,
       phone: data.phone || null,
       avatar_seed: data.name.toLowerCase().split(" ")[0],
+      avatar_url: avatarUrl ?? null,
       role: data.role,
       department: data.department || null,
       status: "Active",
@@ -91,7 +92,7 @@ export default function Employees() {
     setIsAddDialogOpen(false);
   };
 
-  const handleEditSubmit = async (data: EmployeeFormValues, idDocumentUrl?: string) => {
+  const handleEditSubmit = async (data: EmployeeFormValues, idDocumentUrl?: string, avatarUrl?: string | null) => {
     if (!selectedEmployee) return;
 
     const skills = data.skills?.split(",").map(s => s.trim()).filter(Boolean) || [];
@@ -102,6 +103,7 @@ export default function Employees() {
       name: data.name,
       email: data.email,
       phone: data.phone || null,
+      avatar_url: avatarUrl ?? null,
       role: data.role,
       department: data.department || null,
       salary: data.salary || 0,
@@ -276,6 +278,7 @@ export default function Employees() {
                 defaultValues={editDefaultValues}
                 submitLabel="Save Changes"
                 existingIdDocumentUrl={selectedEmployee?.id_document_url || undefined}
+                existingAvatarUrl={selectedEmployee?.avatar_url || undefined}
               />
             )}
           </DialogContent>
