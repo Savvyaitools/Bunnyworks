@@ -38,7 +38,7 @@ export default function Creators() {
     return matchesSearch;
   });
 
-  const handleSubmit = async (data: CreatorFormValues) => {
+  const handleSubmit = async (data: CreatorFormValues, avatarUrl?: string | null) => {
     let creatorResult;
     try {
       creatorResult = await createCreator({
@@ -46,7 +46,7 @@ export default function Creators() {
         email: data.email,
         phone: null,
         avatar_seed: data.name.toLowerCase().split(" ")[0],
-        avatar_url: null,
+        avatar_url: avatarUrl ?? null,
         status: "Active",
         revenue: 0,
         platform: data.platform || null,
