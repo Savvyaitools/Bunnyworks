@@ -25,7 +25,7 @@ export function useOfAccounts() {
     const { data } = await supabase
       .from("creator_social_accounts")
       .select("id, creator_id, username, of_account_id, of_connection_status, of_last_synced_at, creators!inner(id, name, alias, avatar_url, agency_id)")
-      .eq("platform", "OnlyFans")
+      .ilike("platform", "onlyfans")
       .not("of_account_id", "is", null)
       .eq("creators.agency_id", agencyId)
       .limit(500);
