@@ -2,13 +2,13 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { FloatingParticles, AnimatedCounter, MagneticHover } from "./AnimationPrimitives";
+import { FloatingParticles, MagneticHover } from "./AnimationPrimitives";
 
-const stats = [
-  { value: 500, suffix: "+", label: "Agencies" },
-  { value: 10000, suffix: "+", label: "Creators Managed", prefix: "" },
-  { value: 50, suffix: "M+", label: "Revenue Tracked", prefix: "$" },
-  { value: 24, suffix: "/7", label: "AI-Powered" },
+const trustBadges = [
+  { label: "SOC 2 Type II", sub: "Compliant" },
+  { label: "GDPR", sub: "Ready" },
+  { label: "99.99%", sub: "Uptime SLA" },
+  { label: "24/7", sub: "Priority Support" },
 ];
 
 export function HeroSection() {
@@ -171,16 +171,16 @@ export function HeroSection() {
             ))}
           </motion.div>
 
-          {/* Stats strip with animated counters */}
+          {/* Trust badges strip */}
           <motion.div
             className="mt-8 sm:mt-12 md:mt-16 flex flex-wrap gap-6 sm:gap-8 md:gap-16 border-t border-border pt-6 sm:pt-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.6 }}
           >
-            {stats.map((stat, i) => (
+            {trustBadges.map((badge, i) => (
               <motion.div
-                key={stat.label}
+                key={badge.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.9 + i * 0.1, duration: 0.5 }}
@@ -188,9 +188,9 @@ export function HeroSection() {
                 className="group"
               >
                 <div className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground group-hover:text-primary transition-colors">
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} prefix={stat.prefix || ""} />
+                  {badge.label}
                 </div>
-                <div className="text-xs sm:text-sm text-muted-foreground mt-1">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1">{badge.sub}</div>
               </motion.div>
             ))}
           </motion.div>
