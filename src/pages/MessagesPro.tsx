@@ -4,6 +4,7 @@ import { MessagesProTopBar } from "@/components/messages-pro/MessagesProTopBar";
 import { ChatList } from "@/components/messages-pro/ChatList";
 import { Conversation } from "@/components/messages-pro/Conversation";
 import { FanSidebar } from "@/components/messages-pro/FanSidebar";
+import { MassMessageComposer } from "@/components/messages-pro/MassMessageComposer";
 import { useOfAccounts, type OfAccount } from "@/hooks/useOfAccounts";
 import { useOfChats, type OfChatRow } from "@/hooks/useOfChats";
 
@@ -19,6 +20,7 @@ export default function MessagesPro() {
 
   const { chats, loading: chatsLoading, sync } = useOfChats(activeAccount?.of_account_id ?? null);
   const [activeChat, setActiveChat] = useState<OfChatRow | null>(null);
+  const [massOpen, setMassOpen] = useState(false);
 
   useEffect(() => { setActiveChat(null); }, [activeAccount?.of_account_id]);
 
@@ -47,6 +49,7 @@ export default function MessagesPro() {
           onSpeedModeChange={setSpeedMode}
           aiAssist={aiAssist}
           onAiAssistChange={setAiAssist}
+          onOpenMassMessage={() => setMassOpen(true)}
         />
         <div className="flex-1 flex min-h-0">
           <ChatList
@@ -60,6 +63,13 @@ export default function MessagesPro() {
           <FanSidebar chat={activeChat} />
         </div>
       </div>
+      <MassMessageComposer
+        open={massOpen}
+        onOpenChange={setMassOpen}
+        ofAccountId={activeAccount?.of_account_id ?? null}
+        chats={chats}
+        accountLabel={activeAccount?.username ?? undefined}
+      />
       {accounts.length === 0 && !accountsLoading && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div className="pointer-events-auto bg-card border border-border rounded-xl p-6 max-w-sm text-center shadow-2xl">
