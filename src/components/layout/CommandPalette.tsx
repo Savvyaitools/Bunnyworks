@@ -41,7 +41,6 @@ const commandItems = [
   { label: "Tasks", icon: CheckSquare, path: "/tasks", group: "Main" },
   { label: "Calendar", icon: Calendar, path: "/calendar", group: "Main" },
   { label: "Invoices", icon: FileText, path: "/invoices", group: "Main" },
-  { label: "Live Sessions", icon: Globe, path: "/browser-sync", group: "OnlyFans" },
   { label: "Shift Roster", icon: CalendarClock, path: "/shifts", group: "OnlyFans" },
   { label: "Team Chat", icon: MessageSquare, path: "/team-chat", group: "OnlyFans" },
   { label: "Recruiting", icon: UserPlus, path: "/recruiting", group: "Recruiting" },
