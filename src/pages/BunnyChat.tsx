@@ -59,7 +59,11 @@ export default function BunnyChat() {
             onSelect={setActiveChat}
             onSync={sync}
           />
-          <Conversation chat={activeChat} ofAccountId={activeAccount?.of_account_id ?? null} />
+          <Conversation
+            chat={activeChat}
+            ofAccountId={activeAccount?.of_account_id ?? null}
+            creatorName={activeAccount?.username ?? "Creator"}
+          />
           <FanSidebar chat={activeChat} />
         </div>
       </div>
