@@ -8,6 +8,7 @@ import {
   handleAIError,
   AIGatewayError,
 } from "../_shared/ai-client.ts";
+import { toolSendMessage, toolSyncAccount } from "../_shared/of-tools.ts";
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -243,6 +244,15 @@ async function executeActions(supabase: any, agencyId: string, runId: string, ac
           agency_id: agencyId, title: action.title,
           description: action.description || '', priority: action.priority || 'Normal', status: 'To Do',
         });
+      } else if (action.action === 'send_of_message') {
+        const r = await toolSendMessage(
+          { supabase, agencyId },
+          { chat_id: action.chat_id, text: action.text, price: action.price, lock_message: action.lock_message, media_ids: action.media_ids, sent_by_user_id: null },
+        );
+        if (!r.ok) throw new Error(r.error);
+      } else if (action.action === 'sync_of_account') {
+        const r = await toolSyncAccount({ supabase, agencyId }, { of_account_id: action.of_account_id });
+        if (!r.ok) throw new Error(r.error);
       }
 
       await supabase.from('agent_actions').insert({
