@@ -14,6 +14,7 @@ export interface Agency {
   max_employees: number;
   onboarding_completed: boolean;
   browser_sync_enabled: boolean | null;
+  of_sync_frequency_hours: number;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +32,7 @@ interface UpdateAgencyData {
   name?: string;
   website?: string | null;
   commission_rate?: number;
+  of_sync_frequency_hours?: number;
 }
 
 export function useAgency() {

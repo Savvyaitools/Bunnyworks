@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, Bell, Building, Shield, CreditCard } from "lucide-react";
+import { User, Bell, Building, Shield, CreditCard, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ export default function Settings() {
     name: "",
     website: "",
     commission_rate: 30,
+    of_sync_frequency_hours: 24,
   });
 
   // Sync agency data when loaded
@@ -69,6 +70,7 @@ export default function Settings() {
         name: agency.name || "",
         website: agency.website || "",
         commission_rate: (agency.commission_rate || 0.3) * 100,
+        of_sync_frequency_hours: agency.of_sync_frequency_hours ?? 24,
       });
     }
   }, [agency]);
@@ -471,11 +473,53 @@ export default function Settings() {
                       name: agencyData.name,
                       website: agencyData.website || null,
                       commission_rate: agencyData.commission_rate / 100,
+                      of_sync_frequency_hours: agencyData.of_sync_frequency_hours,
                     })}
                     disabled={isUpdating}
                   >
                     {isUpdating ? "Saving..." : "Save Changes"}
                   </Button>
+                </div>
+
+                <Separator className="bg-border" />
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 text-primary" />
+                    <Label className="text-foreground font-semibold">OnlyFans auto-sync</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Every connected OnlyFans account is refreshed automatically — chats, fans, and earnings — at this interval. Set to <span className="font-mono">Off</span> to disable and rely on manual "Refresh from OF" only.
+                  </p>
+                  <div className="grid grid-cols-5 gap-2 max-w-md">
+                    {[
+                      { v: 0, label: "Off" },
+                      { v: 6, label: "6h" },
+                      { v: 12, label: "12h" },
+                      { v: 24, label: "24h" },
+                      { v: 48, label: "48h" },
+                    ].map((opt) => {
+                      const active = agencyData.of_sync_frequency_hours === opt.v;
+                      return (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          onClick={() => setAgencyData({ ...agencyData, of_sync_frequency_hours: opt.v })}
+                          className={cn(
+                            "h-10 rounded-lg border text-sm font-medium transition-colors",
+                            active
+                              ? "border-primary bg-primary/15 text-primary"
+                              : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/60",
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Saved with "Save Changes" above. The hourly worker only syncs accounts whose last sync is older than this interval.
+                  </p>
                 </div>
               </div>
             )}
