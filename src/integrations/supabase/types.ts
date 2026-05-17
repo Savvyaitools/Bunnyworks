@@ -4077,13 +4077,69 @@ export type Database = {
         }
         Relationships: []
       }
+      of_mass_campaigns: {
+        Row: {
+          agency_id: string
+          audience_meta: Json | null
+          audience_type: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          failed_count: number
+          id: string
+          is_ppv: boolean
+          of_account_id: string
+          price: number
+          sent_count: number
+          status: string
+          text: string | null
+          total_recipients: number
+        }
+        Insert: {
+          agency_id: string
+          audience_meta?: Json | null
+          audience_type: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          id?: string
+          is_ppv?: boolean
+          of_account_id: string
+          price?: number
+          sent_count?: number
+          status?: string
+          text?: string | null
+          total_recipients?: number
+        }
+        Update: {
+          agency_id?: string
+          audience_meta?: Json | null
+          audience_type?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          id?: string
+          is_ppv?: boolean
+          of_account_id?: string
+          price?: number
+          sent_count?: number
+          status?: string
+          text?: string | null
+          total_recipients?: number
+        }
+        Relationships: []
+      }
       of_messages: {
         Row: {
           agency_id: string
           body: string | null
+          campaign_id: string | null
           chat_id: string
           created_at: string
           direction: string
+          error_message: string | null
           id: string
           is_ppv: boolean
           is_unlocked: boolean
@@ -4097,9 +4153,11 @@ export type Database = {
         Insert: {
           agency_id: string
           body?: string | null
+          campaign_id?: string | null
           chat_id: string
           created_at?: string
           direction: string
+          error_message?: string | null
           id?: string
           is_ppv?: boolean
           is_unlocked?: boolean
@@ -4113,9 +4171,11 @@ export type Database = {
         Update: {
           agency_id?: string
           body?: string | null
+          campaign_id?: string | null
           chat_id?: string
           created_at?: string
           direction?: string
+          error_message?: string | null
           id?: string
           is_ppv?: boolean
           is_unlocked?: boolean
@@ -4127,6 +4187,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "of_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "of_mass_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "of_messages_chat_id_fkey"
             columns: ["chat_id"]
