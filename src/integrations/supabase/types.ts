@@ -14,95 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      active_browser_sessions: {
-        Row: {
-          agency_id: string
-          browserbase_live_url: string | null
-          browserbase_session_id: string
-          chatter_id: string | null
-          created_at: string | null
-          embed_url: string
-          ended_at: string | null
-          has_recording: boolean | null
-          id: string
-          is_active: boolean | null
-          last_heartbeat_at: string | null
-          recording_url: string | null
-          session_link_id: string | null
-          session_type: string | null
-          started_at: string | null
-          viewer_count: number
-          viewer_ids: string[]
-        }
-        Insert: {
-          agency_id: string
-          browserbase_live_url?: string | null
-          browserbase_session_id: string
-          chatter_id?: string | null
-          created_at?: string | null
-          embed_url: string
-          ended_at?: string | null
-          has_recording?: boolean | null
-          id?: string
-          is_active?: boolean | null
-          last_heartbeat_at?: string | null
-          recording_url?: string | null
-          session_link_id?: string | null
-          session_type?: string | null
-          started_at?: string | null
-          viewer_count?: number
-          viewer_ids?: string[]
-        }
-        Update: {
-          agency_id?: string
-          browserbase_live_url?: string | null
-          browserbase_session_id?: string
-          chatter_id?: string | null
-          created_at?: string | null
-          embed_url?: string
-          ended_at?: string | null
-          has_recording?: boolean | null
-          id?: string
-          is_active?: boolean | null
-          last_heartbeat_at?: string | null
-          recording_url?: string | null
-          session_link_id?: string | null
-          session_type?: string | null
-          started_at?: string | null
-          viewer_count?: number
-          viewer_ids?: string[]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "active_browser_sessions_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "active_browser_sessions_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "active_browser_sessions_chatter_id_fkey"
-            columns: ["chatter_id"]
-            isOneToOne: false
-            referencedRelation: "chatters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "active_browser_sessions_session_link_id_fkey"
-            columns: ["session_link_id"]
-            isOneToOne: false
-            referencedRelation: "creator_session_links"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       agencies: {
         Row: {
           browser_session_mode: string
@@ -850,80 +761,6 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      browser_session_events: {
-        Row: {
-          active_session_id: string | null
-          agency_id: string
-          browserbase_session_id: string
-          created_at: string | null
-          event_type: string
-          id: string
-          is_read: boolean | null
-          message: string | null
-          metadata: Json | null
-          session_link_id: string | null
-          severity: string | null
-          title: string
-        }
-        Insert: {
-          active_session_id?: string | null
-          agency_id: string
-          browserbase_session_id: string
-          created_at?: string | null
-          event_type: string
-          id?: string
-          is_read?: boolean | null
-          message?: string | null
-          metadata?: Json | null
-          session_link_id?: string | null
-          severity?: string | null
-          title: string
-        }
-        Update: {
-          active_session_id?: string | null
-          agency_id?: string
-          browserbase_session_id?: string
-          created_at?: string | null
-          event_type?: string
-          id?: string
-          is_read?: boolean | null
-          message?: string | null
-          metadata?: Json | null
-          session_link_id?: string | null
-          severity?: string | null
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "browser_session_events_active_session_id_fkey"
-            columns: ["active_session_id"]
-            isOneToOne: false
-            referencedRelation: "active_browser_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "browser_session_events_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "browser_session_events_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "browser_session_events_session_link_id_fkey"
-            columns: ["session_link_id"]
-            isOneToOne: false
-            referencedRelation: "creator_session_links"
             referencedColumns: ["id"]
           },
         ]
@@ -1933,73 +1770,6 @@ export type Database = {
           },
         ]
       }
-      creator_profile_warmups: {
-        Row: {
-          agency_id: string
-          browserbase_context_id: string
-          completed_at: string | null
-          created_at: string
-          creator_id: string | null
-          error_message: string | null
-          id: string
-          sites_visited: number
-          started_at: string | null
-          status: string
-          total_sites: number
-          warmup_type: string
-        }
-        Insert: {
-          agency_id: string
-          browserbase_context_id: string
-          completed_at?: string | null
-          created_at?: string
-          creator_id?: string | null
-          error_message?: string | null
-          id?: string
-          sites_visited?: number
-          started_at?: string | null
-          status?: string
-          total_sites?: number
-          warmup_type?: string
-        }
-        Update: {
-          agency_id?: string
-          browserbase_context_id?: string
-          completed_at?: string | null
-          created_at?: string
-          creator_id?: string | null
-          error_message?: string | null
-          id?: string
-          sites_visited?: number
-          started_at?: string | null
-          status?: string
-          total_sites?: number
-          warmup_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_profile_warmups_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_profile_warmups_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_profile_warmups_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "creators"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       creator_proxy_configs: {
         Row: {
           agency_id: string
@@ -2068,85 +1838,6 @@ export type Database = {
             foreignKeyName: "creator_proxy_configs_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: true
-            referencedRelation: "creators"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_session_links: {
-        Row: {
-          agency_id: string
-          browserbase_context_id: string | null
-          browserbase_live_url: string | null
-          browserbase_session_id: string | null
-          created_at: string
-          created_by: string
-          creator_id: string
-          encrypted_session: string
-          expires_at: string
-          id: string
-          is_active: boolean
-          last_saved_at: string | null
-          notes: string | null
-          platform: string
-          session_status: string | null
-          updated_at: string
-        }
-        Insert: {
-          agency_id: string
-          browserbase_context_id?: string | null
-          browserbase_live_url?: string | null
-          browserbase_session_id?: string | null
-          created_at?: string
-          created_by: string
-          creator_id: string
-          encrypted_session: string
-          expires_at: string
-          id?: string
-          is_active?: boolean
-          last_saved_at?: string | null
-          notes?: string | null
-          platform: string
-          session_status?: string | null
-          updated_at?: string
-        }
-        Update: {
-          agency_id?: string
-          browserbase_context_id?: string | null
-          browserbase_live_url?: string | null
-          browserbase_session_id?: string | null
-          created_at?: string
-          created_by?: string
-          creator_id?: string
-          encrypted_session?: string
-          expires_at?: string
-          id?: string
-          is_active?: boolean
-          last_saved_at?: string | null
-          notes?: string | null
-          platform?: string
-          session_status?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_session_links_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_session_links_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_session_links_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
             referencedRelation: "creators"
             referencedColumns: ["id"]
           },
@@ -4580,61 +4271,6 @@ export type Database = {
           },
         ]
       }
-      pre_warmed_profiles: {
-        Row: {
-          agency_id: string
-          assigned_creator_id: string | null
-          browserbase_context_id: string
-          created_at: string
-          id: string
-          last_warmed_at: string | null
-          status: string
-          warmup_count: number
-        }
-        Insert: {
-          agency_id: string
-          assigned_creator_id?: string | null
-          browserbase_context_id: string
-          created_at?: string
-          id?: string
-          last_warmed_at?: string | null
-          status?: string
-          warmup_count?: number
-        }
-        Update: {
-          agency_id?: string
-          assigned_creator_id?: string | null
-          browserbase_context_id?: string
-          created_at?: string
-          id?: string
-          last_warmed_at?: string | null
-          status?: string
-          warmup_count?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pre_warmed_profiles_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pre_warmed_profiles_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pre_warmed_profiles_assigned_creator_id_fkey"
-            columns: ["assigned_creator_id"]
-            isOneToOne: false
-            referencedRelation: "creators"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           agency_id: string | null
@@ -4830,172 +4466,6 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      scrape_jobs: {
-        Row: {
-          attempts: number
-          completed_at: string | null
-          created_at: string
-          creator_id: string
-          error_message: string | null
-          id: string
-          locked_at: string | null
-          locked_by: string | null
-          max_attempts: number
-          result: Json | null
-          scheduled_for: string
-          session_link_id: string | null
-          started_at: string | null
-          status: string
-        }
-        Insert: {
-          attempts?: number
-          completed_at?: string | null
-          created_at?: string
-          creator_id: string
-          error_message?: string | null
-          id?: string
-          locked_at?: string | null
-          locked_by?: string | null
-          max_attempts?: number
-          result?: Json | null
-          scheduled_for?: string
-          session_link_id?: string | null
-          started_at?: string | null
-          status?: string
-        }
-        Update: {
-          attempts?: number
-          completed_at?: string | null
-          created_at?: string
-          creator_id?: string
-          error_message?: string | null
-          id?: string
-          locked_at?: string | null
-          locked_by?: string | null
-          max_attempts?: number
-          result?: Json | null
-          scheduled_for?: string
-          session_link_id?: string | null
-          started_at?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "scrape_jobs_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "creators"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "scrape_jobs_session_link_id_fkey"
-            columns: ["session_link_id"]
-            isOneToOne: false
-            referencedRelation: "creator_session_links"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      session_access_logs: {
-        Row: {
-          action: string
-          chatter_id: string
-          created_at: string
-          id: string
-          ip_address: string | null
-          session_link_id: string
-          user_agent: string | null
-        }
-        Insert: {
-          action: string
-          chatter_id: string
-          created_at?: string
-          id?: string
-          ip_address?: string | null
-          session_link_id: string
-          user_agent?: string | null
-        }
-        Update: {
-          action?: string
-          chatter_id?: string
-          created_at?: string
-          id?: string
-          ip_address?: string | null
-          session_link_id?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "session_access_logs_chatter_id_fkey"
-            columns: ["chatter_id"]
-            isOneToOne: false
-            referencedRelation: "chatters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_access_logs_session_link_id_fkey"
-            columns: ["session_link_id"]
-            isOneToOne: false
-            referencedRelation: "creator_session_links"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      session_link_assignments: {
-        Row: {
-          access_count: number
-          accessed_at: string | null
-          assigned_at: string
-          chatter_id: string
-          id: string
-          last_access_ip: string | null
-          session_link_id: string
-          shift_id: string | null
-        }
-        Insert: {
-          access_count?: number
-          accessed_at?: string | null
-          assigned_at?: string
-          chatter_id: string
-          id?: string
-          last_access_ip?: string | null
-          session_link_id: string
-          shift_id?: string | null
-        }
-        Update: {
-          access_count?: number
-          accessed_at?: string | null
-          assigned_at?: string
-          chatter_id?: string
-          id?: string
-          last_access_ip?: string | null
-          session_link_id?: string
-          shift_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "session_link_assignments_chatter_id_fkey"
-            columns: ["chatter_id"]
-            isOneToOne: false
-            referencedRelation: "chatters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_link_assignments_session_link_id_fkey"
-            columns: ["session_link_id"]
-            isOneToOne: false
-            referencedRelation: "creator_session_links"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_link_assignments_shift_id_fkey"
-            columns: ["shift_id"]
-            isOneToOne: false
-            referencedRelation: "chatter_shifts"
             referencedColumns: ["id"]
           },
         ]
@@ -5382,13 +4852,6 @@ export type Database = {
             referencedRelation: "agencies_public"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "warmup_intelligence_warmup_id_fkey"
-            columns: ["warmup_id"]
-            isOneToOne: false
-            referencedRelation: "creator_profile_warmups"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
@@ -5415,43 +4878,8 @@ export type Database = {
     Functions: {
       check_agency_creator_limit: { Args: never; Returns: boolean }
       check_agency_employee_limit: { Args: never; Returns: boolean }
-      claim_scrape_jobs: {
-        Args: { batch_size?: number; worker_id: string }
-        Returns: {
-          attempts: number
-          completed_at: string | null
-          created_at: string
-          creator_id: string
-          error_message: string | null
-          id: string
-          locked_at: string | null
-          locked_by: string | null
-          max_attempts: number
-          result: Json | null
-          scheduled_for: string
-          session_link_id: string | null
-          started_at: string | null
-          status: string
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "scrape_jobs"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
       cleanup_expired_of_cache: { Args: never; Returns: undefined }
       cleanup_old_activity_logs: { Args: never; Returns: number }
-      cleanup_old_scrape_jobs: { Args: never; Returns: number }
-      complete_scrape_job: {
-        Args: { job_id: string; job_result?: Json }
-        Returns: undefined
-      }
-      enqueue_scrape_jobs: { Args: never; Returns: number }
-      fail_scrape_job: {
-        Args: { err_msg?: string; job_id: string }
-        Returns: undefined
-      }
       get_agency_creator_count: {
         Args: { p_agency_id: string }
         Returns: number
@@ -5484,7 +4912,6 @@ export type Database = {
         Args: { recruiting_id: string }
         Returns: string
       }
-      recover_stale_scrape_jobs: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
