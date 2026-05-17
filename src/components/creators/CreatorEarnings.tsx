@@ -19,6 +19,7 @@ import { useAgency } from "@/hooks/useAgency";
 import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -245,12 +246,26 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-semibold text-foreground">OnlyFans Earnings</h2>
-        {ofAccount?.of_last_synced_at && (
-          <p className="text-sm text-muted-foreground">
-            Last synced: {format(new Date(ofAccount.of_last_synced_at), "MMM d, yyyy h:mm a")}
-          </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">OnlyFans Earnings</h2>
+          {ofAccount?.of_last_synced_at && (
+            <p className="text-sm text-muted-foreground">
+              Last synced: {format(new Date(ofAccount.of_last_synced_at), "MMM d, yyyy h:mm a")}
+            </p>
+          )}
+        </div>
+        {ofAccount?.of_account_id && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSync}
+            disabled={syncing}
+            className="shrink-0"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Refresh from OF"}
+          </Button>
         )}
       </div>
 
