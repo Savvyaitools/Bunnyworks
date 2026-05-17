@@ -1,5 +1,5 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Activity, AlertCircle, Bot, ChevronLeft, ChevronRight, Crown, DollarSign, Flame, MessageSquare, Sparkles, TrendingUp, Trophy, Users, Zap } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { AlertCircle, Bot, ChevronLeft, ChevronRight, Crown, DollarSign, Flame, Maximize2, MessageSquare, Sparkles, TrendingUp, Trophy, Users, X, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
@@ -34,6 +34,7 @@ function monthKey(d: Date) {
 
 export default function Index() {
   const [activePanel, setActivePanel] = useState<PanelKey>("dashboard");
+  const [expandedPanel, setExpandedPanel] = useState<PanelKey | null>(null);
   const { data: stats } = useDashboardStats();
   const { agency } = useAgency();
   const agencyId = agency?.id;
@@ -206,6 +207,24 @@ export default function Index() {
     setActivePanel(panelOrder[(nextIndex + panelOrder.length) % panelOrder.length]);
   };
 
+  // ESC closes the expanded modal
+  useEffect(() => {
+    if (!expandedPanel) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandedPanel(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expandedPanel]);
+
+  const handlePanelClick = (panel: PanelKey) => {
+    if (panel === activePanel) {
+      setExpandedPanel(panel);
+    } else {
+      setActivePanel(panel);
+    }
+  };
+
   const renderPanel = (panel: PanelKey, compact = false) => {
     switch (panel) {
       case "dashboard": return <DashboardPanel revenue={revenueData} activeCreators={stats?.activeCreators ?? 0} activeEmployees={stats?.activeEmployees ?? 0} tasks={taskData?.total ?? 0} msgs={chatterBoard?.totalMsgs ?? 0} compact={compact} />;
@@ -238,13 +257,18 @@ export default function Index() {
             </span>
           </div>
           <div className="relative mt-3 px-3 pb-28">
-            <div className="overflow-hidden rounded-xl border border-primary/45 bg-card/90 shadow-2xl backdrop-blur-xl">
+            <button
+              type="button"
+              onClick={() => setExpandedPanel(activePanel)}
+              className="block w-full overflow-hidden rounded-xl border border-primary/45 bg-card/90 text-left shadow-2xl backdrop-blur-xl active:scale-[0.99] transition"
+              aria-label={`Expand ${panelLabels[activePanel]}`}
+            >
               <div className="flex h-10 items-center justify-between border-b border-primary/35 bg-primary/10 px-3">
                 <span className="font-display text-xs font-bold uppercase tracking-[0.22em] text-foreground">{panelLabels[activePanel]}</span>
-                <ChevronRight className="h-4 w-4 text-primary" />
+                <Maximize2 className="h-3.5 w-3.5 text-primary" />
               </div>
               {renderPanel(activePanel, true)}
-            </div>
+            </button>
             <div className="mt-4 flex items-center justify-between gap-2">
               <button type="button" onClick={() => cycle("prev")} aria-label="Previous" className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-card/85 text-foreground backdrop-blur active:scale-95 transition">
                 <ChevronLeft className="h-5 w-5" />
@@ -282,7 +306,7 @@ export default function Index() {
 
         <div className="relative h-[calc(100dvh-2rem)] min-h-[720px] [perspective:2000px]">
           {panelOrder.map((panel) => (
-            <OpsPanel key={panel} panel={panel} slot={visualSlots[panel]} active={activePanel === panel} onFocus={setActivePanel}>
+            <OpsPanel key={panel} panel={panel} slot={visualSlots[panel]} active={activePanel === panel} onSelect={handlePanelClick}>
               {renderPanel(panel)}
             </OpsPanel>
           ))}
@@ -290,11 +314,17 @@ export default function Index() {
 
         <CarouselNav activePanel={activePanel} onSelect={setActivePanel} onCycle={cycle} />
       </section>
+
+      {expandedPanel && (
+        <ExpandedPanelModal panel={expandedPanel} onClose={() => setExpandedPanel(null)}>
+          {renderPanel(expandedPanel)}
+        </ExpandedPanelModal>
+      )}
     </DashboardLayout>
   );
 }
 
-function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey; slot: VisualSlot; active: boolean; onFocus: (panel: PanelKey) => void; children: ReactNode }) {
+function OpsPanel({ panel, slot, active, onSelect, children }: { panel: PanelKey; slot: VisualSlot; active: boolean; onSelect: (panel: PanelKey) => void; children: ReactNode }) {
   const slotClass: Record<VisualSlot, string> = {
     center:     "left-1/2 top-1/2 z-40 w-[min(46vw,820px)] opacity-100",
     right:      "left-[68%] top-[50%] z-30 w-[min(30vw,560px)] opacity-90",
@@ -316,8 +346,8 @@ function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey;
   return (
     <button
       type="button"
-      onClick={() => onFocus(panel)}
-      aria-label={`Focus ${panelLabels[panel]}`}
+      onClick={() => onSelect(panel)}
+      aria-label={active ? `Expand ${panelLabels[panel]}` : `Focus ${panelLabels[panel]}`}
       className={cn(
         "absolute aspect-[1.55/1] origin-center text-left transition-all duration-500 [transform-style:preserve-3d] hover:drop-shadow-[0_0_28px_hsl(var(--primary)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         slotClass[slot],
@@ -328,11 +358,44 @@ function OpsPanel({ panel, slot, active, onFocus, children }: { panel: PanelKey;
       <div className="h-full overflow-hidden rounded-md border border-primary/55 bg-card/90 shadow-2xl backdrop-blur-xl">
         <div className="flex h-11 items-center justify-between border-b border-primary/35 bg-primary/10 px-4">
           <span className="font-display text-sm font-bold uppercase tracking-[0.22em] text-foreground">{panelLabels[panel]}</span>
-          <ChevronRight className="h-4 w-4 text-primary" />
+          {active ? <Maximize2 className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
         </div>
         {children}
       </div>
     </button>
+  );
+}
+
+function ExpandedPanelModal({ panel, onClose, children }: { panel: PanelKey; onClose: () => void; children: ReactNode }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/85 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-8"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={panelLabels[panel]}
+    >
+      <div
+        className="relative flex h-full max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-primary/55 bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-primary/35 bg-primary/10 px-5">
+          <div className="flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_10px_hsl(var(--success))]" />
+            <span className="font-display text-base font-bold uppercase tracking-[0.22em] text-foreground">{panelLabels[panel]}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-background/60 text-foreground transition hover:bg-primary/20"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto">{children}</div>
+      </div>
+    </div>
   );
 }
 
