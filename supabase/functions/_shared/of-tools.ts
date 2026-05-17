@@ -79,7 +79,7 @@ export async function toolSyncAccount(
   if (!args.of_account_id) return { ok: false, error: "of_account_id required" };
   const { data: acc } = await supabase
     .from("creator_social_accounts")
-    .select("id, of_account_id, creators!inner(agency_id)")
+    .select("id, creator_id, of_account_id, creators!inner(agency_id)")
     .eq("of_account_id", args.of_account_id)
     .ilike("platform", "onlyfans")
     .maybeSingle();
@@ -87,7 +87,12 @@ export async function toolSyncAccount(
     return { ok: false, error: "of account not in agency" };
   }
   try {
-    const result = await runSync(supabase, args.of_account_id);
+    const result = await runSync(supabase, {
+      id: (acc as any).id,
+      creator_id: (acc as any).creator_id,
+      of_account_id: (acc as any).of_account_id,
+      agency_id: agencyId,
+    }, "manual");
     return { ok: true, result };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? "sync failed" };
