@@ -173,19 +173,26 @@ export default function Index() {
       const since = new Date();
       since.setDate(since.getDate() - 7);
       const iso = since.toISOString();
+      const countFrom = async (table: string): Promise<number> => {
+        const { count } = await (supabase.from(table as any) as any)
+          .select("*", { count: "exact", head: true })
+          .eq("agency_id", agencyId!)
+          .gte("created_at", iso);
+        return count ?? 0;
+      };
       const [flick, coach, tatum, izzy, chatLog] = await Promise.all([
-        supabase.from("messages").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).gte("created_at", iso),
-        supabase.from("coach_pbf_messages").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).gte("created_at", iso),
-        supabase.from("tatum_messages").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).gte("created_at", iso),
-        supabase.from("izzy_messages").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).gte("created_at", iso),
-        supabase.from("chatter_message_log").select("*", { count: "exact", head: true }).eq("agency_id", agencyId!).gte("created_at", iso),
+        countFrom("messages"),
+        countFrom("coach_pbf_messages"),
+        countFrom("tatum_messages"),
+        countFrom("izzy_messages"),
+        countFrom("chatter_message_log"),
       ]);
       return [
-        { name: "Flick", role: "Agency Manager", icon: Bot, count: flick.count ?? 0 },
-        { name: "Coach PBF", role: "Performance", icon: Crown, count: coach.count ?? 0 },
-        { name: "Tatum", role: "Trend scout", icon: Sparkles, count: tatum.count ?? 0 },
-        { name: "Izzy", role: "Suggester", icon: Zap, count: izzy.count ?? 0 },
-        { name: "Marylin", role: "Chatter AI", icon: MessageSquare, count: chatLog.count ?? 0 },
+        { name: "Flick", role: "Agency Manager", icon: Bot, count: flick },
+        { name: "Coach PBF", role: "Performance", icon: Crown, count: coach },
+        { name: "Tatum", role: "Trend scout", icon: Sparkles, count: tatum },
+        { name: "Izzy", role: "Suggester", icon: Zap, count: izzy },
+        { name: "Marylin", role: "Chatter AI", icon: MessageSquare, count: chatLog },
       ].sort((a, b) => b.count - a.count);
     },
   });
