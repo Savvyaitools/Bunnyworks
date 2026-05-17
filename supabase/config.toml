@@ -46,9 +46,6 @@ verify_jwt = false
 [functions.ai-agent-orchestrator]
 verify_jwt = false
 
-[functions.browserbase-session]
-verify_jwt = false
-
 [functions.ai-social-media-manager]
 verify_jwt = false
 
