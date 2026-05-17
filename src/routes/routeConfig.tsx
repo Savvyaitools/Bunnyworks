@@ -31,7 +31,6 @@ const Chatters = lazy(() => import("@/pages/Chatters"));
 const ShiftRoster = lazy(() => import("@/pages/ShiftRoster"));
 const InternalMessages = lazy(() => import("@/pages/InternalMessages"));
 const Applications = lazy(() => import("@/pages/Applications"));
-const BrowserSync = lazy(() => import("@/pages/BrowserSync"));
 const UserGuide = lazy(() => import("@/pages/UserGuide"));
 const CoachPBFHub = lazy(() => import("@/pages/Felix"));
 const CoachPBFChat = lazy(() => import("@/pages/coach/CoachPBF"));
@@ -52,7 +51,6 @@ const EmployeeTeamChat = lazy(() => import("@/pages/employee/EmployeeTeamChat"))
 const EmployeeShifts = lazy(() => import("@/pages/employee/EmployeeShifts"));
 const EmployeeTimeLogs = lazy(() => import("@/pages/employee/EmployeeTimeLogs"));
 const EmployeePerformancePage = lazy(() => import("@/pages/employee/EmployeePerformance"));
-const EmployeeBrowserSessions = lazy(() => import("@/pages/employee/EmployeeBrowserSessions"));
 const EmployeeCreatorHub = lazy(() => import("@/pages/employee/EmployeeCreatorHub"));
 
 // Tool pages
@@ -126,7 +124,6 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/shifts", element: <ShiftRoster />, auth: ["agency"] },
   { path: "/applications", element: <Applications />, auth: ["agency"] },
   { path: "/tools/creator-discovery", element: <CreatorDiscovery />, auth: ["agency"] },
-  { path: "/browser-sync", element: <BrowserSync />, auth: ["agency"] },
   { path: "/guide", element: <UserGuide />, auth: ["agency"] },
   { path: "/of-ai/social-media", element: <SocialMediaManager />, auth: ["agency"] },
   { path: "/of-ai/chatter", element: <AIChatterPage />, auth: ["agency"] },
@@ -154,7 +151,6 @@ export const portalRoutes: RouteConfig[] = [
 export const employeeRoutes: RouteConfig[] = [
   { path: "/employee", element: <EmployeeDashboard />, auth: ["employee"], errorBoundary: true },
   { path: "/employee/team-chat", element: <EmployeeTeamChat />, auth: ["employee"], errorBoundary: true },
-  { path: "/employee/browser", element: <EmployeeBrowserSessions />, auth: ["employee"], errorBoundary: true },
   { path: "/employee/performance", element: <EmployeePerformancePage />, auth: ["employee"], errorBoundary: true },
   { path: "/employee/shifts", element: <EmployeeShifts />, auth: ["employee"], errorBoundary: true },
   { path: "/employee/time-logs", element: <EmployeeTimeLogs />, auth: ["employee"], errorBoundary: true },

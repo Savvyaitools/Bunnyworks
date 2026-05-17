@@ -3,8 +3,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
-import { ActiveBrowserSessionProvider } from "@/contexts/ActiveBrowserSessionContext";
-import { ActiveSessionBanner } from "@/components/browser/ActiveSessionBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { AppRoutes } from "@/routes/AppRoutes";
@@ -28,11 +26,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <ActiveBrowserSessionProvider>
-              <CommandPalette />
-              <ActiveSessionBanner />
-              <AppRoutes />
-            </ActiveBrowserSessionProvider>
+            <CommandPalette />
+            <AppRoutes />
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
