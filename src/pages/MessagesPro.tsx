@@ -65,7 +65,7 @@ export default function MessagesPro() {
           <div className="pointer-events-auto bg-card border border-border rounded-xl p-6 max-w-sm text-center shadow-2xl">
             <h3 className="text-base font-semibold mb-2">No OnlyFans accounts connected</h3>
             <p className="text-xs text-muted-foreground">
-              Go to a Creator → Platform Accounts and connect via OnlyFansAPI to start using Messages Pro.
+              Go to a Creator → Platform Accounts and connect via OnlyFansAPI to start using BunnyChat Arcade.
             </p>
           </div>
         </div>
