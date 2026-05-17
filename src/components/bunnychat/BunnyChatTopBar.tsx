@@ -26,7 +26,7 @@ function fmtMoney(n: number) {
   return `$${n.toFixed(0)}`;
 }
 
-export function MessagesProTopBar({
+export function BunnyChatTopBar({
   accounts, activeAccount, onSelectAccount, chats, speedMode, onSpeedModeChange, aiAssist, onAiAssistChange, onOpenMassMessage,
 }: Props) {
   const [open, setOpen] = useState(false);

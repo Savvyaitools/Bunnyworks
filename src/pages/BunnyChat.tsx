@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { MessagesProTopBar } from "@/components/messages-pro/MessagesProTopBar";
-import { ChatList } from "@/components/messages-pro/ChatList";
-import { Conversation } from "@/components/messages-pro/Conversation";
-import { FanSidebar } from "@/components/messages-pro/FanSidebar";
-import { MassMessageComposer } from "@/components/messages-pro/MassMessageComposer";
+import { BunnyChatTopBar } from "@/components/bunnychat/BunnyChatTopBar";
+import { ChatList } from "@/components/bunnychat/ChatList";
+import { Conversation } from "@/components/bunnychat/Conversation";
+import { FanSidebar } from "@/components/bunnychat/FanSidebar";
+import { MassMessageComposer } from "@/components/bunnychat/MassMessageComposer";
 import { useOfAccounts, type OfAccount } from "@/hooks/useOfAccounts";
 import { useOfChats, type OfChatRow } from "@/hooks/useOfChats";
 
-export default function MessagesPro() {
+export default function BunnyChat() {
   const { accounts, loading: accountsLoading } = useOfAccounts();
   const [activeAccount, setActiveAccount] = useState<OfAccount | null>(null);
   const [speedMode, setSpeedMode] = useState(false);
@@ -33,14 +33,14 @@ export default function MessagesPro() {
   return (
     <DashboardLayout>
       <div
-        className="messages-pro-root h-[calc(100vh-6rem)] flex flex-col rounded-2xl overflow-hidden border border-border/40 bg-background/40 backdrop-blur-xl shadow-2xl animate-fade-in"
+        className="bunnychat-root h-[calc(100vh-6rem)] flex flex-col rounded-2xl overflow-hidden border border-border/40 bg-background/40 backdrop-blur-xl shadow-2xl animate-fade-in"
         style={{
           // Infloww orange accent scoped to this page only
           ['--mp-accent' as any]: '20 90% 58%',
           ['--mp-accent-glow' as any]: '20 100% 65%',
         }}
       >
-        <MessagesProTopBar
+        <BunnyChatTopBar
           accounts={accounts}
           activeAccount={activeAccount}
           onSelectAccount={setActiveAccount}
