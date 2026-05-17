@@ -7,6 +7,7 @@ import {
   authenticateRequest,
   AIGatewayError,
 } from "../_shared/ai-client.ts";
+import { toolSendMessage } from "../_shared/of-tools.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -19,10 +20,26 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { agencyId } = await authenticateRequest(req, supabase);
+    const { agencyId, userId } = await authenticateRequest(req, supabase);
 
-    const { action, fanMessage, creatorName, creatorPersona, creatorBoundaries, confidenceThreshold, creatorId, conversationHistory = [] } = await req.json();
+    const payload = await req.json();
+    const { action } = payload;
+
+    // ── Tool: execute a reply (send DM / PPV via OnlyFans API) ──────
+    if (action === "execute_reply") {
+      const { chat_id, text, price, lock_message, media_ids } = payload;
+      const { data: chat } = await supabase.from("of_chats").select("agency_id").eq("id", chat_id).maybeSingle();
+      if (!chat || chat.agency_id !== agencyId) return jsonError("Chat not in your agency", 403);
+      const res = await toolSendMessage(
+        { supabase, agencyId },
+        { chat_id, text, price, lock_message, media_ids, sent_by_user_id: userId },
+      );
+      if (!res.ok) return jsonError(res.error, 400);
+      return jsonResponse({ ok: true, message_id: res.message_id });
+    }
+
     if (action !== "generate_reply") throw new Error("Invalid action");
+    const { fanMessage, creatorName, creatorPersona, creatorBoundaries, confidenceThreshold, creatorId, conversationHistory = [] } = payload;
 
     // ── Verify creator belongs to this agency ───────────────────────
     if (creatorId) {

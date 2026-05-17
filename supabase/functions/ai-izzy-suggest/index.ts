@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { toolSendMessage } from "../_shared/of-tools.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,7 +59,22 @@ serve(async (req) => {
     if (!userProfile?.agency_id) return jsonError('No agency associated with your account', 403);
     const agencyId = userProfile.agency_id;
 
-    const { fanMessage, conversationHistory, creatorId, fanId, accountId, suggestionType = 'reply' } = await req.json() as SuggestionRequest;
+    const body = await req.json() as SuggestionRequest & { action?: string; chat_id?: string; text?: string; price?: number; lock_message?: boolean; media_ids?: string[] };
+
+    // ── Tool: send a selected suggestion via OnlyFans API ───────────
+    if (body.action === 'send_suggestion') {
+      if (!body.chat_id || !body.text) return jsonError('chat_id and text required', 400);
+      const { data: chat } = await supabase.from('of_chats').select('agency_id').eq('id', body.chat_id).maybeSingle();
+      if (!chat || chat.agency_id !== agencyId) return jsonError('Chat not in your agency', 403);
+      const res = await toolSendMessage(
+        { supabase, agencyId },
+        { chat_id: body.chat_id, text: body.text, price: body.price, lock_message: body.lock_message, media_ids: body.media_ids, sent_by_user_id: authenticatedUserId },
+      );
+      if (!res.ok) return jsonError(res.error, 400);
+      return new Response(JSON.stringify({ ok: true, message_id: res.message_id }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const { fanMessage, conversationHistory, creatorId, fanId, accountId, suggestionType = 'reply' } = body;
 
     // ── Verify creator belongs to this agency ───────────────────────
     if (creatorId) {
