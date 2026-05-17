@@ -139,7 +139,28 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
   });
 
   const handleSync = async () => {
-    toast.info("Earnings are now synced automatically via browser sessions.");
+    if (!ofAccount?.of_account_id) {
+      toast.error("Connect an OnlyFans account first.");
+      return;
+    }
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("of-sync-account", {
+        body: { of_account_id: ofAccount.of_account_id },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const amt = (data as any)?.earnings_amount ?? 0;
+      toast.success(
+        `Synced ${(data as any)?.chats ?? 0} chats, ${(data as any)?.fans ?? 0} fans · $${Number(amt).toFixed(0)} (30d)`,
+      );
+      await refetch();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message ?? "Failed to sync from OnlyFans");
+    } finally {
+      setSyncing(false);
+    }
   };
 
   if (isLoading) {
