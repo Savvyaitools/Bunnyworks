@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, Bell, Building, Shield, CreditCard } from "lucide-react";
+import { User, Bell, Building, Shield, CreditCard, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ export default function Settings() {
     name: "",
     website: "",
     commission_rate: 30,
+    of_sync_frequency_hours: 24,
   });
 
   // Sync agency data when loaded
@@ -69,6 +70,7 @@ export default function Settings() {
         name: agency.name || "",
         website: agency.website || "",
         commission_rate: (agency.commission_rate || 0.3) * 100,
+        of_sync_frequency_hours: agency.of_sync_frequency_hours ?? 24,
       });
     }
   }, [agency]);
