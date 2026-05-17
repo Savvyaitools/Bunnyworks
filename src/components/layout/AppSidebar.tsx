@@ -70,7 +70,7 @@ const collapsibleSections = [
   {
     label: "Operations",
     items: [
-      { title: "BunnyChat Arcade", url: "/messages-pro", icon: Gamepad2 },
+      { title: "BunnyChat Arcade", url: "/bunnychat", icon: Gamepad2 },
       { title: "Platform Access", url: "/browser-sync", icon: Globe },
       { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
       { title: "Team Chat", url: "/team-chat", icon: MessageSquare },

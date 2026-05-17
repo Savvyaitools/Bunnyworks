@@ -3,24 +3,27 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Lock, DollarSign, Paperclip, Smile, Send, Sparkles, Clock, ExternalLink, MoreVertical, Image as ImageIcon, RefreshCw } from "lucide-react";
+import { Lock, DollarSign, Paperclip, Smile, Send, Sparkles, Clock, ExternalLink, MoreVertical, Image as ImageIcon, RefreshCw, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isSameDay } from "date-fns";
 import { toast } from "sonner";
 import { useOfMessages, sendOfMessage } from "@/hooks/useOfMessages";
 import type { OfChatRow } from "@/hooks/useOfChats";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   chat: OfChatRow | null;
   ofAccountId: string | null;
+  creatorName?: string;
 }
 
-export function Conversation({ chat, ofAccountId }: Props) {
+export function Conversation({ chat, ofAccountId, creatorName }: Props) {
   const { messages, loading, sync } = useOfMessages(chat?.id ?? null);
   const [body, setBody] = useState("");
   const [price, setPrice] = useState<string>("");
   const [ppvOpen, setPpvOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [aiSending, setAiSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,6 +70,41 @@ export function Conversation({ chat, ofAccountId }: Props) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleOneClickAI = async () => {
+    if (!chat) return;
+    const lastIn = [...messages].reverse().find((m) => m.direction === "in");
+    const fanMessage = lastIn?.body?.trim();
+    if (!fanMessage) {
+      toast.error("No fan message to reply to");
+      return;
+    }
+    setAiSending(true);
+    try {
+      const history = messages.slice(-8).map((m) => ({
+        role: m.direction === "in" ? "fan" : "creator",
+        content: m.body ?? "",
+      }));
+      const { data, error } = await supabase.functions.invoke("ai-chatter", {
+        body: {
+          action: "generate_reply",
+          fanMessage,
+          creatorName: creatorName ?? "Creator",
+          conversationHistory: history,
+          confidenceThreshold: 0,
+        },
+      });
+      if (error) throw error;
+      const reply = (data as any)?.reply?.trim();
+      if (!reply) throw new Error("AI returned no reply");
+      await sendOfMessage({ chatId: chat.id, body: reply, price: 0 });
+      toast.success("AI reply sent");
+    } catch (e: any) {
+      toast.error(e?.message ?? "One-click send failed");
+    } finally {
+      setAiSending(false);
     }
   };
 
@@ -231,10 +269,48 @@ export function Conversation({ chat, ofAccountId }: Props) {
             <Button variant="ghost" size="icon" className="h-7 w-7" title="Schedule">
               <Clock className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="AI suggest">
-              <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--mp-accent))]" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="AI suggest (fill draft)"
+              disabled={aiSending}
+              onClick={async () => {
+                const lastIn = [...messages].reverse().find((m) => m.direction === "in");
+                if (!lastIn?.body) { toast.error("No fan message to reply to"); return; }
+                setAiSending(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("ai-chatter", {
+                    body: {
+                      action: "generate_reply",
+                      fanMessage: lastIn.body,
+                      creatorName: creatorName ?? "Creator",
+                      conversationHistory: messages.slice(-8).map((m) => ({ role: m.direction === "in" ? "fan" : "creator", content: m.body ?? "" })),
+                      confidenceThreshold: 0,
+                    },
+                  });
+                  if (error) throw error;
+                  const reply = (data as any)?.reply?.trim();
+                  if (reply) setBody(reply);
+                } catch (e: any) { toast.error(e?.message ?? "AI suggest failed"); }
+                finally { setAiSending(false); }
+              }}
+            >
+              <Sparkles className={cn("h-3.5 w-3.5 text-[hsl(var(--mp-accent))]", aiSending && "animate-pulse")} />
             </Button>
           </div>
+          <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleOneClickAI}
+            disabled={aiSending || sending}
+            className="h-7 gap-1.5 border-[hsl(var(--mp-accent))]/40 text-[hsl(var(--mp-accent))] hover:bg-[hsl(var(--mp-accent))]/10"
+            title="Generate AI reply and send instantly"
+          >
+            <Zap className={cn("h-3.5 w-3.5", aiSending && "animate-pulse")} />
+            {aiSending ? "AI sending…" : "One-click AI"}
+          </Button>
           <Button
             size="sm"
             onClick={handleSend}
@@ -244,6 +320,7 @@ export function Conversation({ chat, ofAccountId }: Props) {
             <Send className="h-3.5 w-3.5" />
             Send
           </Button>
+          </div>
         </div>
       </div>
     </div>
