@@ -116,6 +116,7 @@ export type Database = {
           max_creators: number
           max_employees: number
           name: string
+          of_sync_frequency_hours: number
           onboarding_completed: boolean | null
           onboarding_step: number | null
           subscription_ends_at: string | null
@@ -138,6 +139,7 @@ export type Database = {
           max_creators?: number
           max_employees?: number
           name: string
+          of_sync_frequency_hours?: number
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
           subscription_ends_at?: string | null
@@ -160,6 +162,7 @@ export type Database = {
           max_creators?: number
           max_employees?: number
           name?: string
+          of_sync_frequency_hours?: number
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
           subscription_ends_at?: string | null
