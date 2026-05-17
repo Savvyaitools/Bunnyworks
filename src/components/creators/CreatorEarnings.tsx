@@ -19,6 +19,7 @@ import { useAgency } from "@/hooks/useAgency";
 import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -139,7 +140,28 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
   });
 
   const handleSync = async () => {
-    toast.info("Earnings are now synced automatically via browser sessions.");
+    if (!ofAccount?.of_account_id) {
+      toast.error("Connect an OnlyFans account first.");
+      return;
+    }
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("of-sync-account", {
+        body: { of_account_id: ofAccount.of_account_id },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const amt = (data as any)?.earnings_amount ?? 0;
+      toast.success(
+        `Synced ${(data as any)?.chats ?? 0} chats, ${(data as any)?.fans ?? 0} fans · $${Number(amt).toFixed(0)} (30d)`,
+      );
+      await refetch();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message ?? "Failed to sync from OnlyFans");
+    } finally {
+      setSyncing(false);
+    }
   };
 
   if (isLoading) {
@@ -224,12 +246,26 @@ export function CreatorEarnings({ creatorId, creatorCommissionRate }: CreatorEar
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-semibold text-foreground">OnlyFans Earnings</h2>
-        {ofAccount?.of_last_synced_at && (
-          <p className="text-sm text-muted-foreground">
-            Last synced: {format(new Date(ofAccount.of_last_synced_at), "MMM d, yyyy h:mm a")}
-          </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">OnlyFans Earnings</h2>
+          {ofAccount?.of_last_synced_at && (
+            <p className="text-sm text-muted-foreground">
+              Last synced: {format(new Date(ofAccount.of_last_synced_at), "MMM d, yyyy h:mm a")}
+            </p>
+          )}
+        </div>
+        {ofAccount?.of_account_id && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSync}
+            disabled={syncing}
+            className="shrink-0"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Refresh from OF"}
+          </Button>
         )}
       </div>
 
