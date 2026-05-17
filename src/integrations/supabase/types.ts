@@ -466,6 +466,48 @@ export type Database = {
           },
         ]
       }
+      ai_browser_agents: {
+        Row: {
+          agency_id: string
+          created_at: string
+          created_by: string | null
+          default_start_url: string | null
+          description: string | null
+          id: string
+          name: string
+          persona: string | null
+          status: string
+          system_prompt: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          created_by?: string | null
+          default_start_url?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          persona?: string | null
+          status?: string
+          system_prompt?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          created_by?: string | null
+          default_start_url?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          persona?: string | null
+          status?: string
+          system_prompt?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_fan_context: {
         Row: {
           avg_ppv_price: number | null
@@ -714,6 +756,78 @@ export type Database = {
           },
         ]
       }
+      browser_agent_runs: {
+        Row: {
+          agency_id: string
+          agent_id: string | null
+          browserbase_session_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          id: string
+          live_view_url: string | null
+          logs: Json
+          result: Json | null
+          started_at: string | null
+          status: string
+          task: string | null
+          updated_at: string
+          workflow_id: string | null
+        }
+        Insert: {
+          agency_id: string
+          agent_id?: string | null
+          browserbase_session_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          live_view_url?: string | null
+          logs?: Json
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          task?: string | null
+          updated_at?: string
+          workflow_id?: string | null
+        }
+        Update: {
+          agency_id?: string
+          agent_id?: string | null
+          browserbase_session_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          live_view_url?: string | null
+          logs?: Json
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          task?: string | null
+          updated_at?: string
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_browser_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "browser_agent_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "browser_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       browser_extensions: {
         Row: {
           agency_id: string
@@ -803,6 +917,56 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      browser_workflows: {
+        Row: {
+          agency_id: string
+          agent_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          start_url: string | null
+          steps: Json
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          agent_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          start_url?: string | null
+          steps?: Json
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          agent_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          start_url?: string | null
+          steps?: Json
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_workflows_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_browser_agents"
             referencedColumns: ["id"]
           },
         ]
