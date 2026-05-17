@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, Bell, Sparkles, Zap, DollarSign, MessageSquare, Inbox, Search } from "lucide-react";
+import { Check, ChevronDown, Bell, Sparkles, Zap, DollarSign, MessageSquare, Inbox, Search, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,6 +18,7 @@ interface Props {
   onSpeedModeChange: (v: boolean) => void;
   aiAssist: boolean;
   onAiAssistChange: (v: boolean) => void;
+  onOpenMassMessage?: () => void;
 }
 
 function fmtMoney(n: number) {
@@ -26,7 +27,7 @@ function fmtMoney(n: number) {
 }
 
 export function MessagesProTopBar({
-  accounts, activeAccount, onSelectAccount, chats, speedMode, onSpeedModeChange, aiAssist, onAiAssistChange,
+  accounts, activeAccount, onSelectAccount, chats, speedMode, onSpeedModeChange, aiAssist, onAiAssistChange, onOpenMassMessage,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -124,6 +125,16 @@ export function MessagesProTopBar({
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onOpenMassMessage}
+          disabled={!activeAccount}
+          className="h-8 gap-1.5 border-[hsl(var(--mp-accent))]/40 bg-[hsl(var(--mp-accent))]/10 text-[hsl(var(--mp-accent))] hover:bg-[hsl(var(--mp-accent))]/20 hover:text-[hsl(var(--mp-accent))]"
+        >
+          <Megaphone className="h-3.5 w-3.5" />
+          <span className="text-[11px] font-semibold">Mass Message</span>
+        </Button>
         <label className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/40 cursor-pointer hover:bg-muted/50 transition-colors">
           <Sparkles className={cn("h-3.5 w-3.5", aiAssist ? "text-[hsl(var(--mp-accent))]" : "text-muted-foreground")} />
           <span className="text-[11px] font-medium text-foreground">AI Assist</span>
