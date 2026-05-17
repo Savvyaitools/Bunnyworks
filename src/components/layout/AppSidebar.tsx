@@ -24,7 +24,7 @@ import {
   ChevronDown,
   Command,
   BarChart3,
-  
+  Gamepad2,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -54,7 +54,6 @@ const mainNavItems = [
   { title: "OF AI", url: "/of-ai", icon: Bot },
   { title: "Creators", url: "/creators", icon: Users },
   { title: "Messages", url: "/messages", icon: MessageSquare },
-  { title: "Messages Pro", url: "/messages-pro", icon: MessagesSquare },
   { title: "Team", url: "/team", icon: UserCog },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Calendar", url: "/calendar", icon: Calendar },
@@ -71,6 +70,7 @@ const collapsibleSections = [
   {
     label: "Operations",
     items: [
+      { title: "BunnyChat Arcade", url: "/messages-pro", icon: Gamepad2 },
       { title: "Platform Access", url: "/browser-sync", icon: Globe },
       { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
       { title: "Team Chat", url: "/team-chat", icon: MessageSquare },
