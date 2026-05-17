@@ -10,6 +10,25 @@ import { toast } from "sonner";
 import { useOfMessages, sendOfMessage } from "@/hooks/useOfMessages";
 import type { OfChatRow } from "@/hooks/useOfChats";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const TONES = [
+  { value: "flirty", label: "Flirty" },
+  { value: "playful", label: "Playful" },
+  { value: "romantic", label: "Romantic" },
+  { value: "dominant", label: "Dominant" },
+  { value: "submissive", label: "Submissive" },
+  { value: "professional", label: "Professional" },
+  { value: "casual", label: "Casual" },
+  { value: "thankful", label: "Thankful" },
+] as const;
+const LENGTHS = [
+  { value: "short", label: "Short", hint: "≤12 words" },
+  { value: "medium", label: "Medium", hint: "2–3 sentences" },
+  { value: "long", label: "Long", hint: "4–6 sentences" },
+] as const;
+type Tone = (typeof TONES)[number]["value"];
+type Length = (typeof LENGTHS)[number]["value"];
 
 interface Props {
   chat: OfChatRow | null;
@@ -24,6 +43,8 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
   const [ppvOpen, setPpvOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [aiSending, setAiSending] = useState(false);
+  const [aiTone, setAiTone] = useState<Tone>("flirty");
+  const [aiLength, setAiLength] = useState<Length>("medium");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,6 +115,8 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
           creatorName: creatorName ?? "Creator",
           conversationHistory: history,
           confidenceThreshold: 0,
+          tone: aiTone,
+          length: aiLength,
         },
       });
       if (error) throw error;
@@ -287,6 +310,8 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
                       creatorName: creatorName ?? "Creator",
                       conversationHistory: messages.slice(-8).map((m) => ({ role: m.direction === "in" ? "fan" : "creator", content: m.body ?? "" })),
                       confidenceThreshold: 0,
+                      tone: aiTone,
+                      length: aiLength,
                     },
                   });
                   if (error) throw error;
@@ -300,13 +325,36 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
             </Button>
           </div>
           <div className="flex items-center gap-2">
+          <Select value={aiTone} onValueChange={(v) => setAiTone(v as Tone)}>
+            <SelectTrigger className="h-7 w-[110px] text-[11px] bg-muted/30 border-border/50" title="AI tone">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TONES.map((t) => (
+                <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={aiLength} onValueChange={(v) => setAiLength(v as Length)}>
+            <SelectTrigger className="h-7 w-[100px] text-[11px] bg-muted/30 border-border/50" title="AI reply length">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {LENGTHS.map((l) => (
+                <SelectItem key={l.value} value={l.value} className="text-xs">
+                  <span className="font-medium">{l.label}</span>
+                  <span className="ml-1 text-muted-foreground">{l.hint}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             size="sm"
             variant="outline"
             onClick={handleOneClickAI}
             disabled={aiSending || sending}
             className="h-7 gap-1.5 border-[hsl(var(--mp-accent))]/40 text-[hsl(var(--mp-accent))] hover:bg-[hsl(var(--mp-accent))]/10"
-            title="Generate AI reply and send instantly"
+            title={`Generate ${aiTone} ${aiLength} reply and send instantly`}
           >
             <Zap className={cn("h-3.5 w-3.5", aiSending && "animate-pulse")} />
             {aiSending ? "AI sending…" : "One-click AI"}

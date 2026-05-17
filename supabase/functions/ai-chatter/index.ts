@@ -39,7 +39,25 @@ serve(async (req) => {
     }
 
     if (action !== "generate_reply") throw new Error("Invalid action");
-    const { fanMessage, creatorName, creatorPersona, creatorBoundaries, confidenceThreshold, creatorId, conversationHistory = [] } = payload;
+    const { fanMessage, creatorName, creatorPersona, creatorBoundaries, confidenceThreshold, creatorId, conversationHistory = [], tone, length } = payload;
+
+    const TONE_GUIDE: Record<string, string> = {
+      flirty: "Flirty, teasing, playful sexual tension. Use light innuendo and warmth.",
+      playful: "Playful, cheeky, fun energy. Light humor, no heavy sexual content.",
+      romantic: "Romantic, sweet, affectionate. Make the fan feel adored.",
+      dominant: "Confident and dominant. Direct, commanding, in-control tone.",
+      submissive: "Soft, eager-to-please, submissive tone. Receptive and attentive.",
+      professional: "Polite and professional. No slang, no sexual content, business-appropriate.",
+      casual: "Casual and conversational, like texting a friend. Relaxed punctuation.",
+      thankful: "Warm, appreciative, gratitude-forward. Acknowledge the fan generously.",
+    };
+    const LENGTH_GUIDE: Record<string, string> = {
+      short: "Reply length: SHORT — one sentence, max ~12 words. No follow-up questions unless essential.",
+      medium: "Reply length: MEDIUM — 2 to 3 sentences. One light question or hook allowed.",
+      long: "Reply length: LONG — 4 to 6 sentences with descriptive detail and a clear hook or upsell.",
+    };
+    const toneInstruction = tone && TONE_GUIDE[tone] ? `\nTONE: ${TONE_GUIDE[tone]}` : "";
+    const lengthInstruction = length && LENGTH_GUIDE[length] ? `\n${LENGTH_GUIDE[length]}` : "";
 
     // ── Verify creator belongs to this agency ───────────────────────
     if (creatorId) {
@@ -103,7 +121,7 @@ serve(async (req) => {
 
 Creator: ${creatorName}
 Persona: ${creatorPersona || "Flirty, warm, and engaging"}
-Boundaries: ${creatorBoundaries || "No personal info sharing, no meeting in person, no underage content"}
+Boundaries: ${creatorBoundaries || "No personal info sharing, no meeting in person, no underage content"}${toneInstruction}${lengthInstruction}
 ${dataContext}${historyContext}
 
 RULES:
