@@ -10,6 +10,25 @@ import { toast } from "sonner";
 import { useOfMessages, sendOfMessage } from "@/hooks/useOfMessages";
 import type { OfChatRow } from "@/hooks/useOfChats";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const TONES = [
+  { value: "flirty", label: "Flirty" },
+  { value: "playful", label: "Playful" },
+  { value: "romantic", label: "Romantic" },
+  { value: "dominant", label: "Dominant" },
+  { value: "submissive", label: "Submissive" },
+  { value: "professional", label: "Professional" },
+  { value: "casual", label: "Casual" },
+  { value: "thankful", label: "Thankful" },
+] as const;
+const LENGTHS = [
+  { value: "short", label: "Short", hint: "≤12 words" },
+  { value: "medium", label: "Medium", hint: "2–3 sentences" },
+  { value: "long", label: "Long", hint: "4–6 sentences" },
+] as const;
+type Tone = (typeof TONES)[number]["value"];
+type Length = (typeof LENGTHS)[number]["value"];
 
 interface Props {
   chat: OfChatRow | null;
@@ -24,6 +43,8 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
   const [ppvOpen, setPpvOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [aiSending, setAiSending] = useState(false);
+  const [aiTone, setAiTone] = useState<Tone>("flirty");
+  const [aiLength, setAiLength] = useState<Length>("medium");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,6 +115,8 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
           creatorName: creatorName ?? "Creator",
           conversationHistory: history,
           confidenceThreshold: 0,
+          tone: aiTone,
+          length: aiLength,
         },
       });
       if (error) throw error;
@@ -287,6 +310,8 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
                       creatorName: creatorName ?? "Creator",
                       conversationHistory: messages.slice(-8).map((m) => ({ role: m.direction === "in" ? "fan" : "creator", content: m.body ?? "" })),
                       confidenceThreshold: 0,
+                      tone: aiTone,
+                      length: aiLength,
                     },
                   });
                   if (error) throw error;
