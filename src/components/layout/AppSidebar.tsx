@@ -73,6 +73,7 @@ const collapsibleSections = [
       { title: "BunnyChat Arcade", url: "/bunnychat", icon: Gamepad2 },
       { title: "Shift Roster", url: "/shifts", icon: CalendarClock },
       { title: "Team Chat", url: "/team-chat", icon: MessageSquare },
+      { title: "Browser Agents", url: "/browser-agents", icon: Bot },
     ],
   },
   {

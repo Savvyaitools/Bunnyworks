@@ -36,6 +36,7 @@ const CoachPBFHub = lazy(() => import("@/pages/Felix"));
 const CoachPBFChat = lazy(() => import("@/pages/coach/CoachPBF"));
 const EmployeePerformance = lazy(() => import("@/pages/EmployeePerformance"));
 const FanAnalytics = lazy(() => import("@/pages/FanAnalytics"));
+const BrowserAgents = lazy(() => import("@/pages/BrowserAgents"));
 
 // Portal pages
 const PortalDashboard = lazy(() => import("@/pages/portal/PortalDashboard"));
@@ -135,6 +136,7 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/of-ai/workflow", element: <FilePalPlus />, auth: ["agency"] },
   
   { path: "/fan-analytics", element: <FanAnalytics />, auth: ["agency"] },
+  { path: "/browser-agents", element: <BrowserAgents />, auth: ["agency"] },
 ];
 
 /** Creator portal routes (with scoped error boundaries) */
