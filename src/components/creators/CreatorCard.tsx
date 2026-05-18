@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MoreVertical, DollarSign, Trash2, Mail, KeyRound, Check, Heart, Copy } from "lucide-react";
+import { MoreVertical, DollarSign, Trash2, Mail, KeyRound, Check, Heart, Copy, Link2, AlertCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/formatters";
 import { supabase } from "@/integrations/supabase/client";
 import { copyToClipboard } from "@/lib/passwordUtils";
 import { toast } from "sonner";
+import { OFConnectDialog } from "./OFConnectDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,19 +39,27 @@ interface CreatorCardProps {
 export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: CreatorCardProps) {
   const navigate = useNavigate();
   const hasAccount = Boolean(creator.auth_user_id);
-  const [ofAccounts, setOfAccounts] = useState<{ id: string; username: string }[]>([]);
+  const [ofAccounts, setOfAccounts] = useState<{ id: string; username: string; of_connection_status: string | null; of_account_id: string | null }[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [ofDialogOpen, setOfDialogOpen] = useState(false);
 
   useEffect(() => {
     supabase
       .from("creator_social_accounts")
-      .select("id, username")
+      .select("id, username, of_connection_status, of_account_id")
       .eq("creator_id", creator.id)
-      .eq("platform", "OnlyFans")
+      .ilike("platform", "onlyfans")
       .then(({ data }) => {
         if (data) setOfAccounts(data);
       });
-  }, [creator.id]);
+  }, [creator.id, ofDialogOpen]);
+
+  const apiConnected = ofAccounts.some(
+    (a) => a.of_account_id && ["connected", "healthy"].includes((a.of_connection_status ?? "").toLowerCase()),
+  );
+  const apiError = !apiConnected && ofAccounts.some(
+    (a) => ["error", "failed", "disconnected"].includes((a.of_connection_status ?? "").toLowerCase()),
+  );
 
   const handleCardClick = () => {
     navigate(`/creators/${creator.id}`);
@@ -102,6 +111,34 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
             Login Active
           </Badge>
         )}
+        {apiConnected ? (
+          <Badge
+            variant="secondary"
+            className="absolute top-2 left-2 mt-6 bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs"
+            title="OnlyFans API connected"
+          >
+            <Link2 className="h-3 w-3 mr-1" />
+            API Connected
+          </Badge>
+        ) : apiError ? (
+          <Badge
+            variant="secondary"
+            className="absolute top-2 left-2 mt-6 bg-destructive/20 text-destructive border-destructive/30 text-xs"
+            title="OnlyFans API connection error"
+          >
+            <AlertCircle className="h-3 w-3 mr-1" />
+            API Error
+          </Badge>
+        ) : (
+          <Badge
+            variant="secondary"
+            className="absolute top-2 left-2 mt-6 bg-muted/40 text-muted-foreground border-border text-xs"
+            title="OnlyFans API not connected"
+          >
+            <Link2 className="h-3 w-3 mr-1" />
+            API Not Linked
+          </Badge>
+        )}
         <div className="absolute top-2 right-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -128,6 +165,11 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setOfDialogOpen(true); }}>
+                <Link2 className="h-4 w-4 mr-2" />
+                {apiConnected ? "Reconnect OF Account" : "Connect OF Account"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="text-destructive"
                 onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
@@ -225,6 +267,14 @@ export function CreatorCard({ creator, onDelete, onCreateAccount, index = 0 }: C
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <div onClick={(e) => e.stopPropagation()}>
+        <OFConnectDialog
+          creatorId={creator.id}
+          open={ofDialogOpen}
+          onOpenChange={setOfDialogOpen}
+        />
+      </div>
     </div>
   );
 }
