@@ -53,7 +53,9 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
     setLoading(false);
   }, [creatorId]);
 
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const addAccount = async () => {
     if (!formData.platform.trim() || !formData.username.trim()) return;
@@ -64,8 +66,9 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
       creator_id: creatorId,
       account_type: "creator_managed",
     });
-    if (error) { toast.error("Failed to add account"); }
-    else {
+    if (error) {
+      toast.error("Failed to add account");
+    } else {
       toast.success("Account added successfully");
       setFormData({ platform: "", username: "", profile_url: "" });
       setIsAddOpen(false);
@@ -75,8 +78,12 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
 
   const deleteAccount = async (id: string) => {
     const { error } = await supabase.from("creator_social_accounts").delete().eq("id", id);
-    if (error) { toast.error("Failed to delete account"); }
-    else { toast.success("Account removed"); fetchAccounts(); }
+    if (error) {
+      toast.error("Failed to delete account");
+    } else {
+      toast.success("Account removed");
+      fetchAccounts();
+    }
   };
 
   return (
@@ -84,7 +91,9 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Platform Accounts</h3>
-          <p className="text-sm text-muted-foreground">Manage monetization platform accounts (OnlyFans, Fansly, Fanvue)</p>
+          <p className="text-sm text-muted-foreground">
+            Manage monetization platform accounts (OnlyFans, Fansly, Fanvue)
+          </p>
         </div>
         <Button size="sm" variant="outline" onClick={() => setIsAddOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Add Platform
@@ -96,7 +105,9 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/20"><Link2 className="h-4 w-4 text-primary" /></div>
+              <div className="p-2 rounded-lg bg-primary/20">
+                <Link2 className="h-4 w-4 text-primary" />
+              </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-xl font-bold text-foreground">{accounts.length}</p>
@@ -107,10 +118,12 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
         <Card className="glass-card">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/20"><Sparkles className="h-4 w-4 text-success" /></div>
+              <div className="p-2 rounded-lg bg-success/20">
+                <Sparkles className="h-4 w-4 text-success" />
+              </div>
               <div>
                 <p className="text-xs text-muted-foreground">API Linked</p>
-                <p className="text-xl font-bold text-foreground">{accounts.filter(a => a.of_connected_at).length}</p>
+                <p className="text-xl font-bold text-foreground">{accounts.filter((a) => a.of_connected_at).length}</p>
               </div>
             </div>
           </CardContent>
@@ -127,7 +140,11 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
           {accounts.map((account) => {
-            const config = platformConfig[account.platform] || { icon: <Link2 className="h-5 w-5" />, color: "text-muted-foreground", bgColor: "bg-muted" };
+            const config = platformConfig[account.platform] || {
+              icon: <Link2 className="h-5 w-5" />,
+              color: "text-muted-foreground",
+              bgColor: "bg-muted",
+            };
             return (
               <Card key={account.id} className="glass-card">
                 <CardContent className="pt-6">
@@ -140,7 +157,9 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-foreground">{account.platform}</h4>
                           {account.of_connected_at && (
-                            <Badge variant="outline" className="border-success text-success">API Connected</Badge>
+                            <Badge variant="outline" className="border-success text-success">
+                              API Connected
+                            </Badge>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">@{account.username}</p>
@@ -152,7 +171,12 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
                   </div>
                   {account.profile_url && (
                     <div className="mt-4">
-                      <a href={account.profile_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      <a
+                        href={account.profile_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
                         <ExternalLink className="h-3 w-3" /> View Profile
                       </a>
                     </div>
@@ -165,7 +189,7 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
                       onClick={() => setOfConnectOpen(true)}
                     >
                       <Zap className="h-3.5 w-3.5 mr-2" />
-                      Connect via OnlyFansAPI
+                      Connect OnlyFans
                     </Button>
                   )}
                 </CardContent>
@@ -183,7 +207,9 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
           </DialogHeader>
           <div className="space-y-4">
             <Select value={formData.platform} onValueChange={(v) => setFormData({ ...formData, platform: v })}>
-              <SelectTrigger><SelectValue placeholder="Select Platform" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Platform" />
+              </SelectTrigger>
               <SelectContent>
                 {PLATFORM_ACCOUNTS.map((platform) => {
                   const config = platformConfig[platform];
@@ -198,9 +224,19 @@ export function CreatorPlatformAccounts({ creatorId }: CreatorPlatformAccountsPr
                 })}
               </SelectContent>
             </Select>
-            <Input placeholder="Username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
-            <Input placeholder="Profile URL (optional)" value={formData.profile_url} onChange={(e) => setFormData({ ...formData, profile_url: e.target.value })} />
-            <Button onClick={addAccount} className="w-full bg-gradient-primary">Add Account</Button>
+            <Input
+              placeholder="Username"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            />
+            <Input
+              placeholder="Profile URL (optional)"
+              value={formData.profile_url}
+              onChange={(e) => setFormData({ ...formData, profile_url: e.target.value })}
+            />
+            <Button onClick={addAccount} className="w-full bg-gradient-primary">
+              Add Account
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
