@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
           account_type: "creator_managed",
           of_account_id: ofAccountId,
           of_connected_at: new Date().toISOString(),
-          of_connection_status: "connected",
+          of_connection_status: "healthy",
           of_last_error: null,
           of_last_error_at: null,
         },
