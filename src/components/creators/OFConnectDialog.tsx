@@ -36,10 +36,11 @@ export function OFConnectDialog({ creatorId, open, onOpenChange, onConnected }: 
   const [twoFa, setTwoFa] = useState("");
   const [accountId, setAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
 
   const reset = () => {
     setEmail(""); setPassword(""); setTwoFa(""); setAccountId("");
-    setTwoFaRequired(false); setError(null); setLoading(false);
+    setTwoFaRequired(false); setError(null); setLoading(false); setAttemptId(null);
   };
 
   const callConnect = async (body: Record<string, unknown>) => {
@@ -52,7 +53,18 @@ export function OFConnectDialog({ creatorId, open, onOpenChange, onConnected }: 
       if (fnErr) throw fnErr;
       if (data?.two_fa_required) {
         setTwoFaRequired(true);
+        if (data?.attempt_id) setAttemptId(data.attempt_id);
         toast.info("2FA code required. Check the OnlyFans app.");
+        return;
+      }
+      if (data?.face_verification_required) {
+        const url = data?.face_otp_verification_url;
+        setError(
+          url
+            ? `Face verification required. Open this link on the creator's phone: ${url}`
+            : "Face verification required.",
+        );
+        if (data?.attempt_id) setAttemptId(data.attempt_id);
         return;
       }
       if (!data?.ok) throw new Error(data?.error ?? "Connection failed");
@@ -136,6 +148,7 @@ export function OFConnectDialog({ creatorId, open, onOpenChange, onConnected }: 
                   email,
                   password,
                   two_fa_code: twoFaRequired ? twoFa : undefined,
+                  attempt_id: attemptId ?? undefined,
                 })
               }
             >

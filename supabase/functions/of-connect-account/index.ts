@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { ofGet, ofPost } from "../_shared/of-api-client.ts";
+import { ofGet, ofPost, ofPut } from "../_shared/of-api-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,13 +12,13 @@ const corsHeaders = {
  * Body:
  *   {
  *     creator_id: string (uuid),
- *     mode: "email_password" | "raw_data" | "lookup",
- *     // for email_password
+ *     mode: "email_password" | "lookup",
+ *     // for email_password (initial submit)
  *     email?: string,
  *     password?: string,
+ *     // for email_password (2FA continuation)
+ *     attempt_id?: string,
  *     two_fa_code?: string,
- *     // for raw_data
- *     raw_data?: Record<string, unknown>,
  *     // for lookup (already-authenticated account_id)
  *     of_account_id?: string,
  *   }
@@ -56,30 +56,42 @@ Deno.serve(async (req) => {
 
     let ofAccountId: string | null = null;
     let ofUsername: string | null = null;
-    let twoFaRequired = false;
 
     if (mode === "email_password") {
-      const { email, password, two_fa_code } = body;
-      if (!email || !password) return json({ error: "email and password required" }, 400);
-      const resp = await ofPost<any>(`/accounts`, {
-        type: "email_password",
-        email,
-        password,
-        two_fa_code: two_fa_code || undefined,
-      });
-      const data = resp?.data ?? resp;
-      if (data?.requires_2fa || data?.status === "2fa_required") {
-        return json({ ok: false, two_fa_required: true });
+      const { email, password, attempt_id, two_fa_code } = body;
+
+      // Step 1: start auth if no attempt yet
+      let activeAttempt: string | undefined = attempt_id;
+      if (!activeAttempt) {
+        if (!email || !password) return json({ error: "email and password required" }, 400);
+        const start = await ofPost<any>(`/authenticate`, { email, password });
+        activeAttempt = start?.attempt_id ?? start?.data?.attempt_id;
+        if (!activeAttempt) return json({ error: "Auth provider did not return attempt id" }, 502);
       }
-      ofAccountId = String(data?.id ?? data?.account_id ?? "");
-      ofUsername = data?.username ?? data?.user?.username ?? null;
-    } else if (mode === "raw_data") {
-      const { raw_data } = body;
-      if (!raw_data) return json({ error: "raw_data required" }, 400);
-      const resp = await ofPost<any>(`/accounts`, { type: "raw_data", raw_data });
-      const data = resp?.data ?? resp;
-      ofAccountId = String(data?.id ?? data?.account_id ?? "");
-      ofUsername = data?.username ?? data?.user?.username ?? null;
+
+      // Step 2: if 2FA code supplied, submit it
+      if (two_fa_code) {
+        await ofPut<any>(`/authenticate/${activeAttempt}`, { code: two_fa_code });
+      }
+
+      // Step 3: poll for completion
+      const result = await pollAuth(activeAttempt);
+      if (result.status === "needs_otp") {
+        return json({ ok: false, two_fa_required: true, attempt_id: activeAttempt });
+      }
+      if (result.status === "needs_face_otp") {
+        return json({
+          ok: false,
+          face_verification_required: true,
+          attempt_id: activeAttempt,
+          face_otp_verification_url: result.faceUrl,
+        });
+      }
+      if (result.status === "failed") {
+        return json({ ok: false, error: result.error ?? "Authentication failed" }, 400);
+      }
+      ofAccountId = result.accountId;
+      ofUsername = result.username;
     } else if (mode === "lookup") {
       const { of_account_id } = body;
       if (!of_account_id) return json({ error: "of_account_id required" }, 400);
@@ -118,7 +130,6 @@ Deno.serve(async (req) => {
       of_account_id: ofAccountId,
       of_username: ofUsername,
       status: "connected",
-      two_fa_required: twoFaRequired,
     });
   } catch (err: any) {
     console.error("of-connect-account error", err);
@@ -131,4 +142,40 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+type PollResult =
+  | { status: "completed"; accountId: string; username: string | null }
+  | { status: "needs_otp" }
+  | { status: "needs_face_otp"; faceUrl?: string }
+  | { status: "failed"; error?: string };
+
+async function pollAuth(attemptId: string): Promise<PollResult> {
+  // Poll up to ~25s (15 * 1.7s) — edge function timeout is well above this.
+  const max = 15;
+  for (let i = 0; i < max; i++) {
+    const resp = await ofGet<any>(`/authenticate/${attemptId}`);
+    const d = resp?.data ?? resp ?? {};
+    const state = d.state;
+    const last = d.lastAttempt ?? {};
+
+    if (state === "needs-otp" || state === "needs-app-otp") {
+      return { status: "needs_otp" };
+    }
+    if (last?.needs_face_otp) {
+      return { status: "needs_face_otp", faceUrl: last?.face_otp_verification_url };
+    }
+    if (d.completed_at) {
+      if (last?.success === false) {
+        return { status: "failed", error: last?.error_message ?? last?.error_code };
+      }
+      const acc = d.account ?? last?.account ?? {};
+      const id = String(d.account_id ?? acc.id ?? acc.account_id ?? "");
+      const username = acc.username ?? acc.user?.username ?? d.username ?? null;
+      if (!id) return { status: "failed", error: "Auth completed but no account id returned" };
+      return { status: "completed", accountId: id, username };
+    }
+    await new Promise((r) => setTimeout(r, 1700));
+  }
+  return { status: "failed", error: "Authentication timed out" };
 }
