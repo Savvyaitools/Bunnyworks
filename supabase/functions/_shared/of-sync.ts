@@ -54,12 +54,15 @@ export async function syncOfAccount(
         subscribed_until: c.withUser?.subscribedUntil ?? null,
         synced_at: new Date().toISOString(),
       }));
-      if (rows.length) {
+      const dedupedChats = Array.from(
+        new Map(rows.map((r: any) => [`${r.of_account_id}::${r.of_chat_id}`, r])).values()
+      );
+      if (dedupedChats.length) {
         const { error } = await supabase
           .from("of_chats")
-          .upsert(rows, { onConflict: "of_account_id,of_chat_id" });
+          .upsert(dedupedChats, { onConflict: "of_account_id,of_chat_id" });
         if (error) throw error;
-        chatsSynced = rows.length;
+        chatsSynced = dedupedChats.length;
       }
     } catch (err) {
       console.error("[of-sync] chats failed", of_account_id, err);
@@ -85,12 +88,15 @@ export async function syncOfAccount(
         renew_on: Boolean(f.renewOn ?? f.renew_on),
         synced_at: new Date().toISOString(),
       }));
-      if (rows.length) {
+      const dedupedFans = Array.from(
+        new Map(rows.map((r: any) => [`${r.of_account_id}::${r.of_fan_id}`, r])).values()
+      );
+      if (dedupedFans.length) {
         const { error } = await supabase
           .from("of_fans")
-          .upsert(rows, { onConflict: "of_account_id,of_fan_id" });
+          .upsert(dedupedFans, { onConflict: "of_account_id,of_fan_id" });
         if (error) throw error;
-        fansSynced = rows.length;
+        fansSynced = dedupedFans.length;
       }
     } catch (err) {
       console.error("[of-sync] fans failed", of_account_id, err);
