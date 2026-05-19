@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { syncOfAccount } from "../_shared/of-sync.ts";
 
 const corsHeaders = {
@@ -25,8 +25,16 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claims?.claims) return json({ error: "Unauthorized" }, 401);
+    let authedOk = false;
+    try {
+      // @ts-ignore – getClaims exists on supabase-js v2.50+
+      const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
+      if (!claimsErr && claims?.claims) authedOk = true;
+    } catch (_) { /* older SDK */ }
+    if (!authedOk) {
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+    }
 
     const { of_account_id } = await req.json().catch(() => ({}));
     if (!of_account_id) return json({ error: "of_account_id required" }, 400);
