@@ -88,10 +88,10 @@ export function OFConnectDialog({ creatorId, open, onOpenChange, onConnected }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="h-5 w-5 text-primary" />
-            Connect OnlyFans via API
+            Connect Account
           </DialogTitle>
           <DialogDescription>
-            Powered by OnlyFansAPI.com — no browser session required.
+            {"\n"}
           </DialogDescription>
         </DialogHeader>
 
@@ -135,7 +135,7 @@ export function OFConnectDialog({ creatorId, open, onOpenChange, onConnected }: 
             <Alert className="bg-muted/40 border-border/60">
               <ShieldCheck className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                Credentials are sent over TLS to OnlyFansAPI and never stored in our database.
+                Credentials are sent over TLS and never stored in our database.
               </AlertDescription>
             </Alert>
             {error && <p className="text-xs text-destructive">{error}</p>}
