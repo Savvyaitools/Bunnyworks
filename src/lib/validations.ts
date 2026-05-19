@@ -252,18 +252,14 @@ export const employeeFormSchema = z.object({
     .string()
     .optional()
     .or(z.literal("")),
-  salary: z
-    .number()
-    .min(0, "Salary cannot be negative")
-    .max(1000000, "Salary seems too high")
-    .optional()
-    .or(z.literal(0)),
-  commission_rate: z
-    .number()
-    .min(0, "Commission rate cannot be negative")
-    .max(100, "Commission rate cannot exceed 100%")
-    .optional()
-    .or(z.literal(0)),
+  salary: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? 0 : v),
+    z.number().min(0, "Salary cannot be negative").max(1000000, "Salary seems too high")
+  ),
+  commission_rate: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? 0 : v),
+    z.number().min(0, "Commission rate cannot be negative").max(100, "Commission rate cannot exceed 100%")
+  ),
   bio: z
     .string()
     .trim()
@@ -316,18 +312,14 @@ export const employeeFormSchema = z.object({
     .max(100, "Timezone must be less than 100 characters")
     .optional()
     .or(z.literal("")),
-  daily_target_messages: z
-    .number()
-    .min(0, "Target cannot be negative")
-    .max(10000, "Target seems too high")
-    .optional()
-    .or(z.literal(100)),
-  daily_target_ppv: z
-    .number()
-    .min(0, "Target cannot be negative")
-    .max(1000, "Target seems too high")
-    .optional()
-    .or(z.literal(20)),
+  daily_target_messages: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? 100 : v),
+    z.number().min(0, "Target cannot be negative").max(10000, "Target seems too high")
+  ),
+  daily_target_ppv: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined || Number.isNaN(v) ? 20 : v),
+    z.number().min(0, "Target cannot be negative").max(1000, "Target seems too high")
+  ),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
