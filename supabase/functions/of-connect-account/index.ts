@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
         });
       }
       if (result.status === "failed") {
-        return json({ ok: false, error: result.error ?? "Authentication failed" }, 400);
+        return json({ ok: false, error: result.error ?? "Authentication failed" });
       }
       ofAccountId = result.accountId;
       ofUsername = result.username;
@@ -133,7 +133,8 @@ Deno.serve(async (req) => {
     });
   } catch (err: any) {
     console.error("of-connect-account error", err);
-    return json({ error: err.message ?? "Unknown error" }, 500);
+    // Return 200 so the client SDK surfaces our message instead of a generic non-2xx error.
+    return json({ ok: false, error: err?.message ?? "Unknown error" });
   }
 });
 
