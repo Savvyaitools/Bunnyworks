@@ -180,11 +180,22 @@ export default function Index() {
           .gte("created_at", iso);
         return count ?? 0;
       };
+      // These message tables don't have agency_id directly — count via their parent conversation table.
+      const countFromViaConversation = async (
+        table: string,
+        conversationTable: string,
+      ): Promise<number> => {
+        const { count } = await (supabase.from(table as any) as any)
+          .select(`id, ${conversationTable}!inner(agency_id)`, { count: "exact", head: true })
+          .eq(`${conversationTable}.agency_id`, agencyId!)
+          .gte("created_at", iso);
+        return count ?? 0;
+      };
       const [flick, coach, tatum, izzy, chatLog] = await Promise.all([
         countFrom("messages"),
-        countFrom("coach_pbf_messages"),
-        countFrom("tatum_messages"),
-        countFrom("izzy_messages"),
+        countFromViaConversation("coach_pbf_messages", "coach_pbf_conversations"),
+        countFromViaConversation("tatum_messages", "tatum_conversations"),
+        countFromViaConversation("izzy_messages", "izzy_conversations"),
         countFrom("chatter_message_log"),
       ]);
       return [
