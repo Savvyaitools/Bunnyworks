@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { ofGet, ofPost, ofPut } from "../_shared/of-api-client.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { ofGet, ofPost, ofPut, OfApiError } from "../_shared/of-api-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,8 +39,19 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+    // Use getClaims (verifies JWT signature only — does not require an active server-side session)
+    // Fall back to getUser for older tokens.
+    let authedUserId: string | null = null;
+    try {
+      // @ts-ignore – getClaims exists on supabase-js v2.50+
+      const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
+      if (!claimsErr && claimsData?.claims?.sub) authedUserId = claimsData.claims.sub as string;
+    } catch (_) { /* older SDK – fall through */ }
+    if (!authedUserId) {
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+      authedUserId = userData.user.id;
+    }
 
     const body = await req.json();
     const { creator_id, mode } = body ?? {};
@@ -58,24 +69,46 @@ Deno.serve(async (req) => {
     let ofUsername: string | null = null;
 
     if (mode === "email_password") {
-      const { email, password, attempt_id, two_fa_code } = body;
+      const { email, password, attempt_id, two_fa_code, force_connect } = body;
 
       // Step 1: start auth if no attempt yet
       let activeAttempt: string | undefined = attempt_id;
       if (!activeAttempt) {
         if (!email || !password) return json({ error: "email and password required" }, 400);
-        const start = await ofPost<any>(`/authenticate`, { email, password });
-        activeAttempt = start?.attempt_id ?? start?.data?.attempt_id;
-        if (!activeAttempt) return json({ error: "Auth provider did not return attempt id" }, 502);
+        try {
+          const start = await ofPost<any>(`/authenticate`, { email, password, force_connect: force_connect === true });
+          activeAttempt = start?.attempt_id ?? start?.data?.attempt_id;
+        } catch (e) {
+          // Auto-link an existing account if OnlyFansAPI says it's already connected.
+          if (e instanceof OfApiError && e.status === 422) {
+            const b: any = e.body ?? {};
+            const existingId = b?.existing_account?.id;
+            if (b?.error === "duplicate_account" && existingId) {
+              const resp = await ofGet<any>(`/${existingId}/me`);
+              const d = resp?.data ?? resp ?? {};
+              ofAccountId = String(existingId);
+              ofUsername = d?.username ?? d?.user?.username ?? null;
+              // jump straight to upsert below
+              activeAttempt = undefined;
+            } else {
+              throw e;
+            }
+          } else {
+            throw e;
+          }
+        }
+        if (!ofAccountId && !activeAttempt) return json({ error: "Auth provider did not return attempt id" }, 502);
       }
 
-      // Step 2: if 2FA code supplied, submit it
-      if (two_fa_code) {
-        await ofPut<any>(`/authenticate/${activeAttempt}`, { code: two_fa_code });
-      }
+      // If we already resolved via duplicate-account fast path, skip polling.
+      if (!ofAccountId) {
+        // Step 2: if 2FA code supplied, submit it
+        if (two_fa_code) {
+          await ofPut<any>(`/authenticate/${activeAttempt}`, { code: two_fa_code });
+        }
 
-      // Step 3: poll for completion
-      const result = await pollAuth(activeAttempt);
+        // Step 3: poll for completion
+        const result = await pollAuth(activeAttempt!);
       if (result.status === "needs_otp") {
         return json({ ok: false, two_fa_required: true, attempt_id: activeAttempt });
       }
@@ -92,6 +125,7 @@ Deno.serve(async (req) => {
       }
       ofAccountId = result.accountId;
       ofUsername = result.username;
+      }
     } else if (mode === "lookup") {
       const { of_account_id } = body;
       if (!of_account_id) return json({ error: "of_account_id required" }, 400);
