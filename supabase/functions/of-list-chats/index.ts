@@ -68,10 +68,15 @@ Deno.serve(async (req) => {
       synced_at: new Date().toISOString(),
     }));
 
-    if (rows.length) {
+    // Dedupe rows by conflict key to avoid Postgres "ON CONFLICT ... cannot
+    // affect row a second time" when the upstream API returns dupes.
+    const dedupedRows = Array.from(
+      new Map(rows.map((r: any) => [`${r.of_account_id}::${r.of_chat_id}`, r])).values()
+    );
+    if (dedupedRows.length) {
       const { error: upErr } = await supabase
         .from("of_chats")
-        .upsert(rows, { onConflict: "of_account_id,of_chat_id" });
+        .upsert(dedupedRows, { onConflict: "of_account_id,of_chat_id" });
       if (upErr) throw upErr;
     }
 
