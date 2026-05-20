@@ -15,13 +15,17 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Unauthorized" }, 401);
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
 
     const { chat_id, limit = 50 } = await req.json();
     if (!chat_id) return json({ error: "chat_id required" }, 400);
@@ -36,7 +40,7 @@ Deno.serve(async (req) => {
 
     const apiResp = await ofGet<{ data: any[] }>(
       `/${chat.of_account_id}/chats/${chat.of_chat_id}/messages`,
-      { limit },
+      { limit: Math.min(Number(limit) || 50, 100), skip_users: "none", order: "desc" },
     );
 
     const msgs = Array.isArray(apiResp?.data) ? apiResp.data : [];
