@@ -19,18 +19,24 @@ export interface OfMessageRow {
 export function useOfMessages(chatId: string | null) {
   const [messages, setMessages] = useState<OfMessageRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!chatId) { setMessages([]); return; }
     setLoading(true);
-    const { data } = await supabase
-      .from("of_messages")
-      .select("*")
-      .eq("chat_id", chatId)
-      .order("created_at", { ascending: true })
-      .limit(500);
-    setMessages((data ?? []) as OfMessageRow[]);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("of_messages")
+        .select("*")
+        .eq("chat_id", chatId)
+        .order("created_at", { ascending: true })
+        .limit(500);
+      if (error) throw error;
+      setMessages((data ?? []) as OfMessageRow[]);
+    } finally {
+      setLoading(false);
+    }
   }, [chatId]);
 
   useEffect(() => { load(); }, [load]);
@@ -50,13 +56,30 @@ export function useOfMessages(chatId: string | null) {
 
   const sync = useCallback(async () => {
     if (!chatId) return;
-    await supabase.functions.invoke("of-list-messages", {
-      body: { chat_id: chatId },
-    });
-    await load();
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const { error } = await supabase.functions.invoke("of-list-messages", {
+        body: { chat_id: chatId },
+      });
+      if (error) throw error;
+      await load();
+    } catch (error: any) {
+      const message = error?.message ?? "Unable to sync messages";
+      setSyncError(message);
+      console.error("BunnyChat message sync failed", error);
+      throw error;
+    } finally {
+      setSyncing(false);
+    }
   }, [chatId, load]);
 
-  return { messages, loading, reload: load, sync };
+  useEffect(() => {
+    if (!chatId) return;
+    sync().catch(() => undefined);
+  }, [chatId, sync]);
+
+  return { messages, loading: loading || syncing, syncing, syncError, reload: load, sync };
 }
 
 export interface SendOfMessageArgs {
