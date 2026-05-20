@@ -48,8 +48,10 @@ Deno.serve(async (req) => {
       agency_id: chat.agency_id,
       chat_id: chat.id,
       of_message_id: String(m.id),
-      direction: m.fromUser?.id && String(m.fromUser.id) === chat.of_fan_id ? "in" : "out",
-      body: m.text ?? "",
+      direction: typeof m.isSentByMe === "boolean"
+        ? (m.isSentByMe ? "out" : "in")
+        : m.fromUser?.id && String(m.fromUser.id) === chat.of_fan_id ? "in" : "out",
+      body: stripHtml(m.text ?? m.message ?? ""),
       price: Number(m.price ?? 0),
       is_ppv: Boolean(m.price && Number(m.price) > 0),
       is_unlocked: Boolean(m.isOpened ?? m.is_opened ?? false),
@@ -72,6 +74,10 @@ Deno.serve(async (req) => {
     return json({ error: err.message ?? "Unknown error" }, 500);
   }
 });
+
+function stripHtml(value: unknown) {
+  return typeof value === "string" ? value.replace(/<[^>]*>/g, "").trim() : value ?? "";
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
