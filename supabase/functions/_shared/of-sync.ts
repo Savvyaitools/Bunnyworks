@@ -186,3 +186,41 @@ export async function syncOfAccount(
     };
   }
 }
+
+function toChatRow(c: any, agencyId: string, creatorId: string, ofAccountId: string) {
+  const fan = c.fan ?? c.withUser ?? c.with_user ?? c.user ?? c.chatUser ?? null;
+  const fanId = fan?.id ?? c.fan_id ?? c.fanId ?? c.user_id ?? c.userId ?? c.with_user_id ?? c.withUserId;
+  const chatId = c.id ?? c.chat_id ?? c.chatId ?? fanId;
+  if (!chatId || String(chatId) === "undefined" || String(chatId) === "null") return null;
+
+  const last = c.lastMessage ?? c.last_message ?? null;
+  const spend = fan?.subscribedOnData?.totalSumm ?? fan?.subscribedByData?.totalSumm ?? fan?.spendings?.total ?? c.total_spent ?? 0;
+  const subscribedUntil = fan?.subscribedByData?.expiredAt ?? fan?.subscribedOnData?.expiredAt ?? fan?.subscribedUntil ?? null;
+
+  return {
+    agency_id: agencyId,
+    creator_id: creatorId,
+    of_account_id: ofAccountId,
+    of_chat_id: String(chatId),
+    of_fan_id: fanId ? String(fanId) : String(chatId),
+    fan_name: fan?.name ?? fan?.displayName ?? null,
+    fan_username: fan?.username ?? null,
+    fan_avatar: fan?.avatar ?? fan?.avatarThumbs?.c144 ?? fan?.avatarThumbs?.c50 ?? null,
+    last_message_text: stripHtml(last?.text ?? last?.message ?? null),
+    last_message_at: last?.createdAt ?? last?.created_at ?? null,
+    last_message_is_from_me: typeof last?.isSentByMe === "boolean"
+      ? last.isSentByMe
+      : last?.fromUser?.id != null && fanId != null
+        ? String(last.fromUser.id) !== String(fanId)
+        : null,
+    unread_count: c.unreadMessagesCount ?? c.unread ?? 0,
+    lifetime_spend: Number(spend ?? 0),
+    is_subscribed: Boolean(fan?.subscribedBy || fan?.subscribedOn || fan?.isSubscribed),
+    subscribed_until: subscribedUntil,
+    synced_at: new Date().toISOString(),
+  };
+}
+
+function stripHtml(value: unknown) {
+  return typeof value === "string" ? value.replace(/<[^>]*>/g, "").trim() : value ?? null;
+}
