@@ -37,7 +37,7 @@ interface Props {
 }
 
 export function Conversation({ chat, ofAccountId, creatorName }: Props) {
-  const { messages, loading, sync } = useOfMessages(chat?.id ?? null);
+  const { messages, loading, sync, syncError } = useOfMessages(chat?.id ?? null);
   const [body, setBody] = useState("");
   const [price, setPrice] = useState<string>("");
   const [ppvOpen, setPpvOpen] = useState(false);
@@ -161,7 +161,7 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => sync()} title="Sync">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => sync().catch((e) => toast.error(e?.message ?? "Message sync failed"))} title="Sync">
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" asChild title="Open on OnlyFans">
@@ -182,7 +182,7 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
         )}
         {!loading && messages.length === 0 && (
           <div className="text-center text-xs text-muted-foreground py-8">
-            No messages yet. Send the first one below.
+            {syncError ?? "No messages yet. Send the first one below."}
           </div>
         )}
         {messages.map((m, i) => {

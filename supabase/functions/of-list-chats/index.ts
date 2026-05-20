@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { ofGet } from "../_shared/of-api-client.ts";
 
 const corsHeaders = {
@@ -24,17 +24,8 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    let authedOk = false;
-    try {
-      const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-      if (!claimsErr && claimsData?.claims?.sub) authedOk = true;
-    } catch (_) {
-      // Fall back for older/legacy tokens below.
-    }
-    if (!authedOk) {
-      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-      if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
-    }
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
 
     const { of_account_id, limit = 50, offset = 0 } = await req.json().catch(() => ({}));
     if (!of_account_id) return json({ error: "of_account_id required" }, 400);
@@ -53,30 +44,11 @@ Deno.serve(async (req) => {
 
     const apiResp = await ofGet<{ data: any[]; meta?: any }>(
       `/${of_account_id}/chats`,
-      { limit, offset },
+      { limit: Math.min(Number(limit) || 50, 100), offset: Number(offset) || 0, skip_users: "none", order: "recent" },
     );
 
     const chats = Array.isArray(apiResp?.data) ? apiResp.data : [];
-    const rows = chats.map((c: any) => ({
-      agency_id: agencyId,
-      creator_id: creatorId,
-      of_account_id,
-      of_chat_id: String(c.id ?? c.chat_id ?? c.withUser?.id),
-      of_fan_id: String(c.withUser?.id ?? c.with_user?.id ?? ""),
-      fan_name: c.withUser?.name ?? c.with_user?.name ?? null,
-      fan_username: c.withUser?.username ?? c.with_user?.username ?? null,
-      fan_avatar: c.withUser?.avatar ?? c.with_user?.avatar ?? null,
-      last_message_text: c.lastMessage?.text ?? c.last_message?.text ?? null,
-      last_message_at: c.lastMessage?.createdAt ?? c.last_message?.created_at ?? null,
-      last_message_is_from_me: c.lastMessage?.fromUser?.id != null
-        ? c.lastMessage.fromUser.id !== c.withUser?.id
-        : null,
-      unread_count: c.unreadMessagesCount ?? c.unread ?? 0,
-      lifetime_spend: Number(c.withUser?.spendings?.total ?? 0),
-      is_subscribed: Boolean(c.withUser?.isSubscribed ?? c.with_user?.isSubscribed),
-      subscribed_until: c.withUser?.subscribedUntil ?? null,
-      synced_at: new Date().toISOString(),
-    }));
+    const rows = chats.map((c: any) => toChatRow(c, agencyId, creatorId, of_account_id)).filter(Boolean);
 
     // Dedupe rows by conflict key to avoid Postgres "ON CONFLICT ... cannot
     // affect row a second time" when the upstream API returns dupes.
@@ -96,6 +68,44 @@ Deno.serve(async (req) => {
     return json({ error: err.message ?? "Unknown error" }, 500);
   }
 });
+
+function toChatRow(c: any, agencyId: string, creatorId: string, ofAccountId: string) {
+  const fan = c.fan ?? c.withUser ?? c.with_user ?? c.user ?? c.chatUser ?? null;
+  const fanId = fan?.id ?? c.fan_id ?? c.fanId ?? c.user_id ?? c.userId ?? c.with_user_id ?? c.withUserId;
+  const chatId = c.id ?? c.chat_id ?? c.chatId ?? fanId;
+  if (!chatId || String(chatId) === "undefined" || String(chatId) === "null") return null;
+
+  const last = c.lastMessage ?? c.last_message ?? null;
+  const spend = fan?.subscribedOnData?.totalSumm ?? fan?.subscribedByData?.totalSumm ?? fan?.spendings?.total ?? c.total_spent ?? 0;
+  const subscribedUntil = fan?.subscribedByData?.expiredAt ?? fan?.subscribedOnData?.expiredAt ?? fan?.subscribedUntil ?? null;
+
+  return {
+    agency_id: agencyId,
+    creator_id: creatorId,
+    of_account_id: ofAccountId,
+    of_chat_id: String(chatId),
+    of_fan_id: fanId ? String(fanId) : String(chatId),
+    fan_name: fan?.name ?? fan?.displayName ?? null,
+    fan_username: fan?.username ?? null,
+    fan_avatar: fan?.avatar ?? fan?.avatarThumbs?.c144 ?? fan?.avatarThumbs?.c50 ?? null,
+    last_message_text: stripHtml(last?.text ?? last?.message ?? null),
+    last_message_at: last?.createdAt ?? last?.created_at ?? null,
+    last_message_is_from_me: typeof last?.isSentByMe === "boolean"
+      ? last.isSentByMe
+      : last?.fromUser?.id != null && fanId != null
+        ? String(last.fromUser.id) !== String(fanId)
+        : null,
+    unread_count: c.unreadMessagesCount ?? c.unread ?? 0,
+    lifetime_spend: Number(spend ?? 0),
+    is_subscribed: Boolean(fan?.subscribedBy || fan?.subscribedOn || fan?.isSubscribed),
+    subscribed_until: subscribedUntil,
+    synced_at: new Date().toISOString(),
+  };
+}
+
+function stripHtml(value: unknown) {
+  return typeof value === "string" ? value.replace(/<[^>]*>/g, "").trim() : value ?? null;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

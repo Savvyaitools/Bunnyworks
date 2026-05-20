@@ -15,13 +15,17 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Unauthorized" }, 401);
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
 
     const { chat_id, limit = 50 } = await req.json();
     if (!chat_id) return json({ error: "chat_id required" }, 400);
@@ -36,7 +40,7 @@ Deno.serve(async (req) => {
 
     const apiResp = await ofGet<{ data: any[] }>(
       `/${chat.of_account_id}/chats/${chat.of_chat_id}/messages`,
-      { limit },
+      { limit: Math.min(Number(limit) || 50, 100), skip_users: "none", order: "desc" },
     );
 
     const msgs = Array.isArray(apiResp?.data) ? apiResp.data : [];
@@ -44,8 +48,10 @@ Deno.serve(async (req) => {
       agency_id: chat.agency_id,
       chat_id: chat.id,
       of_message_id: String(m.id),
-      direction: m.fromUser?.id && String(m.fromUser.id) === chat.of_fan_id ? "in" : "out",
-      body: m.text ?? "",
+      direction: typeof m.isSentByMe === "boolean"
+        ? (m.isSentByMe ? "out" : "in")
+        : m.fromUser?.id && String(m.fromUser.id) === chat.of_fan_id ? "in" : "out",
+      body: stripHtml(m.text ?? m.message ?? ""),
       price: Number(m.price ?? 0),
       is_ppv: Boolean(m.price && Number(m.price) > 0),
       is_unlocked: Boolean(m.isOpened ?? m.is_opened ?? false),
@@ -68,6 +74,10 @@ Deno.serve(async (req) => {
     return json({ error: err.message ?? "Unknown error" }, 500);
   }
 });
+
+function stripHtml(value: unknown) {
+  return typeof value === "string" ? value.replace(/<[^>]*>/g, "").trim() : value ?? "";
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
