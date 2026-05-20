@@ -25,6 +25,8 @@ export interface OfChatRow {
 export function useOfChats(ofAccountId: string | null) {
   const [chats, setChats] = useState<OfChatRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!ofAccountId) { setChats([]); return; }
@@ -56,9 +58,20 @@ export function useOfChats(ofAccountId: string | null) {
 
   const sync = useCallback(async () => {
     if (!ofAccountId) return;
-    await supabase.functions.invoke("of-list-chats", { body: { of_account_id: ofAccountId } });
-    await load();
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const { error } = await supabase.functions.invoke("of-list-chats", { body: { of_account_id: ofAccountId } });
+      if (error) throw error;
+      await load();
+    } catch (error: any) {
+      const message = error?.message ?? "Unable to sync chats";
+      setSyncError(message);
+      console.error("BunnyChat sync failed", error);
+    } finally {
+      setSyncing(false);
+    }
   }, [ofAccountId, load]);
 
-  return { chats, loading, reload: load, sync };
+  return { chats, loading: loading || syncing, syncing, syncError, reload: load, sync };
 }
