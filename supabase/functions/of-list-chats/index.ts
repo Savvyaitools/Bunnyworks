@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { ofGet } from "../_shared/of-api-client.ts";
 
 const corsHeaders = {
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Unauthorized" }, 401);
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -23,10 +23,20 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     );
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return json({ error: "Unauthorized" }, 401);
+    const token = authHeader.replace("Bearer ", "");
+    let authedOk = false;
+    try {
+      const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
+      if (!claimsErr && claimsData?.claims?.sub) authedOk = true;
+    } catch (_) {
+      // Fall back for older/legacy tokens below.
+    }
+    if (!authedOk) {
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+    }
 
-    const { of_account_id, limit = 50, offset = 0 } = await req.json();
+    const { of_account_id, limit = 50, offset = 0 } = await req.json().catch(() => ({}));
     if (!of_account_id) return json({ error: "of_account_id required" }, 400);
 
     // Resolve agency_id + creator_id from creator_social_accounts
