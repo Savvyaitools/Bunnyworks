@@ -30,14 +30,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const profileFetchRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const previousUserIdRef = useRef<string | null>(null);
+  // Monotonic sequence — every fetchProfile call gets a strictly increasing
+  // id. Only the result of the latest call is ever applied to state, so a
+  // slow in-flight request for user A can never overwrite a newer result
+  // for user B (the "refresh flips to wrong user/agency" bug).
+  const fetchSeqRef = useRef(0);
+  const currentUserIdRef = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string, force = false): Promise<Profile | null> => {
-    // Deduplicate: skip if we're already fetching for this user (unless forced)
-    if (!force && profileFetchRef.current === userId && profile) return profile;
-    profileFetchRef.current = userId;
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
+    const seq = ++fetchSeqRef.current;
 
     const { data, error } = await supabase
       .from("profiles")
@@ -45,8 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .maybeSingle();
 
-    // Only apply if this is still the latest fetch
-    if (profileFetchRef.current === userId && !error && data) {
+    // Discard if a newer fetch has started, or if the active user changed
+    // mid-flight (logout / switch account between request and response).
+    if (seq !== fetchSeqRef.current) return null;
+    if (currentUserIdRef.current !== userId) return null;
+    if (error) {
+      console.error("[useAuth] profile fetch failed", error);
+      return null;
+    }
+    if (data) {
       const profileData = data as Profile;
       setProfile(profileData);
       return profileData;
@@ -64,23 +74,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         const newUserId = session?.user?.id ?? null;
+        const userChanged = currentUserIdRef.current !== newUserId;
+        currentUserIdRef.current = newUserId;
+
         // If the authenticated user changed (login as different user, or
         // logout), wipe all react-query caches so the new user never sees
         // data fetched for the previous user.
         if (previousUserIdRef.current !== newUserId) {
           queryClient.clear();
           previousUserIdRef.current = newUserId;
+          // Invalidate any in-flight profile fetch from the previous user.
+          fetchSeqRef.current++;
+          if (!newUserId) setProfile(null);
         }
 
         if (session?.user) {
           // Skip if getSession already handled this same user
           if (initialSessionHandled && event === "INITIAL_SESSION") return;
-          const forceRefresh = event === "SIGNED_IN" || event === "TOKEN_REFRESHED";
+          // Only refetch profile when the user actually changed or on an
+          // explicit sign-in. TOKEN_REFRESHED fires frequently and the
+          // profile row hasn't changed — skip it to avoid pointless races.
+          if (!userChanged && event !== "SIGNED_IN") return;
           setTimeout(() => {
-            fetchProfile(session.user.id, forceRefresh);
+            fetchProfile(session.user.id);
           }, 0);
         } else {
-          profileFetchRef.current = null;
           setProfile(null);
         }
       }
@@ -92,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       previousUserIdRef.current = session?.user?.id ?? null;
+      currentUserIdRef.current = session?.user?.id ?? null;
 
       if (session?.user) {
         fetchProfile(session.user.id);
@@ -132,6 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Invalidate any in-flight profile fetch before clearing state.
+    fetchSeqRef.current++;
+    currentUserIdRef.current = null;
     setUser(null);
     setSession(null);
     setProfile(null);
