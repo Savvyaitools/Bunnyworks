@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Profile {
   id: string;
@@ -30,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const profileFetchRef = useRef<string | null>(null);
+  const queryClient = useQueryClient();
+  const previousUserIdRef = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string, force = false): Promise<Profile | null> => {
     // Deduplicate: skip if we're already fetching for this user (unless forced)
@@ -60,6 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
 
+        const newUserId = session?.user?.id ?? null;
+        // If the authenticated user changed (login as different user, or
+        // logout), wipe all react-query caches so the new user never sees
+        // data fetched for the previous user.
+        if (previousUserIdRef.current !== newUserId) {
+          queryClient.clear();
+          previousUserIdRef.current = newUserId;
+        }
+
         if (session?.user) {
           // Skip if getSession already handled this same user
           if (initialSessionHandled && event === "INITIAL_SESSION") return;
@@ -79,7 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       initialSessionHandled = true;
       setSession(session);
       setUser(session?.user ?? null);
-      
+      previousUserIdRef.current = session?.user?.id ?? null;
+
       if (session?.user) {
         fetchProfile(session.user.id);
       }
@@ -87,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, userType: "agency" | "creator" | "employee") => {
@@ -121,6 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    queryClient.clear();
+    previousUserIdRef.current = null;
   };
 
   // Compute userType from profile or fallback to auth metadata
