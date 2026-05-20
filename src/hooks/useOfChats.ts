@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface OfChatRow {
@@ -27,18 +27,28 @@ export function useOfChats(ofAccountId: string | null) {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const autoSyncedAccountRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     if (!ofAccountId) { setChats([]); return; }
     setLoading(true);
-    const { data } = await supabase
-      .from("of_chats")
-      .select("*")
-      .eq("of_account_id", ofAccountId)
-      .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(500);
-    setChats((data ?? []) as OfChatRow[]);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("of_chats")
+        .select("*")
+        .eq("of_account_id", ofAccountId)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(500);
+      if (error) throw error;
+      const rows = (data ?? []) as OfChatRow[];
+      setChats(rows);
+      return rows;
+    } catch (error: any) {
+      setSyncError(error?.message ?? "Unable to load chats");
+      return [];
+    } finally {
+      setLoading(false);
+    }
   }, [ofAccountId]);
 
   useEffect(() => { load(); }, [load]);
@@ -72,6 +82,12 @@ export function useOfChats(ofAccountId: string | null) {
       setSyncing(false);
     }
   }, [ofAccountId, load]);
+
+  useEffect(() => {
+    if (!ofAccountId || loading || syncing || chats.length > 0 || autoSyncedAccountRef.current === ofAccountId) return;
+    autoSyncedAccountRef.current = ofAccountId;
+    sync().catch(() => undefined);
+  }, [ofAccountId, loading, syncing, chats.length, sync]);
 
   return { chats, loading: loading || syncing, syncing, syncError, reload: load, sync };
 }
