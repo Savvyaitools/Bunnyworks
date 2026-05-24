@@ -7,8 +7,11 @@ const corsHeaders = {
 };
 
 /**
- * Body: { chat_id: string }  (uuid of of_chats row)
- * Pulls last messages for the chat from OnlyFansAPI and upserts into of_messages.
+ * Body: { chat_id: string, months?: number }  (uuid of of_chats row)
+ * Pulls messages for the chat from OnlyFansAPI back to `months` ago
+ * (default 6 months) by paginating with skip/limit, and upserts into
+ * of_messages. Hard caps: 60 pages × 100 = 6000 messages per chat per call
+ * to keep the function within edge timeout budgets.
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -27,7 +30,7 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
 
-    const { chat_id, limit = 50 } = await req.json();
+    const { chat_id, months = 6 } = await req.json();
     if (!chat_id) return json({ error: "chat_id required" }, 400);
 
     const { data: chat, error: chatErr } = await supabase
@@ -38,37 +41,64 @@ Deno.serve(async (req) => {
 
     if (chatErr || !chat) return json({ error: "Chat not found" }, 404);
 
-    const apiResp = await ofGet<{ data: any[] }>(
-      `/${chat.of_account_id}/chats/${chat.of_chat_id}/messages`,
-      { limit: Math.min(Number(limit) || 50, 100), skip_users: "none", order: "desc" },
-    );
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 60; // 6,000 messages safety cap
+    const monthsBack = Math.max(1, Math.min(Number(months) || 6, 24));
+    const cutoffMs = Date.now() - monthsBack * 30 * 24 * 60 * 60 * 1000;
 
-    const msgs = Array.isArray(apiResp?.data) ? apiResp.data : [];
-    const rows = msgs.map((m: any) => ({
-      agency_id: chat.agency_id,
-      chat_id: chat.id,
-      of_message_id: String(m.id),
-      direction: typeof m.isSentByMe === "boolean"
-        ? (m.isSentByMe ? "out" : "in")
-        : m.fromUser?.id && String(m.fromUser.id) === chat.of_fan_id ? "in" : "out",
-      body: stripHtml(m.text ?? m.message ?? ""),
-      price: Number(m.price ?? 0),
-      is_ppv: Boolean(m.price && Number(m.price) > 0),
-      is_unlocked: Boolean(m.isOpened ?? m.is_opened ?? false),
-      media: Array.isArray(m.media) ? m.media : [],
-      status: "sent",
-      created_at: m.createdAt ?? m.created_at ?? new Date().toISOString(),
-      read_at: m.isOpened ? (m.changedAt ?? null) : null,
-    }));
+    const allRows: any[] = [];
+    let pages = 0;
+    let reachedCutoff = false;
 
-    if (rows.length) {
-      const { error: upErr } = await supabase
-        .from("of_messages")
-        .upsert(rows, { onConflict: "chat_id,of_message_id" });
-      if (upErr) throw upErr;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const apiResp = await ofGet<{ data: any[] }>(
+        `/${chat.of_account_id}/chats/${chat.of_chat_id}/messages`,
+        { limit: PAGE_SIZE, skip: page * PAGE_SIZE, skip_users: "none", order: "desc" },
+      );
+      const msgs = Array.isArray(apiResp?.data) ? apiResp.data : [];
+      pages++;
+      if (msgs.length === 0) break;
+
+      for (const m of msgs) {
+        const createdAt = m.createdAt ?? m.created_at ?? new Date().toISOString();
+        if (new Date(createdAt).getTime() < cutoffMs) {
+          reachedCutoff = true;
+          continue; // skip — older than window
+        }
+        allRows.push({
+          agency_id: chat.agency_id,
+          chat_id: chat.id,
+          of_message_id: String(m.id),
+          direction: typeof m.isSentByMe === "boolean"
+            ? (m.isSentByMe ? "out" : "in")
+            : m.fromUser?.id && String(m.fromUser.id) === chat.of_fan_id ? "in" : "out",
+          body: stripHtml(m.text ?? m.message ?? ""),
+          price: Number(m.price ?? 0),
+          is_ppv: Boolean(m.price && Number(m.price) > 0),
+          is_unlocked: Boolean(m.isOpened ?? m.is_opened ?? false),
+          media: Array.isArray(m.media) ? m.media : [],
+          status: "sent",
+          created_at: createdAt,
+          read_at: m.isOpened ? (m.changedAt ?? null) : null,
+        });
+      }
+
+      // Stop if this page already crossed the cutoff or returned a short page.
+      if (reachedCutoff || msgs.length < PAGE_SIZE) break;
     }
 
-    return json({ ok: true, synced: rows.length });
+    // Upsert in chunks of 500 to stay friendly with PostgREST payload limits.
+    let synced = 0;
+    for (let i = 0; i < allRows.length; i += 500) {
+      const chunk = allRows.slice(i, i + 500);
+      const { error: upErr } = await supabase
+        .from("of_messages")
+        .upsert(chunk, { onConflict: "chat_id,of_message_id" });
+      if (upErr) throw upErr;
+      synced += chunk.length;
+    }
+
+    return json({ ok: true, synced, pages, months: monthsBack });
   } catch (err: any) {
     console.error("of-list-messages error", err);
     return json({ error: err.message ?? "Unknown error" }, 500);
