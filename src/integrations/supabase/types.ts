@@ -2181,7 +2181,6 @@ export type Database = {
           id: string
           instagram_url: string | null
           location: string | null
-          login_password: string | null
           manager_id: string | null
           name: string
           niche: string[] | null
@@ -2242,7 +2241,6 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           location?: string | null
-          login_password?: string | null
           manager_id?: string | null
           name: string
           niche?: string[] | null
@@ -2303,7 +2301,6 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           location?: string | null
-          login_password?: string | null
           manager_id?: string | null
           name?: string
           niche?: string[] | null
@@ -2894,7 +2891,6 @@ export type Database = {
           id: string
           id_document_url: string | null
           is_chatter: boolean | null
-          login_password: string | null
           name: string
           phone: string | null
           role: string
@@ -2927,7 +2923,6 @@ export type Database = {
           id?: string
           id_document_url?: string | null
           is_chatter?: boolean | null
-          login_password?: string | null
           name: string
           phone?: string | null
           role: string
@@ -2960,7 +2955,6 @@ export type Database = {
           id?: string
           id_document_url?: string | null
           is_chatter?: boolean | null
-          login_password?: string | null
           name?: string
           phone?: string | null
           role?: string
