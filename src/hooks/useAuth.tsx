@@ -61,6 +61,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(profileData);
       return profileData;
     }
+    // Session exists but no profile row — stale/orphaned token. Force a
+    // sign-out so the user can re-authenticate cleanly instead of being
+    // stuck on an "empty" dashboard with no agency_id.
+    console.warn("[useAuth] no profile for session user, signing out");
+    await supabase.auth.signOut();
+    currentUserIdRef.current = null;
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    queryClient.clear();
+    previousUserIdRef.current = null;
     return null;
   };
 
@@ -89,8 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (session?.user) {
-          // Skip if getSession already handled this same user
-          if (initialSessionHandled && event === "INITIAL_SESSION") return;
+          // The initial session is fetched + profile-loaded by the
+          // getSession() branch below — skip the duplicate fetch here so
+          // we don't race two profile requests for the same user on every
+          // page refresh (the loser was silently dropping the result).
+          if (event === "INITIAL_SESSION") return;
           // Only refetch profile when the user actually changed or on an
           // explicit sign-in. TOKEN_REFRESHED fires frequently and the
           // profile row hasn't changed — skip it to avoid pointless races.
@@ -105,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       initialSessionHandled = true;
       setSession(session);
       setUser(session?.user ?? null);
@@ -113,7 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       currentUserIdRef.current = session?.user?.id ?? null;
 
       if (session?.user) {
-        fetchProfile(session.user.id);
+        // Await profile BEFORE flipping loading=false so ProtectedRoute /
+        // data hooks never render with a session but no agency_id (which
+        // is what produces the "logged in, empty screen, looks like a
+        // different user" bug after refresh).
+        await fetchProfile(session.user.id);
       }
       setLoading(false);
     });
