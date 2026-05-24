@@ -31,7 +31,7 @@ export function useOfMessages(chatId: string | null) {
         .select("*")
         .eq("chat_id", chatId)
         .order("created_at", { ascending: true })
-        .limit(500);
+        .limit(5000);
       if (error) throw error;
       setMessages((data ?? []) as OfMessageRow[]);
     } finally {
@@ -60,7 +60,7 @@ export function useOfMessages(chatId: string | null) {
     setSyncError(null);
     try {
       const { error } = await supabase.functions.invoke("of-list-messages", {
-        body: { chat_id: chatId },
+        body: { chat_id: chatId, months: 6 },
       });
       if (error) throw error;
       await load();
