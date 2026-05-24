@@ -140,12 +140,15 @@ export function BunnyChatTopBar({
           <span className="text-[11px] font-medium text-foreground">AI Assist</span>
           <Switch checked={aiAssist} onCheckedChange={onAiAssistChange} className="scale-75" />
         </label>
-        <label className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/40 cursor-pointer hover:bg-muted/50 transition-colors">
-          <Zap className={cn("h-3.5 w-3.5", speedMode ? "text-amber-400" : "text-muted-foreground")} />
+        <label
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/20 border border-border/40 opacity-60 cursor-not-allowed"
+          title="Speed mode — coming soon"
+        >
+          <Zap className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-[11px] font-medium text-foreground">Speed mode</span>
-          <Switch checked={speedMode} onCheckedChange={onSpeedModeChange} className="scale-75" />
+          <Switch checked={false} disabled className="scale-75 pointer-events-none" />
         </label>
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+        <Button variant="ghost" size="icon" className="h-8 w-8 relative" disabled title="Notifications — coming soon">
           <Bell className="h-4 w-4" />
           {totalUnread > 0 && (
             <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[hsl(var(--mp-accent))]" />

@@ -76,7 +76,7 @@ export function FanSidebar({ chat }: Props) {
       <div className="p-4 border-b border-border/40">
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tags</h4>
-          <Button variant="ghost" size="icon" className="h-6 w-6">
+          <Button variant="ghost" size="icon" className="h-6 w-6" disabled title="Add tag — coming soon">
             <Tag className="h-3 w-3" />
           </Button>
         </div>
@@ -94,18 +94,21 @@ export function FanSidebar({ chat }: Props) {
 
       <div className="p-4 border-b border-border/40 space-y-1.5">
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Quick actions</h4>
-        <FanAction icon={Star} label="Mark as VIP" />
-        <FanAction icon={Crown} label="Add to Top Fans" />
-        <FanAction icon={RefreshCw} label="Refresh from OF" />
-        <FanAction icon={ShieldOff} label="Restrict" tone="warn" />
-        <FanAction icon={Ban} label="Block" tone="danger" />
+        <FanAction icon={Star} label="Mark as VIP" comingSoon />
+        <FanAction icon={Crown} label="Add to Top Fans" comingSoon />
+        <FanAction icon={RefreshCw} label="Refresh from OF" comingSoon />
+        <FanAction icon={ShieldOff} label="Restrict" tone="warn" comingSoon />
+        <FanAction icon={Ban} label="Block" tone="danger" comingSoon />
       </div>
 
       <div className="p-4 flex-1 overflow-y-auto">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Internal notes</h4>
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          Internal notes <span className="ml-1 normal-case text-[10px] text-muted-foreground/70">(coming soon)</span>
+        </h4>
         <textarea
+          disabled
           placeholder="Add a private note about this fan..."
-          className="w-full min-h-[80px] text-xs bg-muted/30 border border-border/40 rounded-lg p-2 resize-none outline-none focus:border-primary/40"
+          className="w-full min-h-[80px] text-xs bg-muted/20 border border-border/40 rounded-lg p-2 resize-none outline-none opacity-60 cursor-not-allowed"
         />
       </div>
     </div>
@@ -130,11 +133,13 @@ function Stat({ label, value, highlight, tone }: { label: string; value: string;
   );
 }
 
-function FanAction({ icon: Icon, label, tone }: { icon: any; label: string; tone?: "warn" | "danger" }) {
+function FanAction({ icon: Icon, label, tone, comingSoon }: { icon: any; label: string; tone?: "warn" | "danger"; comingSoon?: boolean }) {
   return (
     <button
+      disabled={comingSoon}
+      title={comingSoon ? `${label} — coming soon` : label}
       className={cn(
-        "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-muted/40 transition-colors text-left",
+        "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-muted/40 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent",
         tone === "warn" && "text-amber-400",
         tone === "danger" && "text-destructive",
         !tone && "text-foreground",
@@ -142,6 +147,7 @@ function FanAction({ icon: Icon, label, tone }: { icon: any; label: string; tone
     >
       <Icon className="h-3.5 w-3.5" />
       {label}
+      {comingSoon && <span className="ml-auto text-[9px] uppercase tracking-wider text-muted-foreground">Soon</span>}
     </button>
   );
 }
