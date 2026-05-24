@@ -169,7 +169,7 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7">
+          <Button variant="ghost" size="icon" className="h-7 w-7" disabled title="More actions — coming soon">
             <MoreVertical className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -274,10 +274,10 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
         />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Vault">
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled title="Attach from Vault — coming soon">
               <Paperclip className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Emoji">
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled title="Emoji picker — coming soon">
               <Smile className="h-3.5 w-3.5" />
             </Button>
             <Button
@@ -289,7 +289,7 @@ export function Conversation({ chat, ofAccountId, creatorName }: Props) {
             >
               <Lock className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Schedule">
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled title="Schedule send — coming soon">
               <Clock className="h-3.5 w-3.5" />
             </Button>
             <Button
