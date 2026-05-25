@@ -77,10 +77,8 @@ const collapsibleSections = [
     ],
   },
   {
-    label: "Growth",
+    label: "Onboarding",
     items: [
-      { title: "Recruiting", url: "/recruiting", icon: UserPlus },
-      { title: "Outreach Lead Gen", url: "/tools/creator-discovery", icon: Search },
       { title: "Applications", url: "/applications", icon: ClipboardList },
     ],
   },
