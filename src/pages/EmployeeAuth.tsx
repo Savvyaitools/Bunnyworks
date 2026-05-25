@@ -9,7 +9,6 @@ import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/bunnyworks-logo.png";
 import { z } from "zod";
-import { TelegramLoginButton } from "@/components/auth/TelegramLoginButton";
 
 // Validation schemas
 const emailSchema = z.string().trim().email("Please enter a valid email address").max(255, "Email is too long");
@@ -132,20 +131,6 @@ export default function EmployeeAuth() {
           <p className="text-muted-foreground mt-2">
             Sign in to your Creator or Team dashboard
           </p>
-        </div>
-
-        {/* Telegram Login */}
-        <div className="space-y-3">
-          <TelegramLoginButton botName="bunnyworksloginbot" />
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
         </div>
 
         {/* Auth Form */}
