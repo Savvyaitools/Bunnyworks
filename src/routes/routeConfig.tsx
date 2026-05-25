@@ -26,7 +26,6 @@ const SOPLibrary = lazy(() => import("@/pages/SOPLibrary"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const Settings = lazy(() => import("@/pages/Settings"));
-const Recruiting = lazy(() => import("@/pages/Recruiting"));
 const Chatters = lazy(() => import("@/pages/Chatters"));
 const ShiftRoster = lazy(() => import("@/pages/ShiftRoster"));
 const InternalMessages = lazy(() => import("@/pages/InternalMessages"));
@@ -53,9 +52,6 @@ const EmployeeShifts = lazy(() => import("@/pages/employee/EmployeeShifts"));
 const EmployeeTimeLogs = lazy(() => import("@/pages/employee/EmployeeTimeLogs"));
 const EmployeePerformancePage = lazy(() => import("@/pages/employee/EmployeePerformance"));
 const EmployeeCreatorHub = lazy(() => import("@/pages/employee/EmployeeCreatorHub"));
-
-// Tool pages
-const CreatorDiscovery = lazy(() => import("@/pages/tools/CreatorDiscovery"));
 
 // Coach pages
 const SocialMediaManager = lazy(() => import("@/pages/coach/SocialMediaManager"));
@@ -120,11 +116,9 @@ export const agencyRoutes: RouteConfig[] = [
   { path: "/invoices", element: <Invoices />, auth: ["agency"] },
   { path: "/notifications", element: <Notifications />, auth: ["agency"] },
   { path: "/settings", element: <Settings />, auth: ["agency"] },
-  { path: "/recruiting", element: <Recruiting />, auth: ["agency"] },
   { path: "/team-chat", element: <InternalMessages />, auth: ["agency"] },
   { path: "/shifts", element: <ShiftRoster />, auth: ["agency"] },
   { path: "/applications", element: <Applications />, auth: ["agency"] },
-  { path: "/tools/creator-discovery", element: <CreatorDiscovery />, auth: ["agency"] },
   { path: "/guide", element: <UserGuide />, auth: ["agency"] },
   { path: "/of-ai/social-media", element: <SocialMediaManager />, auth: ["agency"] },
   { path: "/of-ai/chatter", element: <AIChatterPage />, auth: ["agency"] },
@@ -175,6 +169,8 @@ export const redirectRoutes: { from: string; to: string }[] = [
   { from: "/employee/onlyfans", to: "/employee/browser" },
   { from: "/employee/messages", to: "/employee/team-chat" },
   { from: "/employee/creator-messages", to: "/employee/browser" },
+  { from: "/recruiting", to: "/applications" },
+  { from: "/tools/creator-discovery", to: "/applications" },
 ];
 
 /** All route configs combined */
