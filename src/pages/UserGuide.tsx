@@ -181,27 +181,9 @@ const guideData = [
     ]
   },
   {
-    category: "Recruiting",
+    category: "Onboarding",
     icon: UserPlus,
     items: [
-      {
-        title: "Track Recruiting Pipeline",
-        steps: [
-          "Go to Recruiting page",
-          "Add new leads with 'Add Lead' button",
-          "Move through stages: Lead → Contacted → Negotiating → Signed",
-          "Convert signed leads to active creators"
-        ]
-      },
-      {
-        title: "Use OF Discovery",
-        steps: [
-          "Navigate to OF Discovery",
-          "Search for creators by username or criteria",
-          "Add promising creators to your pipeline",
-          "Track outreach progress"
-        ]
-      },
       {
         title: "Review Applications",
         steps: [
