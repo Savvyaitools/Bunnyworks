@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Eye, EyeOff, Mail, Lock, Send, Instagram } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff, Lock, Instagram } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/bunnyworks-logo.png";
 import { z } from "zod";
-import { TelegramLoginButton } from "@/components/auth/TelegramLoginButton";
 
 type AuthMode = "signin";
 
@@ -134,20 +133,6 @@ export default function Auth() {
           <p className="text-muted-foreground mt-2">Welcome back</p>
         </div>
 
-        {/* Telegram Login */}
-        <div className="space-y-3">
-          <TelegramLoginButton botName="bunnyworksloginbot" />
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
-        </div>
-
         {/* Auth Form */}
         <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
           <div className="space-y-2">
@@ -214,18 +199,9 @@ export default function Auth() {
               <span className="uppercase tracking-wider text-sm">Invitation Only</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              BunnyWorks OS is invitation only. To request access, join our Telegram group and DM us on Instagram for approval.
+              BunnyWorks OS is invitation only. To request access, DM us on Instagram for approval.
             </p>
             <div className="flex flex-col gap-2 pt-1">
-              <a
-                href="https://web.telegram.org/k/#@BunnyWorksOFM"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 text-sm font-medium bg-muted/50 border border-border rounded-lg px-4 py-2.5 hover:border-primary/50 hover:bg-muted transition-all"
-              >
-                <Send className="h-4 w-4 text-primary" />
-                Join BunnyWorks Telegram Group
-              </a>
               <a
                 href="https://instagram.com/pbf_ofm"
                 target="_blank"
