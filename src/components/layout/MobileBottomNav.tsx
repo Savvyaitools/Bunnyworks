@@ -10,8 +10,6 @@ import {
   Calendar,
   FileText,
   CalendarClock,
-  UserPlus,
-  Search,
   Globe,
   ClipboardList,
   BookOpen,
