@@ -19,12 +19,10 @@ import {
   MessageSquare,
   Bell,
   Settings,
-  UserPlus,
   CalendarClock,
   
   ClipboardList,
   Globe,
-  Search,
   HelpCircle,
   Bot,
   BrainCircuit,
