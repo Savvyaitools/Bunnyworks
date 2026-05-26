@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface OfMessageRow {
@@ -21,6 +21,7 @@ export function useOfMessages(chatId: string | null) {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const lastAutoSyncRef = useRef<Record<string, number>>({});
 
   const load = useCallback(async () => {
     if (!chatId) { setMessages([]); return; }
@@ -54,13 +55,13 @@ export function useOfMessages(chatId: string | null) {
     return () => { supabase.removeChannel(channel); };
   }, [chatId, load]);
 
-  const sync = useCallback(async () => {
+  const sync = useCallback(async (opts?: { force?: boolean; months?: number }) => {
     if (!chatId) return;
     setSyncing(true);
     setSyncError(null);
     try {
       const { error } = await supabase.functions.invoke("of-list-messages", {
-        body: { chat_id: chatId, months: 6 },
+        body: { chat_id: chatId, months: opts?.months ?? 6, force: opts?.force ?? false },
       });
       if (error) throw error;
       await load();
@@ -76,6 +77,10 @@ export function useOfMessages(chatId: string | null) {
 
   useEffect(() => {
     if (!chatId) return;
+    // Throttle auto-sync per chat: at most once every 2 minutes per session.
+    const last = lastAutoSyncRef.current[chatId] ?? 0;
+    if (Date.now() - last < 2 * 60 * 1000) return;
+    lastAutoSyncRef.current[chatId] = Date.now();
     sync().catch(() => undefined);
   }, [chatId, sync]);
 
