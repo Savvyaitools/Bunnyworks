@@ -112,7 +112,7 @@ const agents: AgentCardProps[] = [
     name: "Naked Savvy", role: "Image Creation & Editing",
     description: "Generate and edit images using AI. Create stunning visuals, edit existing images, and produce content-ready media.",
     icon: ImageIcon, features: ["AI image generation", "Image editing & enhancement", "Multiple style options", "Quick content creation"],
-    color: "warning", href: "/of-ai/image-generator", badge: "Creative",
+    color: "warning", href: "/of-ai/image-generator", badge: "Coming Soon",
   },
   {
     name: "Only Voice", role: "AI Voice Generator",
@@ -124,7 +124,7 @@ const agents: AgentCardProps[] = [
     name: "ComfyUI", role: "Advanced Workflow Editor",
     description: "Node-based AI workflow editor for complex image and video generation pipelines. Build custom AI workflows with full control.",
     icon: Workflow, features: ["Node-based workflow editor", "Custom AI pipelines", "Image & video generation", "Advanced model chaining"],
-    color: "accent", href: "/of-ai/comfyui", badge: "Advanced",
+    color: "accent", href: "/of-ai/comfyui", badge: "Coming Soon",
   },
   {
     name: "Agency Framework", role: "File & Automation Hub",
