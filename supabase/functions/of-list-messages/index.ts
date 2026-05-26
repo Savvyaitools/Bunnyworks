@@ -30,19 +30,44 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
 
-    const { chat_id, months = 6 } = await req.json();
+    const { chat_id, months = 6, force = false, mode } = await req.json();
     if (!chat_id) return json({ error: "chat_id required" }, 400);
 
     const { data: chat, error: chatErr } = await supabase
       .from("of_chats")
-      .select("id, agency_id, of_account_id, of_chat_id, of_fan_id")
+      .select("id, agency_id, of_account_id, of_chat_id, of_fan_id, synced_at")
       .eq("id", chat_id)
       .maybeSingle();
 
     if (chatErr || !chat) return json({ error: "Chat not found" }, 404);
 
+    // Skip noisy resyncs: if synced in the last 2 minutes and not forced, no-op.
+    if (!force) {
+      const lastSync = chat.synced_at ? new Date(chat.synced_at).getTime() : 0;
+      if (Date.now() - lastSync < 2 * 60 * 1000) {
+        return json({ ok: true, synced: 0, skipped: true, reason: "fresh" });
+      }
+    }
+
+    // Incremental mode: only pull new messages since the latest stored one.
+    // Full mode: 6-month backfill (default for first sync / explicit force).
+    const isFirstSync = !chat.synced_at;
+    const effectiveMode = mode ?? (isFirstSync || force ? "full" : "incremental");
+
+    let knownNewestMs = 0;
+    if (effectiveMode === "incremental") {
+      const { data: newest } = await supabase
+        .from("of_messages")
+        .select("created_at")
+        .eq("chat_id", chat.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      knownNewestMs = newest?.created_at ? new Date(newest.created_at).getTime() : 0;
+    }
+
     const PAGE_SIZE = 100;
-    const MAX_PAGES = 60; // 6,000 messages safety cap
+    const MAX_PAGES = effectiveMode === "incremental" ? 5 : 60; // 6,000 msg cap on full sync
     const monthsBack = Math.max(1, Math.min(Number(months) || 6, 24));
     const cutoffMs = Date.now() - monthsBack * 30 * 24 * 60 * 60 * 1000;
 
@@ -61,9 +86,14 @@ Deno.serve(async (req) => {
 
       for (const m of msgs) {
         const createdAt = m.createdAt ?? m.created_at ?? new Date().toISOString();
-        if (new Date(createdAt).getTime() < cutoffMs) {
+        const createdMs = new Date(createdAt).getTime();
+        if (createdMs < cutoffMs) {
           reachedCutoff = true;
           continue; // skip — older than window
+        }
+        if (effectiveMode === "incremental" && createdMs <= knownNewestMs) {
+          reachedCutoff = true;
+          continue; // already have it
         }
         allRows.push({
           agency_id: chat.agency_id,
@@ -98,7 +128,13 @@ Deno.serve(async (req) => {
       synced += chunk.length;
     }
 
-    return json({ ok: true, synced, pages, months: monthsBack });
+    // Stamp synced_at so subsequent opens skip / go incremental.
+    await supabase
+      .from("of_chats")
+      .update({ synced_at: new Date().toISOString() })
+      .eq("id", chat.id);
+
+    return json({ ok: true, synced, pages, months: monthsBack, mode: effectiveMode });
   } catch (err: any) {
     console.error("of-list-messages error", err);
     return json({ error: err.message ?? "Unknown error" }, 500);
